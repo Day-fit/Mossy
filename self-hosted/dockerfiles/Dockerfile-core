@@ -1,0 +1,24 @@
+FROM amazoncorretto:21-alpine3.22-jdk AS build
+COPY ../mossy-core /app/
+WORKDIR /app
+
+RUN --mount=type=secret,id=gh_name \
+    --mount=type=secret,id=github_token \
+    sh -c 'echo \
+"<settings>" \
+"  <servers>" \
+"    <server>" \
+"      <id>github</id>" \
+"      <username>$(cat /run/secrets/gh_name)</username>" \
+"      <password>$(cat /run/secrets/github_token)</password>" \
+"    </server>" \
+"  </servers>" \
+"</settings>" > /tmp/settings.xml'
+
+RUN chmod +x ./mvnw && \
+    ./mwnw clean package -DskipTests -s /app/
+
+FROM amazoncorretto:21-al2023-headless
+COPY --from=build /app/target/mossy-core-*.jar /aurora/mossy-core.jar
+CMD ["java", "-jar", "/app/mossy-core.jar"]
+EXPOSE 6797
