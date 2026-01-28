@@ -10,10 +10,18 @@ services:
       - 'postgres'
     ports:
       - '6797:6797'
+    environment:
+      - 'SPRING_PROFILES_ACTIVE=prod'
+      - 'DB_NAME=mossy_vault'
+      - 'DB_USER=${DB_USER}'
+      - 'DB_PASSWORD=${DB_PASSWORD}'
+    profiles:
+      - !dev
+
   postgres:
     image: 'postgres:18.1-alpine'
     environment:
-      - 'POSTGRES_DB=${DB_NAME}'
+      - 'POSTGRES_DB=mossy_vault'
       - 'POSTGRES_PASSWORD=${DB_PASSWORD}'
       - 'POSTGRES_USER=${DB_USER}'
     volumes:

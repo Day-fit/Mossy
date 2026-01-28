@@ -4,8 +4,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class MossyCoreApplication
+class MossyVaultApplication
 
 fun main(args: Array<String>) {
-    runApplication<MossyCoreApplication>(*args)
+    runApplication<MossyVaultApplication>(*args)
 }
