@@ -15,6 +15,7 @@ services:
       - 'DB_NAME=mossy_vault'
       - 'DB_USER=${DB_USER}'
       - 'DB_PASSWORD=${DB_PASSWORD}'
+      - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
     profiles:
       - !dev
 

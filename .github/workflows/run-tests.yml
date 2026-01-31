@@ -1,0 +1,58 @@
+name: run-tests.yml
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  find-changed-services:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.matrix.outputs.services }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changes
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
+          echo "changed_files=$CHANGED_FILES" >> $GITHUB_OUTPUT
+
+      - name: Determine changed mossy services
+        id: services
+        run: |
+          CHANGED_SERVICES=$(echo "${{ steps.changes.outputs.changed_files }}" \
+            | grep -oE '(services|self-hosted)/mossy-[^/]+' \
+            | sort -u)
+          CHANGED_SERVICES_JSON=$(echo "$CHANGED_SERVICES" | jq -R -s -c 'split("\n")[:-1]')
+          echo "changed_services=$CHANGED_SERVICES_JSON" >> $GITHUB_OUTPUT
+
+      - name: Set matrix
+        id: matrix
+        run: |
+          echo "services=${{ steps.services.outputs.changed_services }}" >> $GITHUB_OUTPUT
+
+  test:
+    needs: find-changed-services
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.find-changed-services.outputs.services) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run Maven tests
+        run: |
+          echo "Running tests in ${{ matrix.service }}"
+          cd ${{ matrix.service }}
+          mvn clean test

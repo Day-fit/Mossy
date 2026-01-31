@@ -7,7 +7,8 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="mossy-vault" />
-        <module name="mossycore" />
+        <module name="mossy-password" />
+        <module name="mossy-device" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
@@ -16,8 +17,9 @@
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="mossy-device" options="-parameters" />
+      <module name="mossy-password" options="-parameters" />
       <module name="mossy-vault" options="-parameters" />
-      <module name="mossycore" options="-parameters" />
     </option>
   </component>
 </project>
