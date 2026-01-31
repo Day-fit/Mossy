@@ -6,6 +6,8 @@
       <list>
         <option value="$PROJECT_DIR$/mossy-core/pom.xml" />
         <option value="$PROJECT_DIR$/self-hosted/mossy-core/pom.xml" />
+        <option value="$PROJECT_DIR$/self-hosted/mossy-vault/pom.xml" />
+        <option value="$PROJECT_DIR$/mossycore/pom.xml" />
       </list>
     </option>
   </component>

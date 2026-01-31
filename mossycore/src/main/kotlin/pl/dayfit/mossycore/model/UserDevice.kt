@@ -4,14 +4,15 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
+import java.time.Instant
 import java.util.UUID
 
 @Entity
-data class WebsitePassword (
+data class UserDevice(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    var id: UUID?,
-    var identifier: String, //Email or username
-    var passwordHash: String,
-    var domain: String
+    val deviceId: UUID?,
+    val userId: UUID,
+    val publicKey: ByteArray,
+    val lastUsed: Instant?
 )
