@@ -4,63 +4,73 @@ on:
     branches: [ main ]
 
 jobs:
-  find-changed-services:
+  detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.get.outputs.services }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      changed: ${{ steps.set-matrix.outputs.changed }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get changed mossy services
-        id: get
+      - name: Collect changed mossy services
+        id: set-matrix
+        shell: bash
         run: |
           set -euo pipefail
 
-          # lista zmienionych plików (bez błędu, jeśli git diff nic nie zwróci)
-          CHANGED="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" || true)"
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
 
-          SERVICES="$(printf "%s\n" "$CHANGED" | grep -oE '(services|self-hosted)/mossy-[^/]+' | sort -u)"
+          echo "Diffing: $BASE_SHA..$HEAD_SHA"
 
-          if [ -z "$(echo "$SERVICES" | tr -d '\n')" ]; then
-            echo "services=[]" >> $GITHUB_OUTPUT
+          files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
+
+          # np: self-hosted/mossy-vault/src/A.java -> ./self-hosted/mossy-vault
+          services=$(echo "$files" \
+            | sed -E 's#^(([^/]+/)*)?(mossy-[^/]+).*#./\1\3#' \
+            | grep -E '^\./([^/]+/)*mossy-[^/]+$' \
+            | sort -u || true)
+
+          if [[ -z "${services:-}" ]]; then
+            echo "No mossy-* service changes detected."
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          arr=()
-          while IFS= read -r s; do
-            [ -z "$s" ] && continue
-            esc=$(printf '%s' "$s" | sed 's/\\/\\\\/g; s/"/\\"/g')
-            arr+=("\"$esc\"")
-          done <<< "$SERVICES"
+          echo "Changed services:"
+          echo "$services"
 
-          echo "services=[$(IFS=,; echo "${arr[*]}")]" >> $GITHUB_OUTPUT
+          json=$(echo "$services" | jq -R -s -c '
+            split("\n")
+            | map(select(length>0))
+            | {include: map({service: .})}
+          ')
 
-  test:
-    needs: find-changed-services
-    if: ${{ needs.find-changed-services.outputs.services != '[]' }}
+          echo "matrix=$json" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+  mvn-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.changed == 'true'
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        service: ${{ fromJson(needs.find-changed-services.outputs.services) }}
       fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+        uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v3
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
           cache: maven
 
-      - name: Run Maven tests
-        run: |
-          echo "Running tests in ${{ matrix.service }}"
-          cd "${{ matrix.service }}"
-          mvn -B clean test
+      - name: Run tests
+        working-directory: ${{ matrix.service }}
+        run: mvn -B -ntp test
