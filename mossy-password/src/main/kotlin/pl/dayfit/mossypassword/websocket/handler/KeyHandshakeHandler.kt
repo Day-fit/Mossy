@@ -8,27 +8,27 @@ import org.springframework.web.socket.WebSocketSession
 
 @Component
 class KeyHandshakeHandler : WebSocketHandler {
-    override fun afterConnectionEstablished(session: WebSocketSession?) {
+    override fun afterConnectionEstablished(session: WebSocketSession) {
         TODO("Not yet implemented")
     }
 
     override fun handleMessage(
-        session: WebSocketSession?,
-        message: WebSocketMessage<*>?
+        session: WebSocketSession,
+        message: WebSocketMessage<*>
     ) {
         TODO("Not yet implemented")
     }
 
     override fun handleTransportError(
-        session: WebSocketSession?,
-        exception: Throwable?
+        session: WebSocketSession,
+        exception: Throwable
     ) {
         TODO("Not yet implemented")
     }
 
     override fun afterConnectionClosed(
-        session: WebSocketSession?,
-        closeStatus: CloseStatus?
+        session: WebSocketSession,
+        closeStatus: CloseStatus
     ) {
         TODO("Not yet implemented")
     }

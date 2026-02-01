@@ -16,7 +16,7 @@ class SavePasswordHandler(
 ) : StompFrameHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(SavePasswordHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders?): Type? {
+    override fun getPayloadType(headers: StompHeaders): Type {
         return SavePasswordRequestDto::class.java
     }
 
@@ -30,7 +30,7 @@ class SavePasswordHandler(
      * @param payload the payload of the STOMP frame, expected to be of type `SavePasswordRequestDto`;
      *                can be null.
      */
-    override fun handleFrame(headers: StompHeaders?, payload: Any?) {
+    override fun handleFrame(headers: StompHeaders, payload: Any?) {
         val requestDto = payload as? SavePasswordRequestDto
 
         if (requestDto == null) {

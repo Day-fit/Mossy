@@ -13,11 +13,11 @@ class DeletePasswordHandler(
 ) : StompFrameHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(DeletePasswordHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders?): Type {
+    override fun getPayloadType(headers: StompHeaders): Type {
         return DeletePasswordRequestDto::class.java
     }
 
-    override fun handleFrame(headers: StompHeaders?, payload: Any?) {
+    override fun handleFrame(headers: StompHeaders, payload: Any?) {
         val requestDto = payload as? DeletePasswordRequestDto
 
         if (requestDto == null) {
