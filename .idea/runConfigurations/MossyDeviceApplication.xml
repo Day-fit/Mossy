@@ -1,6 +1,9 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="MossyDeviceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
     <option name="ACTIVE_PROFILES" value="dev" />
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env" />
+    </option>
     <module name="mossy-device" />
     <selectedOptions>
       <option name="environmentVariables" />

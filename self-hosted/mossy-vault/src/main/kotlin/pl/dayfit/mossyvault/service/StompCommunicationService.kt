@@ -15,7 +15,7 @@ class StompCommunicationService(
     @PostConstruct
     fun init() {
         stompClient.connectAsync(
-            "${stompConfigurationProperties.host}/ws/vault-communication",
+            "${stompConfigurationProperties.host}/api/v1/ws/vault-communication",
             vaultStompSessionHandler
         )
     }

@@ -1,6 +1,6 @@
 services:
   mossy:
-    image: 'ghcr.io/day-fit/mossy-core:latest'
+    image: 'ghcr.io/day-fit/mossy-vault:latest'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6797/actuator/health"]
       retries: 3
@@ -22,12 +22,12 @@ services:
   postgres:
     image: 'postgres:18.1-alpine'
     environment:
-      - 'POSTGRES_DB=mossy_vault'
+      - 'POSTGRES_DB=mossy_app'
       - 'POSTGRES_PASSWORD=${DB_PASSWORD}'
       - 'POSTGRES_USER=${DB_USER}'
     volumes:
       - 'postgres:/var/lib/postgresql'
     ports:
-      - '5432:5432'
+      - '5433:5432'
 volumes:
   postgres:
