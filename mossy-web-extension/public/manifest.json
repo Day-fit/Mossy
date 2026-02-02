@@ -1,0 +1,21 @@
+{ 
+    "name": "Mossy Password Manager",
+    "version": "0.0.1",
+    "manifest_version": 3,
+    "description": "Secure open-source password manager with E2EE.",
+    "icons": {
+        "32": "icons/mossy_logo_32.png",
+        "48": "icons/mossy_logo_48.png",
+        "128": "icons/mossy_logo_128.png" 
+    },
+    "action": {
+        "default_popup": "index.html"
+    },
+    "permissions": [
+        "scripting"
+    ],
+    "host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ]
+}
