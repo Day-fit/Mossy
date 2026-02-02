@@ -6,7 +6,7 @@ function Header()
         <div className="flex justify-center-safe">
         <div className="flex items-center justify-around m-4">
             <img src="/icons/mossy_logo_128.png" alt="Mossy logo"/>
-            <p>Your Password Manager</p>
+            <h1>Your Password Manager</h1>
         </div>
         <Settings></Settings>
         </div>

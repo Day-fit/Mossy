@@ -3,7 +3,7 @@ import VaultPanel from './ui/VaultPanel'
 
 function App() {
   return (
-    <div className="w-xs h-svh-10 bg-gray-800">
+    <div className="w-sm h-svh-10 bg-gray-800 text-white">
       <Header></Header>
       <VaultPanel></VaultPanel>
     </div>
