@@ -4,4 +4,5 @@ import com.nimbusds.jose.jwk.JWKSet
 
 interface JwksProvider {
     fun getJwks(): JWKSet
+    fun refreshJwks(): JWKSet
 }

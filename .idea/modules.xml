@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Mossy.iml" filepath="$PROJECT_DIR$/.idea/Mossy.iml" />
+      <module fileurl="file://$PROJECT_DIR$/mossy-auth/mossy-auth.iml" filepath="$PROJECT_DIR$/mossy-auth/mossy-auth.iml" />
       <module fileurl="file://$PROJECT_DIR$/mossy-password/mossy-password.iml" filepath="$PROJECT_DIR$/mossy-password/mossy-password.iml" />
     </modules>
   </component>

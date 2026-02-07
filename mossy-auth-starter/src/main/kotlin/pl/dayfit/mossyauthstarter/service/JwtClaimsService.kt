@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauthstarter.service
 
+import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.Ed25519Verifier
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
@@ -21,13 +22,34 @@ class JwtClaimsService(
             .map { SimpleGrantedAuthority(it) }
     }
 
+    /**
+     * Extracts and validates the claims from a JWT token.
+     *
+     * @param token the JSON Web Token (JWT) as a String
+     * @return a validated set of claims contained within the provided JWT
+     * @throws BadCredentialsException if the JWT is invalid, expired, has an unsupported algorithm,
+     * or contains claims with an invalid issuer
+     */
     private fun getClaims(token: String): JWTClaimsSet
     {
         val signedJWT = SignedJWT.parse(token)
+
+        if (signedJWT.header.algorithm != JWSAlgorithm.Ed25519)
+        {
+            throw BadCredentialsException("Unsupported algorithm")
+        }
+
         val header = signedJWT.header
-        val publicKey = jwksProvider.getJwks()
+        var key = jwksProvider.getJwks()
             .getKeyByKeyId(header.keyID)
-            .toOctetKeyPair()
+
+        if (key == null) {
+            jwksProvider.refreshJwks()
+            key = jwksProvider.getJwks()
+                .getKeyByKeyId(header.keyID)
+        }
+
+        val publicKey = key.toOctetKeyPair()
 
         val verifier = Ed25519Verifier(publicKey)
 

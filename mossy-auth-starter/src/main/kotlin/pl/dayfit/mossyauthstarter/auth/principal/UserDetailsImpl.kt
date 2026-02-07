@@ -7,7 +7,7 @@ import java.util.UUID
 class UserDetailsImpl(
     private val username: String,
     private val password: String?,
-    private val userId: UUID,
+    val userId: UUID,
     private val grantedAuthorities: Collection<GrantedAuthority>
 ) : UserDetails {
     override fun getAuthorities(): Collection<GrantedAuthority> {
@@ -20,9 +20,5 @@ class UserDetailsImpl(
 
     override fun getUsername(): String {
         return username
-    }
-
-    fun getUserId(): UUID {
-        return userId
     }
 }

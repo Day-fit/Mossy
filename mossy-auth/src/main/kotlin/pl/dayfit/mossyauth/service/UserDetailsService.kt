@@ -23,7 +23,7 @@ class UserDetailsService(
      * @throws UsernameNotFoundException if no user is found for the given username or email
      */
     override fun loadUserByUsername(username: String): UserDetails {
-        val user = if(username.contains("@")) loadByUsername(username) else loadByEmail(username)
+        val user = if(username.contains("@").not()) loadByUsername(username) else loadByEmail(username)
 
         val authorities = user.authorities.map { SimpleGrantedAuthority(it) }
 
@@ -35,15 +35,15 @@ class UserDetailsService(
             )
     }
 
-    fun loadByUsername(username: String): UserModel
+    private fun loadByUsername(username: String): UserModel
     {
         return userRepository.findByUsername(username)
-            .orElseThrow { throw UsernameNotFoundException("User not found") }
+            .orElseThrow { throw UsernameNotFoundException("Username or password is incorrect") }
     }
 
-    fun loadByEmail(email: String): UserModel
+    private fun loadByEmail(email: String): UserModel
     {
-        return userRepository.findByUsername(email)
-            .orElseThrow { UsernameNotFoundException("User not found") }
+        return userRepository.findByEmail(email)
+            .orElseThrow { UsernameNotFoundException("Username or password is incorrect") }
     }
 }

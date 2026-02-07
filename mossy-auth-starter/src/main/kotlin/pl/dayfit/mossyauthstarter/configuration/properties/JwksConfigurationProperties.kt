@@ -4,6 +4,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Import
 import pl.dayfit.mossyauthstarter.configuration.JwksConfiguration
 import pl.dayfit.mossyauthstarter.jwks.StarterJwksProvider
+import java.time.Duration
 
 @Import(
     value = [
@@ -14,4 +15,5 @@ import pl.dayfit.mossyauthstarter.jwks.StarterJwksProvider
 @ConfigurationProperties("mossy.jwks")
 class JwksConfigurationProperties {
     lateinit var jwksProviderUri: String
+    var maxRefreshRate: Duration = Duration.ofSeconds(30)
 }
