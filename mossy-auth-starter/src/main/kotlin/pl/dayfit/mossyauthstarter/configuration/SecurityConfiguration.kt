@@ -3,6 +3,7 @@ package pl.dayfit.mossyauthstarter.configuration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.annotation.Order
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
@@ -18,6 +19,7 @@ class SecurityConfiguration {
     private val logger = org.slf4j.LoggerFactory.getLogger(SecurityConfiguration::class.java)
 
     @Bean
+    @Order(2)
     fun filterChain(
         http: HttpSecurity,
         securityConfigurationProperties: SecurityConfigurationProperties,
@@ -25,7 +27,11 @@ class SecurityConfiguration {
     ): SecurityFilterChain
     {
         return http
+            .securityMatchers {
+                it.requestMatchers("/**")
+            }
             .cors { it.configurationSource(corsConfigurationSource) }
+            .csrf { it.disable() }
             .authorizeHttpRequests {
                 it.requestMatchers(
                     *securityConfigurationProperties.publicRoutesPatterns.toTypedArray()
@@ -45,7 +51,7 @@ class SecurityConfiguration {
 
         if (allowedOrigins.isEmpty()) {
             logger.warn("Allowed origins list is empty, CORS allowed for all origins")
-            corsConfiguration.allowedOrigins = listOf("*")
+            corsConfiguration.allowedOriginPatterns = listOf("*")
         }
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()

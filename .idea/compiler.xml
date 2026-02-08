@@ -6,6 +6,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="mossy-jwks" />
         <module name="mossy-vault" />
         <module name="mossy-auth" />
         <module name="mossy-auth-starter" />
@@ -22,6 +23,7 @@
       <module name="mossy-auth" options="-parameters" />
       <module name="mossy-auth-starter" options="-parameters" />
       <module name="mossy-device" options="-parameters" />
+      <module name="mossy-jwks" options="-parameters" />
       <module name="mossy-password" options="-parameters" />
       <module name="mossy-vault" options="-parameters" />
     </option>

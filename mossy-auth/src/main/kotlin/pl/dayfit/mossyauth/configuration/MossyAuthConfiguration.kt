@@ -1,0 +1,11 @@
+package pl.dayfit.mossyauth.configuration
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.annotation.Configuration
+import org.springframework.scheduling.annotation.EnableScheduling
+import pl.dayfit.mossyauth.configuration.properties.MossyAuthConfigurationProperties
+
+@Configuration
+@EnableConfigurationProperties(MossyAuthConfigurationProperties::class)
+@EnableScheduling
+class MossyAuthConfiguration

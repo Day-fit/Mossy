@@ -67,6 +67,6 @@ class JwtClaimsService(
     private fun validateClaims(claimSet: JWTClaimsSet)
     {
         if (claimSet.expirationTime.before(java.util.Date())) throw BadCredentialsException("Token expired")
-        if (claimSet.issuer != "aurora-auth") throw BadCredentialsException("Invalid issuer")
+        if (claimSet.issuer != "mossy-auth") throw BadCredentialsException("Invalid issuer")
     }
 }

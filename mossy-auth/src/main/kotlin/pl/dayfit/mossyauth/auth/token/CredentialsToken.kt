@@ -2,10 +2,10 @@ package pl.dayfit.mossyauth.auth.token
 
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.core.GrantedAuthority
-import java.util.UUID
+import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 
 class CredentialsToken(
-    private val userId: UUID,
+    private val userDetailsImpl: UserDetailsImpl,
     grantedAuthorities: Collection<GrantedAuthority>
 ) : AbstractAuthenticationToken(grantedAuthorities) {
 
@@ -15,7 +15,7 @@ class CredentialsToken(
     }
 
     override fun getPrincipal(): Any {
-        return userId
+        return userDetailsImpl
     }
 
     override fun isAuthenticated(): Boolean {

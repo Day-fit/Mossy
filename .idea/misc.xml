@@ -12,6 +12,7 @@
         <option value="$PROJECT_DIR$/mossy-device/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-auth/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-auth-starter/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-jwks/pom.xml" />
       </list>
     </option>
   </component>

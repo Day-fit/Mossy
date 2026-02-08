@@ -27,7 +27,7 @@ class CredentialsAuthenticationProvider(
         }
 
         return CredentialsToken(
-            userDetails.userId,
+            userDetails,
             userDetails.authorities
         )
     }
