@@ -45,6 +45,11 @@
             <version>10.7</version>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>pl.dayfit</groupId>
+            <artifactId>mossy-jwks-events</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -65,6 +70,15 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test</artifactId>
             <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.amqp</groupId>
+            <artifactId>spring-rabbit-test</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

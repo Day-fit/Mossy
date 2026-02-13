@@ -50,7 +50,10 @@ class JwtGenerationService {
         units: TimeUnit = TimeUnit.MINUTES
     ): String
     {
+        val secret = secretKey.load() ?: throw IllegalStateException("Secret key is not initialized yet.")
+
         val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.Ed25519)
+            .keyID(secret.keyID)
             .build()
 
         val claimSet: JWTClaimsSet = JWTClaimsSet.Builder()
@@ -65,7 +68,7 @@ class JwtGenerationService {
             header, claimSet
         )
 
-        val signer = Ed25519Signer(secretKey.load())
+        val signer = Ed25519Signer(secret)
         signedJwt.sign(signer)
 
         return signedJwt.serialize()

@@ -15,4 +15,8 @@ class JwtAuthenticationToken(
     override fun getPrincipal(): UUID {
         return userId
     }
+
+    override fun isAuthenticated(): Boolean {
+        return true
+    }
 }

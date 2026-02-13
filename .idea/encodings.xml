@@ -5,6 +5,8 @@
     <file url="file://$PROJECT_DIR$/mossy-auth/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-core/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-device/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mossy-jwks-events/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mossy-jwks-events/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-jwks/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-password/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/self-hosted/mossy-vault/src/main/kotlin" charset="UTF-8" />

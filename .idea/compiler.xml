@@ -7,11 +7,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="mossy-jwks" />
+        <module name="mossy-auth-starter" />
+        <module name="mossy-device" />
         <module name="mossy-vault" />
         <module name="mossy-auth" />
-        <module name="mossy-auth-starter" />
         <module name="mossy-password" />
-        <module name="mossy-device" />
+        <module name="mossy-jwks-events" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>

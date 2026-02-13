@@ -1,13 +1,16 @@
 package pl.dayfit.mossyauthstarter.jwks
 
 import com.nimbusds.jose.jwk.JWKSet
+import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Component
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.client.getForEntity
 import pl.dayfit.mossyauthstarter.configuration.properties.JwksConfigurationProperties
+import pl.dayfit.mossyjwksevents.event.JwkSetUpdatedEvent
 import java.net.URI
+import java.time.Duration
 import java.time.Instant
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -61,6 +64,27 @@ class StarterJwksProvider(
         return newJwkSet
     }
 
+    @RabbitListener(queues = [$$$"${mossy.jwks.jwks-queue-name}"])
+    fun updateJwks(event: JwkSetUpdatedEvent)
+    {
+        val newSet = JWKSet.parse(event.jwkSetJsonObject())
+        val eventTimestamp = event.timestamp
+        val delay = Duration.between(eventTimestamp, Instant.now()).toMillis()
+        logger.info("Received JWKS update from RabbitMQ, updating local JWKS, delay {} ms", delay)
+        jwkSet.exchange(newSet)
+        lastRefreshTime.exchange(eventTimestamp)
+    }
+
+    /**
+     * Determines whether a refresh operation can be performed based on the configured maximum refresh rate.
+     * Used to avoid excessive refresh attempts within a short period of time.
+     *
+     * The method checks if the current time has exceeded the minimum time interval required between
+     * refresh attempts, which is calculated using the last refresh time and the maximum refresh rate
+     * specified in the configuration.
+     *
+     * @return true if a refresh operation can be performed; false otherwise
+     */
     private fun canRefresh(): Boolean
     {
         val lastRefresh = lastRefreshTime.load()

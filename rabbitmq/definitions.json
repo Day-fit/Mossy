@@ -1,0 +1,97 @@
+{
+  "users": [
+    {
+      "name": "admin",
+      "password_hash": "bwse9qUCBmmjyz8UkqMAo6gCsL4SHr2dD1GlBj1/LLSBmmjt",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "administrator"
+    },
+    {
+      "name": "mossyapp",
+      "password_hash": "mK9w+sFbbfg+aHTWf5VJ/OgyWoctRtXZ3rRlW+6d1wZ1mSfM",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": "application"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "mossyapp",
+      "vhost": "/",
+      "configure": "",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "admin",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "queues": [
+    {
+      "name": "jwks.queue.auth",
+      "vhost": "/",
+      "durable": true,
+      "type": "classic",
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    },
+    {
+      "name": "jwks.queue.device",
+      "vhost": "/",
+      "durable": true,
+      "type": "classic",
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    },
+    {
+      "name": "jwks.queue.password",
+      "vhost": "/",
+      "durable": true,
+      "type": "classic",
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "fanout.jwks.exchange",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "fanout.jwks.exchange",
+      "vhost": "/",
+      "destination": "jwks.queue.auth",
+      "destination_type": "queue"
+    },
+    {
+      "source": "fanout.jwks.exchange",
+      "vhost": "/",
+      "destination": "jwks.queue.device",
+      "destination_type": "queue"
+    },
+    {
+      "source": "fanout.jwks.exchange",
+      "vhost": "/",
+      "destination": "jwks.queue.password",
+      "destination_type": "queue"
+    }
+  ]
+}

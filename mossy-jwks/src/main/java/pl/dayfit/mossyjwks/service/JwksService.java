@@ -4,8 +4,10 @@ import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import pl.dayfit.mossyjwksevents.event.JwkSetUpdatedEvent;
 
 import java.text.ParseException;
 import java.time.Duration;
@@ -18,9 +20,12 @@ import java.util.stream.Stream;
 public class JwksService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final Logger logger = LoggerFactory.getLogger(JwksService.class);
+    private final RabbitTemplate rabbitTemplate;
+    private static final String JWKS_FANOUT_EXCHANGE = "fanout.jwks.exchange";
 
-    public JwksService(RedisTemplate<String, Object> redisTemplate) {
+    public JwksService(RedisTemplate<String, Object> redisTemplate, RabbitTemplate rabbitTemplate) {
         this.redisTemplate = redisTemplate;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
@@ -88,5 +93,18 @@ public class JwksService {
 
         redisTemplate.opsForSet()
                 .add("jwk:index", kid);
+
+        notifyRabbitMQ();
+    }
+
+    private void notifyRabbitMQ() {
+        rabbitTemplate.convertAndSend(
+                JWKS_FANOUT_EXCHANGE,
+                "",
+                new JwkSetUpdatedEvent(
+                        getCurrentJwkSet().toJSONObject(),
+                        Instant.now()
+                )
+        );
     }
 }

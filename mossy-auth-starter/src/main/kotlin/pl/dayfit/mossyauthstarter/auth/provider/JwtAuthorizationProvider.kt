@@ -16,7 +16,7 @@ class JwtAuthorizationProvider(
         val jwtTokenCandidate = authentication as JwtAuthenticationTokenCandidate
 
         val token = jwtTokenCandidate.credentials
-        val userId = jwtClaimsService.getId(token)
+        val userId = jwtClaimsService.getId(token) //Validated during `getClaims()` call
         val grantedAuthorities: Collection<GrantedAuthority> = jwtClaimsService.getRoles(token)
 
         return JwtAuthenticationToken(
@@ -26,9 +26,7 @@ class JwtAuthorizationProvider(
     }
 
     override fun supports(authentication: Class<*>): Boolean {
-        return authentication.javaClass
-            .isAssignableFrom(
-                JwtAuthenticationTokenCandidate::class.java
-            )
+        return JwtAuthenticationTokenCandidate::class.java
+            .isAssignableFrom(authentication)
     }
 }

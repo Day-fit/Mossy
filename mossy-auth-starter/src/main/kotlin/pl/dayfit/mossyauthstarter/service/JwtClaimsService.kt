@@ -44,9 +44,9 @@ class JwtClaimsService(
             .getKeyByKeyId(header.keyID)
 
         if (key == null) {
-            jwksProvider.refreshJwks()
-            key = jwksProvider.getJwks()
+            key = jwksProvider.refreshJwks()
                 .getKeyByKeyId(header.keyID)
+                ?: throw BadCredentialsException("No known key with ID ${header.keyID}")
         }
 
         val publicKey = key.toOctetKeyPair()
