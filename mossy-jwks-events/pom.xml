@@ -7,6 +7,13 @@
     <groupId>pl.dayfit</groupId>
     <artifactId>mossy-jwks-events</artifactId>
     <version>0.0.1-SNAPSHOT</version>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>Mossy JWKS and Auth common events</name>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>

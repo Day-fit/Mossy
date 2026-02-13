@@ -9,7 +9,7 @@ import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationTokenCandidate
 import pl.dayfit.mossyauthstarter.service.JwtClaimsService
 
 @Component
-class JwtAuthorizationProvider(
+class JwtAuthenticationProvider(
     private val jwtClaimsService: JwtClaimsService
 ) : AuthenticationProvider {
     override fun authenticate(authentication: Authentication): Authentication {

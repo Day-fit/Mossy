@@ -13,6 +13,13 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>mossy-auth-starter</name>
     <description>mossy-auth-starter</description>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>Mossy authentication starter</name>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
+        </repository>
+    </distributionManagement>
     <url/>
     <licenses>
         <license/>
@@ -102,10 +109,6 @@
         <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
         <testSourceDirectory>${project.basedir}/src/test/kotlin</testSourceDirectory>
         <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-             </plugin>
             <plugin>
                 <groupId>org.jetbrains.kotlin</groupId>
                 <artifactId>kotlin-maven-plugin</artifactId>

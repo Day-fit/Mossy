@@ -10,7 +10,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.web.cors.CorsConfigurationSource
-import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthorizationProvider
+import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
 
@@ -22,12 +22,12 @@ class SecurityConfiguration {
     fun securityFilterChain(
         http: HttpSecurity,
         bearerTokenFilter: BearerTokenFilter,
-        jwtAuthorizationProvider: JwtAuthorizationProvider,
+        jwtAuthenticationProvider: JwtAuthenticationProvider,
         corsConfigurationSource: CorsConfigurationSource
     ): SecurityFilterChain {
         return http
             .securityMatcher("/**")
-            .authenticationProvider(jwtAuthorizationProvider)
+            .authenticationProvider(jwtAuthenticationProvider)
             .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .formLogin { it.disable() }

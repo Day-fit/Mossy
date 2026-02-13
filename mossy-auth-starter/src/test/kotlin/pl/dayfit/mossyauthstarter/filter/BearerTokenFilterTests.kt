@@ -17,16 +17,16 @@ import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 import org.springframework.security.authentication.AuthenticationManager
-import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthorizationProvider
+import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
 import java.util.UUID
 import kotlin.test.Test
 
 @ExtendWith(MockitoExtension::class)
 class BearerTokenFilterTests {
-    private val jwtAuthorizationProvider: JwtAuthorizationProvider = mock()
+    private val jwtAuthenticationProvider: JwtAuthenticationProvider = mock()
     private val authenticationManager = AuthenticationManager { authentication ->
-        jwtAuthorizationProvider.authenticate(authentication)
+        jwtAuthenticationProvider.authenticate(authentication)
     }
     private val bearerTokenFilter = BearerTokenFilter(authenticationManager)
 
@@ -59,7 +59,7 @@ class BearerTokenFilterTests {
         whenever(request.getHeader("Authorization"))
             .thenReturn("Bearer ${jwtToken.serialize()}")
 
-        whenever { jwtAuthorizationProvider.authenticate(any()) }
+        whenever { jwtAuthenticationProvider.authenticate(any()) }
             .thenReturn(
                 JwtAuthenticationToken(UUID.randomUUID(), listOf()))
 
