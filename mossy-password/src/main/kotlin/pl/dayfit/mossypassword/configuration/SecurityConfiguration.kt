@@ -9,7 +9,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
@@ -18,6 +20,8 @@ import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
 @EnableWebSecurity
 @EnableConfigurationProperties(SecurityConfigurationProperties::class)
 class SecurityConfiguration {
+    private val logger = org.slf4j.LoggerFactory.getLogger(this::class.java)
+
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
@@ -37,6 +41,22 @@ class SecurityConfiguration {
             }
             .addFilterBefore(bearerTokenFilter, UsernamePasswordAuthenticationFilter::class.java)
             .build()
+    }
+
+    @Bean fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
+    {
+        val corsConfiguration = CorsConfiguration()
+        val allowedOrigins = securityConfigurationProperties.allowedOrigins
+        corsConfiguration.allowCredentials = true
+
+        if (allowedOrigins.isEmpty()) {
+            logger.warn("Allowed origins list is empty, CORS allowed for all origins")
+            corsConfiguration.allowedOriginPatterns = listOf("*")
+        }
+
+        val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
+        urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration)
+        return urlBasedCorsConfigurationSource
     }
 
     @Bean
