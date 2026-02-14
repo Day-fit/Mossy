@@ -11,6 +11,8 @@ class JwtManagementService(
 ) {
     fun revokeToken(jwtToken: String)
     {
+        if (jwtToken.isBlank()) return
+
         revokedJwtRepository.save(
             RevokedJwtModel(
                 token = jwtToken,

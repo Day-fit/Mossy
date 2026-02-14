@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.model
 
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -13,6 +14,7 @@ data class RevokedJwtModel(
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
 
+    @Column(length = 512)
     val token: String,
     val validUntil: Instant
 )

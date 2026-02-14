@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.authentication.AuthenticationManager
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration
+import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.web.SecurityFilterChain
@@ -25,18 +25,21 @@ class SecurityConfiguration {
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
+        securityConfigurationProperties: SecurityConfigurationProperties,
         bearerTokenFilter: BearerTokenFilter,
-        jwtAuthenticationProvider: JwtAuthenticationProvider,
+        authenticationManager: AuthenticationManager,
         corsConfigurationSource: CorsConfigurationSource
     ): SecurityFilterChain {
         return http
             .securityMatcher("/**")
-            .authenticationProvider(jwtAuthenticationProvider)
+            .authenticationManager(authenticationManager)
             .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
+            .logout { it.disable() }
             .authorizeHttpRequests {
+                it.requestMatchers(*securityConfigurationProperties.publicRoutesPatterns.toTypedArray()).permitAll()
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(bearerTokenFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -60,7 +63,10 @@ class SecurityConfiguration {
     }
 
     @Bean
-    fun authenticationManager(authenticationConfiguration: AuthenticationConfiguration): AuthenticationManager {
-        return authenticationConfiguration.authenticationManager
+    fun authenticationManager(http: HttpSecurity, jwtAuthenticationProvider: JwtAuthenticationProvider): AuthenticationManager {
+        val authBuilder = http.getSharedObject(AuthenticationManagerBuilder::class.java)
+        authBuilder.authenticationProvider(jwtAuthenticationProvider)
+
+        return authBuilder.build()
     }
 }

@@ -3,9 +3,11 @@ package pl.dayfit.mossyauth.controller.advice
 import org.springframework.core.annotation.Order
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
+import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 
 @Order(1)
@@ -23,7 +25,7 @@ class SecurityControllerAdvice {
             )
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(BadCredentialsException::class)
     fun handleBadCredentialsException(): ResponseEntity<GenericServerResponseDto> {
         logger.debug("Handled bad credentials")
 
@@ -33,7 +35,7 @@ class SecurityControllerAdvice {
             )
     }
 
-    @ExceptionHandler
+    @ExceptionHandler(SigningKeyNotInitializedException::class)
     fun handleSigningKeyUninitializedException(): ResponseEntity<GenericServerResponseDto> {
         logger.error("Signing key is not initialized")
 

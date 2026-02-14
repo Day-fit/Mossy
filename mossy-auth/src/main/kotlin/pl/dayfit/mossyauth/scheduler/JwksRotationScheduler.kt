@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
+import org.springframework.scheduling.TaskScheduler
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
@@ -15,6 +16,8 @@ import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.configuration.properties.MossyAuthConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauth.exception.JwksServiceUnreachableException
+import java.time.Duration
+import java.time.Instant
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -26,7 +29,8 @@ class JwksRotationScheduler(
     private val starterJwksTemplate: RestTemplate,
     private val mossyAuthConfigurationProperties: MossyAuthConfigurationProperties,
     private val applicationEventPublisher: ApplicationEventPublisher,
-    private val jwtConfigurationProperties: JwtConfigurationProperties
+    private val jwtConfigurationProperties: JwtConfigurationProperties,
+    private val taskScheduler: TaskScheduler
 ) {
     private val oneDayInMillis = 1000 * 60 * 60 * 24
 
@@ -61,7 +65,16 @@ class JwksRotationScheduler(
                 SecretRotatedEvent(octetKey)
             )
         }.onFailure {
+            scheduleRetry()
             throw JwksServiceUnreachableException("Failed to rotate JWKS: ${it.message}")
         }
+    }
+
+    private fun scheduleRetry()
+    {
+        taskScheduler.schedule(
+            this::rotateJwks,
+            Instant.now().plus(Duration.ofSeconds(30))
+        )
     }
 }

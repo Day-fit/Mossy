@@ -25,6 +25,7 @@ class SecurityConfiguration {
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
+        securityConfigurationProperties: SecurityConfigurationProperties,
         bearerTokenFilter: BearerTokenFilter,
         jwtAuthenticationProvider: JwtAuthenticationProvider,
         corsConfigurationSource: CorsConfigurationSource
@@ -37,6 +38,7 @@ class SecurityConfiguration {
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
             .authorizeHttpRequests {
+                it.requestMatchers(*securityConfigurationProperties.publicRoutesPatterns.toTypedArray()).permitAll()
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(bearerTokenFilter, UsernamePasswordAuthenticationFilter::class.java)
