@@ -10,7 +10,6 @@ import pl.dayfit.mossyauthstarter.service.JwtClaimsService
 @Import(
     value = [
         JwksConfiguration::class,
-        StarterJwksProvider::class,
         JwtClaimsService::class,
         StarterJwksProvider::class,
         BearerTokenFilter::class,
