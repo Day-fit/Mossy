@@ -44,6 +44,6 @@ class UserDetailsService(
     private fun loadByEmail(email: String): UserModel
     {
         return userRepository.findByEmail(email)
-            .orElseThrow { UsernameNotFoundException("Username or password is incorrect") }
+            .orElseThrow { throw UsernameNotFoundException("Username or password is incorrect") }
     }
 }
