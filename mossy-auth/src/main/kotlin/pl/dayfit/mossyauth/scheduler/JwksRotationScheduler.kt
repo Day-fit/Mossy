@@ -1,4 +1,4 @@
-package pl.dayfit.mossyauth.service
+package pl.dayfit.mossyauth.scheduler
 
 import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.jwk.JWK
@@ -11,28 +11,35 @@ import org.springframework.http.MediaType
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
+import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.configuration.properties.MossyAuthConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauth.exception.JwksServiceUnreachableException
-import java.util.*
+import java.util.Date
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
-
 @Service
 @OptIn(ExperimentalAtomicApi::class)
-class JwksRotationService(
+class JwksRotationScheduler(
     private val starterJwksTemplate: RestTemplate,
     private val mossyAuthConfigurationProperties: MossyAuthConfigurationProperties,
-    private val applicationEventPublisher: ApplicationEventPublisher
+    private val applicationEventPublisher: ApplicationEventPublisher,
+    private val jwtConfigurationProperties: JwtConfigurationProperties
 ) {
+    private val oneDayInMillis = 1000 * 60 * 60 * 24
+
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
     fun rotateJwks()
     {
+        val now = Date()
+        val refreshTokenLifetime = jwtConfigurationProperties.refreshTokenExpirationTime.toMillis()
+
         val octetKey: OctetKeyPair = OctetKeyPairGenerator(Curve.Ed25519)
             .keyID(UUID.randomUUID().toString())
-            .issueTime(Date())
-            .expirationTime(Date(Date().time + TimeUnit.DAYS.toMillis(1)))
+            .issueTime(now)
+            .expirationTime(Date(now.time + refreshTokenLifetime + oneDayInMillis))
             .generate()
 
         val jwk: JWK = octetKey.toPublicJWK()
