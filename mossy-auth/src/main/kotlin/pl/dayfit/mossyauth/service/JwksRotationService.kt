@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service
 import org.springframework.web.client.RestTemplate
 import pl.dayfit.mossyauth.configuration.properties.MossyAuthConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
+import pl.dayfit.mossyauth.exception.JwksServiceUnreachableException
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
@@ -42,14 +43,18 @@ class JwksRotationService(
         val entity = HttpEntity(jwk.toJSONString(), headers)
 
         //Synchronous call, RabbitMQ could lead to SPOF
-        starterJwksTemplate.put(
-            mossyAuthConfigurationProperties.jwkUploadUrl,
-            entity,
-        )
+        runCatching {
+            starterJwksTemplate.put(
+                mossyAuthConfigurationProperties.jwkUploadUrl,
+                entity,
+            )
 
-        //loose coupling
-        applicationEventPublisher.publishEvent(
-            SecretRotatedEvent(octetKey)
-        )
+            //loose coupling
+            applicationEventPublisher.publishEvent(
+                SecretRotatedEvent(octetKey)
+            )
+        }.onFailure {
+            throw JwksServiceUnreachableException("Failed to rotate JWKS: ${it.message}")
+        }
     }
 }

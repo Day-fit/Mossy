@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.dto.response.UserDetailsResponseDto
+import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.model.UserModel
+import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
@@ -16,6 +18,7 @@ import java.util.UUID
 @Service
 class UserService(
     private val userCacheService: UserCacheService,
+    private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
     private val daoAuthenticationProvider: DaoAuthenticationProvider
@@ -24,6 +27,14 @@ class UserService(
     {
         //Password cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
+
+        val email = requestDto.email
+        val username = requestDto.username
+
+        if (userRepository.existsByUsernameAndEmail(username, email))
+        {
+            throw UserAlreadyExistsException("User with given username or email already exists")
+        }
 
         val user = UserModel(
             username = requestDto.username,

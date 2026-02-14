@@ -9,6 +9,7 @@ import com.nimbusds.jwt.SignedJWT
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
+import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.util.Date
 import java.util.concurrent.TimeUnit
@@ -50,7 +51,8 @@ class JwtGenerationService {
         units: TimeUnit = TimeUnit.MINUTES
     ): String
     {
-        val secret = secretKey.load() ?: throw IllegalStateException("Secret key is not initialized yet.")
+        val secret = secretKey.load()
+            ?: throw SigningKeyNotInitializedException("Secret key is not initialized yet.")
 
         val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.Ed25519)
             .keyID(secret.keyID)
