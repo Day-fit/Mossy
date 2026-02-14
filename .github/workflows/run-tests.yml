@@ -70,7 +70,20 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Set up Maven settings
+        run: |
+          mkdir -p ~/.m2
+          echo \
+            "<settings>" \
+            "  <servers>" \
+            "    <server>" \
+            "      <id>github</id>" \
+            "      <username>${{ github.actor }}</username>" \
+            "      <password>${{ secrets.GITHUB_TOKEN }}</password>" \
+            "    </server>" \
+            "  </servers>" \
+            "</settings>" > /tmp/settings.xml
 
       - name: Run tests
         working-directory: ${{ matrix.service }}
-        run: mvn -B -ntp test
+        run: mvn -B -ntp test -s /tmp/settings.xml

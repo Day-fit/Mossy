@@ -49,5 +49,38 @@ services:
       - 'postgres:/var/lib/postgresql'
     ports:
       - '5432:5432'
+
+  redis:
+    image: 'redis:8.4.0-alpine3.22'
+    environment:
+      - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
+    ports:
+      - '6379:6379'
+
+  rabbitmq:
+    image: 'rabbitmq:4.2.3-management-alpine'
+    ports:
+      - '15672:15672'
+      - '5672:5672'
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - rabbitmq:/var/lib/rabbitmq
+    profiles:
+      - 'prod'
+
+  rabbitmq-dev:
+    image: 'rabbitmq:4.2.3-management-alpine'
+    ports:
+      - '15672:15672'
+      - '5672:5672'
+    volumes:
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions-dev.json:/etc/rabbitmq/definitions.json:ro
+      - rabbitmq_dev:/var/lib/rabbitmq
+    profiles:
+      - 'dev'
 volumes:
   postgres:
+  rabbitmq:
+  rabbitmq_dev:

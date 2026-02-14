@@ -10,6 +10,10 @@
         <option value="$PROJECT_DIR$/mossycore/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-password/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-device/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-auth/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-auth-starter/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-jwks/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-jwks-events/pom.xml" />
       </list>
     </option>
   </component>
