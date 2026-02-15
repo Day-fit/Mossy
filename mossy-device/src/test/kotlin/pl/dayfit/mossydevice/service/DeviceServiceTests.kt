@@ -1,5 +1,7 @@
 package pl.dayfit.mossydevice.service
 
+import com.nimbusds.jose.jwk.Curve
+import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.extension.ExtendWith
@@ -11,13 +13,13 @@ import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.model.UserDevice
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
+import java.security.SecureRandom
 import java.util.UUID
-import kotlin.io.encoding.Base64
 
 @ExtendWith(MockitoExtension::class)
 class DeviceServiceTests {
     private val repository: UserDeviceRepository = mock()
-    private val deviceService = DeviceService(repository)
+    private val deviceService = DeviceService(repository, SecureRandom())
 
     @Test
     fun `test register device when no device approved does not require approval`() {
@@ -28,15 +30,25 @@ class DeviceServiceTests {
             )
         ).thenReturn(false)
 
+        val userId = UUID.randomUUID()
         val deviceId = UUID.randomUUID()
+
+        val pkId = OctetKeyPairGenerator(Curve.Ed25519)
+            .generate()
+            .toPublicJWK()
+
+        val pkDH = OctetKeyPairGenerator(Curve.X25519)
+            .generate()
+            .toPublicJWK()
 
         whenever(
             repository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,
-                UUID.randomUUID(),
-                ByteArray(0),
+                userId,
+                pkDH,
+                pkId,
                 true,
                 null
             )
@@ -45,12 +57,13 @@ class DeviceServiceTests {
         val result: RegisterDeviceResponseDto = deviceService.registerDevice(
             UUID.randomUUID(),
             RegisterDeviceRequestDto(
-                Base64.encode(ByteArray(0))
+                pkDH.toJSONObject(),
+                pkId.toJSONObject()
             )
         )
 
         Assertions.assertTrue {
-            result.deviceId == deviceId && !result.requiredApproval
+            result.deviceId == deviceId && !result.requiresSync
         }
     }
 
@@ -64,28 +77,39 @@ class DeviceServiceTests {
         ).thenReturn(true)
 
         val deviceId = UUID.randomUUID()
+        val userId = UUID.randomUUID()
+
+        val pkId = OctetKeyPairGenerator(Curve.Ed25519)
+            .generate()
+            .toPublicJWK()
+
+        val pkDH = OctetKeyPairGenerator(Curve.X25519)
+            .generate()
+            .toPublicJWK()
 
         whenever(
             repository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,
-                UUID.randomUUID(),
-                ByteArray(0),
-                true,
+                userId,
+                pkDH,
+                pkId,
+                false,
                 null
             )
         )
 
         val result: RegisterDeviceResponseDto = deviceService.registerDevice(
-            UUID.randomUUID(),
+            userId,
             RegisterDeviceRequestDto(
-                Base64.encode(ByteArray(0))
+                pkDH.toJSONObject(),
+                pkId.toJSONObject()
             )
         )
 
         Assertions.assertTrue {
-            result.deviceId == deviceId && result.requiredApproval
+            result.deviceId == deviceId && result.requiresSync
         }
     }
 }

@@ -4,28 +4,29 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
-import pl.dayfit.mossydevice.dto.response.ServerResponseDto
+import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
 import pl.dayfit.mossydevice.service.DeviceService
-import java.security.Principal
 import java.util.UUID
 
-@RestController("/device")
+@RestController
+@RequestMapping("/device")
 class DeviceController(private val deviceService: DeviceService) {
     @PostMapping("/register")
     fun registerDevice(
-        @AuthenticationPrincipal principal: Principal,
+        @AuthenticationPrincipal principal: UUID,
         @RequestBody requestDto: RegisterDeviceRequestDto
-    ): ResponseEntity<ServerResponseDto>
+    ): ResponseEntity<GenericServerResponseDto>
     {
         deviceService.registerDevice(
-            UUID.fromString(principal.name),
+            principal,
             requestDto
         )
 
         return ResponseEntity.ok(
-            ServerResponseDto("Device registered successfully")
+            GenericServerResponseDto("Device registered successfully")
         )
     }
 }

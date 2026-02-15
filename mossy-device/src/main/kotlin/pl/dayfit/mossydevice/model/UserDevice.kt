@@ -1,5 +1,6 @@
 package pl.dayfit.mossydevice.model
 
+import com.nimbusds.jose.jwk.OctetKeyPair
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -13,7 +14,8 @@ data class UserDevice(
     @GeneratedValue(strategy = GenerationType.UUID)
     val deviceId: UUID?,
     val userId: UUID,
-    val publicKey: ByteArray,
+    val publicKeyDH: OctetKeyPair,
+    val publicKeyId: OctetKeyPair,
     val approved: Boolean,
     val lastUsed: Instant?
 )

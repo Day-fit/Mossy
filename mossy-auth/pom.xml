@@ -72,12 +72,6 @@
             <artifactId>mossy-auth-starter</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
-        <dependency>
-            <groupId>com.google.crypto.tink</groupId>
-            <artifactId>tink</artifactId>
-            <version>1.20.0</version>
-            <scope>compile</scope>
-        </dependency>
 
         <dependency>
             <groupId>org.postgresql</groupId>
