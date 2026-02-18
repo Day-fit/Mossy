@@ -8,4 +8,5 @@ import java.util.UUID
 @Repository
 interface UserDeviceRepository : JpaRepository<UserDevice, UUID> {
     fun existsUserDevicesByUserIdAndApproved(userId: UUID, approved: Boolean): Boolean
+    fun existsByDeviceIdAndUserId(deviceId: UUID, userId: UUID): Boolean
 }

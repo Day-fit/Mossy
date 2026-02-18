@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
@@ -89,6 +90,22 @@ class GlobalControllerAdvice {
             .body(
                 GenericServerResponseDto("Access denied")
             )
+    }
+
+    @ExceptionHandler(MissingRequestHeaderException::class)
+    fun handleMissingRequestHeaderException(exception: MissingRequestHeaderException): ResponseEntity<GenericServerResponseDto> {
+        logger.debug("Handled missing request header exception")
+
+        return ResponseEntity.badRequest()
+            .body(
+                GenericServerResponseDto(exception.message ?: "Missing request header")
+            )
+    }
+
+    @ExceptionHandler(NoSuchElementException::class)
+    fun handleNoSuchElementException(): ResponseEntity<Unit> {
+        return ResponseEntity.notFound()
+            .build()
     }
 
     @ExceptionHandler(Exception::class)

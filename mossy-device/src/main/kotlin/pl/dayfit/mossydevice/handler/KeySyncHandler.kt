@@ -5,21 +5,22 @@ import org.springframework.web.socket.CloseStatus
 import org.springframework.web.socket.WebSocketHandler
 import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
-import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
+import pl.dayfit.mossydevice.service.KeySyncService
 import pl.dayfit.mossydevice.service.WebSocketSessionService
+import java.util.UUID
 
 @Component
 class KeySyncHandler(
-    private val webSocketSessionService: WebSocketSessionService
+    private val webSocketSessionService: WebSocketSessionService,
+    private val keySyncService: KeySyncService
 ) : WebSocketHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(KeySyncHandler::class.java)
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
         logger.debug("New WebSocket session established: {}", session.id)
-        val sessionPrincipal = session.principal as? JwtAuthenticationToken
-            ?: throw IllegalStateException("Principal is not a JWT token")
 
-        webSocketSessionService.addSession(sessionPrincipal.principal, session)
+        keySyncService.handleDeviceJoinedSync(session.attributes["syncCode"] as String, session)
+        webSocketSessionService.addSession(session.attributes["deviceId"] as UUID, session)
     }
 
     override fun handleMessage(
@@ -41,10 +42,11 @@ class KeySyncHandler(
         closeStatus: CloseStatus
     ) {
         logger.debug("WebSocket session closed: {}", session.id)
-        val sessionPrincipal = session.principal as? JwtAuthenticationToken
-            ?: throw IllegalStateException("Principal is not a JWT token")
+        val deviceId = session.attributes["deviceId"] as UUID
+        val syncCode = session.attributes["syncCode"] as String
 
-        webSocketSessionService.removeSession(sessionPrincipal.principal)
+        keySyncService.handlePeerDisconnected(session)
+        webSocketSessionService.removeSession(deviceId)
     }
 
     override fun supportsPartialMessages(): Boolean {

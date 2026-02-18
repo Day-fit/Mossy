@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
-import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
+import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.service.DeviceService
 import java.util.UUID
 
@@ -18,15 +18,15 @@ class DeviceController(private val deviceService: DeviceService) {
     fun registerDevice(
         @AuthenticationPrincipal principal: UUID,
         @RequestBody requestDto: RegisterDeviceRequestDto
-    ): ResponseEntity<GenericServerResponseDto>
+    ): ResponseEntity<RegisterDeviceResponseDto>
     {
-        deviceService.registerDevice(
+        val response = deviceService.registerDevice(
             principal,
             requestDto
         )
 
         return ResponseEntity.ok(
-            GenericServerResponseDto("Device registered successfully")
+            response
         )
     }
 }

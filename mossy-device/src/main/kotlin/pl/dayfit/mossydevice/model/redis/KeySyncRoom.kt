@@ -15,15 +15,19 @@ import java.util.UUID
  * @property roomId The unique identifier for the synchronization room.
  * @property userId The unique identifier of the user associated with this synchronization room.
  * @property receiverId The unique identifier of the device that will receive the synchronization data.
- * @property senderId The unique identifier of the device that will send the synchronization data,
+ * @property receiverPresent A flag indicating if the receiver device is present in the synchronization process.
+ * @property senderPresent A flag indicating if the sender device is present
  * in the synchronization process. Either of the device IDs may be null if not applicable.
  */
 @RedisHash(timeToLive = 15 * 60)
 data class KeySyncRoom(
     @Id
-    val roomId: String,
+    var roomId: String,
+    val code: String,
     @Indexed
     val userId: UUID,
-    val receiverId: UUID?,
-    val senderId: UUID?
+    val receiverId: UUID,
+    var senderId: UUID? = null,
+    var receiverPresent: Boolean = false,
+    var senderPresent: Boolean = false
 )

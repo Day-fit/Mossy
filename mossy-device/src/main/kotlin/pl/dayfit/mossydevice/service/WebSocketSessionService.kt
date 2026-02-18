@@ -9,15 +9,15 @@ import java.util.concurrent.ConcurrentHashMap
 class WebSocketSessionService {
     private val sessions = ConcurrentHashMap<UUID, WebSocketSession>()
 
-    fun addSession(userId: UUID, session: WebSocketSession) {
-        sessions[userId] = session
+    fun addSession(deviceId: UUID, session: WebSocketSession) {
+        sessions[deviceId] = session
     }
 
-    fun getSession(userId: UUID): WebSocketSession? {
-        return sessions[userId]
+    fun getSession(deviceId: UUID): WebSocketSession? {
+        return sessions[deviceId]
     }
 
-    fun removeSession(userId: UUID) {
-        sessions.remove(userId)
+    fun removeSession(deviceId: UUID) {
+        sessions.remove(deviceId)
     }
 }
