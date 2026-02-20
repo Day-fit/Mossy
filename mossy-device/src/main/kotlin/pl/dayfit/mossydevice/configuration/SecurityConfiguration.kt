@@ -15,6 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
+import java.security.SecureRandom
 
 @Configuration
 @EnableWebSecurity
@@ -65,4 +66,7 @@ class SecurityConfiguration {
     fun authenticationManager(authenticationConfiguration: AuthenticationConfiguration): AuthenticationManager {
         return authenticationConfiguration.authenticationManager
     }
+
+    @Bean
+    fun secureRandom() = SecureRandom()
 }

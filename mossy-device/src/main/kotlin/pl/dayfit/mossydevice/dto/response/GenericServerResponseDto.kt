@@ -1,5 +1,5 @@
 package pl.dayfit.mossydevice.dto.response
 
-data class ServerResponseDto(
+data class GenericServerResponseDto(
     val message: String
 )

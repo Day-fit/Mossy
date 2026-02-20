@@ -3,6 +3,7 @@ package pl.dayfit.mossyauthstarter.configuration
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
+import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
 import pl.dayfit.mossyauthstarter.jwks.StarterJwksProvider
 import pl.dayfit.mossyauthstarter.service.JwtClaimsService
@@ -14,9 +15,9 @@ import pl.dayfit.mossyauthstarter.service.JwtClaimsService
         StarterJwksProvider::class,
         BearerTokenFilter::class,
         JwtAuthenticationProvider::class,
-        RabbitMQConfiguration::class
+        RabbitMQConfiguration::class,
+        SecurityConfigurationProperties::class
     ]
 )
 @Configuration
-class AutoConfiguration {
-}
+class AutoConfiguration
