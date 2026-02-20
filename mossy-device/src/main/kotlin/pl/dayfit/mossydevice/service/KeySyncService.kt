@@ -116,7 +116,7 @@ class KeySyncService (
         if (peerPresent)
         {
             val peerId = if (role == KeySyncRole.SENDER) room.receiverId else room.senderId
-            val peerDevice = deviceRepository.findById(peerId)
+            val peerDevice = deviceRepository.findById(peerId!!)
                 .orElseThrow { NoSuchElementException("No device with given id") }
 
             publicKeyDH = peerDevice.publicKeyDH
