@@ -38,7 +38,14 @@ class KeySyncInterceptor(
         wsHandler: WebSocketHandler,
         attributes: MutableMap<String, Any>
     ): Boolean {
-        val syncCode = request.uri.query
+        val query = request.uri.query
+
+        if (query == null) {
+            unauthorized(response, "syncCode query parameter is required")
+            return false
+        }
+
+        val syncCode = query
             .split("&")
             .mapNotNull {
                 val (k, v) = it.split("=", limit = 2).let { p ->
@@ -65,7 +72,7 @@ class KeySyncInterceptor(
             return false
         }
 
-        if (protocolHeaders.size != 3) {
+        if (protocolHeaders.size != 4) {
             unauthorized(response, "Invalid Sec-WebSocket-Protocol header")
             return false
         }
@@ -100,11 +107,17 @@ class KeySyncInterceptor(
             val verifier = Ed25519Verifier(publicId)
 
             if (!jws.verify(verifier)) {
-                response.setStatusCode(HttpStatus.UNAUTHORIZED)
+                unauthorized(response, "Invalid signature")
                 return false
             }
 
-            return jws.payload.toBytes().contentEquals(expectedPayload)
+            val result = jws.payload.toBytes().contentEquals(expectedPayload)
+
+            if (!result) {
+                unauthorized(response, "Invalid signature")
+            }
+
+            return result
         } catch (_: ParseException) {
             unauthorized(response, "Invalid signature")
             return false
@@ -122,12 +135,12 @@ class KeySyncInterceptor(
         }
 
         response.setStatusCode(HttpStatus.UNAUTHORIZED)
-        response.body.write("{\"message\": \"${ exception.message ?: "Unauthorized" }\"".toByteArray())
+        response.body.write("{\"message\": \"${ exception.message ?: "Unauthorized" }\"}".toByteArray())
     }
 
     private fun unauthorized(response: ServerHttpResponse, message: String? = null)
     {
         response.setStatusCode(HttpStatus.UNAUTHORIZED)
-        response.body.write("{\"message\": \"${ message ?: "Unauthorized" }\"".toByteArray())
+        response.body.write("{\"message\": \"${ message ?: "Unauthorized" }\"}".toByteArray())
     }
 }

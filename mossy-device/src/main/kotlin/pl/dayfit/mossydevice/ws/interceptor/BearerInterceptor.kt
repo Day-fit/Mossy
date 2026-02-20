@@ -31,7 +31,7 @@ class BearerInterceptor(
             return false
         }
 
-        if (protocolHeaders.size != 2) {
+        if (protocolHeaders.size < 2) {
             unauthorized(response, "Invalid Sec-WebSocket-Protocol header")
             return false
         }
@@ -59,12 +59,12 @@ class BearerInterceptor(
         }
 
         response.setStatusCode(HttpStatus.UNAUTHORIZED)
-        response.body.write("{\"message\": \"${ exception.message ?: "Unauthorized" }\"".toByteArray())
+        response.body.write("{\"message\": \"${ exception.message ?: "Unauthorized" }\"}".toByteArray())
     }
 
     private fun unauthorized(response: ServerHttpResponse, message: String? = null)
     {
         response.setStatusCode(HttpStatus.UNAUTHORIZED)
-        response.body.write("{\"message\": \"${ message ?: "Unauthorized" }\"".toByteArray())
+        response.body.write("{\"message\": \"${ message ?: "Unauthorized" }\"}".toByteArray())
     }
 }

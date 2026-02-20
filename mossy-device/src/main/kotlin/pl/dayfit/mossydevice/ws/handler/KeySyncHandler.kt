@@ -14,7 +14,7 @@ import pl.dayfit.mossydevice.service.WebSocketSessionService
 import pl.dayfit.mossydevice.type.KeySyncRole
 import tools.jackson.databind.DatabindException
 import tools.jackson.databind.json.JsonMapper
-import tools.jackson.module.kotlin.convertValue
+import tools.jackson.module.kotlin.readValue
 import java.util.UUID
 
 @Component
@@ -48,15 +48,15 @@ class KeySyncHandler(
             return
         }
 
-        val payload = message.payload as? TextMessage
+        val textMessage = message as? TextMessage
 
-        if (payload == null) {
+        if (textMessage == null) {
             logger.debug("Received invalid payload, ignoring it")
             return
         }
 
         try {
-            val dto = jsonMapper.convertValue<KeySyncDto>(payload.payload)
+            val dto = jsonMapper.readValue<KeySyncDto>(textMessage.payload)
             keySyncService.handleSync(dto, session)
         } catch (_: DatabindException){
             logger.debug("Received invalid payload, ignoring it")

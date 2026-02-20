@@ -6,7 +6,9 @@ import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.exception.InvalidKeyFormat
 import pl.dayfit.mossydevice.model.UserDevice
+import pl.dayfit.mossydevice.model.redis.KeySyncRoom
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
+import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
 import java.security.SecureRandom
 import java.text.ParseException
 import java.util.UUID
@@ -14,18 +16,22 @@ import java.util.UUID
 @Service
 class DeviceService(
     private val userDeviceRepository: UserDeviceRepository,
-    private val secureRandom: SecureRandom
+    private val secureRandom: SecureRandom,
+    private val keySyncRoomRepository: KeySyncRoomRepository
 ) {
     private val logger = org.slf4j.LoggerFactory.getLogger(DeviceService::class.java)
 
+
     /**
-     * Registers a new device for the specified user, saving its public keys and approval status.
+     * Registers a new device for a user. The method saves the device information along with its public keys
+     * to the repository. If the user has no previously approved devices, the device is automatically approved.
+     * Otherwise, a synchronization process is initiated and a sync code is generated for approval with an existing device.
      *
-     * @param userId The unique identifier of the user registering the device.
-     * @param requestDto The request data containing the public keys (Diffie-Hellman and identifier) for the device.
-     * @return A response containing the device ID, a flag indicating if synchronization is required,
-     *         and a synchronization code if applicable.
-     * @throws InvalidKeyFormat If the provided key format in the request is invalid.
+     * @param userId The unique identifier of the user for whom the device is being registered.
+     * @param requestDto The details of the device being registered, including its public keys.
+     * @return A response containing the device's unique identifier, whether synchronization is required,
+     *         and the generated sync code if applicable.
+     * @throws InvalidKeyFormat If the provided device public keys are invalid or cannot be parsed.
      */
     fun registerDevice(
         userId: UUID,
@@ -51,10 +57,29 @@ class DeviceService(
                 )
             )
 
+            if (!hasAnyDevicePaired) {
+                return RegisterDeviceResponseDto(
+                    result.deviceId!!,
+                    false,
+                    null
+                )
+            }
+
+            val code = generateSyncCode()
+            val room = KeySyncRoom(
+                roomId = null,
+                code,
+                userId,
+                result.deviceId!!,
+                senderId = result.deviceId,
+            )
+
+            keySyncRoomRepository.save(room)
+
             return RegisterDeviceResponseDto(
                 result.deviceId!!,
-                hasAnyDevicePaired,
-                if (hasAnyDevicePaired) generateSyncCode() else null
+                true,
+                code
             )
         } catch (e: ParseException) {
             logger.debug("Invalid key format provided", e)
@@ -67,7 +92,7 @@ class DeviceService(
      * @return generated sync code
      */
     private fun generateSyncCode(): String {
-        val randomInt = secureRandom.nextInt(1, 999999)
+        val randomInt = secureRandom.nextInt(1, 1_000_000)
         return String.format("%06d", randomInt)
     }
 }

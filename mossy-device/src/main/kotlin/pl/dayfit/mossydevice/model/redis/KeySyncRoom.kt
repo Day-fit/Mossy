@@ -22,7 +22,7 @@ import java.util.UUID
 @RedisHash(timeToLive = 15 * 60)
 data class KeySyncRoom(
     @Id
-    var roomId: String,
+    var roomId: String?,
     val code: String,
     @Indexed
     val userId: UUID,

@@ -13,18 +13,20 @@ import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.model.UserDevice
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
+import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
 import java.security.SecureRandom
 import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
 class DeviceServiceTests {
-    private val repository: UserDeviceRepository = mock()
-    private val deviceService = DeviceService(repository, SecureRandom())
+    private val deviceRepository: UserDeviceRepository = mock()
+    private val keySyncRoomRepository: KeySyncRoomRepository = mock()
+    private val deviceService = DeviceService(deviceRepository, SecureRandom(), keySyncRoomRepository)
 
     @Test
     fun `test register device when no device approved does not require approval`() {
         whenever(
-            repository.existsUserDevicesByUserIdAndApproved(
+            deviceRepository.existsUserDevicesByUserIdAndApproved(
                 any<UUID>(),
                 any<Boolean>()
             )
@@ -42,7 +44,7 @@ class DeviceServiceTests {
             .toPublicJWK()
 
         whenever(
-            repository.save(any<UserDevice>())
+            deviceRepository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,
@@ -70,7 +72,7 @@ class DeviceServiceTests {
     @Test
     fun `test register device when device approved requires approval`() {
         whenever(
-            repository.existsUserDevicesByUserIdAndApproved(
+            deviceRepository.existsUserDevicesByUserIdAndApproved(
                 any<UUID>(),
                 any<Boolean>()
             )
@@ -88,7 +90,7 @@ class DeviceServiceTests {
             .toPublicJWK()
 
         whenever(
-            repository.save(any<UserDevice>())
+            deviceRepository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,

@@ -12,7 +12,6 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
-import org.springframework.web.socket.config.annotation.EnableWebSocket
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
