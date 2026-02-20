@@ -35,7 +35,8 @@ class KeySyncService (
             .filter { it.code == syncCode }
             .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
 
-        val role: KeySyncRole = if (room.receiverId == deviceId) KeySyncRole.SENDER else KeySyncRole.RECEIVER
+        val role: KeySyncRole = if (room.receiverId == deviceId) KeySyncRole.RECEIVER
+            else KeySyncRole.SENDER
 
         if (role == KeySyncRole.SENDER) {
             if (room.senderPresent) throw RoleAlreadyInRoomException("Sender already in room")

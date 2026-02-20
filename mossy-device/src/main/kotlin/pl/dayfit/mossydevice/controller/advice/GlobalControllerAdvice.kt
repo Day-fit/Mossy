@@ -51,7 +51,7 @@ class GlobalControllerAdvice {
     @ExceptionHandler(ConstraintViolationException::class)
     fun handleConstraintViolationException(exception: ConstraintViolationException): ResponseEntity<ValidationResponseDto>
     {
-        logger.debug("Handled constaint validation errors")
+        logger.debug("Handled constraint validation errors")
         val errors = exception.constraintViolations.map {
             ValidationResponseDto.ValidationResult(
                 it.propertyPath.toString(),
