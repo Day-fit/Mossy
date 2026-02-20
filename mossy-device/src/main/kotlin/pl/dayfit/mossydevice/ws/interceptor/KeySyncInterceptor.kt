@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.handler
+package pl.dayfit.mossydevice.ws.interceptor
 
 import com.nimbusds.jose.JWSObject
 import com.nimbusds.jose.crypto.Ed25519Verifier

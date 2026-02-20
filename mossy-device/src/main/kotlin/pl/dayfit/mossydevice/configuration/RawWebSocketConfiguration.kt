@@ -6,9 +6,9 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
-import pl.dayfit.mossydevice.handler.BearerInterceptor
-import pl.dayfit.mossydevice.handler.KeySyncHandler
-import pl.dayfit.mossydevice.handler.KeySyncInterceptor
+import pl.dayfit.mossydevice.ws.interceptor.BearerInterceptor
+import pl.dayfit.mossydevice.ws.handler.KeySyncHandler
+import pl.dayfit.mossydevice.ws.interceptor.KeySyncInterceptor
 
 @Profile("raw-websocket")
 @Configuration

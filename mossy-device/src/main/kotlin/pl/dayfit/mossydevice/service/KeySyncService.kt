@@ -3,9 +3,11 @@ package pl.dayfit.mossydevice.service
 import com.nimbusds.jose.jwk.OctetKeyPair
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
+import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
 import pl.dayfit.mossydevice.dto.response.KeySyncInfoResponseDto
+import pl.dayfit.mossydevice.dto.ws.KeySyncDto
 import pl.dayfit.mossydevice.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
 import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
@@ -48,6 +50,34 @@ class KeySyncService (
 
         webSocketSession.attributes["role"] = role
         keySyncRoomRepository.save(room)
+    }
+
+    @Throws(IllegalStateException::class, NoSuchElementException::class)
+    fun handleSync(message: KeySyncDto, session: WebSocketSession)
+    {
+        val code = session.attributes["syncCode"] as String
+        val token = session.principal as JwtAuthenticationToken
+        val userId = token.principal
+
+        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
+            .filter { it.code == code }
+            .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
+
+        val receiverId = room.receiverId
+
+        if (!room.receiverPresent) {
+            logger.warn("Received sync message from unregistered device")
+            return
+        }
+
+        val receiverSession = sessionService.getSession(receiverId)
+            ?: throw IllegalStateException("No session for receiver, but room says that receiver is present")
+
+        receiverSession.sendMessage(
+            TextMessage(
+                jsonMapper.writeValueAsString(message)
+            )
+        )
     }
 
     fun handlePeerDisconnected(webSocketSession: WebSocketSession)
