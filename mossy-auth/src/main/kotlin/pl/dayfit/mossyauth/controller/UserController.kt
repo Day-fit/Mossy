@@ -4,7 +4,6 @@ import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
@@ -25,10 +24,10 @@ class UserController(
         )
     }
 
-    @DeleteMapping("/{id}")
-    fun deleteUser(@PathVariable id: UUID): ResponseEntity<GenericServerResponseDto>
+    @DeleteMapping
+    fun deleteUser(@AuthenticationPrincipal userId: UUID): ResponseEntity<GenericServerResponseDto>
     {
-        userService.deleteUser(id)
+        userService.deleteUser(userId)
 
         return ResponseEntity.ok(
             GenericServerResponseDto("User deleted successfully")

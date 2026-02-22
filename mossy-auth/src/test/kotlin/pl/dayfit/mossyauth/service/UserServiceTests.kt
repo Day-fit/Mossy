@@ -1,8 +1,7 @@
-package pl.dayfit.mossyauth
+package pl.dayfit.mossyauth.service
 
 import org.junit.jupiter.api.extension.ExtendWith
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
+import org.mockito.Mockito
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -17,8 +16,6 @@ import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
-import pl.dayfit.mossyauth.service.JwtGenerationService
-import pl.dayfit.mossyauth.service.UserService
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
@@ -30,10 +27,10 @@ import kotlin.test.assertFailsWith
 @ExtendWith(MockitoExtension::class)
 class UserServiceTests {
     private val passwordEncoder = BCryptPasswordEncoder(7)
-    private val daoAuthenticationProvider: DaoAuthenticationProvider = mock()
-    private val userCacheService: UserCacheService = mock()
-    private val jwtGenerationService: JwtGenerationService = mock()
-    private val userRepository: UserRepository = mock()
+    private val daoAuthenticationProvider: DaoAuthenticationProvider = Mockito.mock()
+    private val userCacheService: UserCacheService = Mockito.mock()
+    private val jwtGenerationService: JwtGenerationService = Mockito.mock()
+    private val userRepository: UserRepository = Mockito.mock()
     private val userService = UserService(userCacheService, userRepository, passwordEncoder, jwtGenerationService, daoAuthenticationProvider)
 
     @Test
@@ -47,7 +44,7 @@ class UserServiceTests {
         )
 
         val captor = argumentCaptor<UserModel>()
-        verify(userCacheService).save(
+        Mockito.verify(userCacheService).save(
             captor.capture()
         )
 
@@ -85,7 +82,7 @@ class UserServiceTests {
             LoginRequestDto(username, password)
         )
 
-        verify(jwtGenerationService)
+        Mockito.verify(jwtGenerationService)
             .generatePairOfTokens(principal)
     }
 
@@ -94,14 +91,14 @@ class UserServiceTests {
     {
         val userId = UUID.randomUUID()
         userService.deleteUser(userId)
-        verify(userCacheService).delete(userId)
+        Mockito.verify(userCacheService).delete(userId)
     }
 
     @Test
     fun `test logging in with bad credentials`()
     {
         whenever { daoAuthenticationProvider.authenticate(any()) }
-            .thenThrow(BadCredentialsException("Bad credentials") )
+            .thenThrow(BadCredentialsException("Bad credentials"))
 
         assertFailsWith<BadCredentialsException> { userService.login(LoginRequestDto("test", "test123")) }
     }
@@ -112,12 +109,14 @@ class UserServiceTests {
         whenever { userRepository.existsByUsernameAndEmail(any(), any()) }
             .thenReturn(true)
 
-        assertFailsWith<UserAlreadyExistsException> { userService.register(
-            RegisterUserRequestDto(
-                "test",
-                "test@test.test",
-                "test123"
+        assertFailsWith<UserAlreadyExistsException> {
+            userService.register(
+                RegisterUserRequestDto(
+                    "test",
+                    "test@test.test",
+                    "test123"
+                )
             )
-        ) }
+        }
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestCookieException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
@@ -19,6 +20,14 @@ import pl.dayfit.mossyauth.dto.response.ValidationResponseDto
 @RestControllerAdvice
 class GlobalControllerAdvice {
     private val logger = org.slf4j.LoggerFactory.getLogger(this::class.java)
+
+    @ExceptionHandler(MissingRequestCookieException::class)
+    fun handleMissingRequestCookieException(ex: MissingRequestCookieException): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.badRequest()
+            .body(
+                GenericServerResponseDto(ex.message ?: "Missing request cookie")
+            )
+    }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupported(): ResponseEntity<GenericServerResponseDto> {

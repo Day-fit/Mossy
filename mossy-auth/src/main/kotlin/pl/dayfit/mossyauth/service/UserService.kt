@@ -69,14 +69,14 @@ class UserService(
         userCacheService.delete(userId)
     }
 
-    fun getDetails(id: UUID): UserDetailsResponseDto? {
+    fun getDetails(id: UUID): UserDetailsResponseDto {
         val user = userCacheService.get(id)
 
-        return (UserDetailsResponseDto(
+        return UserDetailsResponseDto(
             id,
             user.username,
             user.email,
             user.authorities
-        ))
+        )
     }
 }
