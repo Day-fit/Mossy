@@ -1,7 +1,7 @@
 import RippleButton from "./RippleButton.tsx";
 import {useNavigate} from "react-router-dom";
 
-function Hero() {
+function HomeHero() {
     const navigate = useNavigate();
 
     return <section
@@ -23,4 +23,4 @@ function Hero() {
     </section>
 }
 
-export default Hero
+export default HomeHero;

@@ -173,18 +173,6 @@ export default function About() {
                     </div>
                 </motion.div>
             </section>
-
-            <section className="py-16 px-6 border-t border-gray-200">
-                <motion.div
-                    className="max-w-4xl mx-auto text-center text-gray-600"
-                    initial={{ opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6 }}
-                >
-                    Still in development
-                </motion.div>
-            </section>
         </>
     );
 }

@@ -1,25 +1,20 @@
-import {Link} from "react-router";
+import { NavLink } from "react-router-dom";
 
 interface NavTabProps {
     name: string
     url: string
-    id: number
-    activeId: number
-    setActiveTab: any
 }
 
-function NavTab({ name, url, id, activeId, setActiveTab }: NavTabProps) {
-    const isActive = () => activeId === id
+function NavTab({ name, url }: NavTabProps) {
 
     return (
-        <section className={(isActive() ? "border-b-green-900 border-b-4" : "") + " flex flex-col justify-center items-center h-full"}>
-            <Link
+        <section className={"flex flex-col justify-center items-center h-full"}>
+            <NavLink
                 to={url}
-                className={(isActive() ? "font-bold" : "font-normal") + " text-justify text-l"}
-                onClick={() => setActiveTab(id)}
+                className={({isActive}) => (isActive ? "font-bold border-b-green-600 border-b-2" : "font-normal") + " text-justify text-l"}
             >
                 {name}
-            </Link>
+            </NavLink>
         </section>
     )
 }

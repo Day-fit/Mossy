@@ -1,10 +1,8 @@
 import NavTab from './NavTab'
-import {useState} from "react";
 import RippleButton from "./RippleButton";
 import {useNavigate} from "react-router-dom";
 
 function Nav() {
-    const [activeTab, setActiveTab] = useState<number>(0)
     const navigate = useNavigate();
 
     return (
@@ -13,8 +11,8 @@ function Nav() {
             <img className="h-full p-2" alt="mossy-logo" src="mossy_logo.png"/>
 
             <div className="flex gap-10 items-center h-full">
-                <NavTab name="Home" url="/" id={0} activeId={activeTab} setActiveTab={setActiveTab}/>
-                <NavTab name="Password" url="/passwords" id={1} activeId={activeTab} setActiveTab={setActiveTab}/>
+                <NavTab name="Home" url="/"/>
+                <NavTab name="Password" url="/passwords"/>
             </div>
 
             <div className="mr-2">

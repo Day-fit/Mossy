@@ -1,12 +1,14 @@
 import Nav from './ui/Nav'
-import Hero from "./ui/Hero.tsx";
+import HomeHero from "./ui/HomeHero.tsx";
 import About from "./ui/About.tsx";
+import Footer from "./ui/Footer.tsx";
 
 function Home() {
     return <div className="flex flex-col gap-3">
         <Nav></Nav>
-        <Hero></Hero>
+        <HomeHero></HomeHero>
         <About></About>
+        <Footer></Footer>
     </div>
 }
 
