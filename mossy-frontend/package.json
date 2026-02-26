@@ -11,12 +11,16 @@
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
+    "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.2.0",
     "framer-motion": "^12.34.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-hook-form": "^7.71.2",
+    "react-icons": "^5.5.0",
     "react-router-dom": "^7.13.0",
     "tailwindcss": "^4.2.0",
+    "zod": "^4.3.6",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {

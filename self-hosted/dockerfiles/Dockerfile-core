@@ -10,7 +10,7 @@ RUN --mount=type=secret,id=gh_name \
 "    <server>" \
 "      <id>github</id>" \
 "      <username>$(cat /run/secrets/gh_name)</username>" \
-"      <password>$(cat /run/secrets/github_token)</password>" \
+"      <passwords>$(cat /run/secrets/github_token)</passwords>" \
 "    </server>" \
 "  </servers>" \
 "</settings>" > /tmp/settings.xml'

@@ -1,4 +1,4 @@
-import RippleButton from "./RippleButton.tsx";
+import RippleButton from "../layout/RippleButton.tsx";
 import {useNavigate} from "react-router-dom";
 
 function HomeHero() {

@@ -1,5 +1,5 @@
-import NavTab from './NavTab'
-import RippleButton from "./RippleButton";
+import NavTab from './NavTab.tsx'
+import RippleButton from "./RippleButton.tsx";
 import {useNavigate} from "react-router-dom";
 
 function Nav() {

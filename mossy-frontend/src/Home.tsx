@@ -1,7 +1,7 @@
-import Nav from './ui/Nav'
-import HomeHero from "./ui/HomeHero.tsx";
-import About from "./ui/About.tsx";
-import Footer from "./ui/Footer.tsx";
+import Nav from './ui/layout/Nav.tsx'
+import HomeHero from "./ui/home/HomeHero.tsx";
+import About from "./ui/home/About.tsx";
+import Footer from "./ui/layout/Footer.tsx";
 
 function Home() {
     return <div className="flex flex-col gap-3">

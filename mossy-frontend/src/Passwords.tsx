@@ -1,6 +1,6 @@
-import Nav from "./ui/Nav.tsx";
-import PasswordHero from "./ui/PasswordHero.tsx";
-import Footer from "./ui/Footer.tsx";
+import Nav from "./ui/layout/Nav.tsx";
+import PasswordHero from "./ui/passwords/PasswordHero.tsx";
+import Footer from "./ui/layout/Footer.tsx";
 
 export default function Passwords() {
     return <>
