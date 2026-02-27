@@ -2,7 +2,7 @@ import {PiSealWarningFill} from "react-icons/pi";
 import {AiFillInfoCircle} from "react-icons/ai";
 import {MdDelete} from "react-icons/md";
 import type {Dispatch, SetStateAction} from "react";
-import {motion} from "framer-motion";
+import {motion, type Variants} from "framer-motion";
 
 interface ResponseToastProps {
     message: string,
@@ -12,23 +12,30 @@ interface ResponseToastProps {
 }
 
 export default function ResponseToast({message, isError, className, setResponseState}: ResponseToastProps) {
-    const ErrorIcon = motion(PiSealWarningFill)
-    const InfoIcon = motion(AiFillInfoCircle)
-    const DeleteIcon = motion(MdDelete)
+    const ErrorIcon = motion.create(PiSealWarningFill)
+    const InfoIcon = motion.create(AiFillInfoCircle)
+    const DeleteIcon = motion.create(MdDelete)
 
-    return isError !== undefined && <motion.div
-        initial={{
-            scaleX: 0,
-        }}
-        animate={{
+    const variants: Variants = {
+        hidden: {
+            opacity: 0,
+            scaleX: 0.05,
+        },
+        visible: {
+            opacity: 1,
             scaleX: 1,
             transition: {
                 duration: 0.3,
                 ease: "easeOut",
-            },
-        }}
-        className={(isError ? "bg-red-500 " : "bg-green-500")
-            + " flex items-center gap-2 p-2 rounded-md origin-right " + className}>
+            }
+        }
+    }
+
+    return isError !== undefined && <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={variants}
+        className={`${isError ? "bg-red-500 " : "bg-green-500"} flex items-center gap-2 p-2 rounded-md origin-right ${className}`}>
         {!isError && (
             <InfoIcon
                 initial={{opacity: 0}}
@@ -48,7 +55,10 @@ export default function ResponseToast({message, isError, className, setResponseS
         <DeleteIcon initial={{opacity: 0}}
                     animate={{opacity: 1, transition: {delay: 0.3, duration: 0.3}}}
                     className="text-white text-3xl cursor-pointer"
-                    onClick={() => setResponseState({message: "", isError: undefined})}
+                    onClick={() => {
+                        setResponseState({message: "", isError: undefined})
+                        console.log("clicked")
+                    }}
         />
     </motion.div>
 }

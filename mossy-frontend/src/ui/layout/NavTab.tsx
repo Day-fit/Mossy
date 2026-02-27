@@ -7,7 +7,7 @@ interface NavTabProps {
 }
 
 function NavTab({name, url}: NavTabProps) {
-    const MotionNavLink = motion(NavLink);
+    const MotionNavLink = motion.create(NavLink);
 
     return (
         <section className={"relative flex flex-col justify-center items-center h-full"}>

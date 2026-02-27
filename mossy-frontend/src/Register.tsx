@@ -1,11 +1,11 @@
 import Nav from "./ui/layout/Nav.tsx";
 import Footer from "./ui/layout/Footer.tsx";
-import SignupForm from "./ui/auth/SignupForm.tsx";
+import SignupHero from "./ui/auth/SignupHero.tsx";
 
 export default function Register() {
     return <>
         <Nav></Nav>
-        <SignupForm></SignupForm>
+        <SignupHero></SignupHero>
         <Footer></Footer>
     </>
 }

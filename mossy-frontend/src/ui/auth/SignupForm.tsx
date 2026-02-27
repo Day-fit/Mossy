@@ -2,11 +2,21 @@ import {useForm} from "react-hook-form";
 import {registerSchema, type RegisterSchema} from "../../forms/registerSchema.ts";
 import {zodResolver} from "@hookform/resolvers/zod";
 import {motion, AnimatePresence} from "framer-motion";
-import ResponseToast from "../layout/ResponseToast.tsx";
-import {useState} from "react";
 import {NavLink} from "react-router-dom";
+import RippleButton from "../layout/RippleButton.tsx";
+import type {Dispatch, SetStateAction} from "react";
 
-export default function SignupForm() {
+interface SignupFormProps {
+    setResponseState: Dispatch<SetStateAction<{
+        message: string
+        isError?: boolean
+    }>>,
+    onSuccess: () => void,
+}
+
+export default function SignupForm(
+    {setResponseState, onSuccess}: SignupFormProps
+) {
     const {register, handleSubmit, formState: {errors, isSubmitting}} = useForm<RegisterSchema>(
         {
             resolver: zodResolver(registerSchema),
@@ -17,8 +27,6 @@ export default function SignupForm() {
             },
         }
     );
-
-    const [responseState, setResponseState] = useState<{ message: string, isError?: boolean }>({message: "", isError: undefined});
 
     const onSubmit = async (data: RegisterSchema) => {
         console.log(data);
@@ -33,29 +41,27 @@ export default function SignupForm() {
         })
         .then(async res => {
             const json = await res.json();
-            console.log(res.status);
-            console.log(res.status !== 200);
+            const success = res.status === 200;
+
             setResponseState({message: json.message, isError: res.status !== 200});
+
+            if (success) {
+                onSuccess();
+            }
         })
         .catch(err => {
             console.log(err);
         });
     }
 
-    return <section
-        className="relative h-[90vh] w-full flex flex-col justify-center items-center">
-        <ResponseToast setResponseState={setResponseState}
-                       message={responseState.message} isError={responseState.isError}
-                       className="absolute top-10 right-5 max-w-[calc(100vw-2rem)] sm:max-w-md"></ResponseToast>
-
-        <motion.div
+    return <motion.div
             initial={{opacity: 0, y: -20}}
             animate={{opacity: 1, y: 0}}
             transition={{duration: 0.5}}
-            className="w-full max-w-md"
+            className="w-full flex justify-center items-center"
         >
             <motion.form
-                className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7"
+                className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7 w-1/3 md:w-1/2 sm:w-full my-5"
                 initial={{opacity: 0, scale: 0.95}}
                 animate={{opacity: 1, scale: 1}}
                 transition={{delay: 0.3, duration: 0.5}}
@@ -163,15 +169,10 @@ export default function SignupForm() {
                     </AnimatePresence>
                 </motion.div>
 
-                <motion.button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
-                    whileHover={{scale: isSubmitting ? 1 : 1.02}}
-                    whileTap={{scale: isSubmitting ? 1 : 0.98}}
-                    initial={{opacity: 0, y: 20}}
-                    animate={{opacity: 1, y: 0}}
-                    transition={{delay: 0.7, duration: 0.5}}
+                <RippleButton type="submit"
+                              className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400
+                              text-white font-semibold py-3 px-6 rounded-lg transition-all
+                              duration-300 shadow-lg hover:shadow-xl disabled:cursor-not-allowed"
                 >
                     {isSubmitting ? (
                         <motion.span
@@ -183,14 +184,12 @@ export default function SignupForm() {
                     ) : (
                         'Take control'
                     )}
-                </motion.button>
+                </RippleButton>
 
                 <NavLink to="/login"
                          className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300">
                     Already have an account?
                 </NavLink>
             </motion.form>
-
         </motion.div>
-    </section>
 }

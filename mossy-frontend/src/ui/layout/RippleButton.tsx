@@ -1,9 +1,6 @@
 import {
     motion,
-    AnimatePresence,
-    useMotionValue,
-    useSpring,
-    useTransform
+    AnimatePresence
 } from "framer-motion";
 import {
     useState,
@@ -24,45 +21,18 @@ interface RippleButtonProps {
     className?: string;
     rippleColor?: string;
     onClick?: Function
+    type?: "button" | "submit" | "reset"
 }
 
 export default function RippleButton({
-    className,
-    children,
-    rippleColor = "rgba(255, 255, 255, 0.6)",
-    onClick
-}: RippleButtonProps) {
+        className,
+        children,
+        rippleColor = "rgba(255, 255, 255, 0.6)",
+        onClick,
+        type
+    }: RippleButtonProps) {
     const [ripples, setRipples] = useState<Ripple[]>([]);
     const ref = useRef<HTMLButtonElement>(null);
-
-    const mx = useMotionValue(0);
-    const my = useMotionValue(0);
-
-    const rotateX = useSpring(
-        useTransform(my, [-0.5, 0.5], [18, -18]),
-        {stiffness: 300, damping: 25, mass: 0.5}
-    );
-
-    const rotateY = useSpring(
-        useTransform(mx, [-0.5, 0.5], [-18, 18]),
-        {stiffness: 300, damping: 25, mass: 0.5}
-    );
-
-    const handleMouseMove = (e: MouseEvent<HTMLButtonElement>) => {
-        const rect = ref.current?.getBoundingClientRect();
-        if (!rect) return;
-
-        const x = (e.clientX - rect.left) / rect.width - 0.5;
-        const y = (e.clientY - rect.top) / rect.height - 0.5;
-
-        mx.set(x);
-        my.set(y);
-    };
-
-    const handleMouseLeave = () => {
-        mx.set(0);
-        my.set(0);
-    };
 
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -87,17 +57,10 @@ export default function RippleButton({
     return (
         <motion.button
             ref={ref}
+            type={type}
             onClick={handleClick}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            style={{
-                rotateX,
-                rotateY,
-                transformPerspective: 700
-            }}
             className={[
                 "relative overflow-hidden px-8 py-4 cursor-pointer bg-black rounded-md",
-                "will-change-transform",
                 className
             ]
                 .filter(Boolean)

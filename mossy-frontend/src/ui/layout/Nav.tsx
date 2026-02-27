@@ -8,7 +8,7 @@ function Nav() {
     return (
         <nav
             className="flex justify-between items-center w-full h-20 border-b-gray-200 border-b-2 sticky top-0 bg-white z-50">
-            <img className="h-full p-2" alt="mossy-logo" src="mossy_logo.png"/>
+            <img className="h-full p-2" alt="mossy-logo" src="/mossy_logo.png"/>
 
             <div className="flex gap-10 items-center h-full">
                 <NavTab name="Home" url="/"/>
