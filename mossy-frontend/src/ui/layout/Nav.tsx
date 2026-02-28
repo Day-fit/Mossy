@@ -11,8 +11,8 @@ function Nav() {
             <img className="h-full p-2" alt="mossy-logo" src="/mossy_logo.png"/>
 
             <div className="flex gap-10 items-center h-full">
-                <NavTab name="Home" url="/"/>
-                <NavTab name="Password" url="/passwords"/>
+                <NavTab name="Home" url="/" requiresAuthentication={false}/>
+                <NavTab name="Password" url="/passwords" requiresAuthentication={true}/>
             </div>
 
             <div className="mr-2">

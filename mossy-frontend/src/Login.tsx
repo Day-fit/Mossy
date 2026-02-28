@@ -1,11 +1,19 @@
-import Nav from "./ui/layout/Nav.tsx";
-import Footer from "./ui/layout/Footer.tsx";
 import SigninHero from "./ui/signin/SigninHero.tsx";
+import {useEffect} from "react";
+import {useAuth} from "./auth/context/AuthContext.tsx";
+import {useNavigate} from "react-router-dom";
 
 export default function Login() {
+    const { isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate("/dashboard");
+        }
+    }, []);
+
     return <>
-        <Nav></Nav>
         <SigninHero></SigninHero>
-        <Footer></Footer>
     </>
 }

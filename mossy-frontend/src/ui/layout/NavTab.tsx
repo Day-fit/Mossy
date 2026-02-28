@@ -1,15 +1,18 @@
 import { NavLink } from "react-router-dom";
 import {motion} from "framer-motion";
+import {useAuth} from "../../auth/context/AuthContext.tsx";
 
 interface NavTabProps {
     name: string
     url: string
+    requiresAuthentication: boolean
 }
 
-function NavTab({name, url}: NavTabProps) {
+function NavTab({name, url, requiresAuthentication}: NavTabProps) {
+    const { isAuthenticated } = useAuth()
     const MotionNavLink = motion.create(NavLink);
 
-    return (
+    return (isAuthenticated || !requiresAuthentication) &&
         <section className={"relative flex flex-col justify-center items-center h-full"}>
             <MotionNavLink
                 to={url}
@@ -33,7 +36,6 @@ function NavTab({name, url}: NavTabProps) {
                 )}
             </MotionNavLink>
         </section>
-    )
 }
 
 export default NavTab

@@ -11,7 +11,7 @@ export default function SigninHero() {
     const navigate = useNavigate();
 
     return <section
-        className="relative h-[90vh] w-full perspective-distant overflow-hidden">
+        className="relative min-h-[90vh] w-full perspective-distant overflow-hidden">
         <ResponseToast setResponseState={setResponseState}
                        message={responseState.message} isError={responseState.isError}
                        className="absolute top-10 right-5 max-w-[calc(100vw-2rem)] sm:max-w-md z-10"></ResponseToast>

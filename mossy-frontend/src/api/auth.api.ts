@@ -29,6 +29,19 @@ export async function executeLoginRequest(data: {
     }
 }
 
+export async function executeCheckAuthState(data: {
+    token: string,
+}) {
+    try {
+        return await apiFetch("/api/v1/auth/auth-status", {
+            method: "POST",
+            body: JSON.stringify(data),
+        })
+    } catch (e) {
+        throw e;
+    }
+}
+
 export async function executeConfirmEmailRequest(token: string) {
     try {
         return await apiFetch(`/api/v1/auth/user/confirm/${token}`, {

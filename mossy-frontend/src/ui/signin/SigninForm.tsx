@@ -48,7 +48,7 @@ export default function SigninForm(
             initial={{opacity: 0, y: -20}}
             animate={{opacity: 1, y: 0}}
             transition={{duration: 0.5}}
-            className="w-full flex justify-center items-center"
+            className="w-full flex justify-center items-center h-fit"
         >
             <motion.form
                 className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7 w-1/3 md:w-1/2 sm:w-full my-5"
@@ -70,11 +70,11 @@ export default function SigninForm(
                     animate={{opacity: 1}}
                     transition={{delay: 0.2, duration: 0.5}}
                 >
-                    Grow your vault
+                    Welcome back
                 </motion.h1>
 
                 <motion.p className="text-center text-gray-600 text-sm">
-                    Your infrastructure. Your rules.
+                    Your passwords are waiting on your server.
                 </motion.p>
 
                 <motion.div
@@ -88,7 +88,7 @@ export default function SigninForm(
                         {...register("identifier")}
                         autoComplete="username"
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none transition-colors duration-300"
-                        placeholder="Enter username..."
+                        placeholder="Enter email or username..."
                     />
                     <AnimatePresence>
                         {errors.identifier && (
@@ -144,13 +144,13 @@ export default function SigninForm(
                             Signing up...
                         </motion.span>
                     ) : (
-                        'Take control'
+                        'Enter vault'
                     )}
                 </RippleButton>
 
-                <NavLink to="/login"
+                <NavLink to="/register"
                          className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300">
-                    Already have an account?
+                    Don't have an account? Click here
                 </NavLink>
             </motion.form>
         </motion.div>

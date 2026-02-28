@@ -12,19 +12,19 @@ export default function SignupHero() {
     });
 
     return <section
-        className="relative h-[90vh] w-full perspective-distant overflow-hidden">
+        className="relative min-h-[90vh] w-full perspective-distant">
         <ResponseToast setResponseState={setResponseState}
                        message={responseState.message} isError={responseState.isError}
                        className="absolute top-10 right-5 max-w-[calc(100vw-2rem)] sm:max-w-md z-10"></ResponseToast>
 
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="wait">
             {
                 phase == "register" ? (
                     <motion.div
                         key="register"
-                        className="absolute inset-0 transform-3d backface-hidden"
+                        className="inset-0 transform-3d backface-hidden h-fit"
                         animate={{rotateY: 0, scale: 1}}
-                        initial={{rotateY: -90, scale: 0.95}}
+                        initial={false}
                         exit={{rotateY: 90, scale: 0.95}}
                         transition={{duration: 0.4, ease: "linear"}}
                     >
@@ -34,7 +34,7 @@ export default function SignupHero() {
                 ) : (
                     <motion.div
                         key="email"
-                        className="absolute inset-0 transform-3d backface-hidden"
+                        className="inset-0 transform-3d backface-hidden"
                         animate={{rotateY: 0, scale: 1}}
                         initial={{rotateY: -90, scale: 0.95}}
                         exit={{rotateY: 90, scale: 0.95}}

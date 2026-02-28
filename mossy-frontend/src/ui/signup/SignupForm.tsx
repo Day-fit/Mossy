@@ -52,7 +52,7 @@ export default function SignupForm(
             initial={{opacity: 0, y: -20}}
             animate={{opacity: 1, y: 0}}
             transition={{duration: 0.5}}
-            className="w-full flex justify-center items-center"
+            className="w-full flex justify-center items-center h-fit"
         >
             <motion.form
                 className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7 w-1/3 md:w-1/2 sm:w-full my-5"
@@ -182,7 +182,7 @@ export default function SignupForm(
 
                 <NavLink to="/login"
                          className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300">
-                    Already have an account?
+                    Already have an account? Click here
                 </NavLink>
             </motion.form>
         </motion.div>
