@@ -1,11 +1,11 @@
 import Nav from "./ui/layout/Nav.tsx";
 import Footer from "./ui/layout/Footer.tsx";
-import SignupHero from "./ui/signup/SignupHero.tsx";
+import SigninHero from "./ui/signin/SigninHero.tsx";
 
-export default function Register() {
+export default function Login() {
     return <>
         <Nav></Nav>
-        <SignupHero></SignupHero>
+        <SigninHero></SigninHero>
         <Footer></Footer>
     </>
 }

@@ -14,5 +14,5 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
         throw new Error(error?.message || "An error occurred");
     }
 
-    return response.json();
+    return response;
 }

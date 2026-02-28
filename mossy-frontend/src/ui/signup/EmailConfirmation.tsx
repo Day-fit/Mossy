@@ -6,7 +6,7 @@ import {
     type EmailConfirmationSchema,
 } from "../../forms/emailConfirmationSchema.ts";
 import {zodResolver} from "@hookform/resolvers/zod";
-import {confirmEmail} from "../../api/auth.api.ts";
+import {executeConfirmEmailRequest} from "../../api/auth.api.ts";
 import  {type Dispatch, type SetStateAction} from "react";
 import {useRef, useState} from "react";
 import * as React from "react";
@@ -77,7 +77,7 @@ export default function EmailConfirmation({
 
     const onSubmit = async (data: EmailConfirmationSchema) => {
         try {
-            const res = await confirmEmail(data.code);
+            const res = await executeConfirmEmailRequest(data.code);
             const json = await res.json();
 
             if (res.status !== 200) {

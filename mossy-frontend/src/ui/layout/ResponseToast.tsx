@@ -57,7 +57,6 @@ export default function ResponseToast({message, isError, className, setResponseS
                     className="text-white text-3xl cursor-pointer"
                     onClick={() => {
                         setResponseState({message: "", isError: undefined})
-                        console.log("clicked")
                     }}
         />
     </motion.div>

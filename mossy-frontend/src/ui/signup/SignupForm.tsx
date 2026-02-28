@@ -5,6 +5,7 @@ import {motion, AnimatePresence} from "framer-motion";
 import {NavLink} from "react-router-dom";
 import RippleButton from "../layout/RippleButton.tsx";
 import type {Dispatch, SetStateAction} from "react";
+import {executeRegisterRequest} from "../../api/auth.api.ts";
 
 interface SignupFormProps {
     setResponseState: Dispatch<SetStateAction<{
@@ -31,27 +32,20 @@ export default function SignupForm(
     const onSubmit = async (data: RegisterSchema) => {
         console.log(data);
 
-        await fetch("/api/v1/auth/register", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            credentials: "include",
-            body: JSON.stringify(data)
-        })
-        .then(async res => {
-            const json = await res.json();
-            const success = res.status === 200;
+        executeRegisterRequest(data)
+            .then(async res => {
+                const json = await res.json();
+                const success = res.status === 200;
 
-            setResponseState({message: json.message, isError: res.status !== 200});
+                setResponseState({message: json.message, isError: res.status !== 200});
 
-            if (success) {
-                onSuccess();
-            }
-        })
-        .catch(err => {
-            console.log(err);
-        });
+                if (success) {
+                    onSuccess();
+                }
+            })
+            .catch(err => {
+                console.log(err);
+            });
     }
 
     return <motion.div
