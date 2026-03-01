@@ -16,6 +16,7 @@ export default defineConfig({
 
     plugins: [
         tailwindcss(),
+        require('tailwind-scrollbar'),
         react({
             babel: {
                 plugins: [['babel-plugin-react-compiler']],
