@@ -13,7 +13,8 @@ function Nav() {
             />
 
             <div className="flex gap-10 items-center h-full">
-                <NavTab name="Password" url="/passwords" requiresAuthentication={true}/>
+                <NavTab name="Dashboard" url="/dashboard" requiresAuthentication={true}/>
+                <NavTab name="Passwords" url="/passwords" requiresAuthentication={true}/>
             </div>
 
             <div className="mr-2">

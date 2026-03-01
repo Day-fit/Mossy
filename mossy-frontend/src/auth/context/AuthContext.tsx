@@ -1,9 +1,9 @@
 import {createContext, type ReactNode, useContext, useEffect, useState} from "react";
 import {tokenStorage} from "../tokenStorage.ts";
-import {executeCheckAuthState} from "../../api/auth.api.ts";
+import {executeCheckAuthState, executeRefreshRequest} from "../../api/auth.api.ts";
 
 type AuthState = {
-    isAuthenticated: boolean;
+    isAuthenticated: boolean | null;
     login: (token: string) => void;
     logout: () => void;
 };
@@ -11,11 +11,28 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null);
 
 export const AuthProvider = ({children}: { children: ReactNode }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(() => !!tokenStorage.get());
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
     useEffect(() => {
         const token = tokenStorage.get();
-        if (!token) return;
+        const refreshToken = () => {
+            executeRefreshRequest()
+                .then(res => res.json())
+                .then(data => {
+                    if (data.accessToken) {
+                        tokenStorage.set(data.accessToken);
+                        setIsAuthenticated(true);
+                    }
+                })
+                .catch(() => {
+                    setIsAuthenticated(false);
+                });
+        }
+
+        if (token == null) {
+            refreshToken();
+            return;
+        }
 
         executeCheckAuthState({ token })
             .then(res => res.json())
@@ -23,7 +40,7 @@ export const AuthProvider = ({children}: { children: ReactNode }) => {
                 setIsAuthenticated(data.isAuthenticated);
             })
             .catch(() => {
-                setIsAuthenticated(false);
+                refreshToken();
             });
     }, []);
 

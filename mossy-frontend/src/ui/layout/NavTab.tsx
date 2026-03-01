@@ -12,7 +12,7 @@ function NavTab({name, url, requiresAuthentication}: NavTabProps) {
     const { isAuthenticated } = useAuth()
     const MotionNavLink = motion.create(NavLink);
 
-    return (isAuthenticated || !requiresAuthentication) &&
+    return (isAuthenticated == true || !requiresAuthentication) &&
         <section className={"relative flex flex-col justify-center items-center h-full"}>
             <MotionNavLink
                 to={url}

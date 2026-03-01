@@ -1,9 +1,9 @@
-import PasswordHero from "./ui/passwords/PasswordHero.tsx";
-import {useEffect} from "react";
+import DashboardHero from "./ui/dashboard/DashboardHero.tsx";
 import {useAuth} from "./auth/context/AuthContext.tsx";
 import {useNavigate} from "react-router-dom";
+import {useEffect} from "react";
 
-export default function Passwords() {
+export default function Dashboard() {
     const { isAuthenticated } = useAuth()
     const navigate = useNavigate();
 
@@ -14,6 +14,6 @@ export default function Passwords() {
     }, [isAuthenticated, navigate]);
 
     return <>
-        <PasswordHero></PasswordHero>
+        <DashboardHero/>
     </>
 }
