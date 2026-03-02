@@ -4,7 +4,7 @@ import RecentActionEntry from "./RecentActionEntry.tsx";
 export default function RecentActionSection() {
     return (
         <motion.aside
-            className="flex flex-col h-full min-h-0 shadow-2xl rounded-md bg-white"
+            className="flex flex-col h-full min-h-0 rounded-md bg-white shadow-2xl"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
@@ -26,7 +26,7 @@ export default function RecentActionSection() {
             >
                 <RecentActionEntry
                     date="2026-03-01T19:21:42.321Z"
-                    actionType="added"
+                    actionType="removed"
                     domain="https://chatgpt.com"
                 />
                 <RecentActionEntry

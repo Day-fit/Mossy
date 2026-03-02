@@ -12,6 +12,9 @@ export default function Footer() {
         <section className="flex flex-col">
             <h3 className="text-xl mb-1">Site map</h3>
             <NavLink to="/" className="text-gray-600">Home</NavLink>
+            <NavLink to="/register" className="text-gray-600">Sign up</NavLink>
+            <NavLink to="/register" className="text-gray-600">Sign in</NavLink>
+            <NavLink to="/dashboard" className="text-gray-600">Dashboard</NavLink>
             <NavLink to="/passwords" className="text-gray-600">Passwords</NavLink>
         </section>
     </footer>

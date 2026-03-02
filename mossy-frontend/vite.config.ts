@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+
     server: {
         proxy: {
             '/api/v1/auth': {
@@ -16,7 +17,6 @@ export default defineConfig({
 
     plugins: [
         tailwindcss(),
-        require('tailwind-scrollbar'),
         react({
             babel: {
                 plugins: [['babel-plugin-react-compiler']],

@@ -1,6 +1,7 @@
 import { motion, stagger, type Variants } from "framer-motion";
 import PasswordChart from "./PasswordChart.tsx";
 import RecentActionSection from "./RecentActionSection.tsx";
+import VaultDashboardView from "./VaultDashboardView.tsx";
 
 export default function DashboardHero() {
     const containerVariants: Variants = {
@@ -45,15 +46,15 @@ export default function DashboardHero() {
                     className="flex-1 min-h-0"
                     variants={childVariants}
                 >
-                    <div className="h-full rounded-md shadow-2xl bg-white">
-                        <div className="h-full overflow-hidden rounded-md">
-                            {/* future content */}
-                        </div>
+                    <div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
+                        <VaultDashboardView passwordsCount={1} vaultName={"test"} isOnline={false}></VaultDashboardView>
+                        <VaultDashboardView passwordsCount={1} vaultName={"test"} isOnline={false}></VaultDashboardView>
+                        <VaultDashboardView passwordsCount={1} vaultName={"test"} isOnline={false}></VaultDashboardView>
                     </div>
                 </motion.div>
             </motion.section>
 
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden shadow-2xl">
                 <RecentActionSection />
             </div>
         </section>
