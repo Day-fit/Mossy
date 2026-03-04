@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import java.util.UUID
 
 @Service
 class UserDetailsService(
@@ -33,6 +34,20 @@ class UserDetailsService(
             user.id!!,
             authorities
             )
+    }
+
+    fun loadUserById(userId: UUID): UserDetails {
+        val user = userRepository.findById(userId)
+            .orElseThrow { throw UsernameNotFoundException("User not found") }
+
+        val authorities = user.authorities.map { SimpleGrantedAuthority(it) }
+
+        return UserDetailsImpl(
+            user.username,
+            user.password,
+            user.id!!,
+            authorities
+        )
     }
 
     private fun loadByUsername(username: String): UserModel

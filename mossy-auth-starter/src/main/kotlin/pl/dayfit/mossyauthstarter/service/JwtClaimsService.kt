@@ -15,7 +15,23 @@ import java.util.UUID
 class JwtClaimsService(
     private val jwksProvider: JwksProvider
 ) {
+    /**
+     * Extracts the UUID from the subject field contained within the claims of a JWT token.
+     *
+     * @param token the JSON Web Token (JWT) as a String
+     * @return the UUID extracted from the subject field of the token's claims
+     * @throws BadCredentialsException if the JWT is invalid, expired, has an unsupported algorithm,
+     * or contains claims with an invalid issuer
+     */
     fun getId(token: String): UUID = UUID.fromString(getClaims(token).subject)
+
+    /**
+     * Extracts the roles from a decoded JSON Web Token (JWT) and converts them into a collection
+     * of granted authorities for Spring Security.
+     *
+     * @param token the JSON Web Token (JWT) as a String
+     * @return a collection of granted authorities derived from the roles in the token's claims
+     */
     fun getRoles(token: String): Collection<GrantedAuthority>
     {
         return getClaims(token).getStringListClaim("roles")
@@ -32,7 +48,8 @@ class JwtClaimsService(
      */
     private fun getClaims(token: String): JWTClaimsSet
     {
-        val signedJWT = SignedJWT.parse(token)
+        val signedJWT = runCatching { return@runCatching SignedJWT.parse(token) }
+            .getOrElse { throw BadCredentialsException("Invalid JWT format") }
 
         if (signedJWT.header.algorithm != JWSAlgorithm.Ed25519)
         {

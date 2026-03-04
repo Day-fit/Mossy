@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.CookieValue
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RestController
@@ -12,11 +13,13 @@ import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperti
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
+import pl.dayfit.mossyauth.dto.response.AuthStatusDto
 import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
 import pl.dayfit.mossyauth.dto.response.LoginResponseDto
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.UserService
 import java.time.Duration
+import java.util.UUID
 
 @RestController
 class AuthController(
@@ -84,5 +87,36 @@ class AuthController(
         return ResponseEntity.ok().headers {
             it.set(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
         }.body(GenericServerResponseDto("User logged out successfully"))
+    }
+
+    @PostMapping("/refresh")
+    fun handleRefresh(
+        @CookieValue("refreshToken") refreshToken: String,
+    ): ResponseEntity<LoginResponseDto>
+    {
+        val pairOfTokens = jwtManagementService.handleTokenRefreshment(refreshToken)
+        jwtManagementService.revokeToken(refreshToken) //Revoke after refreshment
+
+        val refreshTokenCookie = ResponseCookie.from("refreshToken", pairOfTokens.second)
+            .path("/")
+            .sameSite("Lax")
+            .secure(cookiesConfigurationProperties.secure)
+            .maxAge(jwtConfigurationProperties.refreshTokenExpirationTime)
+            .httpOnly(true)
+            .build()
+
+        return ResponseEntity.ok()
+            .headers {
+                it.set(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+            }.body(LoginResponseDto(pairOfTokens.first))
+    }
+
+    @GetMapping("/status")
+    fun checkAuthStatus(userId: UUID?): ResponseEntity<AuthStatusDto>
+    {
+        return ResponseEntity.ok(
+            AuthStatusDto(
+                userId != null
+            ))
     }
 }
