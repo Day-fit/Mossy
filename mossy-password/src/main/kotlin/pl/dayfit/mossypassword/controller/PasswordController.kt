@@ -33,7 +33,7 @@ class PasswordController(
         vaultCommunicationService.savePassword(vaultId, requestDto)
 
         return ResponseEntity.ok(
-            ServerResponseDto("Password saved successfully")
+            ServerResponseDto("Passwords saved successfully")
         )
     }
 
@@ -62,7 +62,7 @@ class PasswordController(
         )
 
         return ResponseEntity.ok(
-            ServerResponseDto("Password deleted successfully")
+            ServerResponseDto("Passwords deleted successfully")
         )
     }
 }

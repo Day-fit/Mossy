@@ -9,6 +9,6 @@ data class RegisterUserRequestDto (
     @Email
     @NotBlank(message = "Email cannot be blank")
     val email: String,
-    @NotBlank(message = "Password cannot be blank")
+    @NotBlank(message = "Passwords cannot be blank")
     val password: String,
 )
