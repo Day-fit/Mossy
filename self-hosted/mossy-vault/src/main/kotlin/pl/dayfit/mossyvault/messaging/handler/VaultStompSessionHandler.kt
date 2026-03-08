@@ -12,7 +12,7 @@ import java.lang.reflect.Type
 @Component
 class VaultStompSessionHandler(
     private val savePasswordHandler: SavePasswordHandler,
-    private val deletePasswordHandler: DeletePasswordHandler
+    private val deletePasswordHandler: DeletePasswordHandler,
 ) : StompSessionHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(VaultStompSessionHandler::class.java)
 

@@ -1,0 +1,9 @@
+package pl.dayfit.mossypassword.repository
+
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.stereotype.Repository
+import pl.dayfit.mossypassword.model.Vault
+import java.util.UUID
+
+@Repository
+interface VaultRepository : JpaRepository<Vault, UUID>

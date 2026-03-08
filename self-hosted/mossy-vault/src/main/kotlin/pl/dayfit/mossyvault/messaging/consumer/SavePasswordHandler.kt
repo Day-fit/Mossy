@@ -38,7 +38,7 @@ class SavePasswordHandler(
             return
         }
 
-        val decodedBlob = Base64.decode(requestDto.encryptedBlob)
+        val decodedBlob = Base64.decode(requestDto.cipherText)
 
         val passwordEntry = PasswordEntry(
             null,
