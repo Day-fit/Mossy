@@ -25,7 +25,7 @@ class UserService(
 ) {
     fun register(requestDto: RegisterUserRequestDto)
     {
-        //Password cannot be null, so a result of encoding is not null as well
+        //Passwords cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
 
         val email = requestDto.email
