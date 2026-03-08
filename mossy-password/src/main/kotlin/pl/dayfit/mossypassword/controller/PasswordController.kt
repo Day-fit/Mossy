@@ -2,37 +2,35 @@ package pl.dayfit.mossypassword.controller
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.VaultCommunicationService
-import java.security.Principal
 import java.util.UUID
 
-@RestController("/password")
+@RestController
+@RequestMapping("/password")
 class PasswordController(
     private val vaultCommunicationService: VaultCommunicationService
 ) {
     /**
-     * Saves a password for the authenticated user.
+     * Saves a password by forwarding it to the vault specified in the request DTO.
      *
-     * @param principal the currently authenticated principal containing the user ID.
-     * @param requestDto the data transfer object containing the password details to be saved.
+     * @param requestDto the data transfer object containing the password details and destination vaultId.
      * @return a ResponseEntity containing a ServerResponseDto with a success message.
      */
     @PostMapping("/save")
     fun savePassword(
-        @AuthenticationPrincipal principal: Principal,
-        requestDto: SavePasswordRequestDto
+        @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        val userId = UUID.fromString(principal.name)
-        vaultCommunicationService.savePassword(userId, requestDto)
+        val vaultId = UUID.fromString(requestDto.vaultId)
+        vaultCommunicationService.savePassword(vaultId, requestDto)
 
         return ResponseEntity.ok(
             ServerResponseDto("Password saved successfully")

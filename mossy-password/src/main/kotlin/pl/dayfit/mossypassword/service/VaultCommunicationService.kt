@@ -2,6 +2,7 @@ package pl.dayfit.mossypassword.service
 
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
+import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import java.util.UUID
 
@@ -35,7 +36,7 @@ class VaultCommunicationService(
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
             "/vault/delete",
-            passwordId
+            DeletePasswordRequestDto(passwordId, vaultId)
         )
     }
 }

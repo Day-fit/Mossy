@@ -9,9 +9,10 @@ import org.springframework.web.socket.sockjs.client.WebSocketTransport
 import org.springframework.web.socket.client.standard.StandardWebSocketClient
 import org.springframework.web.socket.messaging.WebSocketStompClient
 import pl.dayfit.mossyvault.configuration.properties.StompConfigurationProperties
+import pl.dayfit.mossyvault.configuration.properties.VaultConfigurationProperties
 
 @Configuration
-@EnableConfigurationProperties(StompConfigurationProperties::class)
+@EnableConfigurationProperties(StompConfigurationProperties::class, VaultConfigurationProperties::class)
 class StompConfiguration {
     @Bean
     fun sockJsClient(): SockJsClient

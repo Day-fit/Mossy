@@ -21,12 +21,12 @@ class VaultStompSessionHandler(
         connectedHeaders: StompHeaders
     ) {
         session.subscribe(
-            "/vault/save",
+            "/user/vault/save",
             savePasswordHandler
         )
 
         session.subscribe(
-            "/vault/delete",
+            "/user/vault/delete",
             deletePasswordHandler
         )
     }
