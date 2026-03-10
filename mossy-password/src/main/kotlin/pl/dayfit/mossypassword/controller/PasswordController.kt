@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
+import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
+import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.VaultCommunicationService
 import java.util.UUID
@@ -37,11 +39,29 @@ class PasswordController(
         )
     }
 
+    @PostMapping("/extract-ciphertext")
+    fun extractCiphertext(
+        @RequestBody requestDto: ExtractCiphertextRequestDto
+    ): ResponseEntity<ServerResponseDto> {
+        vaultCommunicationService.extractCiphertext(
+            requestDto.vaultId,
+            requestDto.passwordId
+        )
+
+        return ResponseEntity.ok(
+            ServerResponseDto("Ciphertext extraction requested successfully")
+        )
+    }
+
     @PatchMapping("/update")
-    fun updatePassword(): ResponseEntity<ServerResponseDto> {
+    fun updatePassword(
+        @RequestBody requestDto: UpdatePasswordRequestDto
+    ): ResponseEntity<ServerResponseDto> {
+        vaultCommunicationService.updatePassword(requestDto)
+
         return ResponseEntity
-            .status(HttpStatus.NOT_IMPLEMENTED)
-            .body(ServerResponseDto("Not implemented yet"))
+            .status(HttpStatus.OK)
+            .body(ServerResponseDto("Password updated successfully"))
     }
 
     /**

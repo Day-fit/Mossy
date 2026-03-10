@@ -3,7 +3,9 @@ package pl.dayfit.mossypassword.service
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
+import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
+import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import java.util.UUID
 
 @Service
@@ -37,6 +39,24 @@ class VaultCommunicationService(
             vaultId.toString(),
             "/vault/delete",
             DeletePasswordRequestDto(passwordId, vaultId)
+        )
+    }
+
+    fun extractCiphertext(vaultId: UUID, passwordId: UUID)
+    {
+        messagingTemplate.convertAndSendToUser(
+            vaultId.toString(),
+            "/vault/extract-ciphertext",
+            ExtractCiphertextRequestDto(passwordId, vaultId)
+        )
+    }
+
+    fun updatePassword(requestDto: UpdatePasswordRequestDto)
+    {
+        messagingTemplate.convertAndSendToUser(
+            requestDto.vaultId.toString(),
+            "/vault/update",
+            requestDto
         )
     }
 }
