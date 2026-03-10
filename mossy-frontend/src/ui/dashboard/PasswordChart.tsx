@@ -2,21 +2,20 @@ import { motion } from "framer-motion";
 import {CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import {formatDate} from "../../helpers/DateFormatHelper.ts";
 
-interface PasswordData {
+type PasswordData = {
     date: string;
     addedCount: number;
 }
 
-const dummyData: PasswordData[] = [
-    {date: new Date().toISOString(), addedCount: 10},
-    {date: new Date().toISOString(), addedCount: 20}
-];
+type PasswordChartProps = {
+    data: PasswordData[];
+}
 
-export default function PasswordChart() {
+export default function PasswordChart({data}: PasswordChartProps) {
     return <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
         <h2 className="text-lg text-gray-700">Secured passwords</h2>
         <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dummyData}>
+            <LineChart data={data}>
                 <CartesianGrid strokeDasharray="3 3"/>
                 <XAxis dataKey="date" tickFormatter={formatDate}/>
                 <YAxis/>

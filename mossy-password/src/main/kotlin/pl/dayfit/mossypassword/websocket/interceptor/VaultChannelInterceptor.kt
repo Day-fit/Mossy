@@ -8,13 +8,15 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor
 import org.springframework.messaging.support.ChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
 import org.springframework.stereotype.Component
+import pl.dayfit.mossypassword.service.VaultPresenceService
 import pl.dayfit.mossypassword.service.VaultRegistrationService
 import java.security.Principal
 import java.util.UUID
 
 @Component
 class VaultChannelInterceptor(
-    private val vaultRegistrationService: VaultRegistrationService
+    private val vaultRegistrationService: VaultRegistrationService,
+    private val vaultPresenceService: VaultPresenceService
 ) : ChannelInterceptor {
     private val logger = LoggerFactory.getLogger(VaultChannelInterceptor::class.java)
 
@@ -42,7 +44,16 @@ class VaultChannelInterceptor(
             }
 
             accessor.user = Principal { vaultIdHeader }
+            vaultPresenceService.markOnline(vaultId)
             logger.debug("Vault authenticated successfully: vault-id={}", vaultIdHeader)
+        }
+
+        if (accessor != null && StompCommand.DISCONNECT == accessor.command) {
+            val principalName = accessor.user?.name ?: return message
+            val vaultId = runCatching { UUID.fromString(principalName) }.getOrNull() ?: return message
+
+            vaultPresenceService.markOffline(vaultId)
+            logger.debug("Vault disconnected: vault-id={}", principalName)
         }
 
         return message

@@ -19,7 +19,17 @@ class VaultRegistrationService(
     fun register(): VaultRegistrationResponseDto {
         val rawSecret = generateApiKey()
         val secretHash = passwordEncoder.encode(rawSecret)!! //if rawSecret is not nullable, a result cannot be null
-        val vault = vaultRepository.save(Vault(secretHash = secretHash))
+        val createdVault = vaultRepository.save(
+            Vault(
+                secretHash = secretHash,
+                vaultName = "vault"
+            )
+        )
+
+        val vault = createdVault.apply {
+            vaultName = "Vault-${id.toString().take(8)}"
+        }
+        vaultRepository.save(vault)
 
         return VaultRegistrationResponseDto(
             vaultId = vault.id!!,

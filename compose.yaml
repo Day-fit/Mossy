@@ -39,6 +39,25 @@ services:
     profiles:
       - !dev
 
+  mossy-statistics:
+    image: 'ghcr.io/day-fit/mossy-statistics:latest'
+    depends_on:
+      - 'postgres'
+      - 'rabbitmq'
+    ports:
+      - '8084:8084'
+    environment:
+      - 'SPRING_PROFILES_ACTIVE=prod'
+      - 'DB_NAME=${DB_NAME}'
+      - 'DB_USER=${DB_USER}'
+      - 'DB_PASSWORD=${DB_PASSWORD}'
+      - 'RABBITMQ_HOST=${RABBITMQ_HOST}'
+      - 'RABBITMQ_USER=${RABBITMQ_USER}'
+      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
+      - 'MOSSY_PASSWORD_BASE_URL=http://mossy-password:8080/api/v1'
+    profiles:
+      - !dev
+
   postgres:
     image: 'postgres:18.1-alpine'
     environment:

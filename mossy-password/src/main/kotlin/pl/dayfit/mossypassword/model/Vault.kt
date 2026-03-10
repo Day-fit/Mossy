@@ -11,5 +11,7 @@ data class Vault(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
-    val secretHash: String
+    val secretHash: String,
+    var vaultName: String,
+    var isOnline: Boolean = false
 )

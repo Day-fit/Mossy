@@ -6,11 +6,14 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
+import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
+import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import java.util.UUID
 
 @Service
 class VaultCommunicationService(
-    private val messagingTemplate: SimpMessagingTemplate
+    private val messagingTemplate: SimpMessagingTemplate,
+    private val statisticsEventPublisher: StatisticsEventPublisher
 ) {
     /**
      * Sends a request to save a password in the specified vault.
@@ -24,6 +27,15 @@ class VaultCommunicationService(
             vaultId.toString(),
             "/vault/save",
             requestDto
+        )
+
+        statisticsEventPublisher.publish(
+            PasswordStatisticEvent(
+                vaultId = vaultId,
+                passwordId = UUID.randomUUID(),
+                domain = requestDto.domain,
+                actionType = "added"
+            )
         )
     }
 
@@ -39,6 +51,15 @@ class VaultCommunicationService(
             vaultId.toString(),
             "/vault/delete",
             DeletePasswordRequestDto(passwordId, vaultId)
+        )
+
+        statisticsEventPublisher.publish(
+            PasswordStatisticEvent(
+                vaultId = vaultId,
+                passwordId = passwordId,
+                domain = "unknown",
+                actionType = "removed"
+            )
         )
     }
 
@@ -57,6 +78,15 @@ class VaultCommunicationService(
             requestDto.vaultId.toString(),
             "/vault/update",
             requestDto
+        )
+
+        statisticsEventPublisher.publish(
+            PasswordStatisticEvent(
+                vaultId = requestDto.vaultId,
+                passwordId = requestDto.passwordId,
+                domain = requestDto.domain,
+                actionType = "updated"
+            )
         )
     }
 }

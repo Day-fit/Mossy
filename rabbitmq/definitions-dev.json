@@ -59,6 +59,15 @@
       "arguments": {
         "x-queue-type": "classic"
       }
+    },
+    {
+      "name": "statistics.queue.password-events",
+      "vhost": "/",
+      "durable": true,
+      "type": "classic",
+      "arguments": {
+        "x-queue-type": "classic"
+      }
     }
   ],
   "exchanges": [
@@ -66,6 +75,15 @@
       "name": "fanout.jwks.exchange",
       "vhost": "/",
       "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "direct.statistics.exchange",
+      "vhost": "/",
+      "type": "direct",
       "durable": true,
       "auto_delete": false,
       "internal": false,
@@ -90,6 +108,13 @@
       "vhost": "/",
       "destination": "jwks.queue.password",
       "destination_type": "queue"
+    },
+    {
+      "source": "direct.statistics.exchange",
+      "vhost": "/",
+      "destination": "statistics.queue.password-events",
+      "destination_type": "queue",
+      "routing_key": "statistics.password.event"
     }
   ]
 }
