@@ -8,13 +8,15 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor
 import org.springframework.messaging.support.ChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
 import org.springframework.stereotype.Component
-import pl.dayfit.mossypassword.service.VaultRegistrationService
+import pl.dayfit.mossypassword.repository.VaultRepository
+import pl.dayfit.mossypassword.service.VaultAuthService
 import java.security.Principal
 import java.util.UUID
 
 @Component
 class VaultChannelInterceptor(
-    private val vaultRegistrationService: VaultRegistrationService
+    private val vaultAuthService: VaultAuthService,
+    private val vaultRepository: VaultRepository
 ) : ChannelInterceptor {
     private val logger = LoggerFactory.getLogger(VaultChannelInterceptor::class.java)
 
@@ -36,13 +38,19 @@ class VaultChannelInterceptor(
                 return null
             }
 
-            if (!vaultRegistrationService.validate(vaultId, vaultSecret)) {
+            if (!vaultAuthService.validate(vaultId, vaultSecret)) {
                 logger.warn("STOMP CONNECT rejected: invalid credentials for vault-id={}", vaultIdHeader)
                 return null
             }
 
             accessor.user = Principal { vaultIdHeader }
             logger.debug("Vault authenticated successfully: vault-id={}", vaultIdHeader)
+
+            val vault = vaultRepository.findById(vaultId)
+                .get() //Must exist if validation passed
+
+            vault.isOnline = true
+            vaultRepository.save(vault)
         }
 
         return message

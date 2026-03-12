@@ -6,4 +6,6 @@ import pl.dayfit.mossypassword.model.Vault
 import java.util.UUID
 
 @Repository
-interface VaultRepository : JpaRepository<Vault, UUID>
+interface VaultRepository : JpaRepository<Vault, UUID> {
+    fun findAllByOwnerId(ownerId: UUID): MutableList<Vault>
+}

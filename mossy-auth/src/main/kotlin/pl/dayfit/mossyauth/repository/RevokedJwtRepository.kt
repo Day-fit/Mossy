@@ -9,4 +9,5 @@ import java.util.UUID
 @Repository
 interface RevokedJwtRepository : JpaRepository<RevokedJwtModel, UUID> {
     fun findRevokedJwtModelByValidUntilAfter(now: Instant): List<RevokedJwtModel>
+    fun existsByToken(token: String): Boolean
 }

@@ -31,11 +31,6 @@ class BearerTokenFilter(
                 return
             }
 
-            if (accessToken.isBlank()) {
-                filterChain.doFilter(request, response)
-                return
-            }
-
             val candidate = JwtAuthenticationTokenCandidate(
                 accessToken,
             )

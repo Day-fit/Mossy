@@ -1,7 +1,8 @@
 package pl.dayfit.mossypassword.service
 
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import pl.dayfit.mossypassword.dto.request.VaultRegistrationRequestDto
 import pl.dayfit.mossypassword.dto.response.VaultRegistrationResponseDto
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
@@ -10,16 +11,20 @@ import java.util.UUID
 import kotlin.io.encoding.Base64
 
 @Service
-class VaultRegistrationService(
-    private val vaultRepository: VaultRepository
+class VaultAuthService(
+    private val vaultRepository: VaultRepository,
+    private val passwordEncoder: PasswordEncoder,
+    private val secureRandom: SecureRandom
 ) {
-    private val passwordEncoder = BCryptPasswordEncoder()
-    private val secureRandom = SecureRandom()
 
-    fun register(): VaultRegistrationResponseDto {
+    fun register(userId: UUID, dto: VaultRegistrationRequestDto): VaultRegistrationResponseDto {
         val rawSecret = generateApiKey()
         val secretHash = passwordEncoder.encode(rawSecret)!! //if rawSecret is not nullable, a result cannot be null
-        val vault = vaultRepository.save(Vault(secretHash = secretHash))
+        val vault = vaultRepository.save(Vault(
+            ownerId = userId,
+            name = dto.vaultName,
+            secretHash = secretHash
+        ))
 
         return VaultRegistrationResponseDto(
             vaultId = vault.id!!,

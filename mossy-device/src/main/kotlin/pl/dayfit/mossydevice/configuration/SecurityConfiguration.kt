@@ -52,7 +52,7 @@ class SecurityConfiguration {
         val corsConfiguration = CorsConfiguration()
         val allowedOrigins = securityConfigurationProperties.allowedOrigins
         corsConfiguration.allowCredentials = true
-        corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
         corsConfiguration.allowedOriginPatterns = allowedOrigins.ifEmpty {
             logger.warn("Allowed origins list is empty, CORS allowed for all origins")
             return@ifEmpty listOf("*")
