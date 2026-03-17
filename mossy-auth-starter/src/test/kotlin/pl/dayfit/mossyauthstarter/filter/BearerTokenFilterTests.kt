@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.extension.ExtendWith
+import org.junit.jupiter.api.fail
 import org.mockito.Mockito.mock
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
@@ -19,16 +20,18 @@ import org.mockito.kotlin.whenever
 import org.springframework.security.authentication.AuthenticationManager
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
+import pl.dayfit.mossyauthstarter.filter.entrypoint.GlobalAuthenticationEntryPoint
 import java.util.UUID
 import kotlin.test.Test
 
 @ExtendWith(MockitoExtension::class)
 class BearerTokenFilterTests {
     private val jwtAuthenticationProvider: JwtAuthenticationProvider = mock()
+    private val authenticationEntryPoint: GlobalAuthenticationEntryPoint = mock()
     private val authenticationManager = AuthenticationManager { authentication ->
         jwtAuthenticationProvider.authenticate(authentication)
     }
-    private val bearerTokenFilter = BearerTokenFilter(authenticationManager)
+    private val bearerTokenFilter = BearerTokenFilter(authenticationManager, authenticationEntryPoint)
 
     @Test
     fun `test filter`() {
@@ -63,6 +66,9 @@ class BearerTokenFilterTests {
             .thenReturn(
                 JwtAuthenticationToken(UUID.randomUUID(), listOf()))
 
+        whenever { authenticationEntryPoint.commence(any(), any(), any()) }
+            .thenAnswer { fail("AuthenticationEntryPoint should not be called") }
+        
         assertDoesNotThrow {
             bearerTokenFilter.doFilter(
                 request, response, filterChain

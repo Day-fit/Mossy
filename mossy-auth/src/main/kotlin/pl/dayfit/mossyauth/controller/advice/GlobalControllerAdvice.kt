@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingRequestCookieException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
@@ -61,6 +62,14 @@ class GlobalControllerAdvice {
         return ResponseEntity.badRequest()
             .body(
                 ValidationResponseDto(errors)
+            )
+    }
+
+    @ExceptionHandler(MissingRequestCookieException::class)
+    fun handleMissingRequestCookieException(exception: MissingRequestCookieException): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.badRequest()
+            .body(
+                GenericServerResponseDto("Missing request cookie: ${exception.cookieName}")
             )
     }
 

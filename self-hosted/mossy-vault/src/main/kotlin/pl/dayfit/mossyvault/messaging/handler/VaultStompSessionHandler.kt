@@ -6,13 +6,17 @@ import org.springframework.messaging.simp.stomp.StompSession
 import org.springframework.messaging.simp.stomp.StompSessionHandler
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.messaging.consumer.DeletePasswordHandler
+import pl.dayfit.mossyvault.messaging.consumer.ExtractCiphertextHandler
 import pl.dayfit.mossyvault.messaging.consumer.SavePasswordHandler
+import pl.dayfit.mossyvault.messaging.consumer.UpdatePasswordHandler
 import java.lang.reflect.Type
 
 @Component
 class VaultStompSessionHandler(
     private val savePasswordHandler: SavePasswordHandler,
-    private val deletePasswordHandler: DeletePasswordHandler
+    private val deletePasswordHandler: DeletePasswordHandler,
+    private val updatePasswordHandler: UpdatePasswordHandler,
+    private val extractCiphertextHandler: ExtractCiphertextHandler,
 ) : StompSessionHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(VaultStompSessionHandler::class.java)
 
@@ -21,13 +25,23 @@ class VaultStompSessionHandler(
         connectedHeaders: StompHeaders
     ) {
         session.subscribe(
-            "/vault/save",
+            "/user/vault/save",
             savePasswordHandler
         )
 
         session.subscribe(
-            "/vault/delete",
+            "/user/vault/delete",
             deletePasswordHandler
+        )
+
+        session.subscribe(
+            "/user/vault/update",
+            updatePasswordHandler
+        )
+
+        session.subscribe(
+            "/user/vault/extract-ciphertext",
+            extractCiphertextHandler
         )
     }
 

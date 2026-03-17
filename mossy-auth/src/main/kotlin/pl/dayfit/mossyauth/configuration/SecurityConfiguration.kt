@@ -15,6 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import pl.dayfit.mossyauthstarter.auth.provider.JwtAuthenticationProvider
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import pl.dayfit.mossyauthstarter.filter.BearerTokenFilter
+import pl.dayfit.mossyauthstarter.filter.entrypoint.GlobalAuthenticationEntryPoint
 
 @Configuration
 @EnableWebSecurity
@@ -28,11 +29,13 @@ class SecurityConfiguration {
         securityConfigurationProperties: SecurityConfigurationProperties,
         bearerTokenFilter: BearerTokenFilter,
         authenticationManager: AuthenticationManager,
-        corsConfigurationSource: CorsConfigurationSource
+        corsConfigurationSource: CorsConfigurationSource,
+        globalAuthenticationEntryPoint: GlobalAuthenticationEntryPoint
     ): SecurityFilterChain {
         return http
             .securityMatcher("/**")
             .authenticationManager(authenticationManager)
+            .exceptionHandling { it.authenticationEntryPoint(globalAuthenticationEntryPoint) }
             .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .formLogin { it.disable() }
@@ -46,15 +49,16 @@ class SecurityConfiguration {
             .build()
     }
 
-    @Bean fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
+    @Bean
+    fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
     {
         val corsConfiguration = CorsConfiguration()
         val allowedOrigins = securityConfigurationProperties.allowedOrigins
         corsConfiguration.allowCredentials = true
-
-        if (allowedOrigins.isEmpty()) {
+        corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        corsConfiguration.allowedOriginPatterns = allowedOrigins.ifEmpty {
             logger.warn("Allowed origins list is empty, CORS allowed for all origins")
-            corsConfiguration.allowedOriginPatterns = listOf("*")
+            return@ifEmpty listOf("*")
         }
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
