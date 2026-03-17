@@ -18,7 +18,7 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
     profiles:
-      - !dev
+      - 'prod'
   mossy-device:
     image: 'ghcr.io/day-fit/mossy-password:latest'
     healthcheck:
@@ -37,7 +37,7 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
     profiles:
-      - !dev
+      - 'prod'
 
   mossy-statistics:
     image: 'ghcr.io/day-fit/mossy-statistics:latest'
@@ -56,7 +56,7 @@ services:
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'MOSSY_PASSWORD_BASE_URL=http://mossy-password:8080/api/v1'
     profiles:
-      - !dev
+      - 'prod'
 
   postgres:
     image: 'postgres:18.1-alpine'

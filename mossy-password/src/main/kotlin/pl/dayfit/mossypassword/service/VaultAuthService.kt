@@ -19,21 +19,14 @@ class VaultAuthService(
 
     fun register(userId: UUID, dto: VaultRegistrationRequestDto): VaultRegistrationResponseDto {
         val rawSecret = generateApiKey()
-        val secretHash = passwordEncoder.encode(rawSecret)!! //if rawSecret is not nullable, a result cannot be null
-        val createdVault = vaultRepository.save(
+        val secretHash = requireNotNull(passwordEncoder.encode(rawSecret))
+        val vault = vaultRepository.save(
             Vault(
                 ownerId = userId,
-            name = dto.vaultName,
-            secretHash = secretHash
-        ,
-                vaultName = "vault"
+                name = dto.vaultName,
+                secretHash = secretHash
             )
         )
-
-        val vault = createdVault.apply {
-            vaultName = "Vault-${id.toString().take(8)}"
-        }
-        vaultRepository.save(vault)
 
         return VaultRegistrationResponseDto(
             vaultId = vault.id!!,

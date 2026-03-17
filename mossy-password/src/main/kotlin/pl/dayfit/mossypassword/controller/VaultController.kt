@@ -59,7 +59,7 @@ class VaultController(
             vaultRepository.findAll().map {
                 VaultStatusResponseDto(
                     vaultId = it.id!!,
-                    vaultName = it.vaultName,
+                    vaultName = it.name,
                     isOnline = it.isOnline
                 )
             }

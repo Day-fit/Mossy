@@ -8,19 +8,15 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor
 import org.springframework.messaging.support.ChannelInterceptor
 import org.springframework.messaging.support.MessageHeaderAccessor
 import org.springframework.stereotype.Component
-import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.VaultAuthService
-import pl.dayfit.mossypassword.service.VaultPresenceService
-import pl.dayfit.mossypassword.service.VaultRegistrationService
+import pl.dayfit.mossypassword.service.VaultStatusService
 import java.security.Principal
 import java.util.UUID
 
 @Component
 class VaultChannelInterceptor(
-    private val vaultRegistrationService: VaultRegistrationService,
     private val vaultAuthService: VaultAuthService,
-    private val vaultPresenceService: VaultPresenceService,
-    private val vaultRepository: VaultRepository
+    private val vaultStatusService: VaultStatusService
 ) : ChannelInterceptor {
     private val logger = LoggerFactory.getLogger(VaultChannelInterceptor::class.java)
 
@@ -48,21 +44,15 @@ class VaultChannelInterceptor(
             }
 
             accessor.user = Principal { vaultIdHeader }
-            vaultPresenceService.markOnline(vaultId)
+            vaultStatusService.markOnline(vaultId)
             logger.debug("Vault authenticated successfully: vault-id={}", vaultIdHeader)
-
-            val vault = vaultRepository.findById(vaultId)
-                .get() //Must exist if validation passed
-
-            vault.isOnline = true
-            vaultRepository.save(vault)
         }
 
         if (accessor != null && StompCommand.DISCONNECT == accessor.command) {
             val principalName = accessor.user?.name ?: return message
             val vaultId = runCatching { UUID.fromString(principalName) }.getOrNull() ?: return message
 
-            vaultPresenceService.markOffline(vaultId)
+            vaultStatusService.markOffline(vaultId)
             logger.debug("Vault disconnected: vault-id={}", principalName)
         }
 
