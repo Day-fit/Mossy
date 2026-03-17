@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.RevokedJwtModel
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
@@ -35,6 +36,11 @@ class JwtManagementService(
      */
     fun handleTokenRefreshment(refreshToken: String): Pair<String, String>
     {
+        if (revokedJwtRepository.existsByToken(refreshToken))
+        {
+            throw BadCredentialsException("Refresh token is revoked")
+        }
+
         val userId = jwtClaimsService.getId(refreshToken)
         val userDetails = userDetailsService.loadUserById(userId)
         val newPair = jwtGenerationService.generatePairOfTokens(userDetails as UserDetailsImpl)
