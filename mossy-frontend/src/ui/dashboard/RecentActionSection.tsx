@@ -34,14 +34,20 @@ export default function RecentActionSection({actions}: RecentActionSectionProps)
                 scrollbar-track-transparent
                 hover:scrollbar-thumb-gray-500"
             >
-                {actions.map((action, index) => (
-                    <RecentActionEntry
-                        key={`${action.domain}-${action.date}-${index}`}
-                        date={action.date}
-                        actionType={action.actionType}
-                        domain={action.domain}
-                    />
-                ))}
+                {actions.length === 0 ? (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                        No actions yet.
+                    </div>
+                ) : (
+                    actions.map((action, index) => (
+                        <RecentActionEntry
+                            key={`${action.domain}-${action.date}-${index}`}
+                            date={action.date}
+                            actionType={action.actionType}
+                            domain={action.domain}
+                        />
+                    ))
+                )}
             </div>
         </motion.aside>
     );

@@ -45,7 +45,7 @@ services:
       - 'postgres'
       - 'rabbitmq'
     ports:
-      - '8084:8084'
+      - '8085:8085'
     environment:
       - 'SPRING_PROFILES_ACTIVE=prod'
       - 'DB_NAME=${DB_NAME}'

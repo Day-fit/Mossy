@@ -25,6 +25,17 @@ class VaultStatusService(
             }
     }
 
+    fun getAllVaultStatuses(): List<VaultStatusResponseDto> {
+        return vaultRepository.findAll()
+            .map {
+                VaultStatusResponseDto(
+                    vaultId = it.id!!,
+                    vaultName = it.name,
+                    isOnline = it.isOnline
+                )
+            }
+    }
+
     @Transactional
     fun markOnline(vaultId: UUID) {
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return

@@ -14,6 +14,7 @@
         <option value="$PROJECT_DIR$/mossy-auth-starter/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-jwks/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-jwks-events/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-statistics/pom.xml" />
       </list>
     </option>
   </component>

@@ -2,6 +2,7 @@ package pl.dayfit.mossystatistics.service
 
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
+import org.springframework.web.client.body
 import pl.dayfit.mossystatistics.dto.response.DashboardResponseDto
 import pl.dayfit.mossystatistics.dto.response.PasswordChartPointDto
 import pl.dayfit.mossystatistics.dto.response.RecentActionDto
@@ -58,7 +59,7 @@ class StatisticsQueryService(
             mossyPasswordRestClient.get()
                 .uri("/vault/statuses")
                 .retrieve()
-                .body(Array<VaultStatusClientDto>::class.java)
+                .body<Array<VaultStatusClientDto>>()
                 ?.toList()
                 ?: emptyList()
         }.getOrElse {

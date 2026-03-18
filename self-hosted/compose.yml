@@ -22,7 +22,7 @@ services:
   postgres:
     image: 'postgres:18.1-alpine'
     environment:
-      - 'POSTGRES_DB=mossy_app'
+      - 'POSTGRES_DB=mossy_vault'
       - 'POSTGRES_PASSWORD=${DB_PASSWORD}'
       - 'POSTGRES_USER=${DB_USER}'
     volumes:

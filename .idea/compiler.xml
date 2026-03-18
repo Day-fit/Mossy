@@ -11,6 +11,7 @@
         <module name="mossy-device" />
         <module name="mossy-vault" />
         <module name="mossy-auth" />
+        <module name="mossy-statistics" />
         <module name="mossy-password" />
         <module name="mossy-jwks-events" />
       </profile>
@@ -26,6 +27,7 @@
       <module name="mossy-device" options="-parameters" />
       <module name="mossy-jwks" options="-parameters" />
       <module name="mossy-password" options="-parameters" />
+      <module name="mossy-statistics" options="-parameters" />
       <module name="mossy-vault" options="-parameters" />
     </option>
   </component>

@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.VaultRegistrationRequestDto
 import pl.dayfit.mossypassword.dto.response.VaultRegistrationResponseDto
 import pl.dayfit.mossypassword.dto.response.VaultStatusResponseDto
-import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.VaultAuthService
 import pl.dayfit.mossypassword.service.VaultStatusService
 import java.util.UUID
@@ -18,7 +17,6 @@ import java.util.UUID
 @RestController
 @RequestMapping("/vault")
 class VaultController(
-    private val vaultRepository: VaultRepository,
     private val vaultAuthService: VaultAuthService,
     private val vaultStatusService: VaultStatusService
 ) {
@@ -56,13 +54,7 @@ class VaultController(
     @GetMapping("/statuses")
     fun statuses(): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultRepository.findAll().map {
-                VaultStatusResponseDto(
-                    vaultId = it.id!!,
-                    vaultName = it.name,
-                    isOnline = it.isOnline
-                )
-            }
+            vaultStatusService.getAllVaultStatuses()
         )
     }
 }

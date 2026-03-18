@@ -69,6 +69,12 @@ export default function DashboardHero() {
                             </div>
                         ) : null}
 
+                        {!isLoading && !error && statistics.vaults.length === 0 ? (
+                            <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                                No vaults yet.
+                            </div>
+                        ) : null}
+
                         {statistics.vaults.map((vault, index) => (
                             <VaultDashboardView
                                 key={`${vault.vaultName}-${index}`}

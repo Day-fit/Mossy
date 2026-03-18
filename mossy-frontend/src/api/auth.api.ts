@@ -7,6 +7,7 @@ export async function executeRegisterRequest(data: {
 }) {
     try {
         return await apiFetch("/api/v1/auth/register", {
+            includeAuth: false,
             method: "POST",
             body: JSON.stringify(data),
         })
@@ -21,6 +22,7 @@ export async function executeLoginRequest(data: {
 }) {
     try {
         return await apiFetch("/api/v1/auth/login", {
+            includeAuth: false,
             method: "POST",
             body: JSON.stringify(data),
         })
@@ -35,9 +37,7 @@ export async function executeCheckAuthState(data: {
     try {
         return await apiFetch("/api/v1/auth/status", {
             method: "GET",
-            headers: {
-                Authorization: `Bearer ${data.token}`,
-            },
+            authToken: data.token,
         })
     } catch (e) {
         throw e;
@@ -47,6 +47,7 @@ export async function executeCheckAuthState(data: {
 export async function executeConfirmEmailRequest(token: string) {
     try {
         return await apiFetch(`/api/v1/auth/user/confirm/${token}`, {
+            includeAuth: false,
             method: "GET",
         })
     } catch (e) {
@@ -57,6 +58,7 @@ export async function executeConfirmEmailRequest(token: string) {
 export async function executeRefreshRequest() {
     try {
         return await apiFetch("/api/v1/auth/refresh", {
+            includeAuth: false,
             method: "POST",
         })
     } catch (e) {

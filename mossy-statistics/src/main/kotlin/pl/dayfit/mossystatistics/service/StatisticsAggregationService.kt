@@ -45,7 +45,7 @@ class StatisticsAggregationService(
     private fun parseActionType(rawActionType: String): ActionType? {
         return try {
             ActionType.valueOf(rawActionType.uppercase())
-        } catch (exception: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             null
         }
     }

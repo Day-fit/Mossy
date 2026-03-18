@@ -14,19 +14,25 @@ type PasswordChartProps = {
 export default function PasswordChart({data}: PasswordChartProps) {
     return <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
         <h2 className="text-lg text-gray-700">Secured passwords</h2>
-        <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3"/>
-                <XAxis dataKey="date" tickFormatter={formatDate}/>
-                <YAxis/>
-                <Tooltip labelFormatter={(value) => formatDate(value as string)}/>
-                <Line
-                    type="monotone"
-                    dataKey="addedCount"
-                    stroke="#00bc7d"
-                    strokeWidth={3}
-                />
-            </LineChart>
-        </ResponsiveContainer>
+        {data.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+                No password history yet.
+            </div>
+        ) : (
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                    <CartesianGrid strokeDasharray="3 3"/>
+                    <XAxis dataKey="date" tickFormatter={formatDate}/>
+                    <YAxis/>
+                    <Tooltip labelFormatter={(value) => formatDate(value as string)}/>
+                    <Line
+                        type="monotone"
+                        dataKey="addedCount"
+                        stroke="#00bc7d"
+                        strokeWidth={3}
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+        )}
     </motion.div>
 }

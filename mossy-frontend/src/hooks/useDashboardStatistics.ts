@@ -14,7 +14,7 @@ type UseDashboardStatisticsResult = {
     reload: () => Promise<void>;
 };
 
-export function useDashboardStatistics(refreshIntervalMs: number = 15000): UseDashboardStatisticsResult {
+export function useDashboardStatistics(refreshIntervalMs: number = 0): UseDashboardStatisticsResult {
     const [statistics, setStatistics] = useState<DashboardStatisticsResponse>(EMPTY_STATISTICS);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
