@@ -37,9 +37,7 @@ class QueryPasswordsByDomainHandler(
         }
         val metadata = passwords.map {
             PasswordMetadataDto(
-                passwordId = requireNotNull(it.id) {
-                    "Password entry is missing id for domain=${it.domain}, identifier=${it.identifier}"
-                },
+                passwordId = requireNotNull(it.id) { "Password entry is missing id" },
                 identifier = it.identifier,
                 domain = it.domain,
                 lastModified = it.lastModified

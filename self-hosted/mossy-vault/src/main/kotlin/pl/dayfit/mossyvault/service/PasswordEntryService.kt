@@ -37,9 +37,7 @@ class PasswordEntryService(
             lastModified = Instant.now()
         }
         val savedEntry = passwordEntryRepository.save(entry)
-        return requireNotNull(savedEntry.id) {
-            "Saved password entry is missing id for domain=${requestDto.domain}, identifier=${requestDto.identifier}"
-        }
+        return requireNotNull(savedEntry.id) { "Saved password entry is missing id" }
     }
 
     @Transactional
