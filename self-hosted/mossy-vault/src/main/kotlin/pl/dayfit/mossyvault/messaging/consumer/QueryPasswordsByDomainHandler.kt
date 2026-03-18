@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.dto.request.QueryPasswordsByDomainRequestDto
+import pl.dayfit.mossyvault.dto.response.PasswordMetadataDto
 import pl.dayfit.mossyvault.dto.response.PasswordQueryResponseDto
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import java.lang.reflect.Type
@@ -29,12 +30,22 @@ class QueryPasswordsByDomainHandler(
             return
         }
 
-        // Query passwords by domain
-        val passwords = passwordEntryRepository.findByDomain(requestDto.domain)
-        val passwordIds = passwords.map { it.id!! }
+        val passwords = if (requestDto.domain.isNullOrBlank()) {
+            passwordEntryRepository.findAll()
+        } else {
+            passwordEntryRepository.findByDomain(requestDto.domain)
+        }
+        val metadata = passwords.map {
+            PasswordMetadataDto(
+                passwordId = it.id!!,
+                identifier = it.identifier,
+                domain = it.domain,
+                lastModified = it.lastModified
+            )
+        }
 
         val response = PasswordQueryResponseDto(
-            passwordIds = passwordIds,
+            passwords = metadata,
             domain = requestDto.domain,
             vaultId = requestDto.vaultId
         )

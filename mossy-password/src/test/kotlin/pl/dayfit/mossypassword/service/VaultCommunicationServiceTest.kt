@@ -7,12 +7,9 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.messaging.simp.SimpMessagingTemplate
-import pl.dayfit.mossypassword.dto.request.SavePasswordAckRequestDto
-import pl.dayfit.mossypassword.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
 import pl.dayfit.mossypassword.model.Vault
@@ -89,7 +86,7 @@ class VaultCommunicationServiceTest {
     }
 
     @Test
-    fun `save returns deterministic id and sends request`() {
+    fun `save sends request with generated message id`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
@@ -111,96 +108,15 @@ class VaultCommunicationServiceTest {
             vaultId = vaultId
         )
 
-        val firstId = service.savePassword(userId, request)
-        val secondId = service.savePassword(userId, request)
+        service.savePassword(userId, request)
 
-        assertEquals(firstId, secondId)
-        verify(messagingTemplate, times(2)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), any())
-    }
-
-    @Test
-    fun `ack publishes statistics once and removes pending`() {
-        val userId = UUID.randomUUID()
-        val vaultId = UUID.randomUUID()
-        whenever(vaultRepository.findById(vaultId)).thenReturn(
-            Optional.of(
-                Vault(
-                    id = vaultId,
-                    ownerId = userId,
-                    name = "Vault",
-                    secretHash = "hash",
-                    isOnline = true
-                )
-            )
-        )
-
-        val passwordId = service.savePassword(
-            userId,
-            SavePasswordRequestDto(
-                identifier = "john@example.com",
-                domain = "example.com",
-                cipherText = "QmFzZTY0Q2lwaGVy",
-                vaultId = vaultId
-            )
-        )
-
-        val ack = SavePasswordAckRequestDto(
-            vaultId = vaultId,
-            passwordId = passwordId,
-            domain = "example.com",
-            identifier = "john@example.com",
-            status = SavePasswordAckStatus.ACK
-        )
-
-        service.handleSavePasswordAck(ack)
-        service.handleSavePasswordAck(ack)
-
-        val eventCaptor = argumentCaptor<pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent>()
-        verify(statisticsEventPublisher, times(1)).publish(eventCaptor.capture())
-        assertEquals(passwordId, eventCaptor.firstValue.passwordId)
-        assertEquals(vaultId, eventCaptor.firstValue.vaultId)
-        assertEquals("added", eventCaptor.firstValue.actionType)
-    }
-
-    @Test
-    fun `nack triggers resend`() {
-        val userId = UUID.randomUUID()
-        val vaultId = UUID.randomUUID()
-        whenever(vaultRepository.findById(vaultId)).thenReturn(
-            Optional.of(
-                Vault(
-                    id = vaultId,
-                    ownerId = userId,
-                    name = "Vault",
-                    secretHash = "hash",
-                    isOnline = true
-                )
-            )
-        )
-
-        val passwordId = service.savePassword(
-            userId,
-            SavePasswordRequestDto(
-                identifier = "john@example.com",
-                domain = "example.com",
-                cipherText = "QmFzZTY0Q2lwaGVy",
-                vaultId = vaultId
-            )
-        )
-
-        service.handleSavePasswordAck(
-            SavePasswordAckRequestDto(
-                vaultId = vaultId,
-                passwordId = passwordId,
-                domain = "example.com",
-                identifier = "john@example.com",
-                status = SavePasswordAckStatus.NACK,
-                reason = "failed"
-            )
-        )
-
-        verify(messagingTemplate, times(2)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), any())
-        verify(statisticsEventPublisher, never()).publish(any())
+        val payloadCaptor = argumentCaptor<SavePasswordRequestDto>()
+        verify(messagingTemplate).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), payloadCaptor.capture())
+        assertEquals(request.identifier, payloadCaptor.firstValue.identifier)
+        assertEquals(request.domain, payloadCaptor.firstValue.domain)
+        assertEquals(request.cipherText, payloadCaptor.firstValue.cipherText)
+        assertEquals(request.vaultId, payloadCaptor.firstValue.vaultId)
+        kotlin.test.assertNotNull(payloadCaptor.firstValue.messageId)
     }
 
     @Test

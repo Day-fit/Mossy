@@ -9,5 +9,6 @@ data class SavePasswordRequestDto(
     val domain: String,
     val cipherText: String,
     val vaultId: UUID,
-    val passwordId: UUID? = null
+    val passwordId: UUID? = null,
+    val messageId: UUID? = null
 )

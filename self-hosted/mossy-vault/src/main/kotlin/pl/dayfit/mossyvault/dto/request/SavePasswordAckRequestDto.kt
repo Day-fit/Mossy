@@ -8,10 +8,6 @@ enum class SavePasswordAckStatus {
 }
 
 data class SavePasswordAckRequestDto(
-    val vaultId: UUID,
-    val passwordId: UUID,
-    val domain: String,
-    val identifier: String,
-    val status: SavePasswordAckStatus,
-    val reason: String? = null
+    val messageId: UUID,
+    val status: SavePasswordAckStatus
 )

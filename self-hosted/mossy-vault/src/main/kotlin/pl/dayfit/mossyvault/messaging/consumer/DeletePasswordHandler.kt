@@ -4,12 +4,12 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossyvault.repository.PasswordEntryRepository
+import pl.dayfit.mossyvault.service.PasswordEntryService
 import java.lang.reflect.Type
 
 @Component
 class DeletePasswordHandler(
-    private val passwordEntryRepository: PasswordEntryRepository
+    private val passwordEntryService: PasswordEntryService
 ) : StompFrameHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(DeletePasswordHandler::class.java)
 
@@ -25,6 +25,6 @@ class DeletePasswordHandler(
             return
         }
 
-        passwordEntryRepository.deleteById(requestDto.passwordId)
+        passwordEntryService.delete(requestDto)
     }
 }

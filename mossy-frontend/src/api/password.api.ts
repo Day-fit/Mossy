@@ -7,14 +7,13 @@ export type SavePasswordRequestDto = {
     vaultId: string;
 };
 
-export type SavePasswordAcceptedResponseDto = {
-    passwordId: string;
+export type ServerResponseDto = {
     message: string;
 };
 
 export async function executeSavePasswordRequest(
     payload: SavePasswordRequestDto
-): Promise<SavePasswordAcceptedResponseDto> {
+): Promise<ServerResponseDto> {
     const response = await apiFetch("/api/v1/password/save", {
         method: "POST",
         body: JSON.stringify(payload),

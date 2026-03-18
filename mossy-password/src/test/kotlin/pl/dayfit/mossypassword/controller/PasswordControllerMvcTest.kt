@@ -2,6 +2,7 @@ package pl.dayfit.mossypassword.controller
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -9,11 +10,12 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.response.SavePasswordAcceptedResponseDto
+import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -29,7 +31,6 @@ class PasswordControllerMvcTest {
     fun `save endpoint forwards payload and returns accepted response`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
-        val passwordId = UUID.randomUUID()
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
             domain = "example.com",
@@ -37,14 +38,12 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        whenever(vaultCommunicationService.savePassword(userId, request)).thenReturn(passwordId)
-
         val response = controller.savePassword(userId, request)
         val body = response.body
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(body)
-        assertEquals(SavePasswordAcceptedResponseDto(passwordId, "Password save request accepted"), body)
+        assertEquals("Password save request accepted", body.message)
         verify(vaultCommunicationService, times(1)).savePassword(userId, request)
     }
 
@@ -59,7 +58,9 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotConnectedException(vaultId))
+        doThrow(VaultNotConnectedException(vaultId))
+            .whenever(vaultCommunicationService)
+            .savePassword(userId, request)
 
         assertThrows<VaultNotConnectedException> {
             controller.savePassword(userId, request)
@@ -77,7 +78,9 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
+        doThrow(VaultNotFoundException(vaultId))
+            .whenever(vaultCommunicationService)
+            .savePassword(userId, request)
 
         assertThrows<VaultNotFoundException> {
             controller.savePassword(userId, request)
@@ -132,16 +135,26 @@ class PasswordControllerMvcTest {
     }
 
     @Test
-    fun `get uuids endpoint returns values from query service`() {
+    fun `get metadata endpoint returns values from query service`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
-        val first = UUID.randomUUID()
-        val second = UUID.randomUUID()
+        val first = PasswordMetadataDto(
+            passwordId = UUID.randomUUID(),
+            identifier = "john@example.com",
+            domain = "example.com",
+            lastModified = Instant.now()
+        )
+        val second = PasswordMetadataDto(
+            passwordId = UUID.randomUUID(),
+            identifier = "anna@example.com",
+            domain = "example.com",
+            lastModified = Instant.now()
+        )
 
-        whenever(passwordQueryService.getPasswordUuidsByDomain(userId, vaultId, "example.com"))
+        whenever(passwordQueryService.getPasswordsMetadata(userId, vaultId, "example.com"))
             .thenReturn(listOf(first, second))
 
-        val response = controller.getPasswordUuidsByDomain(userId, "example.com", vaultId.toString())
+        val response = controller.getPasswordsMetadata(userId, "example.com", vaultId.toString())
 
         assertEquals(200, response.statusCode.value())
         assertEquals(listOf(first, second), response.body)
