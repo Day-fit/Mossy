@@ -17,6 +17,7 @@ import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
+import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 import java.util.Optional
@@ -37,11 +38,13 @@ class VaultCommunicationServiceTest {
 
     @Test
     fun `save throws when vault is missing`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(Optional.empty())
 
         assertThrows<VaultNotFoundException> {
             service.savePassword(
+                userId,
                 SavePasswordRequestDto(
                     identifier = "john@example.com",
                     domain = "example.com",
@@ -56,12 +59,13 @@ class VaultCommunicationServiceTest {
 
     @Test
     fun `save throws when vault is offline`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = false
@@ -71,6 +75,7 @@ class VaultCommunicationServiceTest {
 
         assertThrows<VaultNotConnectedException> {
             service.savePassword(
+                userId,
                 SavePasswordRequestDto(
                     identifier = "john@example.com",
                     domain = "example.com",
@@ -85,12 +90,13 @@ class VaultCommunicationServiceTest {
 
     @Test
     fun `save returns deterministic id and sends request`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = true
@@ -105,8 +111,8 @@ class VaultCommunicationServiceTest {
             vaultId = vaultId
         )
 
-        val firstId = service.savePassword(request)
-        val secondId = service.savePassword(request)
+        val firstId = service.savePassword(userId, request)
+        val secondId = service.savePassword(userId, request)
 
         assertEquals(firstId, secondId)
         verify(messagingTemplate, times(2)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), any())
@@ -114,12 +120,13 @@ class VaultCommunicationServiceTest {
 
     @Test
     fun `ack publishes statistics once and removes pending`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = true
@@ -128,6 +135,7 @@ class VaultCommunicationServiceTest {
         )
 
         val passwordId = service.savePassword(
+            userId,
             SavePasswordRequestDto(
                 identifier = "john@example.com",
                 domain = "example.com",
@@ -156,12 +164,13 @@ class VaultCommunicationServiceTest {
 
     @Test
     fun `nack triggers resend`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = true
@@ -170,6 +179,7 @@ class VaultCommunicationServiceTest {
         )
 
         val passwordId = service.savePassword(
+            userId,
             SavePasswordRequestDto(
                 identifier = "john@example.com",
                 domain = "example.com",
@@ -191,5 +201,36 @@ class VaultCommunicationServiceTest {
 
         verify(messagingTemplate, times(2)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), any())
         verify(statisticsEventPublisher, never()).publish(any())
+    }
+
+    @Test
+    fun `save throws when vault belongs to different user`() {
+        val userId = UUID.randomUUID()
+        val vaultId = UUID.randomUUID()
+        whenever(vaultRepository.findById(vaultId)).thenReturn(
+            Optional.of(
+                Vault(
+                    id = vaultId,
+                    ownerId = UUID.randomUUID(),
+                    name = "Vault",
+                    secretHash = "hash",
+                    isOnline = true
+                )
+            )
+        )
+
+        assertThrows<VaultAccessDeniedException> {
+            service.savePassword(
+                userId,
+                SavePasswordRequestDto(
+                    identifier = "john@example.com",
+                    domain = "example.com",
+                    cipherText = "QmFzZTY0Q2lwaGVy",
+                    vaultId = vaultId
+                )
+            )
+        }
+
+        verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
     }
 }

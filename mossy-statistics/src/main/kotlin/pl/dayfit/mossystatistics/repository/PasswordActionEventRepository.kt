@@ -10,6 +10,7 @@ import java.util.UUID
 
 interface PasswordActionEventRepository : JpaRepository<PasswordActionEvent, UUID> {
     fun findTop20ByOrderByEventTimestampDesc(): List<PasswordActionEvent>
+    fun findTop20ByVaultIdInOrderByEventTimestampDesc(vaultIds: Collection<UUID>): List<PasswordActionEvent>
 
     @Query(
         """
@@ -22,5 +23,20 @@ interface PasswordActionEventRepository : JpaRepository<PasswordActionEvent, UUI
     fun findByActionTypeFrom(
         @Param("actionType") actionType: ActionType,
         @Param("from") from: Instant
+    ): List<PasswordActionEvent>
+
+    @Query(
+        """
+        SELECT e FROM PasswordActionEvent e
+        WHERE e.actionType = :actionType
+        AND e.vaultId IN :vaultIds
+        AND e.eventTimestamp >= :from
+        ORDER BY e.eventTimestamp ASC
+        """
+    )
+    fun findByActionTypeFromAndVaultIds(
+        @Param("actionType") actionType: ActionType,
+        @Param("from") from: Instant,
+        @Param("vaultIds") vaultIds: Collection<UUID>
     ): List<PasswordActionEvent>
 }

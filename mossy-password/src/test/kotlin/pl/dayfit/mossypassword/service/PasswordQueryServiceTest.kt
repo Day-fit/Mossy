@@ -12,6 +12,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
+import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 import java.util.Optional
@@ -26,11 +27,12 @@ class PasswordQueryServiceTest {
 
     @Test
     fun `query by domain throws when vault does not exist`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(Optional.empty())
 
         assertThrows<VaultNotFoundException> {
-            service.getPasswordUuidsByDomain(vaultId, "example.com")
+            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
@@ -38,12 +40,13 @@ class PasswordQueryServiceTest {
 
     @Test
     fun `query by domain throws when vault is offline`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = false
@@ -52,7 +55,7 @@ class PasswordQueryServiceTest {
         )
 
         assertThrows<VaultNotConnectedException> {
-            service.getPasswordUuidsByDomain(vaultId, "example.com")
+            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
@@ -60,12 +63,13 @@ class PasswordQueryServiceTest {
 
     @Test
     fun `ciphertext query throws when vault is offline`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = false
@@ -74,7 +78,7 @@ class PasswordQueryServiceTest {
         )
 
         assertThrows<VaultNotConnectedException> {
-            service.getCiphertext(vaultId, UUID.randomUUID())
+            service.getCiphertext(userId, vaultId, UUID.randomUUID())
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
@@ -82,12 +86,13 @@ class PasswordQueryServiceTest {
 
     @Test
     fun `query by domain sends request when vault is online`() {
+        val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         whenever(vaultRepository.findById(vaultId)).thenReturn(
             Optional.of(
                 Vault(
                     id = vaultId,
-                    ownerId = UUID.randomUUID(),
+                    ownerId = userId,
                     name = "Vault",
                     secretHash = "hash",
                     isOnline = true
@@ -106,8 +111,31 @@ class PasswordQueryServiceTest {
             )
         }.start()
 
-        service.getPasswordUuidsByDomain(vaultId, "example.com")
+        service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
 
         verify(messagingTemplate).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/query-by-domain"), any())
+    }
+
+    @Test
+    fun `query by domain throws when vault belongs to another user`() {
+        val userId = UUID.randomUUID()
+        val vaultId = UUID.randomUUID()
+        whenever(vaultRepository.findById(vaultId)).thenReturn(
+            Optional.of(
+                Vault(
+                    id = vaultId,
+                    ownerId = UUID.randomUUID(),
+                    name = "Vault",
+                    secretHash = "hash",
+                    isOnline = true
+                )
+            )
+        )
+
+        assertThrows<VaultAccessDeniedException> {
+            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
+        }
+
+        verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
     }
 }

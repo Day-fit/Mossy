@@ -5,11 +5,18 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
+import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 
 @RestControllerAdvice
 class GlobalControllerAdvice {
+
+    @ExceptionHandler(VaultAccessDeniedException::class)
+    fun handleVaultAccessDenied(exception: VaultAccessDeniedException): ResponseEntity<ServerResponseDto> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(ServerResponseDto(exception.message ?: "Vault access is forbidden"))
+    }
 
     @ExceptionHandler(VaultNotFoundException::class)
     fun handleVaultNotFound(exception: VaultNotFoundException): ResponseEntity<ServerResponseDto> {

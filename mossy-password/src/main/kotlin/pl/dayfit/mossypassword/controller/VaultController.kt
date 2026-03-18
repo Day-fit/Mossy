@@ -38,23 +38,21 @@ class VaultController(
         )
     }
 
-    /**
-     *
-     */
     @GetMapping("/vaults")
     fun getVaults(
         @AuthenticationPrincipal userId: UUID
-    ): ResponseEntity<List<VaultStatusResponseDto>>
-    {
+    ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
             vaultStatusService.getVaults(userId)
         )
     }
 
     @GetMapping("/statuses")
-    fun statuses(): ResponseEntity<List<VaultStatusResponseDto>> {
+    fun statuses(
+        @AuthenticationPrincipal userId: UUID
+    ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultStatusService.getAllVaultStatuses()
+            vaultStatusService.getVaults(userId)
         )
     }
 }

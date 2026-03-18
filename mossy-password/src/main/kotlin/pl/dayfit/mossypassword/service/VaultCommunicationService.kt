@@ -12,6 +12,7 @@ import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
+import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 import java.security.MessageDigest
@@ -32,14 +33,14 @@ class VaultCommunicationService(
 
     private val maxSaveRetries = 3
     private val ackTimeoutMillis = 2000L
-    
+
     /**
      * Sends a request to save a password in the specified vault.
      *
      * @param requestDto the data transfer object containing the details of the password to be saved.
      */
-    fun savePassword(requestDto: SavePasswordRequestDto): UUID {
-        val vault = requireConnectedVault(requestDto.vaultId)
+    fun savePassword(userId: UUID, requestDto: SavePasswordRequestDto): UUID {
+        val vault = requireOwnedConnectedVault(userId, requestDto.vaultId)
 
         val passwordId = requestDto.passwordId ?: generateDeterministicPasswordId(
             vaultId = vault.id!!,
@@ -99,9 +100,8 @@ class VaultCommunicationService(
      * @param vaultId the unique identifier of the vault that contains the password to be deleted.
      * @param passwordId the unique identifier of the password to be deleted.
      */
-    fun deletePassword(vaultId: UUID, passwordId: UUID)
-    {
-        requireConnectedVault(vaultId)
+    fun deletePassword(userId: UUID, vaultId: UUID, passwordId: UUID) {
+        requireOwnedConnectedVault(userId, vaultId)
 
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
@@ -119,9 +119,8 @@ class VaultCommunicationService(
         )
     }
 
-    fun extractCiphertext(vaultId: UUID, passwordId: UUID)
-    {
-        requireConnectedVault(vaultId)
+    fun extractCiphertext(userId: UUID, vaultId: UUID, passwordId: UUID) {
+        requireOwnedConnectedVault(userId, vaultId)
 
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
@@ -130,9 +129,8 @@ class VaultCommunicationService(
         )
     }
 
-    fun updatePassword(requestDto: UpdatePasswordRequestDto)
-    {
-        requireConnectedVault(requestDto.vaultId)
+    fun updatePassword(userId: UUID, requestDto: UpdatePasswordRequestDto) {
+        requireOwnedConnectedVault(userId, requestDto.vaultId)
 
         messagingTemplate.convertAndSendToUser(
             requestDto.vaultId.toString(),
@@ -196,9 +194,13 @@ class VaultCommunicationService(
             }
     }
 
-    private fun requireConnectedVault(vaultId: UUID): Vault {
+    private fun requireOwnedConnectedVault(userId: UUID, vaultId: UUID): Vault {
         val vault = vaultRepository.findById(vaultId)
             .orElseThrow { VaultNotFoundException(vaultId) }
+
+        if (vault.ownerId != userId) {
+            throw VaultAccessDeniedException(vaultId)
+        }
 
         if (!vault.isOnline) {
             throw VaultNotConnectedException(vaultId)

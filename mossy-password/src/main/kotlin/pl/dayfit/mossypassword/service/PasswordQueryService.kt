@@ -3,11 +3,12 @@ package pl.dayfit.mossypassword.service
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
-import pl.dayfit.mossypassword.messaging.dto.QueryPasswordsByDomainRequestDto
 import pl.dayfit.mossypassword.dto.response.CiphertextResponseDto
 import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
+import pl.dayfit.mossypassword.messaging.dto.QueryPasswordsByDomainRequestDto
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
+import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 import java.util.UUID
@@ -20,32 +21,32 @@ class PasswordQueryService(
     private val messagingTemplate: SimpMessagingTemplate,
     private val vaultRepository: VaultRepository
 ) {
-    
+
     private val pendingQueries: MutableMap<String, CompletableFuture<PasswordQueryResponseDto>> = ConcurrentHashMap()
     private val pendingCiphertexts: MutableMap<String, CompletableFuture<CiphertextResponseDto>> = ConcurrentHashMap()
 
     /**
      * Gets all password UUIDs for a specific domain in a vault
      */
-    fun getPasswordUuidsByDomain(vaultId: UUID, domain: String): List<UUID> {
-        requireConnectedVault(vaultId)
+    fun getPasswordUuidsByDomain(userId: UUID, vaultId: UUID, domain: String): List<UUID> {
+        requireOwnedConnectedVault(userId, vaultId)
 
         val future = CompletableFuture<PasswordQueryResponseDto>()
         val requestKey = "$vaultId:$domain"
-        
+
         pendingQueries[requestKey] = future
-        
+
         val request = QueryPasswordsByDomainRequestDto(
             domain = domain,
             vaultId = vaultId
         )
-        
+
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
             "/vault/query-by-domain",
             request
         )
-        
+
         return try {
             val response = future.get(5, TimeUnit.SECONDS)
             pendingQueries.remove(requestKey)
@@ -59,26 +60,26 @@ class PasswordQueryService(
     /**
      * Gets the ciphertext for a specific password UUID
      */
-    fun getCiphertext(vaultId: UUID, passwordId: UUID): String? {
-        requireConnectedVault(vaultId)
+    fun getCiphertext(userId: UUID, vaultId: UUID, passwordId: UUID): String? {
+        requireOwnedConnectedVault(userId, vaultId)
 
         val future = CompletableFuture<CiphertextResponseDto>()
         val requestKey = "$vaultId:$passwordId"
-        
+
         pendingCiphertexts[requestKey] = future
-        
+
         // Send query to vault via STOMP
         val request = ExtractCiphertextRequestDto(
             passwordId = passwordId,
             vaultId = vaultId
         )
-        
+
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
             "/vault/get-ciphertext",
             request
         )
-        
+
         // Wait for response (with timeout) then remove from cache
         return try {
             val response = future.get(5, TimeUnit.SECONDS)
@@ -106,9 +107,13 @@ class PasswordQueryService(
         pendingCiphertexts[requestKey]?.complete(response)
     }
 
-    private fun requireConnectedVault(vaultId: UUID): Vault {
+    private fun requireOwnedConnectedVault(userId: UUID, vaultId: UUID): Vault {
         val vault = vaultRepository.findById(vaultId)
             .orElseThrow { VaultNotFoundException(vaultId) }
+
+        if (vault.ownerId != userId) {
+            throw VaultAccessDeniedException(vaultId)
+        }
 
         if (!vault.isOnline) {
             throw VaultNotConnectedException(vaultId)

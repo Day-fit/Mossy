@@ -1,5 +1,6 @@
 package pl.dayfit.mossystatistics.service
 
+import org.springframework.http.HttpHeaders
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClient
 import org.springframework.web.client.body
@@ -22,19 +23,29 @@ class StatisticsQueryService(
     private val vaultStatisticsRepository: VaultStatisticsRepository,
     private val mossyPasswordRestClient: RestClient
 ) {
-    fun getDashboardStatistics(): DashboardResponseDto {
+    fun getDashboardStatistics(authorizationHeader: String): DashboardResponseDto {
+        val vaultStatuses = fetchVaultStatuses(authorizationHeader)
+        val vaultStatusesById = vaultStatuses.associateBy { it.vaultId }
+        val vaultIds = vaultStatusesById.keys
+
+        if (vaultIds.isEmpty()) {
+            return DashboardResponseDto(
+                passwordChart = emptyList(),
+                recentActions = emptyList(),
+                vaults = emptyList()
+            )
+        }
+
         val from = Instant.now().minusSeconds(CHART_WINDOW_DAYS * DAY_SECONDS)
-        val chartData = buildChart(from)
-        val recentActions = passwordActionEventRepository.findTop20ByOrderByEventTimestampDesc().map {
+        val chartData = buildChart(from, vaultIds)
+        val recentActions = passwordActionEventRepository.findTop20ByVaultIdInOrderByEventTimestampDesc(vaultIds).map {
             RecentActionDto(
                 date = it.eventTimestamp.toString(),
                 actionType = it.actionType.name.lowercase(),
                 domain = it.domain
             )
         }
-        val persistedVaultStats = vaultStatisticsRepository.findAll().associateBy { it.vaultId }
-        val vaultStatusesById = fetchVaultStatuses().associateBy { it.vaultId }
-        val vaultIds = (persistedVaultStats.keys + vaultStatusesById.keys).toSet()
+        val persistedVaultStats = vaultStatisticsRepository.findAllByVaultIdIn(vaultIds).associateBy { it.vaultId }
 
         val vaults = vaultIds.map { vaultId ->
             val persistedStat = persistedVaultStats[vaultId]
@@ -54,10 +65,11 @@ class StatisticsQueryService(
         )
     }
 
-    private fun fetchVaultStatuses(): List<VaultStatusClientDto> {
+    private fun fetchVaultStatuses(authorizationHeader: String): List<VaultStatusClientDto> {
         return runCatching {
             mossyPasswordRestClient.get()
-                .uri("/vault/statuses")
+                .uri("/vault/vaults")
+                .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                 .retrieve()
                 .body<Array<VaultStatusClientDto>>()
                 ?.toList()
@@ -67,8 +79,8 @@ class StatisticsQueryService(
         }
     }
 
-    private fun buildChart(from: Instant): List<PasswordChartPointDto> {
-        val events = passwordActionEventRepository.findByActionTypeFrom(ActionType.ADDED, from)
+    private fun buildChart(from: Instant, vaultIds: Collection<UUID>): List<PasswordChartPointDto> {
+        val events = passwordActionEventRepository.findByActionTypeFromAndVaultIds(ActionType.ADDED, from, vaultIds)
         val groupedByDay = events.groupBy {
             DAY_FORMATTER.format(it.eventTimestamp.atZone(ZoneOffset.UTC).toLocalDate())
         }

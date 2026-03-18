@@ -2,6 +2,7 @@ package pl.dayfit.mossypassword.controller
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -35,9 +36,10 @@ class PasswordController(
      */
     @PostMapping("/save")
     fun savePassword(
+        @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<SavePasswordAcceptedResponseDto> {
-        val passwordId = vaultCommunicationService.savePassword(requestDto)
+        val passwordId = vaultCommunicationService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
             SavePasswordAcceptedResponseDto(
@@ -49,9 +51,10 @@ class PasswordController(
 
     @PatchMapping("/update")
     fun updatePassword(
+        @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.updatePassword(requestDto)
+        vaultCommunicationService.updatePassword(userId, requestDto)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -67,24 +70,26 @@ class PasswordController(
      */
     @DeleteMapping("/delete")
     fun deletePassword(
+        @AuthenticationPrincipal userId: UUID,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-
         vaultCommunicationService.deletePassword(
+            userId,
             deletePasswordRequestDto.vaultId,
             deletePasswordRequestDto.passwordId
         )
 
         return ResponseEntity.ok(
-            ServerResponseDto("Passwords deleted successfully")
+            ServerResponseDto("Password deleted successfully")
         )
     }
 
     @PostMapping("/extract-ciphertext")
     fun extractCiphertext(
+        @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: ExtractCiphertextRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.extractCiphertext(requestDto.vaultId, requestDto.passwordId)
+        vaultCommunicationService.extractCiphertext(userId, requestDto.vaultId, requestDto.passwordId)
 
         return ResponseEntity.ok(
             ServerResponseDto("Ciphertext extraction requested successfully")
@@ -100,13 +105,13 @@ class PasswordController(
      */
     @GetMapping("/uuids")
     fun getPasswordUuidsByDomain(
+        @AuthenticationPrincipal userId: UUID,
         @RequestParam domain: String,
         @RequestParam vaultId: String
     ): ResponseEntity<List<UUID>> {
         val vaultUuid = UUID.fromString(vaultId)
 
-
-        val uuids = passwordQueryService.getPasswordUuidsByDomain(vaultUuid, domain)
+        val uuids = passwordQueryService.getPasswordUuidsByDomain(userId, vaultUuid, domain)
         return ResponseEntity.ok(uuids)
     }
 
@@ -119,12 +124,13 @@ class PasswordController(
      */
     @GetMapping("/ciphertext/{passwordId}")
     fun getCiphertext(
+        @AuthenticationPrincipal userId: UUID,
         @PathVariable passwordId: UUID,
         @RequestParam vaultId: String
     ): ResponseEntity<Map<String, String>> {
         val vaultUuid = UUID.fromString(vaultId)
 
-        val ciphertext = passwordQueryService.getCiphertext(vaultUuid, passwordId)
+        val ciphertext = passwordQueryService.getCiphertext(userId, vaultUuid, passwordId)
         return if (ciphertext != null) {
             ResponseEntity.ok(mapOf("ciphertext" to ciphertext))
         } else {

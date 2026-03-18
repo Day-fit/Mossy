@@ -14,7 +14,7 @@ import java.util.UUID
 class VaultStatusService(
     private val vaultRepository: VaultRepository
 ) {
-    fun getVaults(userId: UUID): List<VaultStatusResponseDto>  {
+    fun getVaults(userId: UUID): List<VaultStatusResponseDto> {
         return vaultRepository.findAllByOwnerId(userId)
             .map {
                 VaultStatusResponseDto(
