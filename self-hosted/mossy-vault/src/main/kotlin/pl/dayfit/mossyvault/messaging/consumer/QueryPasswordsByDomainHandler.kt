@@ -30,14 +30,16 @@ class QueryPasswordsByDomainHandler(
             return
         }
 
-        val passwords = if (requestDto.domain.isNullOrBlank()) {
+        val passwords = if (requestDto.domain == null) {
             passwordEntryRepository.findAll()
         } else {
             passwordEntryRepository.findByDomain(requestDto.domain)
         }
         val metadata = passwords.map {
             PasswordMetadataDto(
-                passwordId = it.id!!,
+                passwordId = requireNotNull(it.id) {
+                    "Password entry is missing id for domain=${it.domain}, identifier=${it.identifier}"
+                },
                 identifier = it.identifier,
                 domain = it.domain,
                 lastModified = it.lastModified

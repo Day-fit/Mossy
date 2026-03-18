@@ -43,6 +43,7 @@ class VaultCommunicationService(
 
     /**
      * Handles ACK/NACK from vault after save operation.
+     * Kept for transport-level observability while save ownership remains in vault/DB.
      */
     fun handleSavePasswordAck(ack: SavePasswordAckRequestDto) {
         logger.info("Received {} for save messageId={}", ack.status, ack.messageId)

@@ -100,7 +100,7 @@ class PasswordController(
      * @param vaultId the UUID of the vault.
      * @return a ResponseEntity containing password metadata without ciphertext.
      */
-    @GetMapping("/metadata", "/uuids")
+    @GetMapping("/metadata")
     fun getPasswordsMetadata(
         @AuthenticationPrincipal userId: UUID,
         @RequestParam(required = false) domain: String?,

@@ -15,10 +15,15 @@ import kotlin.io.encoding.Base64
 class PasswordEntryService(
     private val passwordEntryRepository: PasswordEntryRepository
 ) {
+    private val logger = org.slf4j.LoggerFactory.getLogger(PasswordEntryService::class.java)
+
     @Transactional
     fun saveOrUpdate(requestDto: SavePasswordRequestDto, decodedBlob: ByteArray): UUID {
-        val existing = requestDto.passwordId?.let { passwordEntryRepository.findById(it).orElse(null) }
-            ?: passwordEntryRepository.findByDomainAndIdentifier(requestDto.domain, requestDto.identifier).firstOrNull()
+        val existing = if (requestDto.passwordId != null) {
+            passwordEntryRepository.findById(requestDto.passwordId).orElse(null)
+        } else {
+            passwordEntryRepository.findFirstByDomainAndIdentifier(requestDto.domain, requestDto.identifier)
+        }
 
         val entry = (existing ?: PasswordEntry(
             domain = requestDto.domain,
@@ -31,12 +36,19 @@ class PasswordEntryService(
             encryptedBlob = decodedBlob
             lastModified = Instant.now()
         }
-        return passwordEntryRepository.save(entry).id!!
+        val savedEntry = passwordEntryRepository.save(entry)
+        return requireNotNull(savedEntry.id) {
+            "Saved password entry is missing id for domain=${requestDto.domain}, identifier=${requestDto.identifier}"
+        }
     }
 
     @Transactional
     fun update(requestDto: UpdatePasswordRequestDto) {
-        val passwordEntry = passwordEntryRepository.findById(requestDto.passwordId).orElse(null) ?: return
+        val passwordEntry = passwordEntryRepository.findById(requestDto.passwordId).orElse(null)
+        if (passwordEntry == null) {
+            logger.warn("Password entry not found for update, id={}", requestDto.passwordId)
+            return
+        }
         passwordEntry.identifier = requestDto.identifier
         passwordEntry.domain = requestDto.domain
         passwordEntry.encryptedBlob = Base64.decode(requestDto.cipherText)

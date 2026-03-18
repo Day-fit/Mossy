@@ -8,5 +8,5 @@ import java.util.UUID
 @Repository
 interface PasswordEntryRepository : JpaRepository<PasswordEntry, UUID> {
     fun findByDomain(domain: String): List<PasswordEntry>
-    fun findByDomainAndIdentifier(domain: String, identifier: String): List<PasswordEntry>
+    fun findFirstByDomainAndIdentifier(domain: String, identifier: String): PasswordEntry?
 }
