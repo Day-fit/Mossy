@@ -29,16 +29,15 @@ class SavePasswordHandlerTest {
     fun `saves and sends ACK when payload is valid`() {
         whenever(stompSessionRegistry.send(any<String>(), any<Any>())).thenReturn(true)
 
-        val passwordId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
+        val savedPasswordId = UUID.randomUUID()
+        whenever(passwordEntryService.saveOrUpdate(any(), any())).thenReturn(savedPasswordId)
 
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
             domain = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            vaultId = vaultId.toString(),
-            passwordId = passwordId,
-            messageId = UUID.randomUUID()
+            vaultId = vaultId.toString()
         )
 
         handler.handleFrame(mock(), request)
@@ -50,7 +49,9 @@ class SavePasswordHandlerTest {
 
         val ack = ackCaptor.firstValue as SavePasswordAckRequestDto
         assertEquals(SavePasswordAckStatus.ACK, ack.status)
-        assertEquals(request.messageId, ack.messageId)
+        assertEquals(vaultId, ack.vaultId)
+        assertEquals(savedPasswordId, ack.passwordId)
+        assertEquals(request.domain, ack.domain)
     }
 
     @Test
@@ -58,16 +59,13 @@ class SavePasswordHandlerTest {
         whenever(stompSessionRegistry.send(any<String>(), any<Any>())).thenReturn(true)
         whenever(passwordEntryService.saveOrUpdate(any(), any())).thenThrow(RuntimeException("db down"))
 
-        val passwordId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
 
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
             domain = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            vaultId = vaultId.toString(),
-            passwordId = passwordId,
-            messageId = UUID.randomUUID()
+            vaultId = vaultId.toString()
         )
 
         handler.handleFrame(mock(), request)
@@ -77,7 +75,9 @@ class SavePasswordHandlerTest {
 
         val ack = ackCaptor.firstValue as SavePasswordAckRequestDto
         assertEquals(SavePasswordAckStatus.NACK, ack.status)
-        assertEquals(request.messageId, ack.messageId)
+        assertEquals(vaultId, ack.vaultId)
+        assertEquals(null, ack.passwordId)
+        assertEquals(request.domain, ack.domain)
     }
 
     @Test
@@ -94,8 +94,7 @@ class SavePasswordHandlerTest {
             identifier = "john@example.com",
             domain = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            vaultId = "not-a-uuid",
-            passwordId = UUID.randomUUID()
+            vaultId = "not-a-uuid"
         )
 
         handler.handleFrame(mock(), request)
@@ -105,16 +104,17 @@ class SavePasswordHandlerTest {
     }
 
     @Test
-    fun `save request without message id generates ack correlation id`() {
+    fun `save request sends ack with persisted password id`() {
         whenever(stompSessionRegistry.send(any<String>(), any<Any>())).thenReturn(true)
+        val savedPasswordId = UUID.randomUUID()
+        whenever(passwordEntryService.saveOrUpdate(any(), any())).thenReturn(savedPasswordId)
 
         val vaultId = UUID.randomUUID().toString()
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
             domain = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            vaultId = vaultId,
-            passwordId = null
+            vaultId = vaultId
         )
 
         handler.handleFrame(mock(), request)
@@ -124,6 +124,6 @@ class SavePasswordHandlerTest {
         val ackCaptor = argumentCaptor<Any>()
         verify(stompSessionRegistry).send(eq("/app/vault/password-save-ack"), ackCaptor.capture())
         val ack = ackCaptor.firstValue as SavePasswordAckRequestDto
-        kotlin.test.assertNotNull(ack.messageId)
+        assertEquals(savedPasswordId, ack.passwordId)
     }
 }

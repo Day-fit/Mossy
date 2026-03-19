@@ -33,8 +33,6 @@ class SavePasswordHandler(
             return
         }
 
-        val messageId = dto.messageId ?: UUID.randomUUID()
-
         val result = runCatching {
             persistenceService.saveOrUpdate(dto, Base64.decode(dto.cipherText))
         }
@@ -42,11 +40,14 @@ class SavePasswordHandler(
         stompSessionRegistry.send(
             "/app/vault/password-save-ack",
             SavePasswordAckRequestDto(
-                messageId = messageId,
-                status = if (result.isSuccess) SavePasswordAckStatus.ACK else SavePasswordAckStatus.NACK
+                vaultId = vaultId,
+                passwordId = result.getOrNull(),
+                domain = dto.domain,
+                status = if (result.isSuccess) SavePasswordAckStatus.ACK else SavePasswordAckStatus.NACK,
+                reason = result.exceptionOrNull()?.message
             )
         )
 
-        result.onFailure { logger.error("Failed to save password for vaultId={}", vaultId, it) }
+        result.onFailure { logger.error("Failed to save password in vaultId={}", vaultId, it) }
     }
 }

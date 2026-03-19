@@ -2,7 +2,6 @@ package pl.dayfit.mossypassword.controller
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -11,6 +10,7 @@ import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
+import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
@@ -43,7 +43,7 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.statusCode.value())
         assertNotNull(body)
-        assertEquals("Password save request accepted", body.message)
+        assertEquals(ServerResponseDto("Password save request accepted"), body)
         verify(vaultCommunicationService, times(1)).savePassword(userId, request)
     }
 
@@ -58,9 +58,7 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        doThrow(VaultNotConnectedException(vaultId))
-            .whenever(vaultCommunicationService)
-            .savePassword(userId, request)
+        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotConnectedException(vaultId))
 
         assertThrows<VaultNotConnectedException> {
             controller.savePassword(userId, request)
@@ -78,9 +76,7 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        doThrow(VaultNotFoundException(vaultId))
-            .whenever(vaultCommunicationService)
-            .savePassword(userId, request)
+        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
 
         assertThrows<VaultNotFoundException> {
             controller.savePassword(userId, request)

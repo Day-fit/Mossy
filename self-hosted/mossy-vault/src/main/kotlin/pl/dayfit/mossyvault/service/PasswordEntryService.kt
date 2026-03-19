@@ -19,11 +19,7 @@ class PasswordEntryService(
 
     @Transactional
     fun saveOrUpdate(requestDto: SavePasswordRequestDto, decodedBlob: ByteArray): UUID {
-        val existing = if (requestDto.passwordId != null) {
-            passwordEntryRepository.findById(requestDto.passwordId).orElse(null)
-        } else {
-            passwordEntryRepository.findFirstByDomainAndIdentifier(requestDto.domain, requestDto.identifier)
-        }
+        val existing = passwordEntryRepository.findFirstByDomainAndIdentifier(requestDto.domain, requestDto.identifier)
 
         val entry = (existing ?: PasswordEntry(
             domain = requestDto.domain,

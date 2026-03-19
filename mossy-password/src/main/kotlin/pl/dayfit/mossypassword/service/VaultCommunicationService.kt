@@ -5,7 +5,9 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordAckRequestDto
+import pl.dayfit.mossypassword.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
+import pl.dayfit.mossypassword.dto.request.SavePasswordVaultRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
@@ -32,21 +34,51 @@ class VaultCommunicationService(
     fun savePassword(userId: UUID, requestDto: SavePasswordRequestDto) {
         requireOwnedConnectedVault(userId, requestDto.vaultId)
 
-        val requestWithMessageId = requestDto.copy(messageId = UUID.randomUUID())
+        val vaultRequest = SavePasswordVaultRequestDto(
+            identifier = requestDto.identifier,
+            domain = requestDto.domain,
+            cipherText = requestDto.cipherText,
+            vaultId = requestDto.vaultId
+        )
 
         messagingTemplate.convertAndSendToUser(
             requestDto.vaultId.toString(),
             "/vault/save",
-            requestWithMessageId
+            vaultRequest
         )
     }
 
     /**
      * Handles ACK/NACK from vault after save operation.
-     * Kept for transport-level observability while save ownership remains in vault/DB.
      */
     fun handleSavePasswordAck(ack: SavePasswordAckRequestDto) {
-        logger.info("Received {} for save messageId={}", ack.status, ack.messageId)
+        when (ack.status) {
+            SavePasswordAckStatus.ACK -> {
+                val passwordId = ack.passwordId
+                if (passwordId == null) {
+                    logger.warn("Received ACK without passwordId for vaultId={}", ack.vaultId)
+                    return
+                }
+
+                statisticsEventPublisher.publish(
+                    PasswordStatisticEvent(
+                        vaultId = ack.vaultId,
+                        passwordId = passwordId,
+                        domain = ack.domain,
+                        actionType = "added"
+                    )
+                )
+            }
+
+            SavePasswordAckStatus.NACK -> {
+                logger.warn(
+                    "Received NACK for vaultId={}, passwordId={}, reason={}",
+                    ack.vaultId,
+                    ack.passwordId,
+                    ack.reason ?: "not provided"
+                )
+            }
+        }
     }
 
     /**
