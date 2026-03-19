@@ -16,7 +16,7 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.response.SavePasswordAcceptedResponseDto
+import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
@@ -38,14 +38,11 @@ class PasswordController(
     fun savePassword(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: SavePasswordRequestDto
-    ): ResponseEntity<SavePasswordAcceptedResponseDto> {
-        val passwordId = vaultCommunicationService.savePassword(userId, requestDto)
+    ): ResponseEntity<ServerResponseDto> {
+        vaultCommunicationService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
-            SavePasswordAcceptedResponseDto(
-                passwordId = passwordId,
-                message = "Password save request accepted"
-            )
+            ServerResponseDto("Password save request accepted")
         )
     }
 
@@ -97,22 +94,22 @@ class PasswordController(
     }
 
     /**
-     * Gets all password UUIDs for a specific domain in a vault.
+     * Gets password metadata for a vault.
      *
-     * @param domain the domain to filter passwords by.
+     * @param domain optional domain to filter passwords by.
      * @param vaultId the UUID of the vault.
-     * @return a ResponseEntity containing a list of password UUIDs.
+     * @return a ResponseEntity containing password metadata without ciphertext.
      */
-    @GetMapping("/uuids")
-    fun getPasswordUuidsByDomain(
+    @GetMapping("/metadata", "/uuids")
+    fun getPasswordsMetadata(
         @AuthenticationPrincipal userId: UUID,
-        @RequestParam domain: String,
+        @RequestParam(required = false) domain: String?,
         @RequestParam vaultId: String
-    ): ResponseEntity<List<UUID>> {
+    ): ResponseEntity<List<PasswordMetadataDto>> {
         val vaultUuid = UUID.fromString(vaultId)
 
-        val uuids = passwordQueryService.getPasswordUuidsByDomain(userId, vaultUuid, domain)
-        return ResponseEntity.ok(uuids)
+        val passwords = passwordQueryService.getPasswordsMetadata(userId, vaultUuid, domain)
+        return ResponseEntity.ok(passwords)
     }
 
     /**

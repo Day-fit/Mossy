@@ -9,12 +9,14 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
 import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
@@ -32,7 +34,7 @@ class PasswordQueryServiceTest {
         whenever(vaultRepository.findById(vaultId)).thenReturn(Optional.empty())
 
         assertThrows<VaultNotFoundException> {
-            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
+            service.getPasswordsMetadata(userId, vaultId, "example.com")
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
@@ -55,7 +57,7 @@ class PasswordQueryServiceTest {
         )
 
         assertThrows<VaultNotConnectedException> {
-            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
+            service.getPasswordsMetadata(userId, vaultId, "example.com")
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())
@@ -104,16 +106,55 @@ class PasswordQueryServiceTest {
             Thread.sleep(20)
             service.handlePasswordQueryResponse(
                 PasswordQueryResponseDto(
-                    passwordIds = emptyList(),
+                    passwords = emptyList(),
                     domain = "example.com",
                     vaultId = vaultId
                 )
             )
         }.start()
 
-        service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
+        service.getPasswordsMetadata(userId, vaultId, "example.com")
 
         verify(messagingTemplate).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/query-by-domain"), any())
+    }
+
+    @Test
+    fun `query by domain returns password metadata without ciphertext`() {
+        val userId = UUID.randomUUID()
+        val vaultId = UUID.randomUUID()
+        whenever(vaultRepository.findById(vaultId)).thenReturn(
+            Optional.of(
+                Vault(
+                    id = vaultId,
+                    ownerId = userId,
+                    name = "Vault",
+                    secretHash = "hash",
+                    isOnline = true
+                )
+            )
+        )
+
+        val metadata = PasswordMetadataDto(
+            passwordId = UUID.randomUUID(),
+            identifier = "john@example.com",
+            domain = "example.com",
+            lastModified = Instant.now()
+        )
+
+        Thread {
+            Thread.sleep(20)
+            service.handlePasswordQueryResponse(
+                PasswordQueryResponseDto(
+                    passwords = listOf(metadata),
+                    domain = "example.com",
+                    vaultId = vaultId
+                )
+            )
+        }.start()
+
+        val result = service.getPasswordsMetadata(userId, vaultId, "example.com")
+
+        kotlin.test.assertEquals(listOf(metadata), result)
     }
 
     @Test
@@ -133,7 +174,7 @@ class PasswordQueryServiceTest {
         )
 
         assertThrows<VaultAccessDeniedException> {
-            service.getPasswordUuidsByDomain(userId, vaultId, "example.com")
+            service.getPasswordsMetadata(userId, vaultId, "example.com")
         }
 
         verify(messagingTemplate, never()).convertAndSendToUser(any(), any(), any())

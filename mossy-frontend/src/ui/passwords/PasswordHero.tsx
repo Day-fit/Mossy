@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import {
     executeSavePasswordRequest,
-    type SavePasswordAcceptedResponseDto,
+    type ServerResponseDto,
 } from "../../api/password.api.ts";
 import { executeUserVaultsRequest, type UserVaultDto } from "../../api/vault.api.ts";
 import StrengthMetter from "./StrengthMetter.tsx";
@@ -55,7 +55,7 @@ export default function PasswordHero() {
         setErrorMessage(null);
 
         try {
-            const response: SavePasswordAcceptedResponseDto = await executeSavePasswordRequest({
+            const response: ServerResponseDto = await executeSavePasswordRequest({
                 identifier,
                 domain,
                 cipherText: password,

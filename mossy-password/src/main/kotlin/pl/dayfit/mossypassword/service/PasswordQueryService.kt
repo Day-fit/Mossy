@@ -3,6 +3,7 @@ package pl.dayfit.mossypassword.service
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
+import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.CiphertextResponseDto
 import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
 import pl.dayfit.mossypassword.messaging.dto.QueryPasswordsByDomainRequestDto
@@ -26,13 +27,13 @@ class PasswordQueryService(
     private val pendingCiphertexts: MutableMap<String, CompletableFuture<CiphertextResponseDto>> = ConcurrentHashMap()
 
     /**
-     * Gets all password UUIDs for a specific domain in a vault
+     * Gets password metadata (without ciphertext) for a vault.
      */
-    fun getPasswordUuidsByDomain(userId: UUID, vaultId: UUID, domain: String): List<UUID> {
+    fun getPasswordsMetadata(userId: UUID, vaultId: UUID, domain: String?): List<PasswordMetadataDto> {
         requireOwnedConnectedVault(userId, vaultId)
 
         val future = CompletableFuture<PasswordQueryResponseDto>()
-        val requestKey = "$vaultId:$domain"
+        val requestKey = "$vaultId:${domain ?: "*"}"
 
         pendingQueries[requestKey] = future
 
@@ -50,7 +51,7 @@ class PasswordQueryService(
         return try {
             val response = future.get(5, TimeUnit.SECONDS)
             pendingQueries.remove(requestKey)
-            response.passwordIds
+            response.passwords
         } catch (e: Exception) {
             pendingQueries.remove(requestKey)
             emptyList()
@@ -95,7 +96,7 @@ class PasswordQueryService(
      * Handles the response for password query from vault
      */
     fun handlePasswordQueryResponse(response: PasswordQueryResponseDto) {
-        val requestKey = "${response.vaultId}:${response.domain}"
+        val requestKey = "${response.vaultId}:${response.domain ?: "*"}"
         pendingQueries[requestKey]?.complete(response)
     }
 
