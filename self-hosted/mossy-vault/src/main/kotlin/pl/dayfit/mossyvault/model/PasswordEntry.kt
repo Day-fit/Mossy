@@ -11,7 +11,7 @@ import java.util.UUID
 data class PasswordEntry (
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    var id: UUID?,
+    var id: UUID? = null,
     var identifier: String, //Email or username
     var encryptedBlob: ByteArray,
     var domain: String,

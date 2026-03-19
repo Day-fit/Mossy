@@ -14,7 +14,7 @@ import java.util.UUID
 class VaultStatusService(
     private val vaultRepository: VaultRepository
 ) {
-    fun getVaults(userId: UUID): List<VaultStatusResponseDto>  {
+    fun getVaults(userId: UUID): List<VaultStatusResponseDto> {
         return vaultRepository.findAllByOwnerId(userId)
             .map {
                 VaultStatusResponseDto(
@@ -25,14 +25,19 @@ class VaultStatusService(
             }
     }
 
-    @Transactional
-    @EventListener(SessionConnectedEvent::class)
-    fun markOnline(event: SessionConnectedEvent) {
-        val accessor = SimpMessageHeaderAccessor.wrap(event.message)
-        val vaultIdHeader = accessor.getFirstNativeHeader("vault-id")
-                ?: throw IllegalStateException("Vault ID header is missing, but must be present")
-        val vaultId = UUID.fromString(vaultIdHeader)
+    fun getAllVaultStatuses(): List<VaultStatusResponseDto> {
+        return vaultRepository.findAll()
+            .map {
+                VaultStatusResponseDto(
+                    vaultId = it.id!!,
+                    vaultName = it.name,
+                    isOnline = it.isOnline
+                )
+            }
+    }
 
+    @Transactional
+    fun markOnline(vaultId: UUID) {
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return
         if (!vault.isOnline) {
             vault.isOnline = true
@@ -41,17 +46,37 @@ class VaultStatusService(
     }
 
     @Transactional
-    @EventListener(SessionDisconnectEvent::class)
-    fun markOffline(event: SessionDisconnectEvent) {
-        val accessor = SimpMessageHeaderAccessor.wrap(event.message)
-        val vaultIdHeader = accessor.getFirstNativeHeader("vault-id")
-            ?: throw IllegalStateException("Vault ID header is missing, but must be present")
-        val vaultId = UUID.fromString(vaultIdHeader)
-
+    fun markOffline(vaultId: UUID) {
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return
         if (vault.isOnline) {
             vault.isOnline = false
             vaultRepository.save(vault)
         }
+    }
+
+    @Transactional
+    @EventListener(SessionConnectedEvent::class)
+    fun markOnline(event: SessionConnectedEvent) {
+        val accessor = SimpMessageHeaderAccessor.wrap(event.message)
+        val vaultIdHeader = accessor.getFirstNativeHeader("vault-id")
+        val principalName = accessor.user?.name
+        val vaultId = runCatching {
+            UUID.fromString(vaultIdHeader ?: principalName ?: return)
+        }.getOrNull() ?: return
+
+        markOnline(vaultId)
+    }
+
+    @Transactional
+    @EventListener(SessionDisconnectEvent::class)
+    fun markOffline(event: SessionDisconnectEvent) {
+        val accessor = SimpMessageHeaderAccessor.wrap(event.message)
+        val vaultIdHeader = accessor.getFirstNativeHeader("vault-id")
+        val principalName = accessor.user?.name
+        val vaultId = runCatching {
+            UUID.fromString(vaultIdHeader ?: principalName ?: return)
+        }.getOrNull() ?: return
+
+        markOffline(vaultId)
     }
 }

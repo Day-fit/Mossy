@@ -13,6 +13,10 @@ export default function Dashboard() {
         }
     }, [isAuthenticated, navigate]);
 
+    if (isAuthenticated !== true) {
+        return null;
+    }
+
     return <>
         <DashboardHero/>
     </>
