@@ -332,7 +332,7 @@ export default function PasswordHero() {
                                     </div>
 
                                     <div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
-                                        <p className="font-mono text-sm text-gray-700 break-all">
+                                        <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
                                             {revealedPasswords[passwordDto.passwordId] ?? "••••••••••••"}
                                         </p>
                                         <button
