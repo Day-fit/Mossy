@@ -1,5 +1,7 @@
 package pl.dayfit.mossystatistics.dto.response
 
+import java.time.Instant
+
 data class DashboardResponseDto(
     val passwordChart: List<PasswordChartPointDto>,
     val recentActions: List<RecentActionDto>,
@@ -20,5 +22,6 @@ data class RecentActionDto(
 data class VaultDashboardDto(
     val passwordsCount: Long,
     val vaultName: String,
-    val isOnline: Boolean
+    val isOnline: Boolean,
+    val lastSeenAt: Instant?
 )

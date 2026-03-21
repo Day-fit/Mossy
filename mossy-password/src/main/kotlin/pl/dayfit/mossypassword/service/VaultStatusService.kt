@@ -8,6 +8,7 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent
 import org.springframework.web.socket.messaging.SessionDisconnectEvent
 import pl.dayfit.mossypassword.dto.response.VaultStatusResponseDto
 import pl.dayfit.mossypassword.repository.VaultRepository
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -20,7 +21,8 @@ class VaultStatusService(
                 VaultStatusResponseDto(
                     it.id!!,
                     it.name,
-                    it.isOnline
+                    it.isOnline,
+                    it.lastSeenAt
                 )
             }
     }
@@ -31,7 +33,8 @@ class VaultStatusService(
                 VaultStatusResponseDto(
                     vaultId = it.id!!,
                     vaultName = it.name,
-                    isOnline = it.isOnline
+                    isOnline = it.isOnline,
+                    lastSeenAt = it.lastSeenAt
                 )
             }
     }
@@ -41,6 +44,7 @@ class VaultStatusService(
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return
         if (!vault.isOnline) {
             vault.isOnline = true
+            vault.lastSeenAt = Instant.now()
             vaultRepository.save(vault)
         }
     }

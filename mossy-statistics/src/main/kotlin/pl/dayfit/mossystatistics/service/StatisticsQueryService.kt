@@ -54,7 +54,8 @@ class StatisticsQueryService(
             VaultDashboardDto(
                 passwordsCount = persistedStat?.passwordsCount ?: 0,
                 vaultName = status?.vaultName ?: vaultId.toString().take(VAULT_NAME_LENGTH),
-                isOnline = status?.isOnline ?: false
+                isOnline = status?.isOnline ?: false,
+                lastSeenAt = status?.lastSeenAt ?: persistedStat?.lastSeenAt
             )
         }.sortedBy { it.vaultName }
 

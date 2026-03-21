@@ -14,6 +14,7 @@ export type DashboardStatisticsResponse = {
         passwordsCount: number;
         vaultName: string;
         isOnline: boolean;
+        lastSeenAt: string | null;
     }[];
 };
 

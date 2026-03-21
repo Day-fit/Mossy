@@ -8,4 +8,5 @@ import java.util.UUID
 @Repository
 interface VaultRepository : JpaRepository<Vault, UUID> {
     fun findAllByOwnerId(ownerId: UUID): MutableList<Vault>
+    fun findByIdAndOwnerId(id: UUID, ownerId: UUID): Vault?
 }

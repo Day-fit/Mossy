@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Component
 import org.springframework.transaction.support.TransactionTemplate
 import pl.dayfit.mossypassword.configuration.properties.ApiKeysDevProperties
+import java.time.Instant
 import java.util.*
 
 
@@ -49,13 +50,14 @@ class DevelopmentSetupHandler(
     private fun registerDevelopmentVault(userId: UUID, vaultId: UUID, vaultName: String, apiKey: String)
     {
         entityManager.createNativeQuery("""
-        INSERT INTO vault (id, name, owner_id, secret_hash, is_online) 
-        VALUES (:id, :name, :ownerId, :secretHash, false)
+        INSERT INTO vault (id, name, owner_id, secret_hash, is_online, last_seen_at) 
+        VALUES (:id, :name, :ownerId, :secretHash, false, :lastSeenAt)
     """)
             .setParameter("id", vaultId)
             .setParameter("name", vaultName)
             .setParameter("ownerId", userId)
             .setParameter("secretHash", passwordEncoder.encode(apiKey))
+            .setParameter("lastSeenAt", Instant.now())
             .executeUpdate()
 
         logger.info("Development vault registered: $vaultName")
