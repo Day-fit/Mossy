@@ -23,12 +23,13 @@ class VaultAuthService(
     private val logger = org.slf4j.LoggerFactory.getLogger(VaultAuthService::class.java)
 
     fun register(userId: UUID, dto: VaultRegistrationRequestDto): VaultRegistrationResponseDto {
+        val normalizedName = normalizeVaultName(dto.vaultName)
         val rawSecret = generateApiKey()
         val secretHash = requireNotNull(passwordEncoder.encode(rawSecret))
         val vault = vaultRepository.save(
             Vault(
                 ownerId = userId,
-                name = dto.vaultName,
+                name = normalizedName,
                 secretHash = secretHash
             )
         )
@@ -57,9 +58,15 @@ class VaultAuthService(
     fun update(userId: UUID, vaultId: UUID, dto: VaultUpdateRequestDto): ServerResponseDto {
         val vault = vaultRepository.findByIdAndOwnerId(vaultId, userId)
             ?: throw VaultNotFoundException(vaultId)
-        val updatedVault = vault.copy(name = dto.vaultName.trim())
-        vaultRepository.save(updatedVault)
+        vault.name = normalizeVaultName(dto.vaultName)
+        vaultRepository.save(vault)
         return ServerResponseDto("Vault updated successfully")
+    }
+
+    private fun normalizeVaultName(name: String): String {
+        val normalizedName = name.trim()
+        require(normalizedName.isNotEmpty()) { "Vault name must not be blank" }
+        return normalizedName
     }
 
     private fun generateApiKey(): String {

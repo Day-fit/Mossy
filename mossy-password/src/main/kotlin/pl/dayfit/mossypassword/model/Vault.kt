@@ -13,7 +13,7 @@ data class Vault(
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
     val ownerId: UUID,
-    val name: String,
+    var name: String,
     val secretHash: String,
     var isOnline: Boolean = false,
     var lastSeenAt: Instant? = null

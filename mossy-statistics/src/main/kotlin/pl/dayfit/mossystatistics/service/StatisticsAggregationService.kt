@@ -37,6 +37,7 @@ class StatisticsAggregationService(
             ActionType.UPDATED -> {}
         }
 
+        vaultStatistics.lastSeenAt = event.eventTimestamp
         vaultStatisticsRepository.save(vaultStatistics)
     }
 

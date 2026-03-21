@@ -1,4 +1,4 @@
-import {motion, stagger, type Variants} from "framer-motion";
+import {motion, type Variants} from "framer-motion";
 import {useEffect, useState, type FormEvent} from "react";
 import RippleButton from "../layout/RippleButton.tsx";
 import {
@@ -10,10 +10,21 @@ import {
 } from "../../api/vault.api.ts";
 import VaultCard from "./VaultCard.tsx";
 import AddVaultModal from "./AddVaultModal.tsx";
+import VaultActionModal from "./VaultActionModal.tsx";
 
 type CreatedVaultState = {
     vaultId: string;
     apiKey: string;
+} | null;
+
+type RenameState = {
+    vaultId: string;
+    currentName: string;
+} | null;
+
+type DeleteState = {
+    vaultId: string;
+    vaultName: string;
 } | null;
 
 export default function VaultHero() {
@@ -24,13 +35,16 @@ export default function VaultHero() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [createdVault, setCreatedVault] = useState<CreatedVaultState>(null);
+    const [renameState, setRenameState] = useState<RenameState>(null);
+    const [renameValue, setRenameValue] = useState("");
+    const [deleteState, setDeleteState] = useState<DeleteState>(null);
 
     const containerVariants: Variants = {
         hidden: {opacity: 0, y: 20},
         show: {
             opacity: 1,
             y: 0,
-            transition: {duration: 0.4, ease: "easeOut", delayChildren: stagger(0.08)},
+            transition: {duration: 0.4, ease: "easeOut", staggerChildren: 0.08},
         },
     };
 
@@ -70,9 +84,18 @@ export default function VaultHero() {
         }
     };
 
-    const handleRename = async (vaultId: string, currentName: string) => {
-        const nextName = window.prompt("Enter new vault name", currentName);
-        if (!nextName || nextName.trim().length === 0 || nextName === currentName) {
+    const openRenameModal = (vaultId: string, currentName: string) => {
+        setRenameState({vaultId, currentName});
+        setRenameValue(currentName);
+    };
+
+    const handleRename = async () => {
+        if (!renameState) {
+            return;
+        }
+        const nextName = renameValue.trim();
+        if (!nextName || nextName === renameState.currentName.trim()) {
+            setRenameState(null);
             return;
         }
 
@@ -80,9 +103,10 @@ export default function VaultHero() {
         setSuccessMessage(null);
         setErrorMessage(null);
         try {
-            const response = await executeUpdateVaultRequest(vaultId, nextName);
+            const response = await executeUpdateVaultRequest(renameState.vaultId, nextName);
             setSuccessMessage(response.message);
             await loadVaults();
+            setRenameState(null);
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "Failed to rename vault");
         } finally {
@@ -90,8 +114,8 @@ export default function VaultHero() {
         }
     };
 
-    const handleDelete = async (vaultId: string) => {
-        if (!window.confirm("Delete this vault?")) {
+    const handleDelete = async () => {
+        if (!deleteState) {
             return;
         }
 
@@ -99,9 +123,10 @@ export default function VaultHero() {
         setSuccessMessage(null);
         setErrorMessage(null);
         try {
-            const response = await executeDeleteVaultRequest(vaultId);
+            const response = await executeDeleteVaultRequest(deleteState.vaultId);
             setSuccessMessage(response.message);
             await loadVaults();
+            setDeleteState(null);
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "Failed to delete vault");
         } finally {
@@ -146,8 +171,8 @@ export default function VaultHero() {
                             vaultName={vault.vaultName}
                             isOnline={vault.isOnline}
                             lastSeenAt={vault.lastSeenAt}
-                            onRename={() => void handleRename(vault.vaultId, vault.vaultName)}
-                            onDelete={() => void handleDelete(vault.vaultId)}
+                            onRename={() => openRenameModal(vault.vaultId, vault.vaultName)}
+                            onDelete={() => setDeleteState({vaultId: vault.vaultId, vaultName: vault.vaultName})}
                         />
                     ))}
                 </motion.div>
@@ -158,6 +183,42 @@ export default function VaultHero() {
                     vaultId={createdVault.vaultId}
                     apiKey={createdVault.apiKey}
                     onClose={() => setCreatedVault(null)}
+                />
+            ) : null}
+
+            {renameState ? (
+                <VaultActionModal
+                    title="Rename vault"
+                    description="Provide a new vault name."
+                    confirmLabel="Save"
+                    onClose={() => setRenameState(null)}
+                    onConfirm={() => void handleRename()}
+                    confirmDisabled={isSubmitting}
+                >
+                    <label className="mb-2 block text-xs font-medium text-gray-600" htmlFor="vault-rename-input">
+                        New name
+                    </label>
+                    <input
+                        id="vault-rename-input"
+                        type="text"
+                        value={renameValue}
+                        onChange={(event) => setRenameValue(event.target.value)}
+                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                        minLength={1}
+                        maxLength={80}
+                        required
+                    />
+                </VaultActionModal>
+            ) : null}
+
+            {deleteState ? (
+                <VaultActionModal
+                    title="Delete vault"
+                    description={`Delete "${deleteState.vaultName}"? This action cannot be undone.`}
+                    confirmLabel={isSubmitting ? "Deleting..." : "Delete"}
+                    onClose={() => setDeleteState(null)}
+                    onConfirm={() => void handleDelete()}
+                    confirmDisabled={isSubmitting}
                 />
             ) : null}
         </section>
