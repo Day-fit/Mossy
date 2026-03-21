@@ -1,4 +1,4 @@
-import { motion, stagger, type Variants } from "framer-motion";
+import {motion, stagger, type Variants} from "framer-motion";
 import {useDashboardStatistics} from "../../hooks/useDashboardStatistics.ts";
 import PasswordChart from "./PasswordChart.tsx";
 import RecentActionSection from "./RecentActionSection.tsx";
@@ -8,7 +8,7 @@ export default function DashboardHero() {
     const {statistics, isLoading, error, reload} = useDashboardStatistics();
 
     const containerVariants: Variants = {
-        hidden: { opacity: 0, x: -50, scale: 0.98 },
+        hidden: {opacity: 0, x: -50, scale: 0.98},
         show: {
             opacity: 1,
             x: 0,
@@ -22,12 +22,12 @@ export default function DashboardHero() {
     };
 
     const childVariants: Variants = {
-        hidden: { opacity: 0, x: -50 },
-        show: { opacity: 1, x: 0 },
+        hidden: {opacity: 0, x: -50},
+        show: {opacity: 1, x: 0},
     };
 
     return (
-        <section className="flex flex-col lg:flex-row h-[90vh] gap-8 px-4 my-5">
+        <section className="flex flex-col lg:flex-row lg:h-[90vh] gap-8 px-4 py-2 overflow-x-hidden">
             <motion.section
                 className="flex flex-col flex-1 gap-8 min-h-0"
                 variants={containerVariants}
@@ -35,7 +35,7 @@ export default function DashboardHero() {
                 animate="show"
             >
                 <motion.div
-                    className="flex-1 min-h-0"
+                    className="lg:flex-1 lg:min-h-0 p-1"
                     variants={childVariants}
                 >
                     <div className="h-full rounded-md shadow-2xl bg-white">
@@ -45,7 +45,7 @@ export default function DashboardHero() {
                                     Loading statistics...
                                 </div>
                             ) : (
-                                <PasswordChart data={statistics.passwordChart} />
+                                <PasswordChart data={statistics.passwordChart}/>
                             )}
                         </div>
                     </div>
@@ -87,8 +87,8 @@ export default function DashboardHero() {
                 </motion.div>
             </motion.section>
 
-            <div className="flex-1 min-h-0 overflow-hidden">
-                <RecentActionSection actions={statistics.recentActions} />
+            <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+                <RecentActionSection actions={statistics.recentActions}/>
             </div>
         </section>
     );
