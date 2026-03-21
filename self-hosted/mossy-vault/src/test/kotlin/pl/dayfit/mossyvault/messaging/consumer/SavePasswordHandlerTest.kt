@@ -10,10 +10,10 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import pl.dayfit.mossyvault.dto.request.SavePasswordAckRequestDto
-import pl.dayfit.mossyvault.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossyvault.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
+import pl.dayfit.mossyvault.types.AckStatus
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.test.assertEquals
@@ -48,7 +48,7 @@ class SavePasswordHandlerTest {
         verify(stompSessionRegistry, times(1)).send(eq("/app/vault/password-save-ack"), ackCaptor.capture())
 
         val ack = ackCaptor.firstValue as SavePasswordAckRequestDto
-        assertEquals(SavePasswordAckStatus.ACK, ack.status)
+        assertEquals(AckStatus.ACK, ack.status)
         assertEquals(vaultId, ack.vaultId)
         assertEquals(savedPasswordId, ack.passwordId)
         assertEquals(request.domain, ack.domain)
@@ -74,7 +74,7 @@ class SavePasswordHandlerTest {
         verify(stompSessionRegistry, times(1)).send(eq("/app/vault/password-save-ack"), ackCaptor.capture())
 
         val ack = ackCaptor.firstValue as SavePasswordAckRequestDto
-        assertEquals(SavePasswordAckStatus.NACK, ack.status)
+        assertEquals(AckStatus.NACK, ack.status)
         assertEquals(vaultId, ack.vaultId)
         assertEquals(null, ack.passwordId)
         assertEquals(request.domain, ack.domain)
