@@ -5,6 +5,7 @@ import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.messaging.simp.stomp.StompSession
 import org.springframework.messaging.simp.stomp.StompSessionHandler
 import org.springframework.stereotype.Component
+import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.messaging.consumer.DeletePasswordHandler
 import pl.dayfit.mossyvault.messaging.consumer.ExtractCiphertextHandler
 import pl.dayfit.mossyvault.messaging.consumer.GetCiphertextHandler
@@ -33,32 +34,32 @@ class VaultStompSessionHandler(
         stompSessionRegistry.setSession(session)
 
         session.subscribe(
-            "/user/vault/save",
+            StompEndpoints.SUBSCRIBE_SAVE,
             savePasswordHandler
         )
 
         session.subscribe(
-            "/user/vault/delete",
+            StompEndpoints.SUBSCRIBE_DELETE,
             deletePasswordHandler
         )
 
         session.subscribe(
-            "/user/vault/update",
+            StompEndpoints.SUBSCRIBE_UPDATE,
             updatePasswordHandler
         )
 
         session.subscribe(
-            "/user/vault/extract-ciphertext",
+            StompEndpoints.SUBSCRIBE_EXTRACT_CIPHERTEXT,
             extractCiphertextHandler
         )
 
         session.subscribe(
-            "/user/vault/query-by-domain",
+            StompEndpoints.SUBSCRIBE_QUERY_BY_DOMAIN,
             queryPasswordsByDomainHandler
         )
 
         session.subscribe(
-            "/user/vault/get-ciphertext",
+            StompEndpoints.SUBSCRIBE_GET_CIPHERTEXT,
             getCiphertextHandler
         )
     }

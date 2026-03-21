@@ -6,6 +6,7 @@ import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.WebSocketHttpHeaders
 import org.springframework.web.socket.messaging.WebSocketStompClient
+import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.configuration.properties.StompConfigurationProperties
 import pl.dayfit.mossyvault.configuration.properties.VaultConfigurationProperties
 import pl.dayfit.mossyvault.messaging.handler.VaultStompSessionHandler
@@ -26,7 +27,7 @@ class StompCommunicationService(
         }
 
         stompClient.connectAsync(
-            "${stompConfigurationProperties.host}/api/v1/ws/vault-communication",
+            "${stompConfigurationProperties.host}/api/v1/passwords${StompEndpoints.WEBSOCKET_ENDPOINT}",
             WebSocketHttpHeaders(),
             connectHeaders,
             vaultStompSessionHandler

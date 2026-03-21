@@ -6,7 +6,7 @@ import {
     useState,
     useRef,
     type MouseEvent,
-    type ReactNode
+    type ReactNode, type ButtonHTMLAttributes
 } from "react";
 
 interface Ripple {
@@ -16,12 +16,13 @@ interface Ripple {
     size: number;
 }
 
-interface RippleButtonProps {
+type Variant = "primary" | "outline";
+
+type RippleButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
     children: ReactNode;
     className?: string;
     rippleColor?: string;
-    onClick?: Function
-    type?: "button" | "submit" | "reset"
+    variant?: Variant
 }
 
 export default function RippleButton({
@@ -29,7 +30,8 @@ export default function RippleButton({
         children,
         rippleColor = "rgba(255, 255, 255, 0.6)",
         onClick,
-        type
+        type,
+        variant = "primary",
     }: RippleButtonProps) {
     const [ripples, setRipples] = useState<Ripple[]>([]);
     const ref = useRef<HTMLButtonElement>(null);
@@ -51,8 +53,18 @@ export default function RippleButton({
             setRipples(prev => prev.filter(r => r.id !== ripple.id));
         }, 600);
 
-        onClick && onClick()
+        onClick && onClick(e);
     };
+
+    const variantClassNames = (variant: Variant) => {
+        switch (variant) {
+            case "primary":
+                return "bg-black"
+
+            case "outline":
+                return "bg-transparent border-2 border-gray-800"
+        }
+    }
 
     return (
         <motion.button
@@ -60,7 +72,7 @@ export default function RippleButton({
             type={type}
             onClick={handleClick}
             className={[
-                "relative overflow-hidden px-8 py-4 cursor-pointer bg-black rounded-md",
+                `relative overflow-hidden px-8 py-4 cursor-pointer rounded-md ${variantClassNames(variant)}`,
                 className
             ]
                 .filter(Boolean)

@@ -34,7 +34,7 @@ export type ServerResponseDto = {
 export async function executeSavePasswordRequest(
     payload: SavePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/password/save", {
+    const response = await apiFetch("/api/v1/passwords/save", {
         method: "POST",
         body: JSON.stringify(payload),
     });
@@ -45,7 +45,7 @@ export async function executeSavePasswordRequest(
 export async function executeUpdatePasswordRequest(
     payload: UpdatePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/password/update", {
+    const response = await apiFetch("/api/v1/passwords/update", {
         method: "PATCH",
         body: JSON.stringify(payload),
     });
@@ -56,7 +56,7 @@ export async function executeUpdatePasswordRequest(
 export async function executeDeletePasswordRequest(
     payload: DeletePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/password/delete", {
+    const response = await apiFetch("/api/v1/passwords/delete", {
         method: "DELETE",
         body: JSON.stringify(payload),
     });
@@ -65,7 +65,7 @@ export async function executeDeletePasswordRequest(
 }
 
 export async function executePasswordMetadataRequest(vaultId: string): Promise<PasswordMetadataDto[]> {
-    const response = await apiFetch(`/api/v1/password/metadata?vaultId=${encodeURIComponent(vaultId)}`, {
+    const response = await apiFetch(`/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`, {
         method: "GET",
     });
 
@@ -77,7 +77,7 @@ export async function executePasswordCiphertextRequest(
     vaultId: string
 ): Promise<CiphertextResponseDto> {
     const response = await apiFetch(
-        `/api/v1/password/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
+        `/api/v1/passwords/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
         {
             method: "GET",
         }

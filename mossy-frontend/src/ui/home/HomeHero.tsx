@@ -16,7 +16,7 @@ function HomeHero() {
 
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
             <RippleButton className="text-white sm:mr-1" onClick={() => navigate("/register")}>Sign Up</RippleButton>
-            <RippleButton className="bg-transparent border-2 border-gray-800" rippleColor="rgb(0, 0, 0, 0.7)"
+            <RippleButton variant={"outline"} rippleColor="rgb(0, 0, 0, 0.7)"
                           onClick={() => navigate("/login")}
             >Sign In</RippleButton>
         </div>

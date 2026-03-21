@@ -1,16 +1,12 @@
 package pl.dayfit.mossyvault.dto.request
 
+import pl.dayfit.mossyvault.types.AckStatus
 import java.util.UUID
-
-enum class SavePasswordAckStatus {
-    ACK,
-    NACK
-}
 
 data class SavePasswordAckRequestDto(
     val vaultId: UUID,
     val passwordId: UUID?,
     val domain: String,
-    val status: SavePasswordAckStatus,
+    val status: AckStatus,
     val reason: String? = null
 )

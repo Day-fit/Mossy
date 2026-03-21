@@ -11,9 +11,10 @@ import {
 import { executeUserVaultsRequest, type UserVaultDto } from "../../api/vault.api.ts";
 import { useEncryption } from "../../hooks/useEncryption.ts";
 import StrengthMetter from "./StrengthMetter.tsx";
+import RippleButton from "../layout/RippleButton.tsx";
 
 export default function PasswordHero() {
-    const { encrypt } = useEncryption();
+    const { encrypt, decrypt } = useEncryption();
 
     const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
     const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
@@ -25,6 +26,7 @@ export default function PasswordHero() {
 
     const [vaults, setVaults] = useState<UserVaultDto[]>([]);
     const [selectedVaultId, setSelectedVaultId] = useState("");
+
     const [isLoadingVaults, setIsLoadingVaults] = useState<boolean>(true);
     const [isLoadingPasswords, setIsLoadingPasswords] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -33,7 +35,14 @@ export default function PasswordHero() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const onlineVaults = useMemo(() => vaults.filter((vault) => vault.isOnline), [vaults]);
+    const selectedVault = useMemo(
+        () => vaults.find((vault) => {
+            console.log(vault.vaultId, selectedVaultId, vault)
+            return vault.vaultId === selectedVaultId
+        }) ?? null,
+        [vaults, selectedVaultId]
+    );
+
     const isEditing = editedPasswordId !== null;
 
     const resetForm = () => {
@@ -54,7 +63,13 @@ export default function PasswordHero() {
 
         try {
             const nextPasswords = await executePasswordMetadataRequest(vaultId);
-            setPasswords(nextPasswords);
+            setPasswords(
+                nextPasswords.sort((a, b) => {
+                    const timeA = new Date(a.lastModified).getTime();
+                    const timeB = new Date(b.lastModified).getTime();
+                    return timeB - timeA;
+                })
+            );
             setRevealedPasswords({});
         } catch {
             setPasswords([]);
@@ -69,7 +84,10 @@ export default function PasswordHero() {
             try {
                 const nextVaults = await executeUserVaultsRequest();
                 setVaults(nextVaults);
-                setSelectedVaultId("");
+                console.log(nextVaults)
+
+                const firstOnlineVault = nextVaults.find((vault) => vault.isOnline);
+                setSelectedVaultId(firstOnlineVault?.vaultId ?? nextVaults[0]?.vaultId ?? "");
                 setErrorMessage(null);
             } catch {
                 setVaults([]);
@@ -84,13 +102,25 @@ export default function PasswordHero() {
     }, []);
 
     useEffect(() => {
+        if (!selectedVaultId) {
+            setPasswords([]);
+            setRevealedPasswords({});
+            return;
+        }
+
+        if (!selectedVault?.isOnline) {
+            setPasswords([]);
+            setRevealedPasswords({});
+            return;
+        }
+
         void loadPasswords(selectedVaultId);
-    }, [selectedVaultId]);
+    }, [selectedVault, selectedVaultId]);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
-        if (!selectedVaultId) {
+        if (!selectedVaultId || !selectedVault?.isOnline) {
             setErrorMessage("Select an online vault to save password");
             return;
         }
@@ -125,7 +155,7 @@ export default function PasswordHero() {
     };
 
     const handleDelete = async (passwordId: string) => {
-        if (!selectedVaultId) {
+        if (!selectedVaultId || !selectedVault?.isOnline) {
             return;
         }
 
@@ -152,7 +182,7 @@ export default function PasswordHero() {
     };
 
     const handleRevealToggle = async (passwordId: string) => {
-        if (!selectedVaultId) {
+        if (!selectedVaultId || !selectedVault?.isOnline) {
             return;
         }
 
@@ -172,7 +202,7 @@ export default function PasswordHero() {
             const response = await executePasswordCiphertextRequest(passwordId, selectedVaultId);
             setRevealedPasswords((prev) => ({
                 ...prev,
-                [passwordId]: response.ciphertext,
+                [passwordId]: decrypt(response.ciphertext),
             }));
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "Failed to reveal password");
@@ -202,22 +232,26 @@ export default function PasswordHero() {
             <section className="mb-6 rounded-md bg-white p-5 shadow-md">
                 <h2 className="mb-3 text-xl font-semibold text-gray-800">Select vault</h2>
                 {isLoadingVaults ? <p className="text-sm text-gray-500">Loading vaults...</p> : null}
-                {!isLoadingVaults && onlineVaults.length === 0 ? (
-                    <p className="text-sm text-gray-500">No online vaults available</p>
+                {!isLoadingVaults && vaults.length === 0 ? (
+                    <p className="text-sm text-gray-500">No vaults available</p>
                 ) : null}
+
                 <div className="flex flex-wrap gap-2">
-                    {onlineVaults.map((vault) => (
+                    {vaults.map((vault) => (
                         <button
                             key={vault.vaultId}
                             type="button"
                             className={`rounded-md border px-3 py-2 text-sm ${
                                 selectedVaultId === vault.vaultId
                                     ? "border-gray-900 bg-gray-900 text-white"
-                                    : "border-gray-300 bg-white text-gray-800"
+                                    : vault.isOnline
+                                      ? "border-gray-300 bg-white text-gray-800"
+                                      : "border-red-200 bg-red-50 text-red-700"
                             }`}
                             onClick={() => handleVaultSelect(vault.vaultId)}
                         >
-                            {vault.vaultName}
+                            <span className="mr-2">{vault.vaultName}</span>
+                            <span className="text-xs opacity-80">{vault.isOnline ? "Online" : "Offline"}</span>
                         </button>
                     ))}
                 </div>
@@ -229,7 +263,15 @@ export default function PasswordHero() {
                 </section>
             ) : null}
 
-            {selectedVaultId ? (
+            {selectedVaultId && selectedVault && !selectedVault.isOnline ? (
+                <section className="rounded-md bg-white p-5 shadow-md">
+                    <p className="text-sm text-gray-600">
+                        Selected vault is offline. Connect the vault to manage passwords.
+                    </p>
+                </section>
+            ) : null}
+
+            {selectedVaultId && selectedVault?.isOnline ? (
                 <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-md">
                         <h2 className="text-xl font-semibold text-gray-800">{isEditing ? "Update password" : "Add password"}</h2>
@@ -273,7 +315,7 @@ export default function PasswordHero() {
                             <button
                                 type="submit"
                                 className="rounded-sm border-2 px-4 py-2"
-                                disabled={isSubmitting || isLoadingVaults || onlineVaults.length === 0}
+                                disabled={isSubmitting || isLoadingVaults || !selectedVault?.isOnline}
                             >
                                 {isSubmitting ? "Saving..." : isEditing ? "Update" : "Add"}
                             </button>
@@ -291,7 +333,6 @@ export default function PasswordHero() {
 
                     <section className="rounded-md bg-white p-5 shadow-md">
                         <h2 className="mb-4 text-xl font-semibold text-gray-800">Passwords</h2>
-
                         {isLoadingPasswords ? <p className="text-sm text-gray-500">Loading passwords...</p> : null}
                         {!isLoadingPasswords && passwords.length === 0 ? (
                             <p className="text-sm text-gray-500">No passwords for selected vault.</p>
@@ -311,6 +352,7 @@ export default function PasswordHero() {
                                                 Updated {new Date(passwordDto.lastModified).toLocaleString()}
                                             </p>
                                         </div>
+
                                         <div className="flex gap-2">
                                             <button
                                                 type="button"
@@ -320,6 +362,7 @@ export default function PasswordHero() {
                                             >
                                                 Edit
                                             </button>
+
                                             <button
                                                 type="button"
                                                 className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
@@ -335,10 +378,13 @@ export default function PasswordHero() {
                                         <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
                                             {revealedPasswords[passwordDto.passwordId] ?? "••••••••••••"}
                                         </p>
-                                        <button
+
+                                        <RippleButton
                                             type="button"
+                                            variant="outline"
                                             className="rounded-sm border px-2 py-1 text-sm"
                                             disabled={isLoadingCiphertextId === passwordDto.passwordId}
+                                            rippleColor="rgb(0, 0, 0, 0.7)"
                                             onClick={() => void handleRevealToggle(passwordDto.passwordId)}
                                         >
                                             {isLoadingCiphertextId === passwordDto.passwordId
@@ -346,7 +392,7 @@ export default function PasswordHero() {
                                                 : revealedPasswords[passwordDto.passwordId]
                                                   ? "Hide"
                                                   : "Reveal"}
-                                        </button>
+                                        </RippleButton>
                                     </div>
                                 </article>
                             ))}

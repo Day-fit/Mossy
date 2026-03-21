@@ -14,8 +14,9 @@ import kotlin.io.encoding.Base64
 class VaultAuthService(
     private val vaultRepository: VaultRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val secureRandom: SecureRandom
+    private val secureRandom: SecureRandom,
 ) {
+    private val logger = org.slf4j.LoggerFactory.getLogger(VaultAuthService::class.java)
 
     fun register(userId: UUID, dto: VaultRegistrationRequestDto): VaultRegistrationResponseDto {
         val rawSecret = generateApiKey()
@@ -28,6 +29,7 @@ class VaultAuthService(
             )
         )
 
+        logger.debug("Vault {} registered", vault.id)
         return VaultRegistrationResponseDto(
             vaultId = vault.id!!,
             apiKey = rawSecret
