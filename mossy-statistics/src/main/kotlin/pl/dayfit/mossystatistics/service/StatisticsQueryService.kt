@@ -68,7 +68,7 @@ class StatisticsQueryService(
     private fun fetchVaultStatuses(authorizationHeader: String): List<VaultStatusClientDto> {
         return runCatching {
             mossyPasswordRestClient.get()
-                .uri("/vault/vaults")
+                .uri("/passwords/vault/vaults")
                 .header(HttpHeaders.AUTHORIZATION, authorizationHeader)
                 .retrieve()
                 .body<Array<VaultStatusClientDto>>()

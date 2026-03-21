@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
@@ -23,7 +22,6 @@ import pl.dayfit.mossypassword.service.VaultCommunicationService
 import java.util.UUID
 
 @RestController
-@RequestMapping("/password")
 class PasswordController(
     private val vaultCommunicationService: VaultCommunicationService,
     private val passwordQueryService: PasswordQueryService

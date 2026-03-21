@@ -8,12 +8,11 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.springframework.beans.factory.ObjectProvider
-import org.springframework.messaging.simp.SimpMessagingTemplate
 import pl.dayfit.mossyvault.dto.request.QueryPasswordsByDomainRequestDto
 import pl.dayfit.mossyvault.dto.response.PasswordQueryResponseDto
 import pl.dayfit.mossyvault.model.PasswordEntry
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
+import pl.dayfit.mossyvault.service.StompSessionRegistry
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -21,13 +20,11 @@ import kotlin.test.assertEquals
 class QueryPasswordsByDomainHandlerTest {
 
     private val passwordEntryRepository: PasswordEntryRepository = mock()
-    private val messagingTemplate: SimpMessagingTemplate = mock()
-    private val messagingTemplateProvider: ObjectProvider<SimpMessagingTemplate> = mock()
-    private val handler = QueryPasswordsByDomainHandler(passwordEntryRepository, messagingTemplateProvider)
+    private val stompSessionRegistry: StompSessionRegistry = mock()
+    private val handler = QueryPasswordsByDomainHandler(passwordEntryRepository, stompSessionRegistry)
 
     @Test
     fun `returns metadata with password id identifier domain and last change`() {
-        whenever(messagingTemplateProvider.getIfAvailable()).thenReturn(messagingTemplate)
         val vaultId = UUID.randomUUID()
         val passwordId = UUID.randomUUID()
         val lastModified = Instant.now()
@@ -52,9 +49,8 @@ class QueryPasswordsByDomainHandlerTest {
         )
 
         val responseCaptor = argumentCaptor<PasswordQueryResponseDto>()
-        verify(messagingTemplate, times(1)).convertAndSendToUser(
-            eq(vaultId.toString()),
-            eq("/vault/passwords-queried"),
+        verify(stompSessionRegistry, times(1)).send(
+            eq("/app/vault/passwords-queried"),
             responseCaptor.capture()
         )
 
@@ -69,7 +65,6 @@ class QueryPasswordsByDomainHandlerTest {
 
     @Test
     fun `null domain requests all passwords`() {
-        whenever(messagingTemplateProvider.getIfAvailable()).thenReturn(messagingTemplate)
         val vaultId = UUID.randomUUID()
         whenever(passwordEntryRepository.findAll()).thenReturn(emptyList())
 
@@ -82,6 +77,10 @@ class QueryPasswordsByDomainHandlerTest {
         )
 
         verify(passwordEntryRepository, times(1)).findAll()
-        verify(messagingTemplate, times(1)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/passwords-queried"), any())
+        verify(stompSessionRegistry, times(1))
+            .send(
+                eq("/app/vault/passwords-queried"),
+                any<PasswordQueryResponseDto>()
+            )
     }
 }

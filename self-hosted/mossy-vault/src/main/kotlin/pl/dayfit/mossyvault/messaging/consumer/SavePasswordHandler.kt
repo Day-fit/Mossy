@@ -4,11 +4,12 @@ import org.slf4j.LoggerFactory
 import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
+import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.dto.request.SavePasswordAckRequestDto
-import pl.dayfit.mossyvault.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossyvault.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
+import pl.dayfit.mossyvault.types.AckStatus
 import java.lang.reflect.Type
 import java.util.UUID
 import kotlin.io.encoding.Base64
@@ -38,12 +39,12 @@ class SavePasswordHandler(
         }
 
         stompSessionRegistry.send(
-            "/app/vault/password-save-ack",
+            StompEndpoints.SEND_SAVE_ACK,
             SavePasswordAckRequestDto(
                 vaultId = vaultId,
                 passwordId = result.getOrNull(),
                 domain = dto.domain,
-                status = if (result.isSuccess) SavePasswordAckStatus.ACK else SavePasswordAckStatus.NACK,
+                status = if (result.isSuccess) AckStatus.ACK else AckStatus.NACK,
                 reason = result.exceptionOrNull()?.message
             )
         )

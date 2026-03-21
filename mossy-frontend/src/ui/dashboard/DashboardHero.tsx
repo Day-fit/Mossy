@@ -87,7 +87,7 @@ export default function DashboardHero() {
                 </motion.div>
             </motion.section>
 
-            <div className="flex-1 min-h-0 overflow-hidden shadow-2xl">
+            <div className="flex-1 min-h-0 overflow-hidden">
                 <RecentActionSection actions={statistics.recentActions} />
             </div>
         </section>

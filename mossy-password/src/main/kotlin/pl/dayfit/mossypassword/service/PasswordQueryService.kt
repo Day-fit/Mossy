@@ -48,13 +48,13 @@ class PasswordQueryService(
             request
         )
 
-        return try {
+         try {
             val response = future.get(5, TimeUnit.SECONDS)
             pendingQueries.remove(requestKey)
-            response.passwords
-        } catch (e: Exception) {
+             return response.passwords
+        } catch (_: Exception) {
             pendingQueries.remove(requestKey)
-            emptyList()
+             return emptyList()
         }
     }
 
@@ -86,7 +86,7 @@ class PasswordQueryService(
             val response = future.get(5, TimeUnit.SECONDS)
             pendingCiphertexts.remove(requestKey)
             response.ciphertext
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             pendingCiphertexts.remove(requestKey)
             null
         }
