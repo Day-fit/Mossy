@@ -12,10 +12,12 @@ import { executeUserVaultsRequest, type UserVaultDto } from "../../api/vault.api
 import { useEncryption } from "../../hooks/useEncryption.ts";
 import StrengthMetter from "./StrengthMetter.tsx";
 import RippleButton from "../layout/RippleButton.tsx";
+import PasswordPinModal from "./PasswordPinModal.tsx";
 
 export default function PasswordHero() {
-    const { encrypt, decrypt } = useEncryption();
+    const { encrypt, decrypt, setEncryptionPin, isPinPresent } = useEncryption();
 
+    const [isPinModalActive, setIsPinModalActive] = useState(false);
     const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
     const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
 
@@ -119,6 +121,13 @@ export default function PasswordHero() {
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        if (!isPinPresent)
+        {
+            setIsPinModalActive(true);
+            setIsSubmitting(false);
+            return;
+        }
 
         if (!selectedVaultId || !selectedVault?.isOnline) {
             setErrorMessage("Select an online vault to save password");
@@ -229,6 +238,8 @@ export default function PasswordHero() {
 
     return (
         <section className="w-full p-5">
+            {isPinModalActive && <PasswordPinModal setEncryptionPin={setEncryptionPin}/>}
+
             <section className="mb-6 rounded-md bg-white p-5 shadow-md">
                 <h2 className="mb-3 text-xl font-semibold text-gray-800">Select vault</h2>
                 {isLoadingVaults ? <p className="text-sm text-gray-500">Loading vaults...</p> : null}
