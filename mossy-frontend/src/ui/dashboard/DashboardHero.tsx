@@ -35,7 +35,7 @@ export default function DashboardHero() {
                 animate="show"
             >
                 <motion.div
-                    className="lg:flex-1 lg:min-h-0 p-1"
+                    className="lg:flex-1 lg:min-h-0"
                     variants={childVariants}
                 >
                     <div className="h-full rounded-md shadow-2xl bg-white">
