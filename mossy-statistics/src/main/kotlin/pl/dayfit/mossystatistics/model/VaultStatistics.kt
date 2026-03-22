@@ -10,5 +10,5 @@ data class VaultStatistics(
     @Id
     val vaultId: UUID,
     var passwordsCount: Long = 0,
-    var lastUpdatedAt: Instant = Instant.now()
+    var lastSeenAt: Instant? = null
 )

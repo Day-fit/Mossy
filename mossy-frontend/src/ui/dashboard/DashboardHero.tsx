@@ -81,6 +81,7 @@ export default function DashboardHero() {
                                 passwordsCount={vault.passwordsCount}
                                 vaultName={vault.vaultName}
                                 isOnline={vault.isOnline}
+                                lastSeenAt={vault.lastSeenAt}
                             />
                         ))}
                     </div>

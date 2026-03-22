@@ -2,17 +2,22 @@ package pl.dayfit.mossypassword.controller
 
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.VaultRegistrationRequestDto
+import pl.dayfit.mossypassword.dto.request.VaultUpdateRequestDto
 import pl.dayfit.mossypassword.dto.response.VaultRegistrationResponseDto
+import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.dto.response.VaultStatusResponseDto
 import pl.dayfit.mossypassword.service.VaultAuthService
 import pl.dayfit.mossypassword.service.VaultStatusService
 import java.util.UUID
+import org.springframework.web.bind.annotation.PathVariable
 
 @RestController
 @RequestMapping("/vault")
@@ -54,5 +59,22 @@ class VaultController(
         return ResponseEntity.ok(
             vaultStatusService.getVaults(userId)
         )
+    }
+
+    @DeleteMapping("/{vaultId}")
+    fun deleteVault(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable vaultId: UUID
+    ): ResponseEntity<ServerResponseDto> {
+        return ResponseEntity.ok(vaultAuthService.delete(userId, vaultId))
+    }
+
+    @PutMapping("/{vaultId}")
+    fun updateVault(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable vaultId: UUID,
+        @RequestBody requestDto: VaultUpdateRequestDto
+    ): ResponseEntity<ServerResponseDto> {
+        return ResponseEntity.ok(vaultAuthService.update(userId, vaultId, requestDto))
     }
 }

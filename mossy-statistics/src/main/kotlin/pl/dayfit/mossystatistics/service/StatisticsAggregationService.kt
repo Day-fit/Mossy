@@ -8,7 +8,6 @@ import pl.dayfit.mossystatistics.model.PasswordActionEvent
 import pl.dayfit.mossystatistics.model.VaultStatistics
 import pl.dayfit.mossystatistics.repository.PasswordActionEventRepository
 import pl.dayfit.mossystatistics.repository.VaultStatisticsRepository
-import java.time.Instant
 
 @Service
 class StatisticsAggregationService(
@@ -38,7 +37,7 @@ class StatisticsAggregationService(
             ActionType.UPDATED -> {}
         }
 
-        vaultStatistics.lastUpdatedAt = Instant.now()
+        vaultStatistics.lastSeenAt = event.eventTimestamp
         vaultStatisticsRepository.save(vaultStatistics)
     }
 
