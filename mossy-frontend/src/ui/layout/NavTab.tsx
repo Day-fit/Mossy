@@ -6,9 +6,10 @@ interface NavTabProps {
     name: string
     url: string
     requiresAuthentication: boolean
+    onClick?: () => void
 }
 
-function NavTab({name, url, requiresAuthentication}: NavTabProps) {
+function NavTab({name, url, requiresAuthentication, onClick}: NavTabProps) {
     const { isAuthenticated } = useAuth()
     const MotionNavLink = motion.create(NavLink);
 
@@ -16,6 +17,7 @@ function NavTab({name, url, requiresAuthentication}: NavTabProps) {
         <section className={"relative flex flex-col justify-center items-center h-full"}>
             <MotionNavLink
                 to={url}
+                onClick={onClick}
                 className={({isActive}) => (isActive ? "font-bold" : "font-normal")
                     + " text-justify text-l relative z-10 flex items-center justify-center h-full px-5"}
             >
