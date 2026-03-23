@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
 	executeDeletePasswordRequest,
 	executePasswordCiphertextRequest,
@@ -12,10 +13,11 @@ import {
 	executeUserVaultsRequest,
 	type UserVaultDto,
 } from '../../api/vault.api.ts';
-import StrengthMetter from './StrengthMetter.tsx';
-import RippleButton from '../layout/RippleButton.tsx';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
+import PasswordVaultSelector from './PasswordVaultSelector.tsx';
+import PasswordEditorForm from './PasswordEditorForm.tsx';
+import PasswordListSection from './PasswordListSection.tsx';
 
 export default function PasswordHero() {
 	const { encrypt, decrypt, isPinPresent } = useEncryptionContext();
@@ -46,6 +48,10 @@ export default function PasswordHero() {
 
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [pendingRevealPasswordId, setPendingRevealPasswordId] = useState<
+		string | null
+	>(null);
+	const [pendingSubmitAfterPin, setPendingSubmitAfterPin] = useState(false);
 
 	const selectedVault = useMemo(
 		() =>
@@ -138,6 +144,7 @@ export default function PasswordHero() {
 		event.preventDefault();
 
 		if (!isPinPresent(selectedVaultId)) {
+			setPendingSubmitAfterPin(true);
 			setIsPinModalActive(true);
 			setIsSubmitting(false);
 			return;
@@ -153,23 +160,7 @@ export default function PasswordHero() {
 		setErrorMessage(null);
 
 		try {
-			const payload = {
-				identifier,
-				domain,
-				cipherText: await encrypt(password, selectedVaultId),
-				vaultId: selectedVaultId,
-			};
-
-			const response: ServerResponseDto = isEditing
-				? await executeUpdatePasswordRequest({
-						...payload,
-						passwordId: editedPasswordId,
-					})
-				: await executeSavePasswordRequest(payload);
-
-			setSuccessMessage(response.message);
-			resetForm();
-			await loadPasswords(selectedVaultId);
+			await submitPasswordData();
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error
@@ -218,6 +209,7 @@ export default function PasswordHero() {
 		}
 
 		if (!isPinPresent(selectedVaultId)) {
+			setPendingRevealPasswordId(passwordId);
 			setIsPinModalActive(true);
 			return;
 		}
@@ -231,11 +223,11 @@ export default function PasswordHero() {
 			return;
 		}
 
-		setLoadingCiphertextPhase(prevState => {
-            const next = { ...prevState };
-            next[passwordId] = 'Fetching';
-            return next;
-        });
+		setLoadingCiphertextPhase((prevState) => {
+			const next = { ...prevState };
+			next[passwordId] = 'Fetching';
+			return next;
+		});
 		setErrorMessage(null);
 
 		try {
@@ -244,7 +236,7 @@ export default function PasswordHero() {
 				selectedVaultId
 			);
 
-			setLoadingCiphertextPhase(prevState => {
+			setLoadingCiphertextPhase((prevState) => {
 				const next = { ...prevState };
 				next[passwordId] = 'Decrypting';
 				return next;
@@ -265,11 +257,11 @@ export default function PasswordHero() {
 					: 'Failed to reveal password'
 			);
 		} finally {
-			setLoadingCiphertextPhase(prevState => {
-                const next = { ...prevState };
-                delete next[passwordId];
-                return next;
-            });
+			setLoadingCiphertextPhase((prevState) => {
+				const next = { ...prevState };
+				delete next[passwordId];
+				return next;
+			});
 		}
 	};
 
@@ -287,261 +279,126 @@ export default function PasswordHero() {
 		resetForm();
 		setSuccessMessage(null);
 		setErrorMessage(null);
+		setPendingRevealPasswordId(null);
+		setPendingSubmitAfterPin(false);
+	};
+
+	const submitPasswordData = async () => {
+		const payload = {
+			identifier,
+			domain,
+			cipherText: await encrypt(password, selectedVaultId),
+			vaultId: selectedVaultId,
+		};
+
+		const response: ServerResponseDto = isEditing
+			? await executeUpdatePasswordRequest({
+					...payload,
+					passwordId: editedPasswordId,
+				})
+			: await executeSavePasswordRequest(payload);
+
+		setSuccessMessage(response.message);
+		resetForm();
+		await loadPasswords(selectedVaultId);
 	};
 
 	return (
-		<section className="w-full p-5">
+		<motion.section
+			className="w-full px-4 py-5 sm:px-5"
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{ duration: 0.3, ease: 'easeOut' }}
+		>
 			{isPinModalActive && (
 				<PasswordPinModal
 					vaultId={selectedVaultId}
 					setIsPinModalActive={setIsPinModalActive}
+					afterPinEntered={async () => {
+						if (pendingSubmitAfterPin) {
+							setPendingSubmitAfterPin(false);
+							setIsSubmitting(true);
+							setSuccessMessage(null);
+							setErrorMessage(null);
+							try {
+								await submitPasswordData();
+							} catch (error) {
+								setErrorMessage(
+									error instanceof Error
+										? error.message
+										: 'Failed to save password data'
+								);
+							} finally {
+								setIsSubmitting(false);
+							}
+						}
+
+						if (pendingRevealPasswordId) {
+							const toReveal = pendingRevealPasswordId;
+							setPendingRevealPasswordId(null);
+							await handleRevealToggle(toReveal);
+						}
+					}}
 				/>
 			)}
 
-			<section className="mb-6 rounded-md bg-white p-5 shadow-md">
-				<h2 className="mb-3 text-xl font-semibold text-gray-800">
-					Select vault
-				</h2>
-				{isLoadingVaults ? (
-					<p className="text-sm text-gray-500">Loading vaults...</p>
-				) : null}
-				{!isLoadingVaults && vaults.length === 0 ? (
-					<p className="text-sm text-gray-500">No vaults available</p>
-				) : null}
+			<div className="mx-auto max-w-7xl space-y-6">
+				<PasswordVaultSelector
+					isLoadingVaults={isLoadingVaults}
+					vaults={vaults}
+					selectedVaultId={selectedVaultId}
+					onSelect={handleVaultSelect}
+				/>
 
-				<div className="flex flex-wrap gap-2">
-					{vaults.map((vault) => (
-						<button
-							key={vault.vaultId}
-							type="button"
-							className={`rounded-md border px-3 py-2 text-sm ${
-								selectedVaultId === vault.vaultId
-									? 'border-gray-900 bg-gray-900 text-white'
-									: vault.isOnline
-										? 'border-gray-300 bg-white text-gray-800'
-										: 'border-red-200 bg-red-50 text-red-700'
-							}`}
-							onClick={() => handleVaultSelect(vault.vaultId)}
-						>
-							<span className="mr-2">{vault.vaultName}</span>
-							<span className="text-xs opacity-80">
-								{vault.isOnline ? 'Online' : 'Offline'}
-							</span>
-						</button>
-					))}
-				</div>
-			</section>
-
-			{!selectedVaultId ? (
-				<section className="rounded-md bg-white p-5 shadow-md">
-					<p className="text-sm text-gray-600">
-						Select a vault above to manage passwords.
-					</p>
-				</section>
-			) : null}
-
-			{selectedVaultId && selectedVault && !selectedVault.isOnline ? (
-				<section className="rounded-md bg-white p-5 shadow-md">
-					<p className="text-sm text-gray-600">
-						Selected vault is offline. Connect the vault to manage
-						passwords.
-					</p>
-				</section>
-			) : null}
-
-			{selectedVaultId && selectedVault?.isOnline ? (
-				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-					<form
-						onSubmit={handleSubmit}
-						className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-md"
-					>
-						<h2 className="text-xl font-semibold text-gray-800">
-							{isEditing ? 'Update password' : 'Add password'}
-						</h2>
-
-						<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-							<input
-								type="text"
-								name="identifier"
-								value={identifier}
-								onChange={(event) =>
-									setIdentifier(event.target.value)
-								}
-								placeholder="Enter identifier (email/username)"
-								className="border-b-2 p-2"
-								required
-							/>
-
-							<input
-								type="text"
-								name="domain"
-								value={domain}
-								onChange={(event) =>
-									setDomain(event.target.value)
-								}
-								placeholder="Enter domain"
-								className="border-b-2 p-2"
-								required
-							/>
-
-							<div className="flex flex-col gap-2 lg:col-span-2">
-								<input
-									type="password"
-									name="password"
-									value={password}
-									onChange={(event) =>
-										setPassword(event.target.value)
-									}
-									placeholder={
-										isEditing
-											? 'Enter new password'
-											: 'Enter password'
-									}
-									className="border-b-2 p-2"
-									required
-								/>
-								<StrengthMetter password={password} />
-							</div>
-						</div>
-
-						<div className="flex items-center gap-3">
-							<button
-								type="submit"
-								className="rounded-sm border-2 px-4 py-2"
-								disabled={
-									isSubmitting ||
-									isLoadingVaults ||
-									!selectedVault?.isOnline
-								}
-							>
-								{isSubmitting
-									? 'Saving...'
-									: isEditing
-										? 'Update'
-										: 'Add'}
-							</button>
-
-							{isEditing ? (
-								<button
-									type="button"
-									className="rounded-sm border-2 px-4 py-2"
-									onClick={resetForm}
-								>
-									Cancel edit
-								</button>
-							) : null}
-
-							{successMessage ? (
-								<p className="text-sm text-emerald-700">
-									{successMessage}
-								</p>
-							) : null}
-							{errorMessage ? (
-								<p className="text-sm text-red-600">
-									{errorMessage}
-								</p>
-							) : null}
-						</div>
-					</form>
-
-					<section className="rounded-md bg-white p-5 shadow-md">
-						<h2 className="mb-4 text-xl font-semibold text-gray-800">
-							Passwords
-						</h2>
-						{isLoadingPasswords ? (
-							<p className="text-sm text-gray-500">
-								Loading passwords...
-							</p>
-						) : null}
-						{!isLoadingPasswords && passwords.length === 0 ? (
-							<p className="text-sm text-gray-500">
-								No passwords for selected vault.
-							</p>
-						) : null}
-
-						<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pr-1">
-							{passwords.map((passwordDto) => (
-								<article
-									key={passwordDto.passwordId}
-									className="flex flex-col gap-3 rounded-md border border-gray-200 p-3"
-								>
-									<div className="flex items-start justify-between gap-3">
-										<div>
-											<p className="font-medium text-gray-900">
-												{passwordDto.identifier}
-											</p>
-											<p className="text-sm text-gray-600">
-												{passwordDto.domain}
-											</p>
-											<p className="text-xs text-gray-500">
-												Updated{' '}
-												{new Date(
-													passwordDto.lastModified
-												).toLocaleString()}
-											</p>
-										</div>
-
-										<div className="flex gap-2">
-											<button
-												type="button"
-												className="rounded-sm border px-2 py-1 text-sm"
-												disabled={isSubmitting}
-												onClick={() =>
-													handleEdit(passwordDto)
-												}
-											>
-												Edit
-											</button>
-
-											<button
-												type="button"
-												className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
-												disabled={isSubmitting}
-												onClick={() =>
-													void handleDelete(
-														passwordDto.passwordId
-													)
-												}
-											>
-												Delete
-											</button>
-										</div>
-									</div>
-
-									<div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
-										<p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
-											{revealedPasswords[
-												passwordDto.passwordId
-											] ?? '••••••••••••'}
-										</p>
-
-										<RippleButton
-											type="button"
-											variant="outline"
-											className="rounded-sm border px-2 py-1 text-sm"
-											disabled={
-                                                loadingCiphertextPhase[passwordDto.passwordId] !== undefined
-											}
-											rippleColor="rgb(0, 0, 0, 0.7)"
-											onClick={() =>
-												void handleRevealToggle(
-													passwordDto.passwordId
-												)
-											}
-										>
-										{loadingCiphertextPhase[passwordDto.passwordId] !== undefined
-											? (loadingCiphertextPhase[passwordDto.passwordId] ?? 'Processing') + "..."
-											: revealedPasswords[passwordDto.passwordId]
-												? 'Hide'
-												: 'Reveal'}
-										</RippleButton>
-									</div>
-								</article>
-							))}
-						</div>
+				{!selectedVaultId ? (
+					<section className="rounded-md bg-white p-4 shadow-md sm:p-5">
+						<p className="text-sm text-gray-600">
+							Select a vault above to manage passwords.
+						</p>
 					</section>
-				</div>
-			) : null}
-		</section>
+				) : null}
+
+				{selectedVaultId && selectedVault && !selectedVault.isOnline ? (
+					<section className="rounded-md bg-white p-4 shadow-md sm:p-5">
+						<p className="text-sm text-gray-600">
+							Selected vault is offline. Connect the vault to
+							manage passwords.
+						</p>
+					</section>
+				) : null}
+
+				{selectedVaultId && selectedVault?.isOnline ? (
+					<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+						<PasswordEditorForm
+							identifier={identifier}
+							domain={domain}
+							password={password}
+							isEditing={isEditing}
+							isSubmitting={isSubmitting}
+							isLoadingVaults={isLoadingVaults}
+							isVaultOnline={Boolean(selectedVault?.isOnline)}
+							successMessage={successMessage}
+							errorMessage={errorMessage}
+							onIdentifierChange={setIdentifier}
+							onDomainChange={setDomain}
+							onPasswordChange={setPassword}
+							onSubmit={handleSubmit}
+							onCancelEdit={resetForm}
+						/>
+
+						<PasswordListSection
+							passwords={passwords}
+							revealedPasswords={revealedPasswords}
+							isLoadingPasswords={isLoadingPasswords}
+							isSubmitting={isSubmitting}
+							loadingCiphertextPhase={loadingCiphertextPhase}
+							onEdit={handleEdit}
+							onDelete={handleDelete}
+							onRevealToggle={handleRevealToggle}
+						/>
+					</div>
+				) : null}
+			</div>
+		</motion.section>
 	);
 }

@@ -1,5 +1,6 @@
 import RippleButton from '../layout/RippleButton.tsx';
 import * as React from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -22,6 +23,7 @@ export default function PasswordPinModal({
 	vaultId,
 	afterPinEntered,
 }: PasswordPinModalProps) {
+	const [isSubmittingPin, setIsSubmittingPin] = useState(false);
 	const {
 		handleSubmit,
 		control,
@@ -59,24 +61,32 @@ export default function PasswordPinModal({
 			}}
 		>
 			<form
-				onSubmit={handleSubmit((data) => {
+				onSubmit={handleSubmit(async (data) => {
+					setIsSubmittingPin(true);
 					const pin = data.pin;
-					vaultId &&
+					if (vaultId) {
 						setEncryptionPin((prev) => ({
 							...prev,
 							[vaultId]: pin,
 						}));
+					}
 
-					afterPinEntered && afterPinEntered(pin);
-					setIsPinModalActive(false);
+					try {
+						if (afterPinEntered) {
+							await afterPinEntered(pin);
+						}
+						setIsPinModalActive(false);
+					} finally {
+						setIsSubmittingPin(false);
+					}
 				})}
-				className="bg-white shadow-md rounded-md w-2/3 h-3/4 flex flex-col items-center"
+				className="flex h-auto min-h-[24rem] w-full max-w-md flex-col items-center rounded-md bg-white p-4 shadow-md sm:p-6 md:max-w-xl"
 			>
-				<h1 className={'text-3xl mt-5'}>
+				<h1 className="mt-3 text-center text-xl sm:text-2xl md:text-3xl">
 					Please type vault key pin to proceed
 				</h1>
 
-				<IoKeyOutline className={'h-20 text-9xl mt-2 mb-5'} />
+				<IoKeyOutline className="mb-4 mt-2 h-16 text-7xl sm:h-20 sm:text-8xl md:text-9xl" />
 
 				<Controller
 					name="pin"
@@ -85,10 +95,10 @@ export default function PasswordPinModal({
 						<OTPInput
 							{...field}
 							maxLength={4}
-							containerClassName="flex gap-2 mt-2"
+							containerClassName="mt-2 flex gap-2"
 							render={({ slots }) => (
 								<motion.div
-									className={'flex gap-1'}
+									className="flex gap-1"
 									variants={containerVariants}
 									initial="hidden"
 									animate="show"
@@ -98,7 +108,7 @@ export default function PasswordPinModal({
 											key={i}
 											variants={childVariants}
 											className={`
-												w-16 h-16 border-2 rounded-md flex items-center justify-center text-3xl font-bold
+												flex h-12 w-12 items-center justify-center rounded-md border-2 text-2xl font-bold sm:h-14 sm:w-14 sm:text-3xl
 												transition-colors duration-150
 												${
 													slot.isActive
@@ -127,15 +137,20 @@ export default function PasswordPinModal({
 					</motion.p>
 				)}
 
-				<div className={'flex gap-2 mt-5'}>
-					<RippleButton className={'text-white'} type={'submit'}>
+				<div className="mt-5 flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+					<RippleButton
+						className="text-white"
+						type="submit"
+						disabled={isSubmittingPin}
+					>
 						Continue
 					</RippleButton>
 
 					<RippleButton
-						variant={'outline'}
-						className={'box-border'}
-						type={'reset'}
+						variant="outline"
+						className="box-border"
+						type="reset"
+						disabled={isSubmittingPin}
 						onClick={() => setIsPinModalActive(false)}
 					>
 						Close
