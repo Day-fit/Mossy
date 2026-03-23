@@ -146,7 +146,7 @@ export default function PasswordHero() {
 		if (!isPinPresent(selectedVaultId)) {
 			setPendingSubmitAfterPin(true);
 			setIsPinModalActive(true);
-			setIsSubmitting(false);
+			setIsSubmitting(true);
 			return;
 		}
 
@@ -155,21 +155,7 @@ export default function PasswordHero() {
 			return;
 		}
 
-		setIsSubmitting(true);
-		setSuccessMessage(null);
-		setErrorMessage(null);
-
-		try {
-			await submitPasswordData();
-		} catch (error) {
-			setErrorMessage(
-				error instanceof Error
-					? error.message
-					: 'Failed to save password data'
-			);
-		} finally {
-			setIsSubmitting(false);
-		}
+		await executeSubmitPasswordAction();
 	};
 
 	const handleDelete = async (passwordId: string) => {
@@ -279,8 +265,6 @@ export default function PasswordHero() {
 		resetForm();
 		setSuccessMessage(null);
 		setErrorMessage(null);
-		setPendingRevealPasswordId(null);
-		setPendingSubmitAfterPin(false);
 	};
 
 	const submitPasswordData = async () => {
@@ -303,6 +287,24 @@ export default function PasswordHero() {
 		await loadPasswords(selectedVaultId);
 	};
 
+	const executeSubmitPasswordAction = async () => {
+		setIsSubmitting(true);
+		setSuccessMessage(null);
+		setErrorMessage(null);
+
+		try {
+			await submitPasswordData();
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: 'Failed to save password data'
+			);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
 	return (
 		<motion.section
 			className="w-full px-4 py-5 sm:px-5"
@@ -314,23 +316,16 @@ export default function PasswordHero() {
 				<PasswordPinModal
 					vaultId={selectedVaultId}
 					setIsPinModalActive={setIsPinModalActive}
+					onClose={() => {
+						setPendingSubmitAfterPin(false);
+						setPendingRevealPasswordId(null);
+						setIsSubmitting(false);
+					}}
 					afterPinEntered={async () => {
 						if (pendingSubmitAfterPin) {
 							setPendingSubmitAfterPin(false);
-							setIsSubmitting(true);
-							setSuccessMessage(null);
-							setErrorMessage(null);
-							try {
-								await submitPasswordData();
-							} catch (error) {
-								setErrorMessage(
-									error instanceof Error
-										? error.message
-										: 'Failed to save password data'
-								);
-							} finally {
-								setIsSubmitting(false);
-							}
+							await executeSubmitPasswordAction();
+							return;
 						}
 
 						if (pendingRevealPasswordId) {

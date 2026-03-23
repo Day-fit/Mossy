@@ -16,14 +16,16 @@ type PasswordPinModalProps = {
 	setIsPinModalActive: React.Dispatch<React.SetStateAction<boolean>>;
 	vaultId?: string;
 	afterPinEntered?: (pin: string) => void;
+	onClose?: () => void;
 };
 
 export default function PasswordPinModal({
 	setIsPinModalActive,
 	vaultId,
 	afterPinEntered,
+	onClose,
 }: PasswordPinModalProps) {
-	const [isSubmittingPin, setIsSubmittingPin] = useState(false);
+	const [isProcessingPin, setIsProcessingPin] = useState(false);
 	const {
 		handleSubmit,
 		control,
@@ -53,16 +55,23 @@ export default function PasswordPinModal({
 		show: { opacity: 1, y: 0 },
 	};
 
+	const closeModal = () => {
+		onClose?.();
+		setIsPinModalActive(false);
+	};
+
 	return (
 		<div
 			className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
 			onClick={(e) => {
-				if (e.target === e.currentTarget) setIsPinModalActive(false);
+				if (e.target === e.currentTarget) {
+					closeModal();
+				}
 			}}
 		>
 			<form
 				onSubmit={handleSubmit(async (data) => {
-					setIsSubmittingPin(true);
+					setIsProcessingPin(true);
 					const pin = data.pin;
 					if (vaultId) {
 						setEncryptionPin((prev) => ({
@@ -77,7 +86,7 @@ export default function PasswordPinModal({
 						}
 						setIsPinModalActive(false);
 					} finally {
-						setIsSubmittingPin(false);
+						setIsProcessingPin(false);
 					}
 				})}
 				className="flex h-auto min-h-[24rem] w-full max-w-md flex-col items-center rounded-md bg-white p-4 shadow-md sm:p-6 md:max-w-xl"
@@ -141,7 +150,7 @@ export default function PasswordPinModal({
 					<RippleButton
 						className="text-white"
 						type="submit"
-						disabled={isSubmittingPin}
+						disabled={isProcessingPin}
 					>
 						Continue
 					</RippleButton>
@@ -150,8 +159,8 @@ export default function PasswordPinModal({
 						variant="outline"
 						className="box-border"
 						type="reset"
-						disabled={isSubmittingPin}
-						onClick={() => setIsPinModalActive(false)}
+						disabled={isProcessingPin}
+						onClick={closeModal}
 					>
 						Close
 					</RippleButton>
