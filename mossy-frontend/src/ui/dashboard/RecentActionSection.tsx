@@ -1,46 +1,46 @@
-import {motion} from "framer-motion";
-import RecentActionEntry from "./RecentActionEntry.tsx";
+import { motion } from 'framer-motion';
+import RecentActionEntry from './RecentActionEntry.tsx';
 
 type RecentAction = {
-    date: string;
-    actionType: "added" | "removed" | "updated";
-    domain: string;
-}
+	date: string;
+	actionType: 'added' | 'removed' | 'updated';
+	domain: string;
+};
 
 type RecentActionSectionProps = {
-    actions: RecentAction[];
-}
+	actions: RecentAction[];
+};
 
-export default function RecentActionSection({actions}: RecentActionSectionProps) {
-    return (
-        <motion.aside
-            className="flex flex-col min-h-100 lg:flex-1 lg:min-h-0 rounded-md bg-white shadow-2xl"
-            initial={{opacity: 0, x: 50}}
-            animate={{opacity: 1, x: 0}}
-            transition={{duration: 0.5, ease: "easeOut"}}
-        >
-            <h2 className="text-lg text-gray-700 mt-5 text-center shrink-0">
-                Recent actions
-            </h2>
+export default function RecentActionSection({
+	actions,
+}: RecentActionSectionProps) {
+	return (
+		<motion.aside
+			className="flex flex-col min-h-100 lg:flex-1 lg:min-h-0 rounded-md bg-white shadow-2xl"
+			initial={{ opacity: 0, x: 50 }}
+			animate={{ opacity: 1, x: 0 }}
+			transition={{ duration: 0.5, ease: 'easeOut' }}
+		>
+			<h2 className="text-lg text-gray-700 mt-5 text-center shrink-0">
+				Recent actions
+			</h2>
 
-            <div
-                className="flex flex-col lg:flex-1 lg:min-h-0 gap-2 px-4 py-4 overflow-y-auto items-center scrollbar"
-            >
-                {actions.length === 0 ? (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
-                        No actions yet.
-                    </div>
-                ) : (
-                    actions.map((action, index) => (
-                        <RecentActionEntry
-                            key={`${action.domain}-${action.date}-${index}`}
-                            date={action.date}
-                            actionType={action.actionType}
-                            domain={action.domain}
-                        />
-                    ))
-                )}
-            </div>
-        </motion.aside>
-    );
+			<div className="flex flex-col lg:flex-1 lg:min-h-0 gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
+				{actions.length === 0 ? (
+					<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
+						No actions yet.
+					</div>
+				) : (
+					actions.map((action, index) => (
+						<RecentActionEntry
+							key={`${action.domain}-${action.date}-${index}`}
+							date={action.date}
+							actionType={action.actionType}
+							domain={action.domain}
+						/>
+					))
+				)}
+			</div>
+		</motion.aside>
+	);
 }

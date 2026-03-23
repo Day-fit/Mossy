@@ -1,29 +1,29 @@
-import { tokenStorage } from "../auth/tokenStorage.ts";
+import { tokenStorage } from '../auth/tokenStorage.ts';
 
 type ApiFetchOptions = RequestInit & {
-    includeAuth?: boolean;
-    authToken?: string | null;
+	includeAuth?: boolean;
+	authToken?: string | null;
 };
 
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
-    const { includeAuth = true, authToken, ...requestOptions } = options;
-    const token = includeAuth ? (authToken ?? tokenStorage.get()) : null;
+	const { includeAuth = true, authToken, ...requestOptions } = options;
+	const token = includeAuth ? (authToken ?? tokenStorage.get()) : null;
 
-    const response = await fetch(url, {
-        ...requestOptions,
-        headers: {
-            ...requestOptions.headers,
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+	const response = await fetch(url, {
+		...requestOptions,
+		headers: {
+			...requestOptions.headers,
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
+		},
 
-        credentials: "include",
-    });
+		credentials: 'include',
+	});
 
-    if (!response.ok) {
-        const error = await response.json().catch(() => null);
-        throw new Error(error?.message || "An error occurred");
-    }
+	if (!response.ok) {
+		const error = await response.json().catch(() => null);
+		throw new Error(error?.message || 'An error occurred');
+	}
 
-    return response;
+	return response;
 }
