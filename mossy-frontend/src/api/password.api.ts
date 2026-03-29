@@ -1,87 +1,92 @@
-import { apiFetch } from "./client.ts";
+import { apiFetch } from './client.ts';
 
 export type SavePasswordRequestDto = {
-    identifier: string;
-    domain: string;
-    cipherText: string;
-    vaultId: string;
+	identifier: string;
+	domain: string;
+	cipherText: string;
+	vaultId: string;
 };
 
 export type UpdatePasswordRequestDto = SavePasswordRequestDto & {
-    passwordId: string;
+	passwordId: string;
 };
 
 export type DeletePasswordRequestDto = {
-    passwordId: string;
-    vaultId: string;
+	passwordId: string;
+	vaultId: string;
 };
 
 export type PasswordMetadataDto = {
-    passwordId: string;
-    identifier: string;
-    domain: string;
-    lastModified: string;
+	passwordId: string;
+	identifier: string;
+	domain: string;
+	lastModified: string;
 };
 
 export type CiphertextResponseDto = {
-    ciphertext: string;
+	ciphertext: string;
 };
 
 export type ServerResponseDto = {
-    message: string;
+	message: string;
 };
 
 export async function executeSavePasswordRequest(
-    payload: SavePasswordRequestDto
+	payload: SavePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/passwords/save", {
-        method: "POST",
-        body: JSON.stringify(payload),
-    });
+	const response = await apiFetch('/api/v1/passwords/save', {
+		method: 'POST',
+		body: JSON.stringify(payload),
+	});
 
-    return response.json();
+	return response.json();
 }
 
 export async function executeUpdatePasswordRequest(
-    payload: UpdatePasswordRequestDto
+	payload: UpdatePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/passwords/update", {
-        method: "PATCH",
-        body: JSON.stringify(payload),
-    });
+	const response = await apiFetch('/api/v1/passwords/update', {
+		method: 'PATCH',
+		body: JSON.stringify(payload),
+	});
 
-    return response.json();
+	return response.json();
 }
 
 export async function executeDeletePasswordRequest(
-    payload: DeletePasswordRequestDto
+	payload: DeletePasswordRequestDto
 ): Promise<ServerResponseDto> {
-    const response = await apiFetch("/api/v1/passwords/delete", {
-        method: "DELETE",
-        body: JSON.stringify(payload),
-    });
+	const response = await apiFetch('/api/v1/passwords/delete', {
+		method: 'DELETE',
+		body: JSON.stringify(payload),
+	});
 
-    return response.json();
+	return response.json();
 }
 
-export async function executePasswordMetadataRequest(vaultId: string): Promise<PasswordMetadataDto[]> {
-    const response = await apiFetch(`/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`, {
-        method: "GET",
-    });
+export async function executePasswordMetadataRequest(
+	vaultId: string
+): Promise<PasswordMetadataDto[]> {
+	const response = await apiFetch(
+		`/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`,
+		{
+			method: 'GET',
+		}
+	);
 
-    return response.json();
+	return response.json();
 }
 
 export async function executePasswordCiphertextRequest(
-    passwordId: string,
-    vaultId: string
+	passwordId: string,
+	vaultId: string
 ): Promise<CiphertextResponseDto> {
-    const response = await apiFetch(
-        `/api/v1/passwords/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
-        {
-            method: "GET",
-        }
-    );
+	const response = await apiFetch(
+		`/api/v1/passwords/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
+		{
+			method: 'GET',
+		}
+	);
 
-    return response.json();
+	return response.json();
 }

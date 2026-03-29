@@ -1,27 +1,27 @@
-import { apiFetch } from "./client.ts";
+import { apiFetch } from './client.ts';
 
 export type DashboardStatisticsResponse = {
-    passwordChart: {
-        date: string;
-        addedCount: number;
-    }[];
-    recentActions: {
-        date: string;
-        actionType: "added" | "removed" | "updated";
-        domain: string;
-    }[];
-    vaults: {
-        passwordsCount: number;
-        vaultName: string;
-        isOnline: boolean;
-        lastSeenAt: string | null;
-    }[];
+	passwordChart: {
+		date: string;
+		addedCount: number;
+	}[];
+	recentActions: {
+		date: string;
+		actionType: 'added' | 'removed' | 'updated';
+		domain: string;
+	}[];
+	vaults: {
+		passwordsCount: number;
+		vaultName: string;
+		isOnline: boolean;
+		lastSeenAt: string | null;
+	}[];
 };
 
 export async function executeDashboardStatisticsRequest(): Promise<DashboardStatisticsResponse> {
-    const response = await apiFetch("/api/v1/statistics/dashboard", {
-        method: "GET",
-    });
+	const response = await apiFetch('/api/v1/statistics/dashboard', {
+		method: 'GET',
+	});
 
-    return response.json();
+	return response.json();
 }
