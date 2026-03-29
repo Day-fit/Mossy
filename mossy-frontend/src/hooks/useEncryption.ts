@@ -1,23 +1,16 @@
-import {
-	type Dispatch,
-	type SetStateAction,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from 'react';
+import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
 import { type IDBPDatabase, openDB } from 'idb';
+
+type EncryptionKeys = Record<string, string | undefined>;
 
 export type UseEncryptionResult = {
 	encrypt: (password: string, vaultId: string) => Promise<string>;
 	decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
 	isPinPresent: (id: string) => boolean;
-	setEncryptionPin: Dispatch<
-		SetStateAction<Record<string, string | undefined>>
-	>;
 	saveKey: (id: string, pin: string) => Promise<void>;
 	loadKey: (id: string, pin: string) => Promise<CryptoKey>;
+	encryptionPins: RefObject<EncryptionKeys>;
 };
 
 export function useEncryption(): UseEncryptionResult {
@@ -35,9 +28,7 @@ export function useEncryption(): UseEncryptionResult {
 		return () => dbRef.current?.close();
 	}, []);
 
-	const [encryptionPins, setEncryptionPins] = useState<
-		Record<string, string | undefined>
-	>({});
+	const encryptionPins = useRef<EncryptionKeys>({});
 
 	const loadKey = useCallback(
 		async (id: string, pin: string) => {
@@ -79,7 +70,7 @@ export function useEncryption(): UseEncryptionResult {
 					['encrypt', 'decrypt']
 				)
 				.catch(() => {
-					encryptionPins[id] = undefined;
+					encryptionPins.current[id] = undefined;
 					throw new Error('Invalid pin');
 				});
 		},
@@ -88,7 +79,7 @@ export function useEncryption(): UseEncryptionResult {
 
 	const encrypt = useCallback(
 		async (password: string, vaultId: string) => {
-			const pin = encryptionPins[vaultId];
+			const pin = encryptionPins.current[vaultId];
 			if (!pin) {
 				throw new Error('Pin not found');
 			}
@@ -118,7 +109,7 @@ export function useEncryption(): UseEncryptionResult {
 
 	const decrypt = useCallback(
 		async (ciphertext: string, vaultId: string) => {
-			const pin = encryptionPins[vaultId];
+			const pin = encryptionPins.current[vaultId];
 
 			if (!pin) {
 				throw new Error('Pin not found');
@@ -192,7 +183,7 @@ export function useEncryption(): UseEncryptionResult {
 	const isPinPresent = useCallback(
 		(id: string) => {
 			console.log(encryptionPins);
-			return encryptionPins[id] !== undefined;
+			return encryptionPins.current[id] !== undefined;
 		},
 		[encryptionPins]
 	);
@@ -201,8 +192,8 @@ export function useEncryption(): UseEncryptionResult {
 		encrypt,
 		decrypt,
 		isPinPresent,
-		setEncryptionPin: setEncryptionPins,
 		saveKey,
 		loadKey,
+		encryptionPins,
 	};
 }

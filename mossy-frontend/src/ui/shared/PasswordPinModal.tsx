@@ -30,7 +30,7 @@ export default function PasswordPinModal({
 		resolver: zodResolver(encryptionPinSchema),
 	});
 
-	const { setEncryptionPin } = useEncryptionContext();
+	const { encryptionPins } = useEncryptionContext();
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, y: 50, scale: 0.98 },
@@ -62,10 +62,10 @@ export default function PasswordPinModal({
 				onSubmit={handleSubmit((data) => {
 					const pin = data.pin;
 					vaultId &&
-						setEncryptionPin((prev) => ({
-							...prev,
+						(encryptionPins.current = {
+							...encryptionPins.current,
 							[vaultId]: pin,
-						}));
+						});
 
 					afterPinEntered && afterPinEntered(pin);
 					setIsPinModalActive(false);
