@@ -14,7 +14,7 @@ import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
 type PasswordPinModalProps = {
 	setIsPinModalActive: React.Dispatch<React.SetStateAction<boolean>>;
 	vaultId?: string;
-	afterPinEntered?: (pin: string) => void;
+	afterPinEntered?: (pin: string) => void | Promise<void>;
 };
 
 export default function PasswordPinModal({
@@ -59,7 +59,7 @@ export default function PasswordPinModal({
 			}}
 		>
 			<form
-				onSubmit={handleSubmit((data) => {
+				onSubmit={handleSubmit(async (data) => {
 					const pin = data.pin;
 					vaultId &&
 						(encryptionPins.current = {
@@ -67,7 +67,7 @@ export default function PasswordPinModal({
 							[vaultId]: pin,
 						});
 
-					afterPinEntered && afterPinEntered(pin);
+					afterPinEntered && (await afterPinEntered(pin));
 					setIsPinModalActive(false);
 				})}
 				className="bg-white shadow-md rounded-md w-2/3 h-3/4 flex flex-col items-center"

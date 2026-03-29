@@ -8,10 +8,14 @@ export default function Passwords() {
 	const navigate = useNavigate();
 
 	useEffect(() => {
-		if (isAuthenticated == false) {
+		if (isAuthenticated === false) {
 			navigate('/login');
 		}
 	}, [isAuthenticated, navigate]);
+
+	if (isAuthenticated !== true) {
+		return null;
+	}
 
 	return (
 		<>

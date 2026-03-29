@@ -38,8 +38,6 @@ export default function SignupForm({
 	});
 
 	const onSubmit = async (data: RegisterSchema) => {
-		console.log(data);
-
 		executeRegisterRequest(data)
 			.then(async (res) => {
 				const json = await res.json();

@@ -1,4 +1,4 @@
-import StrengthMetter from './StrengthMetter.tsx';
+import StrengthMeter from './StrengthMeter.tsx';
 import type { PasswordFormState, StatusMessage } from './index.ts';
 
 type PasswordFormCardProps = {
@@ -73,7 +73,7 @@ function PasswordFormCard({
 						className="border-b-2 p-2"
 						required
 					/>
-					<StrengthMetter password={formState.password} />
+					<StrengthMeter password={formState.password} />
 				</div>
 			</div>
 

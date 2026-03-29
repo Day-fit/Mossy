@@ -8,6 +8,7 @@ export default function Footer() {
 				<a
 					target="_blank"
 					href="https://github.com/Day-fit/Mossy"
+					rel="noopener noreferrer"
 					className="text-gray-600"
 				>
 					Repository
@@ -15,6 +16,7 @@ export default function Footer() {
 				<a
 					target="_blank"
 					href="https://github.com/Day-fit/Mossy/issues/new"
+					rel="noopener noreferrer"
 					className="text-gray-600"
 				>
 					Report a bug
@@ -22,6 +24,7 @@ export default function Footer() {
 				<a
 					target="_blank"
 					href="https://github.com/Day-fit/Mossy/issues/new"
+					rel="noopener noreferrer"
 					className="text-gray-600"
 				>
 					Share your idea
@@ -35,7 +38,7 @@ export default function Footer() {
 				<NavLink to="/register" className="text-gray-600">
 					Sign up
 				</NavLink>
-				<NavLink to="/register" className="text-gray-600">
+				<NavLink to="/login" className="text-gray-600">
 					Sign in
 				</NavLink>
 				<NavLink to="/dashboard" className="text-gray-600">

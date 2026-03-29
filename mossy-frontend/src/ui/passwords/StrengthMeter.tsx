@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 
 type Props = { password: string };
 
-export default function StrengthMetter({ password }: Props) {
+export default function StrengthMeter({ password }: Props) {
 	const result = zxcvbn(password);
 	const score = Math.max(0, Math.min(4, result.score));
 	const percent = Math.max(5, Math.round((score / 4) * 100));

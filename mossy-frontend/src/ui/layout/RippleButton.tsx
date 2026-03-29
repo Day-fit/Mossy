@@ -29,7 +29,7 @@ export default function RippleButton({
 	onClick,
 	type,
 	variant = 'primary',
-	rippleColor = variant == 'primary'
+	rippleColor = variant === 'primary'
 		? 'rgba(255, 255, 255, 0.6)'
 		: 'rgba(0, 0, 0, 0.6)',
 }: RippleButtonProps) {
@@ -62,7 +62,7 @@ export default function RippleButton({
 				return 'bg-black';
 
 			case 'outline':
-				return 'bg-transparent border-box border-2 border-gray-800';
+				return 'bg-transparent box-border border-2 border-gray-800';
 		}
 	};
 

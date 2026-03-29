@@ -8,7 +8,7 @@ export default function Dashboard() {
 	const navigate = useNavigate();
 
 	useEffect(() => {
-		if (isAuthenticated == false) {
+		if (isAuthenticated === false) {
 			navigate('/login');
 		}
 	}, [isAuthenticated, navigate]);

@@ -11,7 +11,7 @@ export default function Login() {
 		if (isAuthenticated) {
 			navigate('/dashboard');
 		}
-	}, []);
+	}, [isAuthenticated, navigate]);
 
 	return (
 		<>

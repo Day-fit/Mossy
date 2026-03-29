@@ -40,7 +40,13 @@ export function useEncryption(): UseEncryptionResult {
 
 			await sodium.ready;
 
-			const { wrappedKey, salt } = await db.get('keys', id);
+			const keyRecord = await db.get('keys', id);
+
+			if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
+				throw new Error('Key not found');
+			}
+
+			const { wrappedKey, salt } = keyRecord;
 
 			const pinBytes = sodium.crypto_pwhash(
 				32,
@@ -182,7 +188,6 @@ export function useEncryption(): UseEncryptionResult {
 
 	const isPinPresent = useCallback(
 		(id: string) => {
-			console.log(encryptionPins);
 			return encryptionPins.current[id] !== undefined;
 		},
 		[encryptionPins]

@@ -26,7 +26,7 @@ export default function SignupHero() {
 			></ResponseToast>
 
 			<AnimatePresence mode="wait">
-				{phase == 'register' ? (
+				{phase === 'register' ? (
 					<motion.div
 						key="register"
 						className="inset-0 transform-3d backface-hidden h-fit"

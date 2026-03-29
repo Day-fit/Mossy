@@ -14,7 +14,7 @@ function NavTab({ name, url, requiresAuthentication, onClick }: NavTabProps) {
 	const MotionNavLink = motion.create(NavLink);
 
 	return (
-		(isAuthenticated == true || !requiresAuthentication) && (
+		(isAuthenticated === true || !requiresAuthentication) && (
 			<section>
 				<MotionNavLink
 					to={url}

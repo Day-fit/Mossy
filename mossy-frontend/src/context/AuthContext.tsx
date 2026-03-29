@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 				});
 		};
 
-		if (token == null) {
+		if (token === null) {
 			refreshToken();
 			return;
 		}
