@@ -1,6 +1,7 @@
 package pl.dayfit.mossystatistics.dto.response
 
 import java.time.Instant
+import java.util.UUID
 
 data class DashboardResponseDto(
     val passwordChart: List<PasswordChartPointDto>,
@@ -9,19 +10,18 @@ data class DashboardResponseDto(
 )
 
 data class PasswordChartPointDto(
-    val date: String,
+    val date: Instant,
     val addedCount: Long
 )
 
 data class RecentActionDto(
-    val date: String,
+    val date: Instant,
     val actionType: String,
     val domain: String
 )
 
 data class VaultDashboardDto(
     val passwordsCount: Long,
-    val vaultName: String,
-    val isOnline: Boolean,
+    val vaultId: UUID,
     val lastSeenAt: Instant?
 )

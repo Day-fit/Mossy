@@ -1,4 +1,4 @@
-package pl.dayfit.mossystatistics.model
+package pl.dayfit.mossypassword.type
 
 enum class ActionType {
     ADDED,

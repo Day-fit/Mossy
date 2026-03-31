@@ -12,7 +12,7 @@ export type DashboardStatisticsResponse = {
 	}[];
 	vaults: {
 		passwordsCount: number;
-		vaultName: string;
+		vaultId: string;
 		isOnline: boolean;
 		lastSeenAt: string | null;
 	}[];

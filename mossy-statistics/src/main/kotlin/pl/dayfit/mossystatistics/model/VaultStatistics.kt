@@ -9,6 +9,7 @@ import java.util.UUID
 data class VaultStatistics(
     @Id
     val vaultId: UUID,
+    val userId: UUID,
     var passwordsCount: Long = 0,
     var lastSeenAt: Instant? = null
 )

@@ -2,15 +2,15 @@ import { GoDotFill } from 'react-icons/go';
 
 type VaultDashboardViewProps = {
 	passwordsCount: number;
-	vaultName: string;
 	isOnline: boolean;
+	name: string;
 	lastSeenAt: string | null;
 };
 
 export default function VaultDashboardView({
 	passwordsCount,
-	vaultName,
 	isOnline,
+	name,
 	lastSeenAt,
 }: VaultDashboardViewProps) {
 	const formattedLastSeenAt = lastSeenAt
@@ -24,7 +24,7 @@ export default function VaultDashboardView({
 			}
 		>
 			<div className="flex justify-around items-center">
-				<h3 className="text-4xl sm:text-3xl">{vaultName}</h3>
+				<h3 className="text-4xl sm:text-3xl">{name}</h3>
 
 				<div className={'flex items-center'}>
 					<GoDotFill

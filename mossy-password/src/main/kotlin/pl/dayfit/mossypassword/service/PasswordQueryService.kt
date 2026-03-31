@@ -6,12 +6,8 @@ import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.CiphertextResponseDto
 import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
+import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.messaging.dto.QueryPasswordsByDomainRequestDto
-import pl.dayfit.mossypassword.model.Vault
-import pl.dayfit.mossypassword.repository.VaultRepository
-import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -20,7 +16,7 @@ import java.util.concurrent.TimeUnit
 @Service
 class PasswordQueryService(
     private val messagingTemplate: SimpMessagingTemplate,
-    private val vaultRepository: VaultRepository
+    private val vaultHelper: VaultHelper
 ) {
 
     private val pendingQueries: MutableMap<String, CompletableFuture<PasswordQueryResponseDto>> = ConcurrentHashMap()
@@ -30,7 +26,7 @@ class PasswordQueryService(
      * Gets password metadata (without ciphertext) for a vault.
      */
     fun getPasswordsMetadata(userId: UUID, vaultId: UUID, domain: String?): List<PasswordMetadataDto> {
-        requireOwnedConnectedVault(userId, vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
         val future = CompletableFuture<PasswordQueryResponseDto>()
         val requestKey = "$vaultId:${domain ?: "*"}"
@@ -62,7 +58,7 @@ class PasswordQueryService(
      * Gets the ciphertext for a specific password UUID
      */
     fun getCiphertext(userId: UUID, vaultId: UUID, passwordId: UUID): String? {
-        requireOwnedConnectedVault(userId, vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
         val future = CompletableFuture<CiphertextResponseDto>()
         val requestKey = "$vaultId:$passwordId"
@@ -106,20 +102,5 @@ class PasswordQueryService(
     fun handleCiphertextResponse(response: CiphertextResponseDto) {
         val requestKey = "${response.vaultId}:${response.passwordId}"
         pendingCiphertexts[requestKey]?.complete(response)
-    }
-
-    private fun requireOwnedConnectedVault(userId: UUID, vaultId: UUID): Vault {
-        val vault = vaultRepository.findById(vaultId)
-            .orElseThrow { VaultNotFoundException(vaultId) }
-
-        if (vault.ownerId != userId) {
-            throw VaultAccessDeniedException(vaultId)
-        }
-
-        if (!vault.isOnline) {
-            throw VaultNotConnectedException(vaultId)
-        }
-
-        return vault
     }
 }

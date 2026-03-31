@@ -1,5 +1,7 @@
 package pl.dayfit.mossypassword.service
 
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
@@ -9,22 +11,23 @@ import pl.dayfit.mossypassword.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordVaultRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
+import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
-import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
-import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.type.ActionType
 import java.util.UUID
 
 @Service
 class VaultCommunicationService(
     private val messagingTemplate: SimpMessagingTemplate,
-    private val statisticsEventPublisher: StatisticsEventPublisher,
+    private val vaultHelper: VaultHelper,
+    private val kafkaTemplate: KafkaTemplate<String, PasswordStatisticEvent>,
     private val vaultRepository: VaultRepository
 ) {
     private val logger = org.slf4j.LoggerFactory.getLogger(VaultCommunicationService::class.java)
+
+    @Value($$"${mossy.password.statistics.topic}")
+    private lateinit var statisticsTopic: String
 
     /**
      * Sends a request to save a password in the specified vault.
@@ -32,7 +35,7 @@ class VaultCommunicationService(
      * @param requestDto the data transfer object containing the details of the password to be saved.
      */
     fun savePassword(userId: UUID, requestDto: SavePasswordRequestDto) {
-        requireOwnedConnectedVault(userId, requestDto.vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, requestDto.vaultId)
 
         val vaultRequest = SavePasswordVaultRequestDto(
             identifier = requestDto.identifier,
@@ -55,17 +58,27 @@ class VaultCommunicationService(
         when (ack.status) {
             SavePasswordAckStatus.ACK -> {
                 val passwordId = ack.passwordId
+
                 if (passwordId == null) {
                     logger.warn("Received ACK without passwordId for vaultId={}", ack.vaultId)
                     return
                 }
 
-                statisticsEventPublisher.publish(
+                val vault = vaultRepository.findById(ack.vaultId)
+
+                if (vault.isEmpty) {
+                    logger.warn("Received ACK for non-existing vaultId={}", ack.vaultId)
+                    return
+                }
+
+                kafkaTemplate.send(
+                    statisticsTopic,
                     PasswordStatisticEvent(
                         vaultId = ack.vaultId,
                         passwordId = passwordId,
                         domain = ack.domain,
-                        actionType = "added"
+                        actionType = ActionType.ADDED,
+                        userId = vault.get().ownerId
                     )
                 )
             }
@@ -88,7 +101,7 @@ class VaultCommunicationService(
      * @param passwordId the unique identifier of the password to be deleted.
      */
     fun deletePassword(userId: UUID, vaultId: UUID, passwordId: UUID) {
-        requireOwnedConnectedVault(userId, vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
@@ -96,18 +109,19 @@ class VaultCommunicationService(
             DeletePasswordRequestDto(passwordId, vaultId)
         )
 
-        statisticsEventPublisher.publish(
+        kafkaTemplate.send(
+            statisticsTopic,
             PasswordStatisticEvent(
                 vaultId = vaultId,
                 passwordId = passwordId,
                 domain = "unknown",
-                actionType = "removed"
-            )
-        )
+                actionType = ActionType.REMOVED,
+                userId = userId
+            ))
     }
 
     fun extractCiphertext(userId: UUID, vaultId: UUID, passwordId: UUID) {
-        requireOwnedConnectedVault(userId, vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
         messagingTemplate.convertAndSendToUser(
             vaultId.toString(),
@@ -117,7 +131,7 @@ class VaultCommunicationService(
     }
 
     fun updatePassword(userId: UUID, requestDto: UpdatePasswordRequestDto) {
-        requireOwnedConnectedVault(userId, requestDto.vaultId)
+        vaultHelper.requireOwnedConnectedVault(userId, requestDto.vaultId)
 
         messagingTemplate.convertAndSendToUser(
             requestDto.vaultId.toString(),
@@ -125,28 +139,15 @@ class VaultCommunicationService(
             requestDto
         )
 
-        statisticsEventPublisher.publish(
+        kafkaTemplate.send(
+            statisticsTopic,
             PasswordStatisticEvent(
                 vaultId = requestDto.vaultId,
                 passwordId = requestDto.passwordId,
                 domain = requestDto.domain,
-                actionType = "updated"
+                actionType = ActionType.UPDATED,
+                userId = userId
             )
         )
-    }
-
-    private fun requireOwnedConnectedVault(userId: UUID, vaultId: UUID): Vault {
-        val vault = vaultRepository.findById(vaultId)
-            .orElseThrow { VaultNotFoundException(vaultId) }
-
-        if (vault.ownerId != userId) {
-            throw VaultAccessDeniedException(vaultId)
-        }
-
-        if (!vault.isOnline) {
-            throw VaultNotConnectedException(vaultId)
-        }
-
-        return vault
     }
 }

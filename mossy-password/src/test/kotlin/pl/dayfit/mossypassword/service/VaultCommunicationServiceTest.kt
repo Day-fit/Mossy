@@ -10,17 +10,20 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import pl.dayfit.mossypassword.dto.request.SavePasswordAckRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordAckStatus
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordVaultRequestDto
-import pl.dayfit.mossypassword.messaging.StatisticsEventPublisher
+import pl.dayfit.mossypassword.helper.VaultHelper
+import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.type.ActionType
 import java.util.Optional
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -28,12 +31,18 @@ import kotlin.test.assertEquals
 class VaultCommunicationServiceTest {
 
     private val messagingTemplate: SimpMessagingTemplate = mock()
-    private val statisticsEventPublisher: StatisticsEventPublisher = mock()
     private val vaultRepository: VaultRepository = mock()
+    private val vaultHelper: VaultHelper = mock()
+    private val kafkaTemplate: KafkaTemplate<String, PasswordStatisticEvent> = mock()
+
+    companion object {
+        const val STATISTICS_TOPIC = "statistics.queue.password-events"
+    }
 
     private val service = VaultCommunicationService(
         messagingTemplate,
-        statisticsEventPublisher,
+        vaultHelper,
+        kafkaTemplate,
         vaultRepository
     )
 
@@ -158,12 +167,12 @@ class VaultCommunicationServiceTest {
             )
         )
 
-        val eventCaptor = argumentCaptor<pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent>()
-        verify(statisticsEventPublisher, times(1)).publish(eventCaptor.capture())
+        val eventCaptor = argumentCaptor<PasswordStatisticEvent>()
+        verify(kafkaTemplate, times(1)).send(eq(STATISTICS_TOPIC), eventCaptor.capture())
         assertEquals(vaultId, eventCaptor.firstValue.vaultId)
         assertEquals(ackPasswordId, eventCaptor.firstValue.passwordId)
         assertEquals("example.com", eventCaptor.firstValue.domain)
-        assertEquals("added", eventCaptor.firstValue.actionType)
+        assertEquals(ActionType.ADDED, eventCaptor.firstValue.actionType)
     }
 
     @Test
@@ -201,7 +210,7 @@ class VaultCommunicationServiceTest {
         )
 
         verify(messagingTemplate, times(1)).convertAndSendToUser(eq(vaultId.toString()), eq("/vault/save"), any())
-        verify(statisticsEventPublisher, never()).publish(any())
+        verify(kafkaTemplate, never()).send(STATISTICS_TOPIC, any<PasswordStatisticEvent>())
     }
 
     @Test
