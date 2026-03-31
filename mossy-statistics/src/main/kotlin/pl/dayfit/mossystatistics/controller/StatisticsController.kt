@@ -1,12 +1,12 @@
 package pl.dayfit.mossystatistics.controller
 
-import org.springframework.http.HttpHeaders
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossystatistics.dto.response.DashboardResponseDto
 import pl.dayfit.mossystatistics.service.StatisticsQueryService
+import java.util.UUID
 
 @RestController
 @RequestMapping("/dashboard")
@@ -15,8 +15,8 @@ class StatisticsController(
 ) {
     @GetMapping
     fun getDashboardStatistics(
-        @RequestHeader(HttpHeaders.AUTHORIZATION) authorizationHeader: String
+        @AuthenticationPrincipal userId: UUID
     ): DashboardResponseDto {
-        return statisticsQueryService.getDashboardStatistics(authorizationHeader)
+        return statisticsQueryService.getDashboardStatistics(userId)
     }
 }

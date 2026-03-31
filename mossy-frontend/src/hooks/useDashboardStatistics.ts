@@ -28,6 +28,9 @@ export function useDashboardStatistics(
 	const loadStatistics = useCallback(async () => {
 		try {
 			const nextStatistics = await executeDashboardStatisticsRequest();
+			nextStatistics.recentActions.map((entry) => {
+				new Date(entry.date);
+			});
 			setStatistics(nextStatistics);
 			setError(null);
 		} catch {

@@ -5,5 +5,5 @@ import pl.dayfit.mossystatistics.model.VaultStatistics
 import java.util.UUID
 
 interface VaultStatisticsRepository : JpaRepository<VaultStatistics, UUID> {
-    fun findAllByVaultIdIn(vaultIds: Collection<UUID>): List<VaultStatistics>
+    fun findByUserId(userId: UUID): MutableList<VaultStatistics>
 }
