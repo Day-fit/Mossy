@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.request
+package pl.dayfit.mossypassword.dto.vault.request
 
 import java.util.UUID
 
@@ -8,7 +8,6 @@ enum class SavePasswordAckStatus {
 }
 
 data class SavePasswordAckRequestDto(
-    val vaultId: UUID,
     val passwordId: UUID?,
     val domain: String,
     val status: SavePasswordAckStatus,

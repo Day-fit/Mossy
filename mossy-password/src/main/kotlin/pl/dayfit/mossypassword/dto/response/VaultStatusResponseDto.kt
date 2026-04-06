@@ -7,5 +7,6 @@ data class VaultStatusResponseDto(
     val vaultId: UUID,
     val vaultName: String,
     val isOnline: Boolean,
-    val lastSeenAt: Instant?
+    val lastSeenAt: Instant?,
+    val passwordCount: Int
 )

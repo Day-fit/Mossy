@@ -11,7 +11,6 @@ import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import pl.dayfit.mossyvault.types.AckStatus
 import java.lang.reflect.Type
-import java.util.UUID
 import kotlin.io.encoding.Base64
 
 @Component
@@ -29,11 +28,6 @@ class SavePasswordHandler(
             return
         }
 
-        val vaultId = runCatching { UUID.fromString(dto.vaultId) }.getOrElse {
-            logger.warn("Received invalid vaultId={}, cannot process save", dto.vaultId)
-            return
-        }
-
         val result = runCatching {
             persistenceService.saveOrUpdate(dto, Base64.decode(dto.cipherText))
         }
@@ -41,14 +35,11 @@ class SavePasswordHandler(
         stompSessionRegistry.send(
             StompEndpoints.SEND_SAVE_ACK,
             SavePasswordAckRequestDto(
-                vaultId = vaultId,
                 passwordId = result.getOrNull(),
                 domain = dto.domain,
                 status = if (result.isSuccess) AckStatus.ACK else AckStatus.NACK,
                 reason = result.exceptionOrNull()?.message
             )
         )
-
-        result.onFailure { logger.error("Failed to save password in vaultId={}", vaultId, it) }
     }
 }

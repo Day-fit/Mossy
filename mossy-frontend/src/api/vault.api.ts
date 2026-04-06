@@ -5,6 +5,7 @@ export type UserVaultDto = {
 	vaultName: string;
 	isOnline: boolean;
 	lastSeenAt: string | null;
+	passwordCount: number;
 };
 
 type RawUserVaultDto = {
@@ -13,6 +14,7 @@ type RawUserVaultDto = {
 	isOnline?: boolean;
 	online?: boolean;
 	lastSeenAt?: string | null;
+	passwordCount?: number;
 };
 
 export type VaultRegistrationDto = {
@@ -30,6 +32,7 @@ function normalizeVaultDto(rawVault: RawUserVaultDto): UserVaultDto {
 		vaultName: rawVault.vaultName ?? '',
 		isOnline: rawVault.isOnline ?? rawVault.online ?? false,
 		lastSeenAt: rawVault.lastSeenAt ?? null,
+		passwordCount: rawVault.passwordCount ?? 0,
 	};
 }
 

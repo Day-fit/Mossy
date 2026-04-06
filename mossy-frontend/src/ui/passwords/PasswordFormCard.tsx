@@ -5,7 +5,6 @@ type PasswordFormCardProps = {
 	formState: PasswordFormState;
 	isEditing: boolean;
 	isSubmitting: boolean;
-	isLoadingVaults: boolean;
 	isVaultOnline: boolean;
 	status: StatusMessage;
 	onSubmit: () => void;
@@ -17,7 +16,6 @@ function PasswordFormCard({
 	formState,
 	isEditing,
 	isSubmitting,
-	isLoadingVaults,
 	isVaultOnline,
 	status,
 	onSubmit,
@@ -81,7 +79,7 @@ function PasswordFormCard({
 				<button
 					type="submit"
 					className="rounded-sm border-2 px-4 py-2"
-					disabled={isSubmitting || isLoadingVaults || !isVaultOnline}
+					disabled={isSubmitting || !isVaultOnline}
 				>
 					{isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Add'}
 				</button>

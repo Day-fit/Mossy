@@ -6,10 +6,10 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
+import pl.dayfit.mossypassword.dto.vault.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
+import pl.dayfit.mossypassword.dto.vault.request.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService

@@ -48,7 +48,7 @@ class VaultController(
         @AuthenticationPrincipal userId: UUID
     ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultStatusService.getVaults(userId)
+            vaultStatusService.getVaultsStatuses(userId)
         )
     }
 
@@ -57,7 +57,7 @@ class VaultController(
         @AuthenticationPrincipal userId: UUID
     ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultStatusService.getVaults(userId)
+            vaultStatusService.getVaultsStatuses(userId)
         )
     }
 

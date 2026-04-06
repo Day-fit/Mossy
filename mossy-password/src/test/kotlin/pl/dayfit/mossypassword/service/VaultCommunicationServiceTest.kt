@@ -12,10 +12,10 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.messaging.simp.SimpMessagingTemplate
-import pl.dayfit.mossypassword.dto.request.SavePasswordAckRequestDto
-import pl.dayfit.mossypassword.dto.request.SavePasswordAckStatus
+import pl.dayfit.mossypassword.dto.vault.request.SavePasswordAckRequestDto
+import pl.dayfit.mossypassword.dto.vault.request.SavePasswordAckStatus
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
-import pl.dayfit.mossypassword.dto.request.SavePasswordVaultRequestDto
+import pl.dayfit.mossypassword.dto.vault.request.SavePasswordVaultRequestDto
 import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.model.Vault
@@ -34,6 +34,7 @@ class VaultCommunicationServiceTest {
     private val vaultRepository: VaultRepository = mock()
     private val vaultHelper: VaultHelper = mock()
     private val kafkaTemplate: KafkaTemplate<String, PasswordStatisticEvent> = mock()
+    private val passwordQueryService: PasswordQueryService = mock()
 
     companion object {
         const val STATISTICS_TOPIC = "statistics.queue.password-events"
@@ -43,7 +44,8 @@ class VaultCommunicationServiceTest {
         messagingTemplate,
         vaultHelper,
         kafkaTemplate,
-        vaultRepository
+        vaultRepository,
+        passwordQueryService
     )
 
     @Test
@@ -128,7 +130,6 @@ class VaultCommunicationServiceTest {
         assertEquals(request.identifier, payloadCaptor.firstValue.identifier)
         assertEquals(request.domain, payloadCaptor.firstValue.domain)
         assertEquals(request.cipherText, payloadCaptor.firstValue.cipherText)
-        assertEquals(request.vaultId, payloadCaptor.firstValue.vaultId)
     }
 
     @Test
@@ -159,8 +160,8 @@ class VaultCommunicationServiceTest {
         val ackPasswordId = UUID.randomUUID()
 
         service.handleSavePasswordAck(
+            vaultId,
             SavePasswordAckRequestDto(
-                vaultId = vaultId,
                 passwordId = ackPasswordId,
                 domain = "example.com",
                 status = SavePasswordAckStatus.ACK
@@ -201,8 +202,8 @@ class VaultCommunicationServiceTest {
         service.savePassword(userId, request)
 
         service.handleSavePasswordAck(
+            vaultId,
             SavePasswordAckRequestDto(
-                vaultId = vaultId,
                 passwordId = null,
                 domain = "example.com",
                 status = SavePasswordAckStatus.NACK

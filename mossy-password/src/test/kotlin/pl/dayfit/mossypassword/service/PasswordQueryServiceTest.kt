@@ -10,7 +10,7 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import pl.dayfit.mossypassword.model.Vault
-import pl.dayfit.mossypassword.dto.response.PasswordQueryResponseDto
+import pl.dayfit.mossypassword.dto.vault.response.PasswordQueryResponseDto
 import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
 import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
@@ -82,10 +82,11 @@ class PasswordQueryServiceTest {
             )
 
         service.handlePasswordQueryResponse(
+            vaultId = vaultId,
+
             PasswordQueryResponseDto(
                 passwords = emptyList(),
                 domain = "example.com",
-                vaultId = vaultId
             )
         )
         service.getPasswordsMetadata(userId, vaultId, "example.com")

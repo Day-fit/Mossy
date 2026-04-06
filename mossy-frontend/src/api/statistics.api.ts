@@ -10,12 +10,6 @@ export type DashboardStatisticsResponse = {
 		actionType: 'added' | 'removed' | 'updated';
 		domain: string;
 	}[];
-	vaults: {
-		passwordsCount: number;
-		vaultId: string;
-		isOnline: boolean;
-		lastSeenAt: string | null;
-	}[];
 };
 
 export async function executeDashboardStatisticsRequest(): Promise<DashboardStatisticsResponse> {

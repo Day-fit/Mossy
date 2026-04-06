@@ -17,4 +17,5 @@ object StompEndpoints {
     const val SEND_SAVE_ACK = "/app/vault/password-save-ack"
     const val USER_PASSWORDS_QUERIED = "/app/vault/passwords-queried"
     const val USER_CIPHERTEXT_RETRIEVED = "/app/vault/ciphertext-retrieved"
+    const val USER_PASSWORD_DELETED = "/app/vault/password-deleted"
 }

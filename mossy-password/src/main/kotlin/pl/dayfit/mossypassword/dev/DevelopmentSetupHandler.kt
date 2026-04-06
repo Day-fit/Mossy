@@ -50,8 +50,8 @@ class DevelopmentSetupHandler(
     private fun registerDevelopmentVault(userId: UUID, vaultId: UUID, vaultName: String, apiKey: String)
     {
         entityManager.createNativeQuery("""
-        INSERT INTO vault (id, name, owner_id, secret_hash, is_online, last_seen_at) 
-        VALUES (:id, :name, :ownerId, :secretHash, false, :lastSeenAt)
+        INSERT INTO vault (id, name, owner_id, secret_hash, is_online, last_seen_at, password_count) 
+        VALUES (:id, :name, :ownerId, :secretHash, false, :lastSeenAt, 0)
     """)
             .setParameter("id", vaultId)
             .setParameter("name", vaultName)

@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.request
+package pl.dayfit.mossypassword.dto.vault.request
 
 import java.util.UUID
 

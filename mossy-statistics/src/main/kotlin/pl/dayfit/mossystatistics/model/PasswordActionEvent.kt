@@ -16,6 +16,7 @@ data class PasswordActionEvent(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     val id: UUID? = null,
+    val userId: UUID,
     val vaultId: UUID,
     @Column(unique = true)
     val actionId: UUID,

@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.response
+package pl.dayfit.mossypassword.dto.vault.request
 
 import java.time.Instant
 import java.util.UUID

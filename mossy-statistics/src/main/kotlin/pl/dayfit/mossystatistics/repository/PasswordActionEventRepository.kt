@@ -7,12 +7,12 @@ import java.time.Instant
 import java.util.UUID
 
 interface PasswordActionEventRepository : JpaRepository<PasswordActionEvent, UUID> {
-    fun findTop20ByVaultIdInOrderByEventTimestampDesc(vaultIds: Collection<UUID>): List<PasswordActionEvent>
+    fun findTop20ByUserIdOrderByEventTimestampDesc(userId: UUID): List<PasswordActionEvent>
 
     fun existsPasswordActionEventsByActionId(actionId: UUID): Boolean
-    fun findByActionTypeAndEventTimestampAfterAndVaultIdIn(
+    fun findByActionTypeAndEventTimestampAfterAndUserId(
         actionType: ActionType,
         eventTimestampAfter: Instant,
-        actionIds: MutableCollection<UUID>
+        userId: UUID
     ): MutableList<PasswordActionEvent>
 }

@@ -4,7 +4,6 @@ import pl.dayfit.mossyvault.types.AckStatus
 import java.util.UUID
 
 data class SavePasswordAckRequestDto(
-    val vaultId: UUID,
     val passwordId: UUID?,
     val domain: String,
     val status: AckStatus,

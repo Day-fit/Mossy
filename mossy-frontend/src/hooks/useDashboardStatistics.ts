@@ -7,7 +7,6 @@ import {
 const EMPTY_STATISTICS: DashboardStatisticsResponse = {
 	passwordChart: [],
 	recentActions: [],
-	vaults: [],
 };
 
 type UseDashboardStatisticsResult = {

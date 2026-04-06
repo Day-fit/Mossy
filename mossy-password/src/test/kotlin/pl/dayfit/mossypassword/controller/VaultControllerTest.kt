@@ -40,9 +40,9 @@ class VaultControllerTest {
     fun `getVaults returns statuses`() {
         val userId = UUID.randomUUID()
         val statuses = listOf(
-            VaultStatusResponseDto(UUID.randomUUID(), "Primary", true, Instant.now())
+            VaultStatusResponseDto(UUID.randomUUID(), "Primary", true, Instant.now(), 0)
         )
-        whenever(vaultStatusService.getVaults(userId)).thenReturn(statuses)
+        whenever(vaultStatusService.getVaultsStatuses(userId)).thenReturn(statuses)
 
         val response = controller.getVaults(userId)
 

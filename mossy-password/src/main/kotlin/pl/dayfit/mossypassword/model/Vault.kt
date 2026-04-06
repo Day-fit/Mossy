@@ -16,5 +16,6 @@ data class Vault(
     var name: String,
     val secretHash: String,
     var isOnline: Boolean = false,
-    var lastSeenAt: Instant? = null
+    var lastSeenAt: Instant? = null,
+    var passwordCount: Int = 0
 )

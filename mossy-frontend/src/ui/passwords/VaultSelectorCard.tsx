@@ -3,14 +3,12 @@ import type { UserVaultDto } from '../../api/vault.api.ts';
 type VaultSelectorProps = {
 	vaults: UserVaultDto[];
 	selectedVaultId: string;
-	isLoadingVaults: boolean;
 	onSelectVault: (vault: UserVaultDto) => void;
 };
 
 function VaultSelectorCard({
 	vaults,
 	selectedVaultId,
-	isLoadingVaults,
 	onSelectVault,
 }: VaultSelectorProps) {
 	return (
@@ -18,10 +16,7 @@ function VaultSelectorCard({
 			<h2 className="mb-3 text-xl font-semibold text-gray-800">
 				Select vault
 			</h2>
-			{isLoadingVaults ? (
-				<p className="text-sm text-gray-500">Loading vaults...</p>
-			) : null}
-			{!isLoadingVaults && vaults.length === 0 ? (
+			{vaults.length === 0 ? (
 				<p className="text-sm text-gray-500">No vaults available</p>
 			) : null}
 

@@ -3,28 +3,11 @@ import { useDashboardStatistics } from '../../hooks/useDashboardStatistics.ts';
 import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
-import { useEffect, useState } from 'react';
-import {
-	executeUserVaultsRequest,
-	type UserVaultDto,
-} from '../../api/vault.api.ts';
+import { useVault } from '../../context/VaultContext.tsx';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
-	const [vaults, setVaults] = useState<UserVaultDto[]>([]);
-
-	const loadVaults = async () => {
-		try {
-			const nextVaults = await executeUserVaultsRequest();
-			setVaults(nextVaults);
-		} catch {
-			setVaults([]);
-		}
-	};
-
-	useEffect(() => {
-		void loadVaults();
-	}, []);
+	const { vaults } = useVault();
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
@@ -87,22 +70,20 @@ export default function DashboardHero() {
 							</div>
 						) : null}
 
-						{!isLoading &&
-						!error &&
-						statistics.vaults.length === 0 ? (
+						{!isLoading && !error && vaults.length === 0 ? (
 							<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
 								No vaults yet.
 							</div>
 						) : null}
 
-						{statistics.vaults.map((vault) => {
+						{vaults.map((vault) => {
 							const vaultName =
 								vaults.find((v) => v.vaultId === vault.vaultId)
 									?.vaultName ?? vault.vaultId;
 							return (
 								<VaultDashboardView
 									key={vault.vaultId}
-									passwordsCount={vault.passwordsCount}
+									passwordsCount={vault.passwordCount}
 									name={vaultName}
 									isOnline={vault.isOnline}
 									lastSeenAt={vault.lastSeenAt}

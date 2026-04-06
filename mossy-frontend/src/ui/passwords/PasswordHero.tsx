@@ -8,10 +8,7 @@ import {
 	type PasswordMetadataDto,
 	type ServerResponseDto,
 } from '../../api/password.api.ts';
-import {
-	executeUserVaultsRequest,
-	type UserVaultDto,
-} from '../../api/vault.api.ts';
+import { type UserVaultDto } from '../../api/vault.api.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
@@ -22,6 +19,7 @@ import type {
 } from './index.ts';
 import PasswordFormCard from './PasswordFormCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
+import { useVault } from '../../context/VaultContext.tsx';
 
 const INITIAL_FORM_STATE: PasswordFormState = {
 	identifier: '',
@@ -43,10 +41,9 @@ export default function PasswordHero() {
 		null
 	);
 
-	const [vaults, setVaults] = useState<UserVaultDto[]>([]);
+	const { vaults } = useVault();
 	const [selectedVaultId, setSelectedVaultId] = useState('');
 
-	const [isLoadingVaults, setIsLoadingVaults] = useState<boolean>(true);
 	const [isLoadingPasswords, setIsLoadingPasswords] =
 		useState<boolean>(false);
 	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -107,13 +104,11 @@ export default function PasswordHero() {
 	useEffect(() => {
 		const loadVaults = async () => {
 			try {
-				const nextVaults = await executeUserVaultsRequest();
-				setVaults(nextVaults);
-
 				const initialVault =
-					nextVaults.find((vault) => vault.isOnline) ?? nextVaults[0];
+					vaults.find((vault) => vault.isOnline) ?? vaults[0];
 
 				setSelectedVaultId(initialVault?.vaultId ?? '');
+
 				if (initialVault?.isOnline) {
 					await loadPasswords(initialVault.vaultId);
 				} else {
@@ -121,14 +116,11 @@ export default function PasswordHero() {
 				}
 				setStatus(null);
 			} catch {
-				setVaults([]);
 				setSelectedVaultId('');
 				setStatus({
 					type: 'error',
 					message: 'Failed to load your vaults',
 				});
-			} finally {
-				setIsLoadingVaults(false);
 			}
 		};
 
@@ -332,7 +324,6 @@ export default function PasswordHero() {
 			<VaultSelectorCard
 				vaults={vaults}
 				selectedVaultId={selectedVaultId}
-				isLoadingVaults={isLoadingVaults}
 				onSelectVault={(vault) => {
 					void handleVaultSelect(vault);
 				}}
@@ -361,7 +352,6 @@ export default function PasswordHero() {
 						formState={formState}
 						isEditing={isEditing}
 						isSubmitting={isSubmitting}
-						isLoadingVaults={isLoadingVaults}
 						isVaultOnline={Boolean(selectedVault?.isOnline)}
 						status={status}
 						onSubmit={() => {

@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
+import pl.dayfit.mossypassword.dto.vault.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
+import pl.dayfit.mossypassword.dto.vault.request.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
