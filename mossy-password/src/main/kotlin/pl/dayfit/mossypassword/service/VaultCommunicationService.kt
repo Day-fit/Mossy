@@ -1,6 +1,5 @@
 package pl.dayfit.mossypassword.service
 
-import org.springframework.amqp.core.Queue
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.amqp.support.AmqpHeaders
@@ -8,23 +7,28 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.configuration.RedisPrefix
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultRequestType
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultResponseType
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultRequestType
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
 import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
 import pl.dayfit.mossypassword.dto.vault.VaultResponseMessageDto
+import pl.dayfit.mossypassword.type.VaultResponseStatus
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class VaultCommunicationService(
     private val rabbitTemplate: RabbitTemplate,
     private val redisTemplate: RedisTemplate<String, String>,
     private val vaultMessageResolver: VaultMessageResolver,
-    private val replicaQueue: Queue
 ) {
-    private val pendingRequests: MutableMap<String, CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>> = mutableMapOf()
+    private val pendingRequests: ConcurrentHashMap<String, CompletableFuture<VaultResponseStatus>> =
+        ConcurrentHashMap()
 
-    fun sendToVault(vaultId: UUID, message: VaultRequestMessageDto<AbstractVaultRequestType>) {
+    fun sendToVault(
+        vaultId: UUID,
+        message: VaultRequestMessageDto<AbstractVaultRequestType>
+    ): CompletableFuture<VaultResponseStatus> {
         val replicaId = redisTemplate.opsForValue()
             .get("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
 
@@ -38,6 +42,10 @@ class VaultCommunicationService(
 
             return@convertAndSend it
         }
+
+        val future = CompletableFuture<VaultResponseStatus>()
+        pendingRequests[message.correlationId.toString()] = future
+        return future
     }
 
     @RabbitListener(queues = ["#{@replicaQueue.name}"])
@@ -65,9 +73,5 @@ class VaultCommunicationService(
                 return@convertAndSend it
             }
         }
-    }
-
-    fun sendMessageToVault(message: VaultRequestMessageDto<AbstractVaultRequestType>) {
-        sendToVault(message.vaultId, message)
     }
 }

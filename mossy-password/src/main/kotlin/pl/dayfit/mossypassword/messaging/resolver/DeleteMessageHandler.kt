@@ -1,8 +1,6 @@
 package pl.dayfit.mossypassword.messaging.resolver
 
 import org.springframework.stereotype.Component
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultRequestType
-import pl.dayfit.mossypassword.dto.vault.DeleteVaultResponseType
 import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
 import pl.dayfit.mossypassword.dto.vault.VaultResponseMessageDto
 import pl.dayfit.mossypassword.dto.vault.request.DeletePasswordRequest
@@ -21,10 +19,12 @@ class DeleteMessageHandler(
     override fun handleMessage(message: VaultRequestMessageDto<DeletePasswordRequest>): CompletableFuture<VaultResponseMessageDto<DeletePasswordResponse>> {
         vaultMessagingService.sendMessageToTopic(
             TOPIC,
-            VaultRequestMessageDto<AbstractVaultRequestType()>(
-
-            )
+            message
         )
+
+        val future = CompletableFuture<VaultResponseMessageDto<DeletePasswordResponse>>()
+        pending[message.correlationId] = future
+        return future
     }
 
     override fun supportedType() = DeletePasswordRequest::class

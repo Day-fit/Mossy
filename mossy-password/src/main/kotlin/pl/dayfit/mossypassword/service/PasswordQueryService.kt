@@ -18,7 +18,7 @@ import pl.dayfit.mossypassword.dto.vault.request.SavePasswordVaultRequestDto
 import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.messaging.dto.QueryPasswordsByDomainRequestDto
-import pl.dayfit.mossypassword.service.exception.VaultNotRespondedException
+import pl.dayfit.mossypassword.exception.VaultNotRespondedException
 import pl.dayfit.mossypassword.type.ActionType
 import java.util.UUID
 import java.util.concurrent.CompletableFuture

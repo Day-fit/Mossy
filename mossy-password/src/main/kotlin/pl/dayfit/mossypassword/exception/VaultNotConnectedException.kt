@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.service.exception
+package pl.dayfit.mossypassword.exception
 
 import java.util.UUID
 

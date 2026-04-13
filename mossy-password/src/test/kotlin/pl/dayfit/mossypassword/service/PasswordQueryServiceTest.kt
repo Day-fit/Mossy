@@ -12,9 +12,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.dto.vault.response.PasswordQueryResponseDto
 import pl.dayfit.mossypassword.helper.VaultHelper
-import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.exception.VaultAccessDeniedException
+import pl.dayfit.mossypassword.exception.VaultNotConnectedException
+import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.util.UUID
 
 class PasswordQueryServiceTest {

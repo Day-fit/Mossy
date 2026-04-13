@@ -1,6 +1,6 @@
 package pl.dayfit.mossypassword.dto.vault.response
 
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultResponseType
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
 import java.util.UUID
 
 data class DeletePasswordResponse(

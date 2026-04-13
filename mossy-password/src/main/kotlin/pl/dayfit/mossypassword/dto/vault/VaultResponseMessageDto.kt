@@ -1,5 +1,6 @@
 package pl.dayfit.mossypassword.dto.vault
 
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
 import java.util.UUID
 import kotlin.reflect.KClass
 

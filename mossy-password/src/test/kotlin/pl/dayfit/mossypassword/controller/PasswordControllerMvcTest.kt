@@ -13,8 +13,8 @@ import pl.dayfit.mossypassword.dto.vault.request.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.exception.VaultNotConnectedException
+import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals

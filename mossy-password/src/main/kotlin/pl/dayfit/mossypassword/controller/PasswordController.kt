@@ -19,11 +19,12 @@ import pl.dayfit.mossypassword.dto.vault.request.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultCommunicationService
+import pl.dayfit.mossypassword.service.VaultManagementService
 import java.util.UUID
 
 @RestController
 class PasswordController(
-    private val vaultCommunicationService: VaultCommunicationService,
+    private val vaultManagementService: VaultManagementService,
     private val passwordQueryService: PasswordQueryService
 ) {
     /**
@@ -37,7 +38,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.savePassword(userId, requestDto)
+        vaultManagementService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
             ServerResponseDto("Password save request accepted")
@@ -49,7 +50,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.updatePassword(userId, requestDto)
+        vaultManagementService.updatePassword(userId, requestDto)
 
         return ResponseEntity
             .status(HttpStatus.OK)

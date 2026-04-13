@@ -1,8 +1,8 @@
 package pl.dayfit.mossypassword.messaging.resolver
 
 import org.springframework.stereotype.Component
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultRequestType
-import pl.dayfit.mossypassword.dto.vault.AbstractVaultResponseType
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultRequestType
+import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
 import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
 import pl.dayfit.mossypassword.dto.vault.VaultResponseMessageDto
 import java.util.concurrent.CompletableFuture

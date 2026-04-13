@@ -20,9 +20,9 @@ import pl.dayfit.mossypassword.helper.VaultHelper
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
-import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.exception.VaultAccessDeniedException
+import pl.dayfit.mossypassword.exception.VaultNotConnectedException
+import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import pl.dayfit.mossypassword.type.ActionType
 import java.util.Optional
 import java.util.UUID
