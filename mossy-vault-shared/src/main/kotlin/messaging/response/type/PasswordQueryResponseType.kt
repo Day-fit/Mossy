@@ -1,4 +1,4 @@
-package messaging.type
+package messaging.response.type
 
 class PasswordQueryResponseType : AbstractVaultResponseType() {
 }

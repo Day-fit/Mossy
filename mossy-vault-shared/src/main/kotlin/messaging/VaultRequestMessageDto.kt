@@ -1,6 +1,6 @@
 package messaging
 
-import messaging.type.AbstractVaultRequestType
+import messaging.request.type.AbstractVaultRequestType
 import java.util.UUID
 import kotlin.reflect.KClass
 

@@ -2,8 +2,8 @@ package pl.dayfit.mossypassword.service
 
 import messaging.VaultRequestMessageDto
 import messaging.VaultResponseMessageDto
-import messaging.type.AbstractVaultRequestType
-import messaging.type.AbstractVaultResponseType
+import messaging.request.type.AbstractVaultRequestType
+import messaging.response.type.AbstractVaultResponseType
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.messaging.resolver.AbstractMessageHandler
 import java.util.UUID

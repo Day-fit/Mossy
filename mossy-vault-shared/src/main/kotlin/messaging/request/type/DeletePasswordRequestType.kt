@@ -1,7 +1,7 @@
-package messaging.type
+package messaging.request.type
 
 import java.util.UUID
 
-data class DeleteVaultRequestType(
+data class DeletePasswordRequestType(
     val passwordId: UUID
 ) : AbstractVaultRequestType()

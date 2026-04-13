@@ -1,8 +1,8 @@
 package pl.dayfit.mossypassword.service
 
 import messaging.VaultRequestMessageDto
-import messaging.type.DeleteVaultRequestType
-import messaging.type.PasswordSaveRequestType
+import messaging.request.type.DeletePasswordRequestType
+import messaging.request.type.PasswordSaveRequestType
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
@@ -76,7 +76,7 @@ class VaultManagementService(
             VaultRequestMessageDto(
                 UUID.randomUUID(),
                 vaultId,
-                DeleteVaultRequestType(
+                DeletePasswordRequestType(
                     request.passwordId
                 )
             )

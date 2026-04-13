@@ -1,6 +1,6 @@
 package pl.dayfit.mossypassword.messaging.dto
 
-import pl.dayfit.mossypassword.type.ActionType
+import type.ActionType
 import java.time.Instant
 import java.util.UUID
 

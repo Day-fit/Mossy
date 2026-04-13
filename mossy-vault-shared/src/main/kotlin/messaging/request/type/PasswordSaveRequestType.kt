@@ -1,4 +1,4 @@
-package messaging.type
+package messaging.request.type
 
 import type.PasswordSaveType
 

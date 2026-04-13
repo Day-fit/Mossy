@@ -1,9 +1,9 @@
 package pl.dayfit.mossypassword.messaging.resolver
 
-import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultRequestType
-import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
-import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
-import pl.dayfit.mossypassword.dto.vault.VaultResponseMessageDto
+import messaging.VaultRequestMessageDto
+import messaging.VaultResponseMessageDto
+import messaging.request.type.AbstractVaultRequestType
+import messaging.response.type.AbstractVaultResponseType
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -17,7 +17,7 @@ abstract class AbstractMessageHandler<Req : AbstractVaultRequestType, Res : Abst
 
     abstract fun doSupport(type: KClass<*>): Boolean
 
-    fun handleResponse(requestId: UUID, vaultId: UUID, response: VaultResponseMessageDto<out AbstractVaultResponseType>) {
+    fun handleResponse(requestId: UUID, vaultId: UUID, response: VaultResponseMessageDto<Res>) {
         pending.remove("$vaultId:$requestId")
             ?.complete(response)
     }
