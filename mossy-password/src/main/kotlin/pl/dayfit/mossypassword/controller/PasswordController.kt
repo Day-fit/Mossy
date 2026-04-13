@@ -16,14 +16,12 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.PasswordQueryService
 import pl.dayfit.mossypassword.service.VaultManagementService
 import java.util.UUID
 
 @RestController
 class PasswordController(
     private val vaultManagementService: VaultManagementService,
-    private val passwordQueryService: PasswordQueryService
 ) {
     /**
      * Saves a password by forwarding it to the vault specified in the request DTO.
@@ -80,19 +78,15 @@ class PasswordController(
     /**
      * Gets password metadata for a vault.
      *
-     * @param domain optional domain to filter passwords by.
      * @param vaultId the UUID of the vault.
      * @return a ResponseEntity containing password metadata without ciphertext.
      */
-    @GetMapping("/metadata", "/uuids")
+    @GetMapping("/metadata")
     fun getPasswordsMetadata(
         @AuthenticationPrincipal userId: UUID,
-        @RequestParam(required = false) domain: String?,
-        @RequestParam vaultId: String
+        @RequestParam vaultId: UUID
     ): ResponseEntity<List<PasswordMetadataDto>> {
-        val vaultUuid = UUID.fromString(vaultId)
-
-        val passwords = passwordQueryService.getPasswordsMetadata(userId, vaultUuid, domain)
+        val passwords = vaultManagementService.getPasswordsMetadata(userId, vaultId)
         return ResponseEntity.ok(passwords)
     }
 

@@ -7,7 +7,8 @@ import kotlin.reflect.KClass
 
 data class VaultResponseMessageDto<T: AbstractVaultResponseType>(
     val messageId: UUID,
-    val type: KClass<T>,
     val payload: T,
     val status: VaultResponseStatus
-)
+) {
+    val type: KClass<out T> = payload::class
+}

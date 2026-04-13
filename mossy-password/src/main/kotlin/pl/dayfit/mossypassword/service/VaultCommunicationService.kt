@@ -11,7 +11,6 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.configuration.RedisPrefix
-import type.VaultResponseStatus
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -22,13 +21,13 @@ class VaultCommunicationService(
     private val redisTemplate: RedisTemplate<String, String>,
     private val vaultMessageResolver: VaultMessageResolver,
 ) {
-    private val pendingRequests: ConcurrentHashMap<String, CompletableFuture<VaultResponseStatus>> =
+    private val pendingRequests: ConcurrentHashMap<String, CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>> =
         ConcurrentHashMap()
 
     fun sendToVault(
         vaultId: UUID,
         message: VaultRequestMessageDto<AbstractVaultRequestType>
-    ): CompletableFuture<VaultResponseStatus> {
+    ): CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>> {
         val replicaId = redisTemplate.opsForValue()
             .get("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
 
@@ -43,7 +42,7 @@ class VaultCommunicationService(
             return@convertAndSend it
         }
 
-        val future = CompletableFuture<VaultResponseStatus>()
+        val future = CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>()
         pendingRequests[message.correlationId.toString()] = future
         return future
     }
@@ -54,7 +53,7 @@ class VaultCommunicationService(
         @Header(AmqpHeaders.CORRELATION_ID) correlationId: String
     ) {
         pendingRequests.remove(correlationId)
-            ?.complete(response.status)
+            ?.complete(response)
     }
 
     @RabbitListener(queues = ["#{@replicaQueue.name}"])

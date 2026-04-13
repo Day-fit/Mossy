@@ -2,7 +2,7 @@ package messaging.request.type
 
 import type.PasswordSaveType
 
-data class PasswordSaveRequestType(
+data class SavePasswordRequestType(
     val identifier: String,
     val domain: String,
     val cipherText: String,

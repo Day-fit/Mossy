@@ -20,7 +20,7 @@ class VaultMessageResolver(
             ?: throw IllegalArgumentException("Unsupported message type: ${message.type}")
     }
 
-    fun handleResponse(vaultId: UUID, message: VaultResponseMessageDto<out AbstractVaultResponseType>) = messageHandlers.filter { it.doSupport(message.type) }
+    fun handleResponse(vaultId: UUID, message: VaultResponseMessageDto<AbstractVaultResponseType>) = messageHandlers.filter { it.doSupport(message.type) }
         .getOrNull(0)
         ?.handleResponse(message.messageId, vaultId, message)
         ?: throw IllegalArgumentException(

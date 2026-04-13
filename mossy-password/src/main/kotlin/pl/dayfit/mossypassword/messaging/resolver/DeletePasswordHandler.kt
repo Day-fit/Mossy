@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.reflect.KClass
 
 @Component
-class DeleteMessageHandler(
+class DeletePasswordHandler(
     private val vaultMessagingService: VaultMessagingService
 ) : AbstractMessageHandler<DeletePasswordRequestType, DeletePasswordResponseType>() {
     companion object {
@@ -18,17 +18,18 @@ class DeleteMessageHandler(
     }
 
     override fun handleMessage(message: VaultRequestMessageDto<DeletePasswordRequestType>): CompletableFuture<VaultResponseMessageDto<DeletePasswordResponseType>> {
+        val future = CompletableFuture<VaultResponseMessageDto<DeletePasswordResponseType>>()
+        pending[message.correlationId.toString()] = future
+
         vaultMessagingService.sendMessageToTopic(
             TOPIC,
             message
         )
 
-        val future = CompletableFuture<VaultResponseMessageDto<DeletePasswordResponseType>>()
-        pending[message.correlationId.toString()] = future
         return future
     }
 
     override fun doSupport(type: KClass<*>): Boolean {
-        return type == DeletePasswordRequestType::class
+        return type == DeletePasswordRequestType::class || type == DeletePasswordResponseType::class
     }
 }
