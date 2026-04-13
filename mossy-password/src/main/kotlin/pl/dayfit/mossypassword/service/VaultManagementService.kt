@@ -1,16 +1,20 @@
 package pl.dayfit.mossypassword.service
 
+import messaging.VaultRequestMessageDto
+import messaging.type.DeleteVaultRequestType
+import messaging.type.PasswordSaveRequestType
 import org.springframework.stereotype.Service
+import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
-import pl.dayfit.mossypassword.dto.vault.type.PasswordSaveRequestType
 import pl.dayfit.mossypassword.exception.VaultFailedException
 import pl.dayfit.mossypassword.helper.VaultHelper
-import pl.dayfit.mossypassword.type.PasswordSaveType
-import pl.dayfit.mossypassword.type.VaultResponseStatus
+import type.PasswordSaveType
+import type.VaultResponseStatus
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlin.getOrElse
+import kotlin.runCatching
 
 @Service
 class VaultManagementService(
@@ -40,7 +44,42 @@ class VaultManagementService(
         if (status != VaultResponseStatus.OK) throw VaultFailedException("Vault responded with ")
     }
 
-    fun updatePassword(userId: UUID, requestDto: UpdatePasswordRequestDto) {
+    fun updatePassword(userId: UUID, request: UpdatePasswordRequestDto) {
+        val vaultId = request.vaultId
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
+        val future = vaultCommunicationService.sendToVault(
+            vaultId,
+            VaultRequestMessageDto(
+                UUID.randomUUID(),
+                vaultId,
+                PasswordSaveRequestType(
+                    request.identifier,
+                    request.domain,
+                    request.cipherText,
+                    PasswordSaveType.UPDATE
+                )
+            )
+        )
+
+        val status = runCatching { future.get(30, TimeUnit.SECONDS) }
+            .getOrElse { throw VaultFailedException("Vault responded with ") }
+        if (status != VaultResponseStatus.OK) throw VaultFailedException("Vault responded with ")
+    }
+
+    fun deletePassword(userId: UUID, request: DeletePasswordRequestDto) {
+        val vaultId = request.vaultId
+        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
+
+        val future = vaultCommunicationService.sendToVault(
+            vaultId,
+            VaultRequestMessageDto(
+                UUID.randomUUID(),
+                vaultId,
+                DeleteVaultRequestType(
+                    request.passwordId
+                )
+            )
+        )
     }
 }

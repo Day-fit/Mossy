@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.vault.request
+package messaging.request
 
 data class SavePasswordVaultRequestDto(
     val identifier: String,

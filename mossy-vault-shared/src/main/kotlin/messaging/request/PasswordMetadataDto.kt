@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.vault.request
+package messaging.request
 
 import java.time.Instant
 import java.util.UUID

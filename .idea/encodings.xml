@@ -10,6 +10,8 @@
     <file url="file://$PROJECT_DIR$/mossy-jwks/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-password/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-statistics/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mossy-vault-shared/src/main/kotlin" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mossy-vault-shared/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/self-hosted/mossy-vault/src/main/kotlin" charset="UTF-8" />
   </component>
 </project>

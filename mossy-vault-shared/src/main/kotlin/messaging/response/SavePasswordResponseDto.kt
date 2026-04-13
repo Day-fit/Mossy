@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.vault.response
+package messaging.response
 
 import java.util.UUID
 

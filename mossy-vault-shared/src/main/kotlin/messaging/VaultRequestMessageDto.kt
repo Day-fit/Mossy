@@ -1,6 +1,6 @@
-package pl.dayfit.mossypassword.dto.vault
+package messaging
 
-import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultRequestType
+import messaging.type.AbstractVaultRequestType
 import java.util.UUID
 import kotlin.reflect.KClass
 

@@ -1,5 +1,9 @@
 package pl.dayfit.mossypassword.service
 
+import messaging.VaultRequestMessageDto
+import messaging.VaultResponseMessageDto
+import messaging.type.AbstractVaultRequestType
+import messaging.type.AbstractVaultResponseType
 import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.amqp.support.AmqpHeaders
@@ -7,11 +11,7 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.messaging.handler.annotation.Header
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.configuration.RedisPrefix
-import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultRequestType
-import pl.dayfit.mossypassword.dto.vault.type.AbstractVaultResponseType
-import pl.dayfit.mossypassword.dto.vault.VaultRequestMessageDto
-import pl.dayfit.mossypassword.dto.vault.VaultResponseMessageDto
-import pl.dayfit.mossypassword.type.VaultResponseStatus
+import type.VaultResponseStatus
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -53,7 +53,8 @@ class VaultCommunicationService(
         response: VaultResponseMessageDto<AbstractVaultResponseType>,
         @Header(AmqpHeaders.CORRELATION_ID) correlationId: String
     ) {
-        pendingRequests.remove(correlationId)?.complete(response)
+        pendingRequests.remove(correlationId)
+            ?.complete(response.status)
     }
 
     @RabbitListener(queues = ["#{@replicaQueue.name}"])

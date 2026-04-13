@@ -1,8 +1,10 @@
-package pl.dayfit.mossypassword.dto.vault.type
+package messaging.type
+
+import type.PasswordSaveType
 
 data class PasswordSaveRequestType(
     val identifier: String,
     val domain: String,
     val cipherText: String,
-    val saveType
+    val saveType: PasswordSaveType
 ) : AbstractVaultRequestType()

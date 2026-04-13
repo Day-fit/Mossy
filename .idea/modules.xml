@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Mossy.iml" filepath="$PROJECT_DIR$/.idea/Mossy.iml" />
-      <module fileurl="file://$PROJECT_DIR$/mossy-statistics/mossy-statistics.iml" filepath="$PROJECT_DIR$/mossy-statistics/mossy-statistics.iml" />
     </modules>
   </component>
 </project>

@@ -1,5 +1,6 @@
 package pl.dayfit.mossypassword.controller
 
+import messaging.request.PasswordMetadataDto
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -12,13 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossypassword.dto.vault.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.vault.request.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordQueryService
-import pl.dayfit.mossypassword.service.VaultCommunicationService
 import pl.dayfit.mossypassword.service.VaultManagementService
 import java.util.UUID
 
@@ -69,26 +67,13 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.deletePassword(
+        vaultManagementService.deletePassword(
             userId,
-            deletePasswordRequestDto.vaultId,
-            deletePasswordRequestDto.passwordId
+            deletePasswordRequestDto
         )
 
         return ResponseEntity.ok(
             ServerResponseDto("Password deleted successfully")
-        )
-    }
-
-    @PostMapping("/extract-ciphertext")
-    fun extractCiphertext(
-        @AuthenticationPrincipal userId: UUID,
-        @RequestBody requestDto: ExtractCiphertextRequestDto
-    ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.extractCiphertext(userId, requestDto.vaultId, requestDto.passwordId)
-
-        return ResponseEntity.ok(
-            ServerResponseDto("Ciphertext extraction requested successfully")
         )
     }
 

@@ -1,4 +1,4 @@
-package pl.dayfit.mossypassword.dto.vault.type
+package messaging.type
 
 class CiphertextResponseType : AbstractVaultResponseType() {
 }
