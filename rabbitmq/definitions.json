@@ -17,7 +17,7 @@
     {
       "user": "mossyapp",
       "vhost": "/",
-      "configure": "^(direct\\.statistics\\.exchange|statistics\\.queue\\.password-events|fanout\\.jwks\\.exchange|jwks\\.queue\\..*)$",
+      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?)$",
       "write": ".*",
       "read": ".*"
     },

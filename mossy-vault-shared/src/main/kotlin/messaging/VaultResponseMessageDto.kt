@@ -5,7 +5,7 @@ import type.VaultResponseStatus
 import java.util.UUID
 import kotlin.reflect.KClass
 
-data class VaultResponseMessageDto<T: AbstractVaultResponseType>(
+data class VaultResponseMessageDto<out T: AbstractVaultResponseType>(
     val messageId: UUID,
     val payload: T,
     val status: VaultResponseStatus

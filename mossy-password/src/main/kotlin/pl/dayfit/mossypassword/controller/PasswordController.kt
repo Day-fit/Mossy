@@ -1,6 +1,7 @@
 package pl.dayfit.mossypassword.controller
 
 import messaging.request.PasswordMetadataDto
+import messaging.response.type.CiphertextResponseType
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -87,7 +88,7 @@ class PasswordController(
         @RequestParam vaultId: UUID
     ): ResponseEntity<List<PasswordMetadataDto>> {
         val passwords = vaultManagementService.getPasswordsMetadata(userId, vaultId)
-        return ResponseEntity.ok(passwords)
+        return ResponseEntity.ok(passwords.metadata)
     }
 
     /**
@@ -101,15 +102,10 @@ class PasswordController(
     fun getCiphertext(
         @AuthenticationPrincipal userId: UUID,
         @PathVariable passwordId: UUID,
-        @RequestParam vaultId: String
-    ): ResponseEntity<Map<String, String>> {
-        val vaultUuid = UUID.fromString(vaultId)
-
-        val ciphertext = passwordQueryService.getCiphertext(userId, vaultUuid, passwordId)
-        return if (ciphertext != null) {
-            ResponseEntity.ok(mapOf("ciphertext" to ciphertext))
-        } else {
-            ResponseEntity.notFound().build()
-        }
+        @RequestParam vaultId: UUID
+    ): ResponseEntity<CiphertextResponseType> {
+        return ResponseEntity.ok(
+            vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId)
+        )
     }
 }

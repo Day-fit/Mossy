@@ -1,11 +1,7 @@
 package messaging.response.type
 
-import java.time.Instant
-import java.util.UUID
+import messaging.request.PasswordMetadataDto
 
 data class MetadataResponseType(
-    val passwordId: UUID,
-    val identifier: String,
-    val domain: String,
-    val lastModified: Instant
+    val metadata: List<PasswordMetadataDto>
 ) : AbstractVaultResponseType()

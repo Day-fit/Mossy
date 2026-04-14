@@ -2,11 +2,14 @@ package pl.dayfit.mossypassword.service
 
 import messaging.VaultRequestMessageDto
 import messaging.request.type.AbstractVaultRequestType
+import messaging.request.type.CiphertextRequestType
+import messaging.response.type.CiphertextResponseType
 import messaging.request.type.DeletePasswordRequestType
 import messaging.request.type.MetadataRequestType
 import messaging.request.type.SavePasswordRequestType
 import messaging.response.type.AbstractVaultResponseType
 import messaging.response.type.DeletePasswordResponseType
+import messaging.response.type.MetadataResponseType
 import messaging.response.type.SavePasswordResponseType
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
@@ -56,11 +59,16 @@ class VaultManagementService(
         handleProcessing<DeletePasswordResponseType>(userId, vaultId, DeletePasswordRequestType(request.passwordId))
     }
 
-    fun getPasswordsMetadata(userId: UUID, vaultId: UUID): AbstractVaultResponseType {
+    fun getPasswordsMetadata(userId: UUID, vaultId: UUID): MetadataResponseType {
         return handleProcessing(userId, vaultId, MetadataRequestType())
     }
 
-    private fun <Res : AbstractVaultResponseType> handleProcessing(
+    fun getPasswordCipherText(userId: UUID, vaultId: UUID, passwordId: UUID): CiphertextResponseType {
+        return handleProcessing(userId, vaultId, CiphertextRequestType(passwordId))
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <Res: AbstractVaultResponseType> handleProcessing(
         userId: UUID,
         vaultId: UUID,
         payload: AbstractVaultRequestType
