@@ -7,11 +7,9 @@ import org.springframework.messaging.simp.stomp.StompSessionHandler
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.messaging.consumer.DeletePasswordHandler
-import pl.dayfit.mossyvault.messaging.consumer.ExtractCiphertextHandler
-import pl.dayfit.mossyvault.messaging.consumer.GetCiphertextHandler
-import pl.dayfit.mossyvault.messaging.consumer.QueryPasswordsByDomainHandler
+import pl.dayfit.mossyvault.messaging.consumer.CiphertextHandler
+import pl.dayfit.mossyvault.messaging.consumer.MetadataHandler
 import pl.dayfit.mossyvault.messaging.consumer.SavePasswordHandler
-import pl.dayfit.mossyvault.messaging.consumer.UpdatePasswordHandler
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import java.lang.reflect.Type
 
@@ -19,10 +17,8 @@ import java.lang.reflect.Type
 class VaultStompSessionHandler(
     private val savePasswordHandler: SavePasswordHandler,
     private val deletePasswordHandler: DeletePasswordHandler,
-    private val updatePasswordHandler: UpdatePasswordHandler,
-    private val extractCiphertextHandler: ExtractCiphertextHandler,
-    private val queryPasswordsByDomainHandler: QueryPasswordsByDomainHandler,
-    private val getCiphertextHandler: GetCiphertextHandler,
+    private val metadataHandler: MetadataHandler,
+    private val ciphertextHandler: CiphertextHandler,
     private val stompSessionRegistry: StompSessionRegistry,
 ) : StompSessionHandler {
     private val logger = org.slf4j.LoggerFactory.getLogger(VaultStompSessionHandler::class.java)
@@ -44,23 +40,13 @@ class VaultStompSessionHandler(
         )
 
         session.subscribe(
-            StompEndpoints.SUBSCRIBE_UPDATE,
-            updatePasswordHandler
-        )
-
-        session.subscribe(
-            StompEndpoints.SUBSCRIBE_EXTRACT_CIPHERTEXT,
-            extractCiphertextHandler
-        )
-
-        session.subscribe(
             StompEndpoints.SUBSCRIBE_QUERY_BY_DOMAIN,
-            queryPasswordsByDomainHandler
+            metadataHandler
         )
 
         session.subscribe(
             StompEndpoints.SUBSCRIBE_GET_CIPHERTEXT,
-            getCiphertextHandler
+            ciphertextHandler
         )
     }
 

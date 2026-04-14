@@ -1,15 +1,12 @@
 package pl.dayfit.mossyvault.service
 
+import messaging.request.type.SavePasswordRequestType
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import pl.dayfit.mossyvault.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossyvault.dto.request.SavePasswordRequestDto
-import pl.dayfit.mossyvault.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossyvault.model.PasswordEntry
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import java.time.Instant
 import java.util.UUID
-import kotlin.io.encoding.Base64
 
 @Service
 class PasswordEntryService(
@@ -18,17 +15,21 @@ class PasswordEntryService(
     private val logger = org.slf4j.LoggerFactory.getLogger(PasswordEntryService::class.java)
 
     @Transactional
-    fun saveOrUpdate(requestDto: SavePasswordRequestDto, decodedBlob: ByteArray): UUID {
-        val existing = passwordEntryRepository.findFirstByDomainAndIdentifier(requestDto.domain, requestDto.identifier)
+    fun saveOrUpdate(payload: SavePasswordRequestType, decodedBlob: ByteArray): UUID {
+        val targetIdentifier = payload.identifier
+        val targetDomain = payload.domain
+
+        logger.info("Saving or updating password entry for domain={}, identifier={}", targetDomain, targetIdentifier)
+        val existing = passwordEntryRepository.findFirstByDomainAndIdentifier(targetDomain, targetIdentifier)
 
         val entry = (existing ?: PasswordEntry(
-            domain = requestDto.domain,
-            identifier = requestDto.identifier,
+            domain = targetDomain,
+            identifier = targetIdentifier,
             encryptedBlob = decodedBlob,
             lastModified = Instant.now()
         )).apply {
-            identifier = requestDto.identifier
-            domain = requestDto.domain
+            identifier = targetIdentifier
+            domain = targetDomain
             encryptedBlob = decodedBlob
             lastModified = Instant.now()
         }
@@ -37,21 +38,8 @@ class PasswordEntryService(
     }
 
     @Transactional
-    fun update(requestDto: UpdatePasswordRequestDto) {
-        val passwordEntry = passwordEntryRepository.findById(requestDto.passwordId).orElse(null)
-        if (passwordEntry == null) {
-            logger.warn("Password entry not found for update, id={}", requestDto.passwordId)
-            return
-        }
-        passwordEntry.identifier = requestDto.identifier
-        passwordEntry.domain = requestDto.domain
-        passwordEntry.encryptedBlob = Base64.decode(requestDto.cipherText)
-        passwordEntry.lastModified = Instant.now()
-        passwordEntryRepository.save(passwordEntry)
-    }
-
-    @Transactional
-    fun delete(requestDto: DeletePasswordRequestDto) {
-        passwordEntryRepository.deleteById(requestDto.passwordId)
+    fun delete(passwordId: UUID) {
+        logger.info("Deleting password entry with id={}", passwordId)
+        passwordEntryRepository.deleteById(passwordId)
     }
 }

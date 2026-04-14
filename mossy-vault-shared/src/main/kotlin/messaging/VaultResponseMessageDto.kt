@@ -1,5 +1,6 @@
 package messaging
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import messaging.response.type.AbstractVaultResponseType
 import type.VaultResponseStatus
 import java.util.UUID
@@ -10,5 +11,6 @@ data class VaultResponseMessageDto<out T: AbstractVaultResponseType>(
     val payload: T,
     val status: VaultResponseStatus
 ) {
+    @get:JsonIgnore
     val type: KClass<out T> = payload::class
 }

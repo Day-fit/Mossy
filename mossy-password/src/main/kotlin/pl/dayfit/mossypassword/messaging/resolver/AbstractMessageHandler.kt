@@ -9,7 +9,7 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.reflect.KClass
 
-abstract class AbstractMessageHandler<in Req : AbstractVaultRequestType, Res : AbstractVaultResponseType> {
+abstract class AbstractMessageHandler<Req : AbstractVaultRequestType, Res : AbstractVaultResponseType> {
     protected val pending = ConcurrentHashMap<String, CompletableFuture<VaultResponseMessageDto<Res>>>()
 
     abstract fun handleMessage(message: VaultRequestMessageDto<Req>)

@@ -21,15 +21,14 @@ class StompCommunicationService(
 ) {
     @PostConstruct
     fun init() {
-        val connectHeaders = StompHeaders().apply {
-            set("vault-id", vaultConfigurationProperties.id.toString())
-            set("vault-secret", vaultConfigurationProperties.secret)
-        }
+        val headers = WebSocketHttpHeaders()
+        headers.put("x-vault-id", listOf(vaultConfigurationProperties.id.toString()))
+        headers.put("x-vault-secret", listOf(vaultConfigurationProperties.secret))
 
         stompClient.connectAsync(
             "${stompConfigurationProperties.host}/api/v1/passwords${StompEndpoints.WEBSOCKET_ENDPOINT}",
-            WebSocketHttpHeaders(),
-            connectHeaders,
+            headers,
+            StompHeaders(),
             vaultStompSessionHandler
         )
     }

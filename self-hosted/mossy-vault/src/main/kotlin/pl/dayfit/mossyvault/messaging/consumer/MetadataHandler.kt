@@ -1,40 +1,40 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
+import messaging.VaultRequestMessageDto
+import messaging.VaultResponseMessageDto
+import messaging.request.PasswordMetadataDto
+import messaging.request.type.MetadataRequestType
+import messaging.response.type.MetadataResponseType
 import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
-import pl.dayfit.mossyvault.dto.request.QueryPasswordsByDomainRequestDto
-import pl.dayfit.mossyvault.dto.response.PasswordMetadataDto
-import pl.dayfit.mossyvault.dto.response.PasswordQueryResponseDto
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
+import type.VaultResponseStatus
 import java.lang.reflect.Type
 
 @Component
-class QueryPasswordsByDomainHandler(
+class MetadataHandler(
     private val passwordEntryRepository: PasswordEntryRepository,
     private val stompSessionRegistry: StompSessionRegistry
 ) : StompFrameHandler {
-    private val logger = org.slf4j.LoggerFactory.getLogger(QueryPasswordsByDomainHandler::class.java)
+    private val logger = org.slf4j.LoggerFactory.getLogger(MetadataHandler::class.java)
 
     override fun getPayloadType(headers: StompHeaders): Type {
-        return QueryPasswordsByDomainRequestDto::class.java
+        return VaultRequestMessageDto::class.java
     }
 
+    @Suppress("UNCHECKED_CAST")
     override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? QueryPasswordsByDomainRequestDto
+        val requestDto = payload as? VaultRequestMessageDto<MetadataRequestType>
 
         if (requestDto == null) {
             logger.warn("Received invalid payload for password query, ignoring it")
             return
         }
 
-        val passwords = if (requestDto.domain == null) {
-            passwordEntryRepository.findAll()
-        } else {
-            passwordEntryRepository.findByDomain(requestDto.domain)
-        }
+        val passwords = passwordEntryRepository.findAll()
         val metadata = passwords.map {
             PasswordMetadataDto(
                 passwordId = requireNotNull(it.id) { "Password entry is missing id" },
@@ -44,10 +44,10 @@ class QueryPasswordsByDomainHandler(
             )
         }
 
-        val response = PasswordQueryResponseDto(
-            passwords = metadata,
-            domain = requestDto.domain,
-            vaultId = requestDto.vaultId
+        val response = VaultResponseMessageDto(
+            requestDto.correlationId,
+            MetadataResponseType(metadata),
+            VaultResponseStatus.OK
         )
 
         stompSessionRegistry.send(

@@ -17,11 +17,11 @@ import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 
-class QueryPasswordsByDomainHandlerTest {
+class MetadataHandlerTest {
 
     private val passwordEntryRepository: PasswordEntryRepository = mock()
     private val stompSessionRegistry: StompSessionRegistry = mock()
-    private val handler = QueryPasswordsByDomainHandler(passwordEntryRepository, stompSessionRegistry)
+    private val handler = MetadataHandler(passwordEntryRepository, stompSessionRegistry)
 
     @Test
     fun `returns metadata with password id identifier domain and last change`() {

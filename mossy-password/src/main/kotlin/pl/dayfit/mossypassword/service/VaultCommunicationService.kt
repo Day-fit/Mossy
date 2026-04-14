@@ -21,9 +21,6 @@ class VaultCommunicationService(
     private val redisTemplate: RedisTemplate<String, String>,
     private val vaultMessageResolver: VaultMessageResolver,
 ) {
-    private val pendingRequests: ConcurrentHashMap<String, CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>> =
-        ConcurrentHashMap()
-
     fun sendToVault(
         vaultId: UUID,
         message: VaultRequestMessageDto<AbstractVaultRequestType>
@@ -31,29 +28,20 @@ class VaultCommunicationService(
         val replicaId = redisTemplate.opsForValue()
             .get("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
 
-        rabbitTemplate.convertAndSend(
+        val future = CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>()
+
+        rabbitTemplate.convertSendAndReceive(
             "password.replica.exchange",
             replicaId,
             message
-        ) {
-            it.messageProperties.replyTo = "amq.rabbitmq.reply-to"
-            it.messageProperties.correlationId = message.correlationId.toString()
-
-            return@convertAndSend it
+        ) { msg ->
+            msg.messageProperties.correlationId = message.correlationId.toString()
+            msg
+        }?.let {
+            future.complete(it as VaultResponseMessageDto<AbstractVaultResponseType>)
         }
 
-        val future = CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>()
-        pendingRequests[message.correlationId.toString()] = future
         return future
-    }
-
-    @RabbitListener(queues = ["#{@replicaQueue.name}"])
-    fun handleMessageReply(
-        response: VaultResponseMessageDto<AbstractVaultResponseType>,
-        @Header(AmqpHeaders.CORRELATION_ID) correlationId: String
-    ) {
-        pendingRequests.remove(correlationId)
-            ?.complete(response)
     }
 
     @RabbitListener(queues = ["#{@replicaQueue.name}"])

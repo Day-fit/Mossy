@@ -11,19 +11,28 @@ import java.util.concurrent.CompletableFuture
 
 @Service
 class VaultMessageResolver(
-    private val messageHandlers: List<AbstractMessageHandler<AbstractVaultRequestType, AbstractVaultResponseType>>
+    private val messageHandlers: List<AbstractMessageHandler<out AbstractVaultRequestType, out AbstractVaultResponseType>>
 ) {
+    @Suppress("UNCHECKED_CAST")
     fun resolve(message: VaultRequestMessageDto<AbstractVaultRequestType>): CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>> {
         return messageHandlers.filter { it.doSupport(message.type) }
             .getOrNull(0)
-            ?.handleMessage(message)
+            ?.let { handler ->
+                (handler as AbstractMessageHandler<AbstractVaultRequestType, AbstractVaultResponseType>)
+                    .handleMessage(message)
+            }
             ?: throw IllegalArgumentException("Unsupported message type: ${message.type}")
     }
 
-    fun handleResponse(vaultId: UUID, message: VaultResponseMessageDto<AbstractVaultResponseType>) = messageHandlers.filter { it.doSupport(message.type) }
-        .getOrNull(0)
-        ?.handleResponse(message.messageId, vaultId, message)
-        ?: throw IllegalArgumentException(
-            "Unsupported response type: ${message.type}"
-        )
+    @Suppress("UNCHECKED_CAST")
+    fun handleResponse(vaultId: UUID, message: VaultResponseMessageDto<AbstractVaultResponseType>) =
+        messageHandlers.filter { it.doSupport(message.type) }
+            .getOrNull(0)
+            ?.let { handler ->
+                (handler as AbstractMessageHandler<AbstractVaultRequestType, AbstractVaultResponseType>)
+                    .handleResponse(message.messageId, vaultId, message)
+            }
+            ?: throw IllegalArgumentException(
+                "Unsupported response type: ${message.type}"
+            )
 }

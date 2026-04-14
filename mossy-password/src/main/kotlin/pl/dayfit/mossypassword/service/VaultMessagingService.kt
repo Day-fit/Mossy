@@ -10,6 +10,10 @@ class VaultMessagingService(
     private val messagingTemplate: SimpMessagingTemplate
 ) {
     fun sendMessageToTopic(topic: String, message: VaultRequestMessageDto<AbstractVaultRequestType>) {
-        messagingTemplate.convertAndSend("/vault/$topic", message)
+        messagingTemplate.convertAndSendToUser(
+            message.vaultId.toString(),
+            "/vault/$topic",
+            message
+        )
     }
 }
