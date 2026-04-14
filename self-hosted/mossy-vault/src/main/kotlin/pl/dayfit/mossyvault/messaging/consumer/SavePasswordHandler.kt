@@ -53,7 +53,7 @@ class SavePasswordHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_PASSWORD_SAVED,
             VaultResponseMessageDto(
-                requestDto.correlationId,
+                requestDto.messageId,
                 SavePasswordResponseType(),
                 VaultResponseStatus.OK
             )

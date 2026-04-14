@@ -19,7 +19,7 @@ class DeletePasswordHandler(
 
     override fun handleMessage(message: VaultRequestMessageDto<DeletePasswordRequestType>): CompletableFuture<VaultResponseMessageDto<DeletePasswordResponseType>> {
         val future = CompletableFuture<VaultResponseMessageDto<DeletePasswordResponseType>>()
-        pending[message.correlationId.toString()] = future
+        pending["${message.vaultId}:${message.messageId}"] = future
 
         vaultMessagingService.sendMessageToTopic(
             TOPIC,

@@ -18,7 +18,7 @@ class MetadataPasswordHandler(private val vaultMessagingService: VaultMessagingS
 
     override fun handleMessage(message: VaultRequestMessageDto<MetadataRequestType>): CompletableFuture<VaultResponseMessageDto<MetadataResponseType>> {
         val future = CompletableFuture<VaultResponseMessageDto<MetadataResponseType>>()
-        pending[message.correlationId.toString()] = future
+        pending["${message.vaultId}:${message.messageId}"] = future
 
         vaultMessagingService.sendMessageToTopic(
             TOPIC,

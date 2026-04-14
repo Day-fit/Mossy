@@ -19,6 +19,7 @@ import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.VaultManagementService
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 @RestController
 class PasswordController(
@@ -86,9 +87,10 @@ class PasswordController(
     fun getPasswordsMetadata(
         @AuthenticationPrincipal userId: UUID,
         @RequestParam vaultId: UUID
-    ): ResponseEntity<List<PasswordMetadataDto>> {
-        val passwords = vaultManagementService.getPasswordsMetadata(userId, vaultId)
-        return ResponseEntity.ok(passwords.metadata)
+    ): CompletableFuture<ResponseEntity<List<PasswordMetadataDto>>> {
+        return vaultManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
+            ResponseEntity.ok(it.metadata)
+        }
     }
 
     /**
@@ -103,9 +105,8 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @PathVariable passwordId: UUID,
         @RequestParam vaultId: UUID
-    ): ResponseEntity<CiphertextResponseType> {
-        return ResponseEntity.ok(
-            vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId)
-        )
+    ): CompletableFuture<ResponseEntity<CiphertextResponseType>> {
+        return vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId)
+            .thenApply { ResponseEntity.ok(it) }
     }
 }

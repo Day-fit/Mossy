@@ -46,7 +46,7 @@ class CiphertextHandler(
         val ciphertextBase64 = Base64.encode(password.encryptedBlob)
 
         val response = VaultResponseMessageDto(
-            requestDto.correlationId,
+            requestDto.messageId,
             CiphertextResponseType(
                 ciphertextBase64,
                 passwordId

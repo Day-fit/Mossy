@@ -50,7 +50,7 @@ class DeletePasswordHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_PASSWORD_DELETED,
             VaultResponseMessageDto(
-                requestDto.correlationId,
+                requestDto.messageId,
                 DeletePasswordResponseType(
                     passwordEntry.domain,
                     passwordId

@@ -21,9 +21,7 @@ import pl.dayfit.mossypassword.helper.VaultHelper
 import type.PasswordSaveType
 import type.VaultResponseStatus
 import java.util.UUID
-import java.util.concurrent.TimeUnit
-import kotlin.getOrElse
-import kotlin.runCatching
+import java.util.concurrent.CompletableFuture
 
 @Service
 class VaultManagementService(
@@ -59,38 +57,39 @@ class VaultManagementService(
         handleProcessing<DeletePasswordResponseType>(userId, vaultId, DeletePasswordRequestType(request.passwordId))
     }
 
-    fun getPasswordsMetadata(userId: UUID, vaultId: UUID): MetadataResponseType {
+    fun getPasswordsMetadata(userId: UUID, vaultId: UUID): CompletableFuture<MetadataResponseType> {
         return handleProcessing(userId, vaultId, MetadataRequestType())
     }
 
-    fun getPasswordCipherText(userId: UUID, vaultId: UUID, passwordId: UUID): CiphertextResponseType {
+    fun getPasswordCipherText(
+        userId: UUID,
+        vaultId: UUID,
+        passwordId: UUID
+    ): CompletableFuture<CiphertextResponseType> {
         return handleProcessing(userId, vaultId, CiphertextRequestType(passwordId))
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun <Res: AbstractVaultResponseType> handleProcessing(
+    private fun <Res : AbstractVaultResponseType> handleProcessing(
         userId: UUID,
         vaultId: UUID,
         payload: AbstractVaultRequestType
-    ): Res {
+    ): CompletableFuture<Res> {
         vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
-        val future = vaultCommunicationService.sendToVault(
+        return vaultCommunicationService.sendToVault(
             vaultId,
             VaultRequestMessageDto(
                 UUID.randomUUID(),
                 vaultId,
                 payload
             )
-        )
-
-        val response = runCatching { future.get(30, TimeUnit.SECONDS) }
-            .getOrElse { throw VaultNotRespondedException("Timed out waiting for vault response") }
-
-        when (response.status) {
-            VaultResponseStatus.OK -> return response.payload as Res
-            VaultResponseStatus.ERROR -> throw VaultFailedException("Vault responded with error")
-            VaultResponseStatus.NOT_FOUND -> throw NoSuchElementException("Vault not found")
-        }
+        ).thenApply {
+            when (it.status) {
+                VaultResponseStatus.OK -> it::payload
+                VaultResponseStatus.ERROR -> throw VaultFailedException("Vault failed when processing request")
+                VaultResponseStatus.NOT_FOUND -> throw VaultNotRespondedException("Vault timed out when processing request")
+            }
+        } as CompletableFuture<Res>
     }
 }

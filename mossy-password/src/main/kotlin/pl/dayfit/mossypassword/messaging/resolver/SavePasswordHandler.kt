@@ -17,7 +17,7 @@ class SavePasswordHandler(private val vaultMessagingService: VaultMessagingServi
 
     override fun handleMessage(message: VaultRequestMessageDto<SavePasswordRequestType>): CompletableFuture<VaultResponseMessageDto<SavePasswordResponseType>> {
         val future = CompletableFuture<VaultResponseMessageDto<SavePasswordResponseType>>()
-        pending[message.correlationId.toString()] = future
+        pending["${message.vaultId}:${message.messageId}"] = future
 
         vaultMessagingService.sendMessageToTopic(
             TOPIC,

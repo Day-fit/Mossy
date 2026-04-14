@@ -45,7 +45,7 @@ class MetadataHandler(
         }
 
         val response = VaultResponseMessageDto(
-            requestDto.correlationId,
+            requestDto.messageId,
             MetadataResponseType(metadata),
             VaultResponseStatus.OK
         )
