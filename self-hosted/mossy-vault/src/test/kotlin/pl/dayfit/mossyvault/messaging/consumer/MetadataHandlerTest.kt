@@ -1,21 +1,20 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
+import messaging.VaultRequestMessageDto
+import messaging.VaultResponseMessageDto
+import messaging.request.type.MetadataRequestType
+import messaging.response.type.MetadataResponseType
+import type.VaultResponseStatus
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.eq
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
-import pl.dayfit.mossyvault.dto.request.QueryPasswordsByDomainRequestDto
-import pl.dayfit.mossyvault.dto.response.PasswordQueryResponseDto
-import pl.dayfit.mossyvault.model.PasswordEntry
+import org.mockito.kotlin.*
+import org.springframework.messaging.simp.stomp.StompHeaders
+import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import pl.dayfit.mossyvault.model.PasswordEntry
 
 class MetadataHandlerTest {
 
@@ -24,11 +23,13 @@ class MetadataHandlerTest {
     private val handler = MetadataHandler(passwordEntryRepository, stompSessionRegistry)
 
     @Test
-    fun `returns metadata with password id identifier domain and last change`() {
+    fun `returns metadata of all passwords`() {
         val vaultId = UUID.randomUUID()
+        val correlationId = UUID.randomUUID()
         val passwordId = UUID.randomUUID()
         val lastModified = Instant.now()
-        whenever(passwordEntryRepository.findByDomain("example.com")).thenReturn(
+        
+        whenever(passwordEntryRepository.findAll()).thenReturn(
             listOf(
                 PasswordEntry(
                     id = passwordId,
@@ -40,47 +41,37 @@ class MetadataHandlerTest {
             )
         )
 
-        handler.handleFrame(
-            mock(),
-            QueryPasswordsByDomainRequestDto(
-                domain = "example.com",
-                vaultId = vaultId
-            )
+        val request = VaultRequestMessageDto(
+            correlationId = correlationId,
+            vaultId = vaultId,
+            payload = MetadataRequestType()
         )
 
-        val responseCaptor = argumentCaptor<PasswordQueryResponseDto>()
+        handler.handleFrame(StompHeaders(), request)
+
+        val responseCaptor = argumentCaptor<VaultResponseMessageDto<MetadataResponseType>>()
         verify(stompSessionRegistry, times(1)).send(
-            eq("/app/vault/passwords-queried"),
+            eq(StompEndpoints.USER_PASSWORDS_QUERIED),
             responseCaptor.capture()
         )
 
         val response = responseCaptor.firstValue
-        assertEquals(vaultId, response.vaultId)
-        assertEquals(1, response.passwords.size)
-        assertEquals(passwordId, response.passwords.first().passwordId)
-        assertEquals("john@example.com", response.passwords.first().identifier)
-        assertEquals("example.com", response.passwords.first().domain)
-        assertEquals(lastModified, response.passwords.first().lastModified)
+        assertEquals(VaultResponseStatus.OK, response.status)
+        assertEquals(correlationId, response.messageId)
+        
+        val payload = response.payload
+        assertEquals(1, payload.metadata.size)
+        assertEquals(passwordId, payload.metadata.first().passwordId)
+        assertEquals("john@example.com", payload.metadata.first().identifier)
+        assertEquals("example.com", payload.metadata.first().domain)
+        assertEquals(lastModified, payload.metadata.first().lastModified)
     }
 
     @Test
-    fun `null domain requests all passwords`() {
-        val vaultId = UUID.randomUUID()
-        whenever(passwordEntryRepository.findAll()).thenReturn(emptyList())
+    fun `ignores invalid payload type`() {
+        handler.handleFrame(StompHeaders(), "invalid")
 
-        handler.handleFrame(
-            mock(),
-            QueryPasswordsByDomainRequestDto(
-                domain = null,
-                vaultId = vaultId
-            )
-        )
-
-        verify(passwordEntryRepository, times(1)).findAll()
-        verify(stompSessionRegistry, times(1))
-            .send(
-                eq("/app/vault/passwords-queried"),
-                any<PasswordQueryResponseDto>()
-            )
+        verify(passwordEntryRepository, never()).findAll()
+        verify(stompSessionRegistry, never()).send(any<String>(), any<Any>())
     }
 }

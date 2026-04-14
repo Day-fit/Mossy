@@ -47,6 +47,7 @@ class SavePasswordHandler(
                     VaultResponseStatus.ERROR
                 )
             )
+            return
         }
 
         stompSessionRegistry.send(

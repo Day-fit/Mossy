@@ -1,7 +1,11 @@
 package pl.dayfit.mossypassword.controller
 
+import messaging.request.PasswordMetadataDto
+import messaging.response.type.CiphertextResponseType
+import messaging.response.type.MetadataResponseType
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -9,20 +13,17 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.VaultCommunicationService
-import pl.dayfit.mossypassword.exception.VaultNotConnectedException
+import pl.dayfit.mossypassword.service.VaultManagementService
 import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class PasswordControllerMvcTest {
 
-    private val vaultCommunicationService: VaultCommunicationService = org.mockito.kotlin.mock()
-    private val passwordQueryService: PasswordQueryService = org.mockito.kotlin.mock()
-    private val controller = PasswordController(vaultCommunicationService, passwordQueryService)
+    private val vaultManagementService: VaultManagementService = mock()
+    private val controller = PasswordController(vaultManagementService)
 
     @Test
     fun `save endpoint forwards payload and returns accepted response`() {
@@ -41,11 +42,11 @@ class PasswordControllerMvcTest {
         assertEquals(200, response.statusCode.value())
         assertNotNull(body)
         assertEquals(ServerResponseDto("Password save request accepted"), body)
-        verify(vaultCommunicationService, times(1)).savePassword(userId, request)
+        verify(vaultManagementService, times(1)).savePassword(userId, request)
     }
 
     @Test
-    fun `save endpoint propagates offline exception`() {
+    fun `save endpoint propagates exception`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         val request = SavePasswordRequestDto(
@@ -55,44 +56,11 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotConnectedException(vaultId))
-
-        assertThrows<VaultNotConnectedException> {
-            controller.savePassword(userId, request)
-        }
-    }
-
-    @Test
-    fun `save endpoint propagates missing vault exception`() {
-        val userId = UUID.randomUUID()
-        val vaultId = UUID.randomUUID()
-        val request = SavePasswordRequestDto(
-            identifier = "john@example.com",
-            domain = "example.com",
-            cipherText = "QmFzZTY0Q2lwaGVy",
-            vaultId = vaultId
-        )
-
-        whenever(vaultCommunicationService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
+        whenever(vaultManagementService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
 
         assertThrows<VaultNotFoundException> {
             controller.savePassword(userId, request)
         }
-    }
-
-    @Test
-    fun `extract ciphertext endpoint forwards request to service`() {
-        val userId = UUID.randomUUID()
-        val vaultId = UUID.randomUUID()
-        val passwordId = UUID.randomUUID()
-        val request = ExtractCiphertextRequestDto(passwordId, vaultId)
-
-        val response = controller.extractCiphertext(userId, request)
-
-        assertEquals(200, response.statusCode.value())
-        assertEquals("Ciphertext extraction requested successfully", response.body?.message)
-
-        verify(vaultCommunicationService, times(1)).extractCiphertext(userId, vaultId, passwordId)
     }
 
     @Test
@@ -110,7 +78,7 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password updated successfully", response.body?.message)
-        verify(vaultCommunicationService, times(1)).updatePassword(userId, request)
+        verify(vaultManagementService, times(1)).updatePassword(userId, request)
     }
 
     @Test
@@ -124,11 +92,11 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password deleted successfully", response.body?.message)
-        verify(vaultCommunicationService, times(1)).deletePassword(userId, vaultId, passwordId)
+        verify(vaultManagementService, times(1)).deletePassword(userId, request)
     }
 
     @Test
-    fun `get metadata endpoint returns values from query service`() {
+    fun `get metadata endpoint returns values from management service`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         val first = PasswordMetadataDto(
@@ -144,27 +112,14 @@ class PasswordControllerMvcTest {
             lastModified = Instant.now()
         )
 
-        whenever(passwordQueryService.getPasswordsMetadata(userId, vaultId, "example.com"))
-            .thenReturn(listOf(first, second))
+        whenever(vaultManagementService.getPasswordsMetadata(userId, vaultId))
+            .thenReturn(MetadataResponseType(listOf(first, second)))
 
-        val response = controller.getPasswordsMetadata(userId, "example.com", vaultId.toString())
+        val response = controller.getPasswordsMetadata(userId, vaultId)
 
         assertEquals(200, response.statusCode.value())
         assertEquals(listOf(first, second), response.body)
-    }
-
-    @Test
-    fun `get ciphertext endpoint returns 404 when service returns null`() {
-        val userId = UUID.randomUUID()
-        val vaultId = UUID.randomUUID()
-        val passwordId = UUID.randomUUID()
-
-        whenever(passwordQueryService.getCiphertext(userId, vaultId, passwordId)).thenReturn(null)
-
-        val response = controller.getCiphertext(userId, passwordId, vaultId.toString())
-
-        assertEquals(404, response.statusCode.value())
-        assertNull(response.body)
+        verify(vaultManagementService, times(1)).getPasswordsMetadata(userId, vaultId)
     }
 
     @Test
@@ -172,12 +127,16 @@ class PasswordControllerMvcTest {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         val passwordId = UUID.randomUUID()
+        
+        val expectedResponse = CiphertextResponseType("BASE64", passwordId)
 
-        whenever(passwordQueryService.getCiphertext(userId, vaultId, passwordId)).thenReturn("BASE64")
+        whenever(vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId))
+            .thenReturn(expectedResponse)
 
-        val response = controller.getCiphertext(userId, passwordId, vaultId.toString())
+        val response = controller.getCiphertext(userId, passwordId, vaultId)
 
         assertEquals(200, response.statusCode.value())
-        assertEquals("BASE64", response.body?.get("ciphertext"))
+        assertEquals(expectedResponse, response.body)
+        verify(vaultManagementService, times(1)).getPasswordCipherText(userId, vaultId, passwordId)
     }
 }
