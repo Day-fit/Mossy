@@ -1,4 +1,4 @@
-package messaging
+package messaging.response
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import messaging.response.type.AbstractVaultResponseType

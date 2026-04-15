@@ -1,3 +1,8 @@
 package messaging.response.type
 
-class SavePasswordResponseType : AbstractVaultResponseType()
+import java.util.UUID
+
+class SavePasswordResponseType(
+    val passwordId: UUID? = null,
+    val domain: String? = null
+) : AbstractVaultResponseType()

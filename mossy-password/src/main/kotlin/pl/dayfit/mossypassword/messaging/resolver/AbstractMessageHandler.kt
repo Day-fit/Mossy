@@ -1,7 +1,7 @@
 package pl.dayfit.mossypassword.messaging.resolver
 
-import messaging.VaultRequestMessageDto
-import messaging.VaultResponseMessageDto
+import messaging.request.VaultRequestMessageDto
+import messaging.response.VaultResponseMessageDto
 import messaging.request.type.AbstractVaultRequestType
 import messaging.response.type.AbstractVaultResponseType
 import java.util.UUID

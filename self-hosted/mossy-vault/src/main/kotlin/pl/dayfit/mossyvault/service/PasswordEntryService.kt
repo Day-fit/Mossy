@@ -38,8 +38,13 @@ class PasswordEntryService(
     }
 
     @Transactional
-    fun delete(passwordId: UUID) {
+    fun delete(passwordId: UUID): PasswordEntry {
         logger.info("Deleting password entry with id={}", passwordId)
+
+        val entry = passwordEntryRepository.findById(passwordId)
+            .orElseThrow { NoSuchElementException("Password entry not found for id=$passwordId") }
+
         passwordEntryRepository.deleteById(passwordId)
+        return entry
     }
 }

@@ -36,5 +36,7 @@ class RabbitMQConfiguration {
     }
 
     @Bean
-    fun asyncRabbitTemplate(rabbitTemplate: RabbitTemplate) = AsyncRabbitTemplate(rabbitTemplate)
+    fun asyncRabbitTemplate(rabbitTemplate: RabbitTemplate): AsyncRabbitTemplate {
+        return AsyncRabbitTemplate(rabbitTemplate)
+    }
 }

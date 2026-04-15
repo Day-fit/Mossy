@@ -1,7 +1,7 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
-import messaging.VaultRequestMessageDto
-import messaging.VaultResponseMessageDto
+import messaging.request.VaultRequestMessageDto
+import messaging.response.VaultResponseMessageDto
 import messaging.request.type.SavePasswordRequestType
 import messaging.response.type.SavePasswordResponseType
 import org.slf4j.LoggerFactory
@@ -33,12 +33,12 @@ class SavePasswordHandler(
 
         val requestPayload = requestDto.payload
 
-        val result = runCatching {
+        val passwordId = runCatching {
             persistenceService.saveOrUpdate(requestPayload, Base64.decode(requestPayload.cipherText))
-        }
+        }.getOrNull()
 
-        if (result.isFailure) {
-            logger.error("Failed to save password", result.exceptionOrNull())
+        if (passwordId == null) {
+            logger.error("Failed to save password entry: ${requestPayload.domain}")
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_SAVED,
                 VaultResponseMessageDto(
@@ -54,7 +54,10 @@ class SavePasswordHandler(
             StompEndpoints.USER_PASSWORD_SAVED,
             VaultResponseMessageDto(
                 requestDto.messageId,
-                SavePasswordResponseType(),
+                SavePasswordResponseType(
+                    passwordId,
+                    requestDto.payload.domain
+                ),
                 VaultResponseStatus.OK
             )
         )

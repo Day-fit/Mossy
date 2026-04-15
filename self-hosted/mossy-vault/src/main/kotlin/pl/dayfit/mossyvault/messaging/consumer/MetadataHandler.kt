@@ -1,7 +1,7 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
-import messaging.VaultRequestMessageDto
-import messaging.VaultResponseMessageDto
+import messaging.request.VaultRequestMessageDto
+import messaging.response.VaultResponseMessageDto
 import messaging.request.PasswordMetadataDto
 import messaging.request.type.MetadataRequestType
 import messaging.response.type.MetadataResponseType

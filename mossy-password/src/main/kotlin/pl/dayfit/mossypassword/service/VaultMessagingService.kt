@@ -1,6 +1,6 @@
 package pl.dayfit.mossypassword.service
 
-import messaging.VaultRequestMessageDto
+import messaging.request.VaultRequestMessageDto
 import messaging.request.type.AbstractVaultRequestType
 import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service

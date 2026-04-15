@@ -1,6 +1,6 @@
 package pl.dayfit.mossypassword.websocket.controller
 
-import messaging.VaultResponseMessageDto
+import messaging.response.VaultResponseMessageDto
 import messaging.response.type.CiphertextResponseType
 import messaging.response.type.DeletePasswordResponseType
 import messaging.response.type.MetadataResponseType
@@ -17,7 +17,7 @@ class VaultResponseController(
     private val vaultMessageResolver: VaultMessageResolver
 ) {
     @MessageMapping("/vault/metadata-retrieved")
-    fun handleResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<MetadataResponseType>) {
+    fun handleMetadataResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<MetadataResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 

@@ -1,7 +1,7 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
-import messaging.VaultRequestMessageDto
-import messaging.VaultResponseMessageDto
+import messaging.request.VaultRequestMessageDto
+import messaging.response.VaultResponseMessageDto
 import messaging.request.type.DeletePasswordRequestType
 import messaging.response.type.DeletePasswordResponseType
 import org.springframework.messaging.simp.stomp.StompFrameHandler
@@ -45,18 +45,40 @@ class DeletePasswordHandler(
             return
         }
 
-        passwordEntryService.delete(passwordId)
+        try {
+            passwordEntryService.delete(passwordId)
 
-        stompSessionRegistry.send(
-            StompEndpoints.USER_PASSWORD_DELETED,
-            VaultResponseMessageDto(
-                requestDto.messageId,
-                DeletePasswordResponseType(
-                    passwordEntry.domain,
-                    passwordId
-                ),
-                VaultResponseStatus.OK
+            stompSessionRegistry.send(
+                StompEndpoints.USER_PASSWORD_DELETED,
+                VaultResponseMessageDto(
+                    requestDto.messageId,
+                    DeletePasswordResponseType(
+                        passwordEntry.domain,
+                        passwordId
+                    ),
+                    VaultResponseStatus.OK
+                )
             )
-        )
+        } catch (_: NoSuchElementException) {
+            logger.warn("Password entry not found, id={}, ignoring", passwordId)
+            stompSessionRegistry.send(
+                StompEndpoints.USER_PASSWORD_DELETED,
+                VaultResponseMessageDto(
+                    requestDto.messageId,
+                    DeletePasswordResponseType(),
+                    VaultResponseStatus.NOT_FOUND
+                )
+            )
+        } catch (e: Exception){
+            logger.error("Error occurred while deleting password entry, id=$passwordId", e)
+            stompSessionRegistry.send(
+                StompEndpoints.USER_PASSWORD_DELETED,
+                VaultResponseMessageDto(
+                    requestDto.messageId,
+                    DeletePasswordResponseType(),
+                    VaultResponseStatus.ERROR
+                )
+            )
+        }
     }
 }

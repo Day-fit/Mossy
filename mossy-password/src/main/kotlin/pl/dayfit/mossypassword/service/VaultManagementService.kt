@@ -1,6 +1,6 @@
 package pl.dayfit.mossypassword.service
 
-import messaging.VaultRequestMessageDto
+import messaging.request.VaultRequestMessageDto
 import messaging.request.type.AbstractVaultRequestType
 import messaging.request.type.CiphertextRequestType
 import messaging.response.type.CiphertextResponseType
@@ -16,7 +16,6 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.exception.VaultFailedException
-import pl.dayfit.mossypassword.exception.VaultNotRespondedException
 import pl.dayfit.mossypassword.helper.VaultHelper
 import type.PasswordSaveType
 import type.VaultResponseStatus
@@ -26,7 +25,7 @@ import java.util.concurrent.CompletableFuture
 @Service
 class VaultManagementService(
     private val vaultCommunicationService: VaultCommunicationService,
-    private val vaultHelper: VaultHelper
+    private val vaultHelper: VaultHelper,
 ) {
     fun savePassword(userId: UUID, request: SavePasswordRequestDto) {
         val vaultId = request.vaultId
@@ -86,9 +85,9 @@ class VaultManagementService(
             )
         ).thenApply {
             when (it.status) {
-                VaultResponseStatus.OK -> it::payload
+                VaultResponseStatus.OK -> it.payload
                 VaultResponseStatus.ERROR -> throw VaultFailedException("Vault failed when processing request")
-                VaultResponseStatus.NOT_FOUND -> throw VaultNotRespondedException("Vault timed out when processing request")
+                VaultResponseStatus.NOT_FOUND -> throw NoSuchElementException("Vault couldn't find requested resource")
             }
         } as CompletableFuture<Res>
     }

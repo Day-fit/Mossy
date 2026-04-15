@@ -3,6 +3,6 @@ package messaging.response.type
 import java.util.UUID
 
 data class DeletePasswordResponseType(
-    private val domain: String,
-    val passwordId: UUID
+    val domain: String? = null,
+    val passwordId: UUID? = null
 ) : AbstractVaultResponseType()

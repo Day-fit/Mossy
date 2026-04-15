@@ -1,4 +1,4 @@
-package messaging
+package messaging.request
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import messaging.request.type.AbstractVaultRequestType
