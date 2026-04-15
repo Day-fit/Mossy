@@ -6,7 +6,8 @@
 
     <groupId>pl.dayfit</groupId>
     <artifactId>mossy-vault-shared</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -14,12 +15,13 @@
         <kotlin.compiler.jvmTarget>1.8</kotlin.compiler.jvmTarget>
     </properties>
 
-    <repositories>
+    <distributionManagement>
         <repository>
-            <id>mavenCentral</id>
-            <url>https://repo1.maven.org/maven2/</url>
+            <id>github</id>
+            <name>Mossy JWKS and Auth common events</name>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
         </repository>
-    </repositories>
+    </distributionManagement>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
