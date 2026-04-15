@@ -41,7 +41,7 @@ export default function PasswordHero() {
 		null
 	);
 
-	const { vaults } = useVault();
+	const { vaults, refreshVaults } = useVault();
 	const [selectedVaultId, setSelectedVaultId] = useState('');
 
 	const [isLoadingPasswords, setIsLoadingPasswords] =
@@ -101,31 +101,36 @@ export default function PasswordHero() {
 		}
 	};
 
+	// Load initial vault passwords only on mount or when vaults first become available
 	useEffect(() => {
-		const loadVaults = async () => {
-			try {
-				const initialVault =
-					vaults.find((vault) => vault.isOnline) ?? vaults[0];
+		if (vaults.length === 0 || selectedVaultId) return;
 
-				setSelectedVaultId(initialVault?.vaultId ?? '');
+		const initialVault = vaults.find((vault) => vault.isOnline) ?? vaults[0];
+		if (initialVault) {
+			setSelectedVaultId(initialVault.vaultId);
+			if (initialVault.isOnline) {
+				void loadPasswords(initialVault.vaultId);
+			} else {
+				resetPasswordView();
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [vaults, selectedVaultId]);
 
-				if (initialVault?.isOnline) {
-					await loadPasswords(initialVault.vaultId);
-				} else {
-					resetPasswordView();
+	// Listen to cross-tab vault refresh events to reload current vault passwords
+	useEffect(() => {
+		const bc = new BroadcastChannel('vault_updates');
+		bc.onmessage = (event) => {
+			if (event.data === 'refresh' && selectedVaultId) {
+				const currentVault = vaults.find(v => v.vaultId === selectedVaultId);
+				if (currentVault?.isOnline) {
+					void loadPasswords(selectedVaultId);
 				}
-				setStatus(null);
-			} catch {
-				setSelectedVaultId('');
-				setStatus({
-					type: 'error',
-					message: 'Failed to load your vaults',
-				});
 			}
 		};
-
-		void loadVaults();
-	}, []);
+		return () => bc.close();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedVaultId, vaults]);
 
 	const handleSubmit = async () => {
 		if (!selectedVaultId || !selectedVault?.isOnline) {
@@ -168,7 +173,7 @@ export default function PasswordHero() {
 
 			setStatus({ type: 'success', message: response.message });
 			resetForm();
-			await loadPasswords(selectedVaultId);
+			await refreshVaults();
 		} catch (error) {
 			setStatus({
 				type: 'error',
@@ -200,7 +205,7 @@ export default function PasswordHero() {
 			if (editedPasswordId === passwordId) {
 				resetForm();
 			}
-			await loadPasswords(selectedVaultId);
+			await refreshVaults();
 		} catch (error) {
 			setStatus({
 				type: 'error',

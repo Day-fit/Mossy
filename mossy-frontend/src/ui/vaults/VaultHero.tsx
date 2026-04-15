@@ -1,18 +1,17 @@
 import { motion, type Variants } from 'framer-motion';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import RippleButton from '../layout/RippleButton.tsx';
 import {
 	executeCreateVaultRequest,
 	executeDeleteVaultRequest,
 	executeUpdateVaultRequest,
-	executeUserVaultsRequest,
-	type UserVaultDto,
 } from '../../api/vault.api.ts';
 import VaultCard from './VaultCard.tsx';
 import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
+import { useVault } from '../../context/VaultContext.tsx';
 
 type CreatedVaultState = {
 	vaultId: string;
@@ -30,10 +29,9 @@ type DeleteState = {
 } | null;
 
 export default function VaultHero() {
+	const { vaults, refreshVaults, isLoading } = useVault();
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
-	const [vaults, setVaults] = useState<UserVaultDto[]>([]);
 	const [vaultName, setVaultName] = useState('');
-	const [isLoading, setIsLoading] = useState(true);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -56,23 +54,6 @@ export default function VaultHero() {
 		},
 	};
 
-	const loadVaults = async () => {
-		try {
-			const nextVaults = await executeUserVaultsRequest();
-			setVaults(nextVaults);
-			setErrorMessage(null);
-		} catch {
-			setVaults([]);
-			setErrorMessage('Failed to load vaults');
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	useEffect(() => {
-		void loadVaults();
-	}, []);
-
 	const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		setIsSubmitting(true);
@@ -89,7 +70,7 @@ export default function VaultHero() {
 
 			setSuccessMessage('Vault created successfully');
 			setVaultName('');
-			await loadVaults();
+			await refreshVaults();
 		} catch (error) {
 			setErrorMessage(
 				error instanceof Error
@@ -125,7 +106,7 @@ export default function VaultHero() {
 				nextName
 			);
 			setSuccessMessage(response.message);
-			await loadVaults();
+			await refreshVaults();
 			setRenameState(null);
 		} catch (error) {
 			setErrorMessage(
@@ -151,7 +132,7 @@ export default function VaultHero() {
 				deleteState.vaultId
 			);
 			setSuccessMessage(response.message);
-			await loadVaults();
+			await refreshVaults();
 			setDeleteState(null);
 		} catch (error) {
 			setErrorMessage(

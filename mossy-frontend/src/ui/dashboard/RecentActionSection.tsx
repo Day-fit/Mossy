@@ -35,7 +35,7 @@ export default function RecentActionSection({
 						<RecentActionEntry
 							key={`${action.domain}-${action.date}-${index}`}
 							date={action.date}
-							actionType={action.actionType}
+							actionType={action.actionType as any}
 							domain={action.domain}
 						/>
 					))
