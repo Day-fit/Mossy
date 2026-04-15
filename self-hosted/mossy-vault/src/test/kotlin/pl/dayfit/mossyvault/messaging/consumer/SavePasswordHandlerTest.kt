@@ -52,7 +52,7 @@ class SavePasswordHandlerTest {
 
         val ack = ackCaptor.firstValue
         assertEquals(VaultResponseStatus.OK, ack.status)
-        assertEquals(correlationId, ack.messageId)
+        assertEquals(request.messageId, ack.messageId)
     }
 
     @Test

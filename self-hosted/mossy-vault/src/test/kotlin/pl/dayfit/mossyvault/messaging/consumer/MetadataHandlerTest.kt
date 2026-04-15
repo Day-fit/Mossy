@@ -57,7 +57,7 @@ class MetadataHandlerTest {
 
         val response = responseCaptor.firstValue
         assertEquals(VaultResponseStatus.OK, response.status)
-        assertEquals(correlationId, response.messageId)
+        assertEquals(request.messageId, response.messageId)
         
         val payload = response.payload
         assertEquals(1, payload.metadata.size)
