@@ -17,6 +17,7 @@ import pl.dayfit.mossypassword.service.VaultManagementService
 import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -113,12 +114,14 @@ class PasswordControllerMvcTest {
         )
 
         whenever(vaultManagementService.getPasswordsMetadata(userId, vaultId))
-            .thenReturn(MetadataResponseType(listOf(first, second)))
+            .thenReturn(
+                CompletableFuture.completedFuture(MetadataResponseType(listOf(first, second)))
+            )
 
         val response = controller.getPasswordsMetadata(userId, vaultId)
 
-        assertEquals(200, response.statusCode.value())
-        assertEquals(listOf(first, second), response.body)
+        assertEquals(200, response.get().statusCode.value())
+        assertEquals(listOf(first, second), response.get().body)
         verify(vaultManagementService, times(1)).getPasswordsMetadata(userId, vaultId)
     }
 
@@ -128,15 +131,15 @@ class PasswordControllerMvcTest {
         val vaultId = UUID.randomUUID()
         val passwordId = UUID.randomUUID()
         
-        val expectedResponse = CiphertextResponseType("BASE64", passwordId)
+        val expectedResponse = CompletableFuture.completedFuture(CiphertextResponseType("BASE64", passwordId))
 
         whenever(vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId))
             .thenReturn(expectedResponse)
 
         val response = controller.getCiphertext(userId, passwordId, vaultId)
 
-        assertEquals(200, response.statusCode.value())
-        assertEquals(expectedResponse, response.body)
+        assertEquals(200, response.get().statusCode.value())
+        assertEquals(expectedResponse.get(), response.get().body)
         verify(vaultManagementService, times(1)).getPasswordCipherText(userId, vaultId, passwordId)
     }
 }
