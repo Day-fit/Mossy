@@ -34,7 +34,10 @@ class SavePasswordHandler(
         future.thenAccept { response ->
             val id = message.vaultId
             val vault = vaultRepository.findVaultById(id)
-                .get()
+
+            if (vault.isEmpty) {
+                return@thenAccept
+            }
 
             if (response.status != VaultResponseStatus.OK) {
                 return@thenAccept
@@ -47,7 +50,7 @@ class SavePasswordHandler(
                 statisticTopic,
                 PasswordStatisticEvent(
                     id,
-                    vault.ownerId,
+                    vault.get().ownerId,
                     response.payload.passwordId!!,
                     response.payload.domain!!,
                     actionType

@@ -1,4 +1,5 @@
 import { apiFetch } from './client.ts';
+import type { ActionType } from '../ui/dashboard';
 
 export type DashboardStatisticsResponse = {
 	passwordChart: {
@@ -7,7 +8,7 @@ export type DashboardStatisticsResponse = {
 	}[];
 	recentActions: {
 		date: string;
-		actionType: 'added' | 'removed' | 'updated';
+		actionType: ActionType;
 		domain: string;
 	}[];
 };

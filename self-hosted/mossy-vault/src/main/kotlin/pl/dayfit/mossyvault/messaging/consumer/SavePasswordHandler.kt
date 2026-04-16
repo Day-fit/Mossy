@@ -33,33 +33,31 @@ class SavePasswordHandler(
 
         val requestPayload = requestDto.payload
 
-        val passwordId = runCatching {
-            persistenceService.saveOrUpdate(requestPayload, Base64.decode(requestPayload.cipherText))
-        }.getOrNull()
+        try {
+            val passwordId = persistenceService.saveOrUpdate(requestPayload, Base64.decode(requestPayload.cipherText))
 
-        if (passwordId == null) {
-            logger.error("Failed to save password entry: ${requestPayload.domain}")
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_SAVED,
                 VaultResponseMessageDto(
-                    requestDto.correlationId,
+                    requestDto.messageId,
+                    SavePasswordResponseType(
+                        passwordId,
+                        requestDto.payload.domain
+                    ),
+                    VaultResponseStatus.OK
+                )
+            )
+        } catch (e: Exception){
+            logger.error("Failed to save password entry: ${requestPayload.domain}", e)
+            stompSessionRegistry.send(
+                StompEndpoints.USER_PASSWORD_SAVED,
+                VaultResponseMessageDto(
+                    requestDto.messageId,
                     SavePasswordResponseType(),
                     VaultResponseStatus.ERROR
                 )
             )
             return
         }
-
-        stompSessionRegistry.send(
-            StompEndpoints.USER_PASSWORD_SAVED,
-            VaultResponseMessageDto(
-                requestDto.messageId,
-                SavePasswordResponseType(
-                    passwordId,
-                    requestDto.payload.domain
-                ),
-                VaultResponseStatus.OK
-            )
-        )
     }
 }

@@ -57,19 +57,6 @@ export default function DashboardHero() {
 
 				<motion.div className="flex-1 min-h-0" variants={childVariants}>
 					<div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
-						{!isLoading && error ? (
-							<div className="w-full h-full flex flex-col items-center justify-center gap-4">
-								<p className="text-sm text-gray-500">{error}</p>
-								<button
-									type="button"
-									className="px-4 py-2 rounded-md bg-gray-200 text-gray-800"
-									onClick={() => void reload()}
-								>
-									Retry
-								</button>
-							</div>
-						) : null}
-
 						{!isLoading && !error && vaults.length === 0 ? (
 							<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
 								No vaults yet.
@@ -77,9 +64,7 @@ export default function DashboardHero() {
 						) : null}
 
 						{vaults.map((vault) => {
-							const vaultName =
-								vaults.find((v) => v.vaultId === vault.vaultId)
-									?.vaultName ?? vault.vaultId;
+							const vaultName = vault.vaultName ?? vault.vaultId;
 							return (
 								<VaultDashboardView
 									key={vault.vaultId}
@@ -95,7 +80,22 @@ export default function DashboardHero() {
 			</motion.section>
 
 			<div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
-				<RecentActionSection actions={statistics.recentActions} />
+				{!isLoading && error ? (
+					<div className="w-full h-full flex flex-col items-center justify-center gap-4">
+						<p className="text-sm text-gray-500">{error}</p>
+						<button
+							type="button"
+							className="px-4 py-2 rounded-md bg-gray-200 text-gray-800"
+							onClick={() => void reload()}
+						>
+							Retry
+						</button>
+					</div>
+				) : null}
+
+				{!error && (
+					<RecentActionSection actions={statistics.recentActions} />
+				)}
 			</div>
 		</section>
 	);

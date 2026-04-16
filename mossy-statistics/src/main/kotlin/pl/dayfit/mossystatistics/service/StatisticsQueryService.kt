@@ -7,6 +7,7 @@ import pl.dayfit.mossystatistics.dto.response.RecentActionDto
 import pl.dayfit.mossystatistics.type.ActionType
 import pl.dayfit.mossystatistics.repository.PasswordActionEventRepository
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Service
@@ -43,7 +44,7 @@ class StatisticsQueryService(
             userId
         )
 
-        return events.groupBy { it.eventTimestamp }
+        return events.groupBy { it.eventTimestamp.truncatedTo(ChronoUnit.DAYS) }
             .map { (timestamp, eventGroup) ->
                 PasswordChartPointDto(
                     timestamp,

@@ -9,6 +9,7 @@ type VaultContextState = {
 	vaults: UserVaultDto[];
 	refreshVaults: () => Promise<void>;
 	isLoading: boolean;
+	errorOccurred: boolean;
 };
 
 export const VaultContext = createContext<VaultContextState | null>(null);
@@ -16,11 +17,16 @@ export const VaultContext = createContext<VaultContextState | null>(null);
 export function VaultProvider({ children }: { children: React.ReactNode }) {
 	const [vaults, setVaults] = useState<UserVaultDto[]>([]);
 	const [isLoading, setIsLoading] = useState<boolean>(true);
+	const [errorOccurred, setErrorOccurred] = useState<boolean>(false);
 
 	const loadVaults = async () => {
 		try {
+			setIsLoading(true);
 			const result = await executeUserVaultsRequest();
 			setVaults(result);
+			setErrorOccurred(false);
+		} catch (error) {
+			setErrorOccurred(true);
 		} finally {
 			setIsLoading(false);
 		}
@@ -49,7 +55,9 @@ export function VaultProvider({ children }: { children: React.ReactNode }) {
 	}, []);
 
 	return (
-		<VaultContext.Provider value={{ vaults, refreshVaults, isLoading }}>
+		<VaultContext.Provider
+			value={{ vaults, refreshVaults, isLoading, errorOccurred }}
+		>
 			{children}
 		</VaultContext.Provider>
 	);

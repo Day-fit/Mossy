@@ -10,6 +10,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.configuration.RedisPrefix
+import pl.dayfit.mossypassword.exception.VaultNotConnectedException
 import pl.dayfit.mossypassword.exception.VaultNotRespondedException
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -26,6 +27,10 @@ class VaultCommunicationService(
     ): CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>> {
         val replicaId = redisTemplate.opsForValue()
             .get("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
+
+        if (replicaId == null) {
+            throw VaultNotConnectedException(vaultId)
+        }
 
         try {
             val future = asyncRabbitTemplate.convertSendAndReceive<VaultResponseMessageDto<AbstractVaultResponseType>>(
