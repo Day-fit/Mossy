@@ -5,9 +5,9 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.exception.VaultAccessDeniedException
-import pl.dayfit.mossypassword.service.exception.VaultNotConnectedException
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.exception.VaultAccessDeniedException
+import pl.dayfit.mossypassword.exception.VaultNotConnectedException
+import pl.dayfit.mossypassword.exception.VaultNotFoundException
 
 @RestControllerAdvice
 class GlobalControllerAdvice {

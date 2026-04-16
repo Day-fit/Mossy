@@ -1,5 +1,7 @@
 package pl.dayfit.mossypassword.controller
 
+import messaging.request.PasswordMetadataDto
+import messaging.response.type.CiphertextResponseType
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -12,19 +14,16 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
-import pl.dayfit.mossypassword.dto.request.ExtractCiphertextRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.dto.response.PasswordMetadataDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.PasswordQueryService
-import pl.dayfit.mossypassword.service.VaultCommunicationService
+import pl.dayfit.mossypassword.service.VaultManagementService
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 @RestController
 class PasswordController(
-    private val vaultCommunicationService: VaultCommunicationService,
-    private val passwordQueryService: PasswordQueryService
+    private val vaultManagementService: VaultManagementService,
 ) {
     /**
      * Saves a password by forwarding it to the vault specified in the request DTO.
@@ -37,7 +36,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.savePassword(userId, requestDto)
+        vaultManagementService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
             ServerResponseDto("Password save request accepted")
@@ -49,7 +48,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.updatePassword(userId, requestDto)
+        vaultManagementService.updatePassword(userId, requestDto)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -68,10 +67,9 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.deletePassword(
+        vaultManagementService.deletePassword(
             userId,
-            deletePasswordRequestDto.vaultId,
-            deletePasswordRequestDto.passwordId
+            deletePasswordRequestDto
         )
 
         return ResponseEntity.ok(
@@ -79,35 +77,20 @@ class PasswordController(
         )
     }
 
-    @PostMapping("/extract-ciphertext")
-    fun extractCiphertext(
-        @AuthenticationPrincipal userId: UUID,
-        @RequestBody requestDto: ExtractCiphertextRequestDto
-    ): ResponseEntity<ServerResponseDto> {
-        vaultCommunicationService.extractCiphertext(userId, requestDto.vaultId, requestDto.passwordId)
-
-        return ResponseEntity.ok(
-            ServerResponseDto("Ciphertext extraction requested successfully")
-        )
-    }
-
     /**
      * Gets password metadata for a vault.
      *
-     * @param domain optional domain to filter passwords by.
      * @param vaultId the UUID of the vault.
      * @return a ResponseEntity containing password metadata without ciphertext.
      */
-    @GetMapping("/metadata", "/uuids")
+    @GetMapping("/metadata")
     fun getPasswordsMetadata(
         @AuthenticationPrincipal userId: UUID,
-        @RequestParam(required = false) domain: String?,
-        @RequestParam vaultId: String
-    ): ResponseEntity<List<PasswordMetadataDto>> {
-        val vaultUuid = UUID.fromString(vaultId)
-
-        val passwords = passwordQueryService.getPasswordsMetadata(userId, vaultUuid, domain)
-        return ResponseEntity.ok(passwords)
+        @RequestParam vaultId: UUID
+    ): CompletableFuture<ResponseEntity<List<PasswordMetadataDto>>> {
+        return vaultManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
+            ResponseEntity.ok(it.metadata)
+        }
     }
 
     /**
@@ -121,15 +104,9 @@ class PasswordController(
     fun getCiphertext(
         @AuthenticationPrincipal userId: UUID,
         @PathVariable passwordId: UUID,
-        @RequestParam vaultId: String
-    ): ResponseEntity<Map<String, String>> {
-        val vaultUuid = UUID.fromString(vaultId)
-
-        val ciphertext = passwordQueryService.getCiphertext(userId, vaultUuid, passwordId)
-        return if (ciphertext != null) {
-            ResponseEntity.ok(mapOf("ciphertext" to ciphertext))
-        } else {
-            ResponseEntity.notFound().build()
-        }
+        @RequestParam vaultId: UUID
+    ): CompletableFuture<ResponseEntity<CiphertextResponseType>> {
+        return vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId)
+            .thenApply { ResponseEntity.ok(it) }
     }
 }

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossypassword.dto.request.VaultRegistrationRequestDto
 import pl.dayfit.mossypassword.dto.request.VaultUpdateRequestDto
 import pl.dayfit.mossypassword.dto.response.VaultRegistrationResponseDto
+import pl.dayfit.mossypassword.dto.response.CreateVaultResponseDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.dto.response.VaultStatusResponseDto
 import pl.dayfit.mossypassword.service.VaultAuthService
@@ -43,12 +44,31 @@ class VaultController(
         )
     }
 
+    /**
+     * Creates a new vault and returns the vault ID and API key along with a success message.
+     * This is the primary endpoint for vault creation.
+     */
+    @PostMapping
+    fun createVault(
+        @AuthenticationPrincipal userId: UUID,
+        @RequestBody vaultRegistrationRequestDto: VaultRegistrationRequestDto
+    ): ResponseEntity<CreateVaultResponseDto> {
+        val registrationResponse = vaultAuthService.register(userId, vaultRegistrationRequestDto)
+        return ResponseEntity.ok(
+            CreateVaultResponseDto(
+                vaultId = registrationResponse.vaultId,
+                apiKey = registrationResponse.apiKey,
+                message = "Vault created successfully"
+            )
+        )
+    }
+
     @GetMapping("/vaults")
     fun getVaults(
         @AuthenticationPrincipal userId: UUID
     ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultStatusService.getVaults(userId)
+            vaultStatusService.getVaultsStatuses(userId)
         )
     }
 
@@ -57,7 +77,7 @@ class VaultController(
         @AuthenticationPrincipal userId: UUID
     ): ResponseEntity<List<VaultStatusResponseDto>> {
         return ResponseEntity.ok(
-            vaultStatusService.getVaults(userId)
+            vaultStatusService.getVaultsStatuses(userId)
         )
     }
 

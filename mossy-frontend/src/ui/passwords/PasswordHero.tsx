@@ -8,10 +8,7 @@ import {
 	type PasswordMetadataDto,
 	type ServerResponseDto,
 } from '../../api/password.api.ts';
-import {
-	executeUserVaultsRequest,
-	type UserVaultDto,
-} from '../../api/vault.api.ts';
+import { type UserVaultDto } from '../../api/vault.api.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
@@ -22,6 +19,7 @@ import type {
 } from './index.ts';
 import PasswordFormCard from './PasswordFormCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
+import { useVault } from '../../context/VaultContext.tsx';
 
 const INITIAL_FORM_STATE: PasswordFormState = {
 	identifier: '',
@@ -43,10 +41,9 @@ export default function PasswordHero() {
 		null
 	);
 
-	const [vaults, setVaults] = useState<UserVaultDto[]>([]);
+	const { vaults, refreshVaults } = useVault();
 	const [selectedVaultId, setSelectedVaultId] = useState('');
 
-	const [isLoadingVaults, setIsLoadingVaults] = useState<boolean>(true);
 	const [isLoadingPasswords, setIsLoadingPasswords] =
 		useState<boolean>(false);
 	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -104,36 +101,36 @@ export default function PasswordHero() {
 		}
 	};
 
+	// Load initial vault passwords only on mount or when vaults first become available
 	useEffect(() => {
-		const loadVaults = async () => {
-			try {
-				const nextVaults = await executeUserVaultsRequest();
-				setVaults(nextVaults);
+		if (vaults.length === 0 || selectedVaultId) return;
 
-				const initialVault =
-					nextVaults.find((vault) => vault.isOnline) ?? nextVaults[0];
+		const initialVault = vaults.find((vault) => vault.isOnline) ?? vaults[0];
+		if (initialVault) {
+			setSelectedVaultId(initialVault.vaultId);
+			if (initialVault.isOnline) {
+				void loadPasswords(initialVault.vaultId);
+			} else {
+				resetPasswordView();
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [vaults, selectedVaultId]);
 
-				setSelectedVaultId(initialVault?.vaultId ?? '');
-				if (initialVault?.isOnline) {
-					await loadPasswords(initialVault.vaultId);
-				} else {
-					resetPasswordView();
+	// Listen to cross-tab vault refresh events to reload current vault passwords
+	useEffect(() => {
+		const bc = new BroadcastChannel('vault_updates');
+		bc.onmessage = (event) => {
+			if (event.data === 'refresh' && selectedVaultId) {
+				const currentVault = vaults.find(v => v.vaultId === selectedVaultId);
+				if (currentVault?.isOnline) {
+					void loadPasswords(selectedVaultId);
 				}
-				setStatus(null);
-			} catch {
-				setVaults([]);
-				setSelectedVaultId('');
-				setStatus({
-					type: 'error',
-					message: 'Failed to load your vaults',
-				});
-			} finally {
-				setIsLoadingVaults(false);
 			}
 		};
-
-		void loadVaults();
-	}, []);
+		return () => bc.close();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedVaultId, vaults]);
 
 	const handleSubmit = async () => {
 		if (!selectedVaultId || !selectedVault?.isOnline) {
@@ -176,7 +173,7 @@ export default function PasswordHero() {
 
 			setStatus({ type: 'success', message: response.message });
 			resetForm();
-			await loadPasswords(selectedVaultId);
+			await refreshVaults();
 		} catch (error) {
 			setStatus({
 				type: 'error',
@@ -208,7 +205,7 @@ export default function PasswordHero() {
 			if (editedPasswordId === passwordId) {
 				resetForm();
 			}
-			await loadPasswords(selectedVaultId);
+			await refreshVaults();
 		} catch (error) {
 			setStatus({
 				type: 'error',
@@ -332,7 +329,6 @@ export default function PasswordHero() {
 			<VaultSelectorCard
 				vaults={vaults}
 				selectedVaultId={selectedVaultId}
-				isLoadingVaults={isLoadingVaults}
 				onSelectVault={(vault) => {
 					void handleVaultSelect(vault);
 				}}
@@ -361,7 +357,6 @@ export default function PasswordHero() {
 						formState={formState}
 						isEditing={isEditing}
 						isSubmitting={isSubmitting}
-						isLoadingVaults={isLoadingVaults}
 						isVaultOnline={Boolean(selectedVault?.isOnline)}
 						status={status}
 						onSubmit={() => {

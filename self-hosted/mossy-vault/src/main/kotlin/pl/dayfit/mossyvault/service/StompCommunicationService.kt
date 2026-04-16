@@ -9,27 +9,25 @@ import org.springframework.web.socket.messaging.WebSocketStompClient
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.configuration.properties.StompConfigurationProperties
 import pl.dayfit.mossyvault.configuration.properties.VaultConfigurationProperties
-import pl.dayfit.mossyvault.messaging.handler.VaultStompSessionHandler
 
 @Service
 @Profile("!test")
 class StompCommunicationService(
-    private val vaultStompSessionHandler: VaultStompSessionHandler,
+    private val vaultStompSessionHandler: pl.dayfit.mossyvault.messaging.handler.VaultStompSessionHandler,
     private val stompConfigurationProperties: StompConfigurationProperties,
     private val vaultConfigurationProperties: VaultConfigurationProperties,
     private val stompClient: WebSocketStompClient,
 ) {
     @PostConstruct
     fun init() {
-        val connectHeaders = StompHeaders().apply {
-            set("vault-id", vaultConfigurationProperties.id.toString())
-            set("vault-secret", vaultConfigurationProperties.secret)
-        }
+        val headers = WebSocketHttpHeaders()
+        headers.put("x-vault-id", listOf(vaultConfigurationProperties.id.toString()))
+        headers.put("x-vault-secret", listOf(vaultConfigurationProperties.secret))
 
         stompClient.connectAsync(
             "${stompConfigurationProperties.host}/api/v1/passwords${StompEndpoints.WEBSOCKET_ENDPOINT}",
-            WebSocketHttpHeaders(),
-            connectHeaders,
+            headers,
+            StompHeaders(),
             vaultStompSessionHandler
         )
     }

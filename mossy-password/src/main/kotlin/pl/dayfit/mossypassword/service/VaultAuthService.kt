@@ -9,7 +9,7 @@ import pl.dayfit.mossypassword.dto.response.VaultRegistrationResponseDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.model.Vault
 import pl.dayfit.mossypassword.repository.VaultRepository
-import pl.dayfit.mossypassword.service.exception.VaultNotFoundException
+import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.io.encoding.Base64

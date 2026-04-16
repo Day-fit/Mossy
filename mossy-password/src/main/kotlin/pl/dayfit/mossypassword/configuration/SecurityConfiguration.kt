@@ -1,5 +1,6 @@
 package pl.dayfit.mossypassword.configuration
 
+import jakarta.servlet.DispatcherType
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -38,6 +39,7 @@ class SecurityConfiguration {
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
             .authorizeHttpRequests {
+                it.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()
                 it.requestMatchers(*securityConfigurationProperties.publicRoutesPatterns.toTypedArray()).permitAll()
                 it.anyRequest().authenticated()
             }

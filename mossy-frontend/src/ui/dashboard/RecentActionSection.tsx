@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import RecentActionEntry from './RecentActionEntry.tsx';
+import type { ActionType } from './index.ts';
 
 type RecentAction = {
 	date: string;
-	actionType: 'added' | 'removed' | 'updated';
+	actionType: ActionType;
 	domain: string;
 };
 

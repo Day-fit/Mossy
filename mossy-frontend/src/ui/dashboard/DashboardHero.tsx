@@ -3,9 +3,11 @@ import { useDashboardStatistics } from '../../hooks/useDashboardStatistics.ts';
 import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
+import { useVault } from '../../context/VaultContext.tsx';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
+	const { vaults } = useVault();
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
@@ -55,42 +57,45 @@ export default function DashboardHero() {
 
 				<motion.div className="flex-1 min-h-0" variants={childVariants}>
 					<div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
-						{!isLoading && error ? (
-							<div className="w-full h-full flex flex-col items-center justify-center gap-4">
-								<p className="text-sm text-gray-500">{error}</p>
-								<button
-									type="button"
-									className="px-4 py-2 rounded-md bg-gray-200 text-gray-800"
-									onClick={() => void reload()}
-								>
-									Retry
-								</button>
-							</div>
-						) : null}
-
-						{!isLoading &&
-						!error &&
-						statistics.vaults.length === 0 ? (
+						{!isLoading && !error && vaults.length === 0 ? (
 							<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
 								No vaults yet.
 							</div>
 						) : null}
 
-						{statistics.vaults.map((vault, index) => (
-							<VaultDashboardView
-								key={`${vault.vaultName}-${index}`}
-								passwordsCount={vault.passwordsCount}
-								vaultName={vault.vaultName}
-								isOnline={vault.isOnline}
-								lastSeenAt={vault.lastSeenAt}
-							/>
-						))}
+						{vaults.map((vault) => {
+							const vaultName = vault.vaultName ?? vault.vaultId;
+							return (
+								<VaultDashboardView
+									key={vault.vaultId}
+									passwordsCount={vault.passwordCount}
+									name={vaultName}
+									isOnline={vault.isOnline}
+									lastSeenAt={vault.lastSeenAt}
+								/>
+							);
+						})}
 					</div>
 				</motion.div>
 			</motion.section>
 
 			<div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
-				<RecentActionSection actions={statistics.recentActions} />
+				{!isLoading && error ? (
+					<div className="w-full h-full flex flex-col items-center justify-center gap-4">
+						<p className="text-sm text-gray-500">{error}</p>
+						<button
+							type="button"
+							className="px-4 py-2 rounded-md bg-gray-200 text-gray-800"
+							onClick={() => void reload()}
+						>
+							Retry
+						</button>
+					</div>
+				) : null}
+
+				{!error && (
+					<RecentActionSection actions={statistics.recentActions} />
+				)}
 			</div>
 		</section>
 	);

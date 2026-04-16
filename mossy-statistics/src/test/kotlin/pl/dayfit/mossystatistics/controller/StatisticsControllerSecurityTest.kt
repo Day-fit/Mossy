@@ -8,15 +8,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.test.context.ActiveProfiles
 import pl.dayfit.mossystatistics.service.StatisticsQueryService
+import pl.dayfit.mossystatistics.service.StatisticsAggregationService
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@ActiveProfiles("test")
 class StatisticsControllerSecurityTest(
     @Autowired private val mockMvc: MockMvc
 ) {
     @MockitoBean
     lateinit var statisticsQueryService: StatisticsQueryService
+
+    @MockitoBean
+    lateinit var statisticsAggregationService: StatisticsAggregationService
 
     @Test
     fun dashboardRequiresAuthentication() {

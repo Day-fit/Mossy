@@ -2,9 +2,10 @@ import { formatDate } from '../../helpers/DateFormatHelper.ts';
 import type { ReactNode } from 'react';
 import { IoAddCircle, IoRemoveCircle } from 'react-icons/io5';
 import { MdChangeCircle } from 'react-icons/md';
+import type { ActionType } from './index.ts';
 
 type RecentActionElementProps = {
-	actionType: 'added' | 'removed' | 'updated';
+	actionType: ActionType;
 	date: string;
 	domain: string;
 };
@@ -14,13 +15,13 @@ export default function RecentActionEntry({
 	date,
 	domain,
 }: RecentActionElementProps) {
-	const textToIcon = (text: string): ReactNode => {
-		switch (text) {
-			case 'added':
+	const textToIcon = (actionType: ActionType): ReactNode => {
+		switch (actionType) {
+			case 'ADDED':
 				return <IoAddCircle className={'text-2xl'} />;
-			case 'removed':
+			case 'REMOVED':
 				return <IoRemoveCircle className={'text-2xl'} />;
-			case 'updated':
+			case 'UPDATED':
 				return <MdChangeCircle className={'text-2xl'} />;
 		}
 	};
