@@ -1,13 +1,14 @@
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
 import { type IDBPDatabase, openDB } from 'idb';
+import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
 
 type EncryptionKeys = Record<string, string | undefined>;
 
 export type UseEncryptionResult = {
 	encrypt: (password: string, vaultId: string) => Promise<string>;
 	decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
-	isPinPresent: (id: string) => boolean;
+	isPinPresent: (id: string) => Promise<boolean>;
 	saveKey: (id: string, pin: string) => Promise<void>;
 	loadKey: (id: string, pin: string) => Promise<CryptoKey>;
 	encryptionPins: RefObject<EncryptionKeys>;
@@ -43,7 +44,7 @@ export function useEncryption(): UseEncryptionResult {
 			const keyRecord = await db.get('keys', id);
 
 			if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-				throw new Error('Key not found');
+				throw new KeyNotFoundException('Key not found');
 			}
 
 			const { wrappedKey, salt } = keyRecord;
@@ -187,7 +188,19 @@ export function useEncryption(): UseEncryptionResult {
 	}, []);
 
 	const isPinPresent = useCallback(
-		(id: string) => {
+		async (id: string) => {
+			const db = dbRef.current;
+
+			if (!db) {
+				throw new Error('Database not initialized');
+			}
+
+			const keyRecord = await db.get('keys', id);
+
+			if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
+				throw new KeyNotFoundException('Key not found');
+			}
+
 			return encryptionPins.current[id] !== undefined;
 		},
 		[encryptionPins]

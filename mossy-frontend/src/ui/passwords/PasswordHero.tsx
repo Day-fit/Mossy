@@ -20,6 +20,8 @@ import type {
 import PasswordFormCard from './PasswordFormCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
 import { useVault } from '../../context/VaultContext.tsx';
+import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
+import KeySyncModal from './KeySyncModal.tsx';
 
 const INITIAL_FORM_STATE: PasswordFormState = {
 	identifier: '',
@@ -31,6 +33,8 @@ export default function PasswordHero() {
 	const { encrypt, decrypt, isPinPresent } = useEncryptionContext();
 
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
+	const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
+
 	const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
 	const [revealedPasswords, setRevealedPasswords] = useState<
 		Record<string, string>
@@ -105,7 +109,8 @@ export default function PasswordHero() {
 	useEffect(() => {
 		if (vaults.length === 0 || selectedVaultId) return;
 
-		const initialVault = vaults.find((vault) => vault.isOnline) ?? vaults[0];
+		const initialVault =
+			vaults.find((vault) => vault.isOnline) ?? vaults[0];
 		if (initialVault) {
 			setSelectedVaultId(initialVault.vaultId);
 			if (initialVault.isOnline) {
@@ -122,7 +127,9 @@ export default function PasswordHero() {
 		const bc = new BroadcastChannel('vault_updates');
 		bc.onmessage = (event) => {
 			if (event.data === 'refresh' && selectedVaultId) {
-				const currentVault = vaults.find(v => v.vaultId === selectedVaultId);
+				const currentVault = vaults.find(
+					(v) => v.vaultId === selectedVaultId
+				);
 				if (currentVault?.isOnline) {
 					void loadPasswords(selectedVaultId);
 				}
@@ -141,7 +148,7 @@ export default function PasswordHero() {
 			return;
 		}
 
-		if (!isPinPresent(selectedVaultId)) {
+		if (!(await isPinPresent(selectedVaultId))) {
 			setLastAction(() => (_: string) => {
 				void resumeSubmit();
 			});
@@ -224,12 +231,22 @@ export default function PasswordHero() {
 			return;
 		}
 
-		if (!isPinPresent(selectedVaultId)) {
-			setLastAction(() => (_: string) => {
-				void resumeRevealToggle(passwordId);
-			});
-			setIsPinModalActive(true);
-			return;
+		try {
+			const shouldAskForPin = !(await isPinPresent(selectedVaultId));
+
+			if (shouldAskForPin) {
+				setLastAction(() => (_: string) => {
+					void resumeSubmit();
+				});
+				setIsPinModalActive(true);
+				return;
+			}
+		} catch (error) {
+			if (!(error instanceof KeyNotFoundException)) {
+				throw error;
+			}
+
+			setIsKeySyncModalActive(true);
 		}
 
 		await resumeRevealToggle(passwordId);
@@ -323,6 +340,12 @@ export default function PasswordHero() {
 					vaultId={selectedVaultId}
 					setIsPinModalActive={setIsPinModalActive}
 					afterPinEntered={lastAction}
+				/>
+			)}
+
+			{isKeySyncModalActive && (
+				<KeySyncModal
+					setIsKeySyncModalActive={setIsKeySyncModalActive}
 				/>
 			)}
 

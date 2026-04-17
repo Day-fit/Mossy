@@ -59,7 +59,7 @@ export default function RippleButton({
 	const variantClassNames = (variant: Variant) => {
 		switch (variant) {
 			case 'primary':
-				return 'bg-black';
+				return 'bg-black text-white';
 
 			case 'outline':
 				return 'bg-transparent box-border border-2 border-gray-800';
