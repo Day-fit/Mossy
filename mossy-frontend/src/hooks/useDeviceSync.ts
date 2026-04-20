@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
 import {
-	executeGenerateNonceRequest,
 	executeRegisterDeviceRequest,
+	executeInitKeySyncRequest,
 } from '../api/device.api.ts';
 import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
 
@@ -23,6 +23,11 @@ export function useDeviceSync(): UseDeviceSyncResult {
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
 	const registrationAttemptedRef = useRef(false);
+	const initSyncAttemptedRef = useRef(false);
+
+	const [nonce, setNonce] = useState<string | null>(null);
+	const [syncCode, setSyncCode] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	// Handle device key generation and registration
 	useEffect(() => {
@@ -36,36 +41,36 @@ export function useDeviceSync(): UseDeviceSyncResult {
 			deviceKeys.X25519.public,
 			deviceKeys.Ed25519.public
 		)
-			.then((response) => {
+			.then((response: any) => {
 				saveDeviceId(response.deviceId);
+				if (response.requiresSync && response.syncCode) {
+					setSyncCode(response.syncCode);
+				}
 			})
-			.catch((error) => {
+			.catch((error: any) => {
 				console.error('Device registration failed:', error);
+				setError(error.message || 'Device registration failed');
 				registrationAttemptedRef.current = false;
 			});
 	}, [deviceKeys, deviceId, saveDeviceId]);
 
-	// Perform device sync once registered
 	useEffect(() => {
-		if (!deviceId) {
-			// Device not yet registered, skip sync for now
+		if (!deviceId || syncCode || initSyncAttemptedRef.current) {
 			return;
 		}
 
-		performDeviceSync();
-	}, [deviceId]);
+		initSyncAttemptedRef.current = true;
 
-	const performDeviceSync = async () => {
-		try {
-			if (!deviceId) {
-				throw new Error('Device ID not available');
-			}
-			await executeGenerateNonceRequest(deviceId);
-			// TODO: Handle nonce response and update state with nonce/syncCode
-		} catch (error) {
-			console.error('Device synchronization failed:', error);
-		}
-	};
+		executeInitKeySyncRequest(deviceId)
+			.then((response: any) => {
+				setSyncCode(response.code);
+			})
+			.catch((error: any) => {
+				console.error('Key sync initialization failed:', error);
+				setError(error.message || 'Key sync initialization failed');
+				initSyncAttemptedRef.current = false;
+			});
+	}, [deviceId, syncCode]);
 
 	const disconnect = () => {
 		if (wsRef.current) {
@@ -80,18 +85,31 @@ export function useDeviceSync(): UseDeviceSyncResult {
 			return connectionPromiseRef.current;
 		}
 
-		if (isConnectedRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+		if (
+			isConnectedRef.current &&
+			wsRef.current?.readyState === WebSocket.OPEN
+		) {
 			return;
 		}
 
 		connectionPromiseRef.current = new Promise(async (resolve, reject) => {
 			try {
 				if (!deviceId) {
-					throw new Error('Device ID not found. Please register device first.');
+					throw new Error(
+						'Device ID not found. Please register device first.'
+					);
 				}
 
 				if (!deviceKeys) {
-					throw new Error('Device keys not found. Please generate device keys first.');
+					throw new Error(
+						'Device keys not found. Please generate device keys first.'
+					);
+				}
+
+				if (!syncCode) {
+					throw new Error(
+						'Sync code not found. Please initialize key sync first.'
+					);
 				}
 
 				await sodium.ready;
@@ -109,10 +127,11 @@ export function useDeviceSync(): UseDeviceSyncResult {
 					throw new Error('Failed to get nonce');
 				}
 
-				const { nonce } = await nonceResponse.json();
+				const { nonce: nonceValue } = await nonceResponse.json();
+				setNonce(nonceValue);
 
 				const nonceBytes = sodium.from_base64(
-					nonce,
+					nonceValue,
 					sodium.base64_variants.URLSAFE_NO_PADDING
 				);
 
@@ -132,7 +151,10 @@ export function useDeviceSync(): UseDeviceSyncResult {
 					sodium.base64_variants.URLSAFE_NO_PADDING
 				);
 
-				const signature = sodium.crypto_sign_detached(payload, privateKeyBytes);
+				const signature = sodium.crypto_sign_detached(
+					payload,
+					privateKeyBytes
+				);
 
 				const signatureB64 = sodium.to_base64(
 					signature,
@@ -217,15 +239,12 @@ export function useDeviceSync(): UseDeviceSyncResult {
 
 	return {
 		isInitialized: !!deviceKeys,
-		nonce: null,
-		syncCode: null,
+		nonce: nonce,
+		syncCode: syncCode,
 		isConnected: isConnectedRef.current,
-		error: null,
+		error: error,
 		connect,
 		disconnect,
 		sendMessage,
 	};
 }
-
-
-

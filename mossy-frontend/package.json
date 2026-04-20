@@ -20,6 +20,7 @@
 		"libsodium": "^0.8.2",
 		"libsodium-wrappers": "^0.8.2",
 		"libsodium-wrappers-sumo": "^0.8.2",
+		"qr-code-styling": "^1.9.2",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0",
 		"react-hook-form": "^7.71.2",

@@ -1,16 +1,73 @@
-import { type Dispatch, type SetStateAction } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import RippleButton from '../layout/RippleButton.tsx';
 import { motion } from 'framer-motion';
 import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
+import QRCodeStyling, { type Options } from 'qr-code-styling';
 
 type KeySyncModalProps = {
 	setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
+};
+
+const qrConfig: Partial<Options> = {
+	width: 240,
+	height: 240,
+	type: 'canvas',
+	data: '',
+
+	image: '/mossy_logo.png',
+	margin: 12,
+
+	qrOptions: {
+		errorCorrectionLevel: 'H',
+	},
+
+	dotsOptions: {
+		type: 'rounded',
+		color: '#007735',
+	},
+
+	backgroundOptions: {
+		color: '#ffffff',
+	},
+
+	imageOptions: {
+		crossOrigin: 'anonymous',
+		margin: 6,
+		imageSize: 0.28,
+	},
+
+	cornersSquareOptions: {
+		type: 'extra-rounded',
+		color: '#007735',
+	},
+
+	cornersDotOptions: {
+		type: 'dot',
+		color: '#007735',
+	},
 };
 
 export default function KeySyncModal({
 	setIsKeySyncModalActive,
 }: KeySyncModalProps) {
 	const { isInitialized, syncCode } = useDeviceSync();
+	const qrCodeRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!qrCodeRef.current || !syncCode) return;
+
+		const el = qrCodeRef.current;
+		const url = `${window.location.origin}/keysync/${syncCode}`;
+
+		el.replaceChildren();
+
+		const qr = new QRCodeStyling({
+			...qrConfig,
+			data: url,
+		});
+
+		qr.append(el);
+	}, [syncCode]);
 
 	return (
 		<div
@@ -37,10 +94,13 @@ export default function KeySyncModal({
 
 				{isInitialized && (
 					<div className={'flex flex-col items-center gap-2'}>
-						<img
-							src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=placeholder"
-							alt={'Code QR to process synchronization'}
-							className="w-56 h-56"
+						<div
+							ref={qrCodeRef}
+							className="w-56 h-56 flex justify-center items-center subpixel-antialiased"
+							style={{
+								transform: 'translateZ(0)',
+								backfaceVisibility: 'hidden',
+							}}
 						/>
 						<p>Scan or type the code below</p>
 						<input

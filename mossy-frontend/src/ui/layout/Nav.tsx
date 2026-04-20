@@ -157,7 +157,6 @@ function Nav() {
 									className="flex flex-col gap-3 w-full pt-2"
 								>
 									<RippleButton
-										className="text-white w-full"
 										onClick={() => {
 											navigate('/register');
 											closeMenu();
@@ -166,7 +165,7 @@ function Nav() {
 										Sign Up
 									</RippleButton>
 									<RippleButton
-										className="bg-transparent border-2 border-gray-800 w-full"
+										variant={'outline'}
 										rippleColor="rgb(0, 0, 0, 0.7)"
 										onClick={() => {
 											navigate('/login');

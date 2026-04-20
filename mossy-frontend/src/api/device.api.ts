@@ -38,3 +38,13 @@ export async function executeRegisterDeviceRequest(
 	});
 	return (await response.json()) as RegisterDeviceResponse;
 }
+
+export async function executeInitKeySyncRequest(deviceId: string): Promise<{ code: string }> {
+	return await apiFetch('/api/v1/key-sync/init', {
+		method: 'POST',
+		headers: {
+			'X-Device-ID': deviceId,
+		},
+	}).then((res) => res.json());
+}
+
