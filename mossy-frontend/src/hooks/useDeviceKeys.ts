@@ -15,34 +15,49 @@ export type KeyRecord = Record<KeyType, KeyPair>;
 export type UseDeviceKeysResult = {
 	generateDeviceKeys: () => Promise<KeyRecord>;
 	deviceKeys: KeyRecord | null;
+	deviceId: string | null;
+	saveDeviceId: (id: string) => Promise<void>;
 	dbRef: React.RefObject<IDBPDatabase | null>;
 };
 
 export function useDeviceKeys(): UseDeviceKeysResult {
 	const { userDetails } = useAuth();
 	const [deviceKeys, setDeviceKeys] = useState<KeyRecord | null>(null);
+	const [deviceId, setDeviceId] = useState<string | null>(null);
+	const [dbReady, setDbReady] = useState(false);
 	const dbRef = useRef<IDBPDatabase | null>(null);
 
 	useEffect(() => {
-		openDB('mossy', 1, {
+		openDB('mossy', 2, {
 			upgrade(db) {
 				if (!db.objectStoreNames.contains('keys')) {
 					db.createObjectStore('keys');
 				}
+				if (!db.objectStoreNames.contains('device')) {
+					db.createObjectStore('device');
+				}
 			},
-		}).then((db) => (dbRef.current = db));
+		}).then((db) => {
+			dbRef.current = db;
+			setDbReady(true);
+		});
 
 		return () => dbRef.current?.close();
 	}, []);
 
 	useEffect(() => {
-		const db = dbRef.current;
-		if (!db || !userDetails?.userId) return;
+		if (!dbReady || !userDetails?.userId) return;
 
-		db.get('mossy', userDetails.userId).then((keys) => {
+		const db = dbRef.current!;
+
+		db.get('keys', userDetails.userId).then((keys) => {
 			if (keys) setDeviceKeys(keys);
 		});
-	}, [userDetails?.userId, dbRef]);
+
+		db.get('device', 'deviceId').then((id) => {
+			if (id) setDeviceId(id);
+		});
+	}, [dbReady, userDetails?.userId]);
 
 	async function generateDeviceKeys(): Promise<KeyRecord> {
 		if (deviceKeys) throw new Error('Device keys already generated');
@@ -87,15 +102,26 @@ export function useDeviceKeys(): UseDeviceKeysResult {
 			},
 		};
 
-		await db.put('mossy', keys, userId);
+		await db.put('keys', keys, userId);
 
 		return keys;
+	}
+
+	async function saveDeviceId(id: string): Promise<void> {
+		const db = dbRef.current;
+
+		if (!db) {
+			throw new Error('Database not initialized');
+		}
+
+		await db.put('device', id, 'deviceId');
 	}
 
 	return {
 		generateDeviceKeys,
 		deviceKeys,
+		saveDeviceId,
+		deviceId,
 		dbRef,
 	};
 }
-

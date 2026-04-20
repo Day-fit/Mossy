@@ -4,6 +4,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext.tsx';
 import { EncryptionProvider } from './context/EncryptionContext.tsx';
 import { VaultProvider } from './context/VaultContext.tsx';
+import { DeviceKeyProvider } from './context/DeviceKeyContext.tsx';
 
 const root = document.getElementById('root') as HTMLElement;
 
@@ -12,7 +13,9 @@ ReactDOM.createRoot(root).render(
 		<AuthProvider>
 			<EncryptionProvider>
 				<VaultProvider>
-					<App />
+					<DeviceKeyProvider>
+						<App />
+					</DeviceKeyProvider>
 				</VaultProvider>
 			</EncryptionProvider>
 		</AuthProvider>

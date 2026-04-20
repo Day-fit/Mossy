@@ -43,7 +43,7 @@ class DeviceService(
         )
 
         try {
-            val publicKeyDH = OctetKeyPair.parse(requestDto.publicKeyDH).toPublicJWK()
+            val publicKeyDH = OctetKeyPair.parse(requestDto.publicKeyDh).toPublicJWK()
             val publicKeyId = OctetKeyPair.parse(requestDto.publicKeyId).toPublicJWK()
 
             val result = userDeviceRepository.save(

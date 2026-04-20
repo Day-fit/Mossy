@@ -2,26 +2,39 @@ import { apiFetch } from './client.ts';
 
 type NonceResponse = { nonce: string };
 
-export async function executeGenerateNonceRequest(): Promise<NonceResponse> {
+export type RegisterDeviceResponse = {
+	deviceId: string;
+	requiresSync: boolean;
+	syncCode: string | null;
+};
+
+export async function executeGenerateNonceRequest(deviceId: string): Promise<NonceResponse> {
 	return await apiFetch('/api/v1/key-sync/nonce', {
 		method: 'GET',
+		headers: {
+			'X-Device-ID': deviceId,
+		},
 	}).then((res) => res.json());
 }
 
-export async function executeRegisterDeviceRequest(pkDh: string, pkId: string) {
-	await apiFetch('/api/v1/key-sync/register', {
+export async function executeRegisterDeviceRequest(
+	pkDh: string,
+	pkId: string
+): Promise<RegisterDeviceResponse> {
+	const response = await apiFetch('/api/v1/device/register', {
 		method: 'POST',
 		body: JSON.stringify({
-			publicKeyDH: {
+			publicKeyDh: {
 				kty: 'OKP',
 				crv: 'X25519',
-				publicKey: pkDh,
+				x: pkDh,
 			},
-			publicKeyID: {
+			publicKeyId: {
 				kty: 'OKP',
 				crv: 'Ed25519',
-				publicKey: pkId,
+				x: pkId,
 			},
 		}),
 	});
+	return (await response.json()) as RegisterDeviceResponse;
 }

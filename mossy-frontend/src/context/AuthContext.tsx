@@ -39,9 +39,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 					if (data.accessToken) {
 						tokenStorage.set(data.accessToken);
 						setIsAuthenticated(true);
+						executeUserDetailsRequest().then((res) =>
+							setUserDetails(res)
+						);
 						return;
 					}
-
 					tokenStorage.set(null);
 					setIsAuthenticated(false);
 				})
@@ -64,8 +66,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 			.catch(() => {
 				refreshToken();
 			});
-
-		executeUserDetailsRequest().then((res) => setUserDetails(res));
 	}, []);
 
 	const login = (token: string) => {

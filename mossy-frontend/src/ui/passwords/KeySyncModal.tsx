@@ -45,7 +45,7 @@ export default function KeySyncModal({
 						<p>Scan or type the code below</p>
 						<input
 							type="text"
-							value={syncCode || '000-000'}
+							value={syncCode || 'Failed to get code'}
 							readOnly
 							className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
 						/>
