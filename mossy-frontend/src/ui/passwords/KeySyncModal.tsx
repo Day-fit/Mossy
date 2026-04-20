@@ -1,12 +1,7 @@
-import { type Dispatch, type SetStateAction, useEffect } from 'react';
+import { type Dispatch, type SetStateAction } from 'react';
 import RippleButton from '../layout/RippleButton.tsx';
 import { motion } from 'framer-motion';
-import { useEncryption } from '../../context/EncryptionContext.tsx';
-import type { KeyRecord } from '../../hooks/useEncryptionHook.ts';
-import {
-	executeGenerateNonceRequest,
-	executeRegisterDeviceRequest,
-} from '../../api/device.api.ts';
+import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
 
 type KeySyncModalProps = {
 	setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
@@ -15,27 +10,7 @@ type KeySyncModalProps = {
 export default function KeySyncModal({
 	setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-	const { generateDeviceKeys, deviceKeys } = useEncryption();
-
-	useEffect(() => {
-		if (!deviceKeys) {
-			generateDeviceKeys().then((res) => {
-				executeRegisterDeviceRequest(
-					res.X25519.public,
-					res.Ed25519.public
-				).then(() => handleKeySync(res));
-			});
-			return;
-		}
-
-		handleKeySync(deviceKeys);
-	}, [deviceKeys]);
-
-	const handleKeySync = (keys: KeyRecord) => {
-		executeGenerateNonceRequest().then(
-			res -> res.
-		)
-	};
+	const { isInitialized, syncCode } = useDeviceSync();
 
 	return (
 		<div
@@ -60,20 +35,22 @@ export default function KeySyncModal({
 					</p>
 				</div>
 
-				<div className={'flex flex-col items-center gap-2'}>
-					<img
-						src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=placeholder"
-						alt={'Code QR to process synchronization'}
-						className="w-56 h-56"
-					/>
-					<p>Scan or type the code below</p>
-					<input
-						type="text"
-						value={'000-000'}
-						readOnly
-						className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
-					/>
-				</div>
+				{isInitialized && (
+					<div className={'flex flex-col items-center gap-2'}>
+						<img
+							src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=placeholder"
+							alt={'Code QR to process synchronization'}
+							className="w-56 h-56"
+						/>
+						<p>Scan or type the code below</p>
+						<input
+							type="text"
+							value={syncCode || '000-000'}
+							readOnly
+							className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
+						/>
+					</div>
+				)}
 
 				<div className={'flex gap-2 mt-5'}>
 					<RippleButton variant={'primary'}>Continue</RippleButton>
