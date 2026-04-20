@@ -9,10 +9,13 @@ import { tokenStorage } from '../auth/tokenStorage.ts';
 import {
 	executeCheckAuthState,
 	executeRefreshRequest,
+	executeUserDetailsRequest,
+	type UserDetailsResponse,
 } from '../api/auth.api.ts';
 
 type AuthState = {
 	isAuthenticated: boolean | null;
+	userDetails: UserDetailsResponse | null;
 	login: (token: string) => void;
 	logout: () => void;
 };
@@ -21,6 +24,9 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
 	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
+		null
+	);
+	const [userDetails, setUserDetails] = useState<UserDetailsResponse | null>(
 		null
 	);
 
@@ -58,6 +64,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 			.catch(() => {
 				refreshToken();
 			});
+
+		executeUserDetailsRequest().then((res) => setUserDetails(res));
 	}, []);
 
 	const login = (token: string) => {
@@ -71,7 +79,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 	};
 
 	return (
-		<AuthContext.Provider value={{ isAuthenticated, login, logout }}>
+		<AuthContext.Provider
+			value={{ isAuthenticated, login, logout, userDetails }}
+		>
 			{isAuthenticated !== null && children}
 		</AuthContext.Provider>
 	);

@@ -62,7 +62,7 @@ export default function RippleButton({
 				return 'bg-black text-white';
 
 			case 'outline':
-				return 'bg-transparent box-border border-2 border-gray-800';
+				return 'bg-transparent box-border border-2 border-gray-800 text-gray-800';
 		}
 	};
 

@@ -1,6 +1,12 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { type Dispatch, type SetStateAction, useEffect } from 'react';
 import RippleButton from '../layout/RippleButton.tsx';
 import { motion } from 'framer-motion';
+import { useEncryption } from '../../context/EncryptionContext.tsx';
+import type { KeyRecord } from '../../hooks/useEncryptionHook.ts';
+import {
+	executeGenerateNonceRequest,
+	executeRegisterDeviceRequest,
+} from '../../api/device.api.ts';
 
 type KeySyncModalProps = {
 	setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
@@ -9,6 +15,28 @@ type KeySyncModalProps = {
 export default function KeySyncModal({
 	setIsKeySyncModalActive,
 }: KeySyncModalProps) {
+	const { generateDeviceKeys, deviceKeys } = useEncryption();
+
+	useEffect(() => {
+		if (!deviceKeys) {
+			generateDeviceKeys().then((res) => {
+				executeRegisterDeviceRequest(
+					res.X25519.public,
+					res.Ed25519.public
+				).then(() => handleKeySync(res));
+			});
+			return;
+		}
+
+		handleKeySync(deviceKeys);
+	}, [deviceKeys]);
+
+	const handleKeySync = (keys: KeyRecord) => {
+		executeGenerateNonceRequest().then(
+			res -> res.
+		)
+	};
+
 	return (
 		<div
 			className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/30 p-4"

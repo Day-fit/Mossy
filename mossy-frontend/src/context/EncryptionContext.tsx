@@ -1,13 +1,13 @@
 import { createContext, type ReactNode, useContext } from 'react';
 import {
-	useEncryption,
+	useEncryptionHook,
 	type UseEncryptionResult,
-} from '../hooks/useEncryption.ts';
+} from '../hooks/useEncryptionHook.ts';
 
 const EncryptionContext = createContext<UseEncryptionResult | null>(null);
 
 export function EncryptionProvider({ children }: { children: ReactNode }) {
-	const encryption = useEncryption();
+	const encryption = useEncryptionHook();
 	return (
 		<EncryptionContext.Provider value={encryption}>
 			{children}
@@ -15,7 +15,7 @@ export function EncryptionProvider({ children }: { children: ReactNode }) {
 	);
 }
 
-export function useEncryptionContext() {
+export function useEncryption() {
 	const ctx = useContext(EncryptionContext);
 	if (!ctx) {
 		throw new Error(

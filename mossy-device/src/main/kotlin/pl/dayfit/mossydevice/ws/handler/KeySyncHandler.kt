@@ -93,7 +93,12 @@ class KeySyncHandler(
         closeStatus: CloseStatus
     ) {
         logger.debug("WebSocket session closed: {}", session.id)
-        val deviceId = session.attributes["deviceId"] as UUID
+        val deviceId = session.attributes["deviceId"] as? UUID
+
+        if (deviceId == null) {
+            logger.debug("No deviceId found in session, ignoring it")
+            return
+        }
 
         keySyncService.handlePeerDisconnected(session)
         webSocketSessionService.removeSession(deviceId)
