@@ -102,6 +102,7 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 		};
 
 		await db.put('keys', keys, userId);
+		setDeviceKeys(keys);
 
 		return keys;
 	}
@@ -114,6 +115,7 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 		}
 
 		await db.put('device', id, 'deviceId');
+		setDeviceId(id);
 	}
 
 	return {

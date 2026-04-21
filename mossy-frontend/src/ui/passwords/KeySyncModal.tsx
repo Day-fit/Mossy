@@ -54,7 +54,6 @@ export default function KeySyncModal({
 	const qrCodeRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		console.log(isInitialized, syncCode);
 		if (!qrCodeRef.current || !isInitialized || !syncCode) return;
 
 		const el = qrCodeRef.current;

@@ -1,17 +1,15 @@
-import { createContext, type ReactNode, useContext, useEffect } from 'react';
+import { createContext, type ReactNode, useContext } from 'react';
 import {
 	useDeviceKeys,
 	type UseDeviceKeysResult,
 } from '../hooks/useDeviceKeys.ts';
+import { useAuth } from './AuthContext.tsx';
 
 const DeviceKeyContext = createContext<UseDeviceKeysResult | null>(null);
 
 export function DeviceKeyProvider({ children }: { children: ReactNode }) {
-	const deviceKeys = useDeviceKeys();
-
-	useEffect(() => {
-
-	}, []);
+	const { userDetails } = useAuth();
+	const deviceKeys = useDeviceKeys(userDetails?.userId);
 
 	return (
 		<DeviceKeyContext.Provider value={deviceKeys}>
