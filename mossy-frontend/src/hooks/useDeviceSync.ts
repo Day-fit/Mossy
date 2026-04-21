@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
-import {
-	executeRegisterDeviceRequest,
-	executeInitKeySyncRequest,
-} from '../api/device.api.ts';
+import { executeInitKeySyncRequest } from '../api/device.api.ts';
 import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
 
 export type UseDeviceSyncResult = {
@@ -18,41 +15,15 @@ export type UseDeviceSyncResult = {
 };
 
 export function useDeviceSync(): UseDeviceSyncResult {
-	const { deviceKeys, deviceId, saveDeviceId } = useDeviceKey();
+	const { deviceKeys, deviceId } = useDeviceKey();
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
-	const registrationAttemptedRef = useRef(false);
 	const initSyncAttemptedRef = useRef(false);
 
 	const [nonce, setNonce] = useState<string | null>(null);
 	const [syncCode, setSyncCode] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
-
-	// Handle device key generation and registration
-	useEffect(() => {
-		if (!deviceKeys || deviceId || registrationAttemptedRef.current) {
-			return;
-		}
-
-		registrationAttemptedRef.current = true;
-
-		executeRegisterDeviceRequest(
-			deviceKeys.X25519.public,
-			deviceKeys.Ed25519.public
-		)
-			.then((response: any) => {
-				saveDeviceId(response.deviceId);
-				if (response.requiresSync && response.syncCode) {
-					setSyncCode(response.syncCode);
-				}
-			})
-			.catch((error: any) => {
-				console.error('Device registration failed:', error);
-				setError(error.message || 'Device registration failed');
-				registrationAttemptedRef.current = false;
-			});
-	}, [deviceKeys, deviceId, saveDeviceId]);
 
 	useEffect(() => {
 		if (!deviceId || syncCode || initSyncAttemptedRef.current) {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
 import { type IDBPDatabase, openDB } from 'idb';
-import { useAuth } from '../context/AuthContext.tsx';
+import * as React from 'react';
 
 type KeyPair = {
 	public: string;
@@ -14,16 +14,17 @@ export type KeyRecord = Record<KeyType, KeyPair>;
 
 export type UseDeviceKeysResult = {
 	generateDeviceKeys: () => Promise<KeyRecord>;
-	deviceKeys: KeyRecord | null;
-	deviceId: string | null;
+	deviceKeys: KeyRecord | null | undefined;
+	deviceId: string | null | undefined;
 	saveDeviceId: (id: string) => Promise<void>;
 	dbRef: React.RefObject<IDBPDatabase | null>;
 };
 
-export function useDeviceKeys(): UseDeviceKeysResult {
-	const { userDetails } = useAuth();
-	const [deviceKeys, setDeviceKeys] = useState<KeyRecord | null>(null);
-	const [deviceId, setDeviceId] = useState<string | null>(null);
+export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
+	const [deviceKeys, setDeviceKeys] = useState<KeyRecord | null | undefined>(
+		null
+	);
+	const [deviceId, setDeviceId] = useState<string | null | undefined>(null);
 	const [dbReady, setDbReady] = useState(false);
 	const dbRef = useRef<IDBPDatabase | null>(null);
 
@@ -46,18 +47,18 @@ export function useDeviceKeys(): UseDeviceKeysResult {
 	}, []);
 
 	useEffect(() => {
-		if (!dbReady || !userDetails?.userId) return;
+		if (!dbReady || !userId) return;
 
 		const db = dbRef.current!;
 
-		db.get('keys', userDetails.userId).then((keys) => {
-			if (keys) setDeviceKeys(keys);
+		db.get('keys', userId).then((keys) => {
+			setDeviceKeys(keys);
 		});
 
 		db.get('device', 'deviceId').then((id) => {
-			if (id) setDeviceId(id);
+			setDeviceId(id);
 		});
-	}, [dbReady, userDetails?.userId]);
+	}, [dbReady, userId]);
 
 	async function generateDeviceKeys(): Promise<KeyRecord> {
 		if (deviceKeys) throw new Error('Device keys already generated');
@@ -67,8 +68,6 @@ export function useDeviceKeys(): UseDeviceKeysResult {
 		if (!db) {
 			throw new Error('Database not initialized');
 		}
-
-		const userId = userDetails?.userId;
 
 		if (!userId) {
 			throw new Error('No userId was provided');

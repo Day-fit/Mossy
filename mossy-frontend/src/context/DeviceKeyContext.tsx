@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext } from 'react';
+import { createContext, type ReactNode, useContext, useEffect } from 'react';
 import {
 	useDeviceKeys,
 	type UseDeviceKeysResult,
@@ -8,6 +8,11 @@ const DeviceKeyContext = createContext<UseDeviceKeysResult | null>(null);
 
 export function DeviceKeyProvider({ children }: { children: ReactNode }) {
 	const deviceKeys = useDeviceKeys();
+
+	useEffect(() => {
+
+	}, []);
+
 	return (
 		<DeviceKeyContext.Provider value={deviceKeys}>
 			{children}

@@ -62,7 +62,7 @@ export default function SigninForm({
 			className="w-full flex justify-center items-center h-fit"
 		>
 			<motion.form
-				className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7 w-1/3 md:w-1/2 sm:w-full my-5"
+				className="bg-white shadow-2xl rounded-2xl py-10 px-20 space-y-7 md:w-1/2 sm:w-full my-5"
 				initial={{ opacity: 0, scale: 0.95 }}
 				animate={{ opacity: 1, scale: 1 }}
 				transition={{ delay: 0.3, duration: 0.5 }}

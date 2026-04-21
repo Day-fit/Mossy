@@ -6,14 +6,12 @@ import {
 	executeDeleteVaultRequest,
 	executeUpdateVaultRequest,
 } from '../../api/vault.api.ts';
-import { executeRegisterDeviceRequest } from '../../api/device.api.ts';
 import VaultCard from './VaultCard.tsx';
 import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryption } from '../../context/EncryptionContext.tsx';
 import { useVault } from '../../context/VaultContext.tsx';
-import { useDeviceKey } from '../../context/DeviceKeyContext.tsx';
 
 type CreatedVaultState = {
 	vaultId: string;
@@ -42,7 +40,6 @@ export default function VaultHero() {
 	const [renameValue, setRenameValue] = useState('');
 	const [deleteState, setDeleteState] = useState<DeleteState>(null);
 	const { saveKey } = useEncryption();
-	const { generateDeviceKeys, deviceKeys, saveDeviceId } = useDeviceKey();
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, y: 20 },
@@ -64,20 +61,6 @@ export default function VaultHero() {
 		setErrorMessage(null);
 
 		try {
-			let keysToRegister = deviceKeys;
-			if (!deviceKeys) {
-				keysToRegister = await generateDeviceKeys();
-			}
-
-			if (keysToRegister) {
-				const response = await executeRegisterDeviceRequest(
-					keysToRegister.X25519.public,
-					keysToRegister.Ed25519.public
-				);
-
-				await saveDeviceId(response.deviceId);
-			}
-
 			const response = await executeCreateVaultRequest(vaultName);
 			setCreatedVault({
 				vaultId: response.vaultId,

@@ -54,7 +54,8 @@ export default function KeySyncModal({
 	const qrCodeRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
-		if (!qrCodeRef.current || !syncCode) return;
+		console.log(isInitialized, syncCode);
+		if (!qrCodeRef.current || !isInitialized || !syncCode) return;
 
 		const el = qrCodeRef.current;
 		const url = `${window.location.origin}/keysync/${syncCode}`;
@@ -67,7 +68,7 @@ export default function KeySyncModal({
 		});
 
 		qr.append(el);
-	}, [syncCode]);
+	}, [syncCode, isInitialized]);
 
 	return (
 		<div
