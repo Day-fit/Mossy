@@ -108,6 +108,9 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 	}
 
 	async function saveDeviceId(id: string): Promise<void> {
+		console.log('Saving device ID:', id);
+		setDeviceId(id);
+
 		const db = dbRef.current;
 
 		if (!db) {
@@ -115,7 +118,7 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 		}
 
 		await db.put('device', id, 'deviceId');
-		setDeviceId(id);
+		console.log('Saved device ID:', id);
 	}
 
 	return {

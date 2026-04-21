@@ -209,7 +209,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 	}, []);
 
 	return {
-		isInitialized: !!deviceKeys,
+		isInitialized: !!syncCode,
 		nonce: nonce,
 		syncCode: syncCode,
 		isConnected: isConnectedRef.current,

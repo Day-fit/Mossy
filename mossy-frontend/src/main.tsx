@@ -12,15 +12,15 @@ const root = document.getElementById('root') as HTMLElement;
 ReactDOM.createRoot(root).render(
 	<BrowserRouter>
 		<AuthProvider>
-			<DeviceBootstrapProvider>
-				<EncryptionProvider>
-					<VaultProvider>
-						<DeviceKeyProvider>
+			<EncryptionProvider>
+				<VaultProvider>
+					<DeviceKeyProvider>
+						<DeviceBootstrapProvider>
 							<App />
-						</DeviceKeyProvider>
-					</VaultProvider>
-				</EncryptionProvider>
-			</DeviceBootstrapProvider>
+						</DeviceBootstrapProvider>
+					</DeviceKeyProvider>
+				</VaultProvider>
+			</EncryptionProvider>
 		</AuthProvider>
 	</BrowserRouter>
 );

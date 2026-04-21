@@ -1,10 +1,9 @@
-import { useDeviceKeys } from './useDeviceKeys.ts';
 import { ensureDeviceRegistered } from '../api/service/device.service.ts';
 import { useState } from 'react';
+import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
 
-export function useDeviceBootstrap(userId: string | undefined) {
-	const { deviceId, generateDeviceKeys, saveDeviceId } =
-		useDeviceKeys(userId);
+export function useDeviceBootstrap() {
+	const { deviceId, generateDeviceKeys, saveDeviceId } = useDeviceKey();
 
 	const [requiresSync, setRequiresSync] = useState(false);
 
