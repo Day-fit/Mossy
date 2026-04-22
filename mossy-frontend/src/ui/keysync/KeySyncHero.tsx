@@ -1,17 +1,24 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect } from 'react';
+import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
+import { useDeviceKey } from '../../context/DeviceKeyContext.tsx';
 
 export default function KeySyncHero() {
 	const { code } = useParams();
+	const { connect } = useDeviceSync(code);
+	const { deviceId } = useDeviceKey();
 	const navigate = useNavigate();
 
 	useEffect(() => {
-		if (code?.match(/^[0-9]{6}$/)) {
+		if (!code?.match(/^[0-9]{6}$/)) {
+			navigate('/dashboard');
 			return;
 		}
 
-		navigate('/dashboard');
-	}, [code]);
+		if (deviceId) {
+			void connect('/api/v1/ws/key-sync');
+		}
+	}, [code, deviceId, connect]);
 
 	return (
 		<>

@@ -236,7 +236,7 @@ export default function PasswordHero() {
 
 			if (shouldAskForPin) {
 				setLastAction(() => (_: string) => {
-					void resumeSubmit();
+					void resumeRevealToggle(passwordId);
 				});
 				setIsPinModalActive(true);
 				return;

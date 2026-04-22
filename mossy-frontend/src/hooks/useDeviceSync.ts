@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
-import { executeInitKeySyncRequest } from '../api/device.api.ts';
+import {
+	executeGenerateNonceRequest,
+	executeInitKeySyncRequest,
+} from '../api/device.api.ts';
 import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
+import { useDeviceStore } from '../store/deviceStore.ts';
 
 export type UseDeviceSyncResult = {
 	isInitialized: boolean;
@@ -14,19 +18,26 @@ export type UseDeviceSyncResult = {
 	sendMessage: (payload: any) => void;
 };
 
-export function useDeviceSync(): UseDeviceSyncResult {
-	const { deviceKeys, deviceId } = useDeviceKey();
+export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
+	const { deviceId } = useDeviceKey();
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
 	const initSyncAttemptedRef = useRef(false);
 
 	const [nonce, setNonce] = useState<string | null>(null);
-	const [syncCode, setSyncCode] = useState<string | null>(null);
+	const [syncCode, setSyncCode] = useState<string | null>(
+		providedSyncCode || null
+	);
 	const [error, setError] = useState<string | null>(null);
 
+	const syncCodeRef = useRef(providedSyncCode || syncCode);
 	useEffect(() => {
-		if (!deviceId || syncCode || initSyncAttemptedRef.current) {
+		syncCodeRef.current = providedSyncCode || syncCode;
+	}, [providedSyncCode, syncCode]);
+
+	useEffect(() => {
+		if (!deviceId || syncCodeRef.current || initSyncAttemptedRef.current) {
 			return;
 		}
 
@@ -65,19 +76,23 @@ export function useDeviceSync(): UseDeviceSyncResult {
 
 		connectionPromiseRef.current = new Promise(async (resolve, reject) => {
 			try {
-				if (!deviceId) {
+				const currentDeviceId = useDeviceStore.getState().deviceId;
+				const currentDeviceKeys = useDeviceStore.getState().deviceKeys;
+				const currentSyncCode = syncCodeRef.current;
+
+				if (!currentDeviceId) {
 					throw new Error(
 						'Device ID not found. Please register device first.'
 					);
 				}
 
-				if (!deviceKeys) {
+				if (!currentDeviceKeys) {
 					throw new Error(
 						'Device keys not found. Please generate device keys first.'
 					);
 				}
 
-				if (!syncCode) {
+				if (!currentSyncCode) {
 					throw new Error(
 						'Sync code not found. Please initialize key sync first.'
 					);
@@ -85,29 +100,18 @@ export function useDeviceSync(): UseDeviceSyncResult {
 
 				await sodium.ready;
 
-				const nonceResponse = await fetch(
-					`${wsUrl.replace('ws', 'http')}/api/v1/key-sync/nonce`,
-					{
-						headers: {
-							'X-Device-ID': deviceId,
-						},
-					}
-				);
+				const nonceResponse =
+					await executeGenerateNonceRequest(currentDeviceId);
 
-				if (!nonceResponse.ok) {
-					throw new Error('Failed to get nonce');
-				}
-
-				const { nonce: nonceValue } = await nonceResponse.json();
-				setNonce(nonceValue);
+				setNonce(nonceResponse.nonce);
 
 				const nonceBytes = sodium.from_base64(
-					nonceValue,
-					sodium.base64_variants.URLSAFE_NO_PADDING
+					nonceResponse.nonce,
+					sodium.base64_variants.URLSAFE
 				);
 
 				const publicDhBytes = sodium.from_base64(
-					deviceKeys.X25519.public,
+					currentDeviceKeys.X25519.public,
 					sodium.base64_variants.URLSAFE_NO_PADDING
 				);
 
@@ -118,7 +122,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 				payload.set(nonceBytes, publicDhBytes.length);
 
 				const privateKeyBytes = sodium.from_base64(
-					deviceKeys.Ed25519.private,
+					currentDeviceKeys.Ed25519.private,
 					sodium.base64_variants.URLSAFE_NO_PADDING
 				);
 
@@ -132,12 +136,16 @@ export function useDeviceSync(): UseDeviceSyncResult {
 					sodium.base64_variants.URLSAFE_NO_PADDING
 				);
 
-				const ws = new WebSocket(wsUrl);
+				const wsUrlWithCode = wsUrl.includes('?')
+					? `${wsUrl}&syncCode=${currentSyncCode}`
+					: `${wsUrl}?syncCode=${currentSyncCode}`;
+
+				const ws = new WebSocket(wsUrlWithCode);
 
 				ws.onopen = () => {
 					const authFrame = {
 						type: 'AUTH_FRAME',
-						deviceId: deviceId,
+						deviceId: currentDeviceId,
 						signature: signatureB64,
 					};
 
