@@ -83,7 +83,7 @@ class KeySyncInterceptor(
         val signature = protocolHeaders[3]
         val expectedNonce = nonceService.getAndConsumeNonce(deviceId)
         val device = userDeviceRepository.findById(deviceId)
-            .orElseThrow { NoSuchElementException("No device with given id") }
+            .orElseThrow { NoSuchElementException("No device with id: $deviceId") }
 
         val expectedPayload = device.publicKeyDH.x.decode() + expectedNonce
         val signatureBytes = runCatching { Base64.UrlSafe.decode(signature) }

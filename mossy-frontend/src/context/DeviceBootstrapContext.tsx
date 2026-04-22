@@ -8,11 +8,12 @@ requiresSync: boolean;
 };
 
 export const DeviceBootstrapProvider = ({
-children,
+	children,
 }: {
-children: ReactNode;
+	children: ReactNode;
 }) => {
-const { isAuthenticated, userDetails } = useAuth();
+	// Compatibility wrapper for existing app wiring; runs device bootstrap side effects.
+	const { isAuthenticated, userDetails } = useAuth();
 const { bootstrapDevice } = useDeviceBootstrap();
 
 useEffect(() => {

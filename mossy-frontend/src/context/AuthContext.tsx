@@ -16,7 +16,8 @@ logout: () => void;
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+	// Compatibility wrapper for existing app wiring; initializes auth state in Zustand.
+	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
 const setUserDetails = useAuthStore((state) => state.setUserDetails);
 

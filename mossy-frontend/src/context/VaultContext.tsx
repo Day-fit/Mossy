@@ -14,7 +14,8 @@ errorOccurred: boolean;
 };
 
 export function VaultProvider({ children }: { children: React.ReactNode }) {
-const setVaults = useVaultStore((state) => state.setVaults);
+	// Compatibility wrapper for existing app wiring; initializes vault state in Zustand.
+	const setVaults = useVaultStore((state) => state.setVaults);
 const setIsLoading = useVaultStore((state) => state.setIsLoading);
 const setErrorOccurred = useVaultStore((state) => state.setErrorOccurred);
 
