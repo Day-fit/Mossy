@@ -1,91 +1,106 @@
-import {
-	createContext,
-	type ReactNode,
-	useContext,
-	useEffect,
-	useState,
-} from 'react';
+import { type ReactNode, useCallback, useEffect } from 'react';
 import { tokenStorage } from '../auth/tokenStorage.ts';
 import {
-	executeCheckAuthState,
-	executeRefreshRequest,
-	executeUserDetailsRequest,
-	type UserDetailsResponse,
+executeCheckAuthState,
+executeRefreshRequest,
+executeUserDetailsRequest,
+type UserDetailsResponse,
 } from '../api/auth.api.ts';
+import { useAuthStore } from '../store/authStore.ts';
 
 type AuthState = {
-	isAuthenticated: boolean | null;
-	userDetails: UserDetailsResponse | null;
-	login: (token: string) => void;
-	logout: () => void;
+isAuthenticated: boolean | null;
+userDetails: UserDetailsResponse | null;
+login: (token: string) => void;
+logout: () => void;
 };
-
-const AuthContext = createContext<AuthState | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-	const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(
-		null
-	);
-	const [userDetails, setUserDetails] = useState<UserDetailsResponse | null>(
-		null
-	);
+const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
+const setUserDetails = useAuthStore((state) => state.setUserDetails);
 
-	useEffect(() => {
-		const token = tokenStorage.get();
-		const refreshToken = () => {
-			executeRefreshRequest()
-				.then((res) => res.json())
-				.then((data) => {
-					if (data.accessToken) {
-						tokenStorage.set(data.accessToken);
-						setIsAuthenticated(true);
-						executeUserDetailsRequest().then((res) =>
-							setUserDetails(res)
-						);
-						return;
-					}
-					tokenStorage.set(null);
-					setIsAuthenticated(false);
-				})
-				.catch(() => {
-					tokenStorage.set(null);
-					setIsAuthenticated(false);
-				});
-		};
-
-		if (token === null) {
-			refreshToken();
-			return;
-		}
-
-		executeCheckAuthState({ token })
-			.then((res) => res.json())
-			.then((data) => {
-				setIsAuthenticated(data.isAuthenticated === true);
-			})
-			.catch(() => {
-				refreshToken();
-			});
-	}, []);
-
-	const login = (token: string) => {
-		tokenStorage.set(token);
-		setIsAuthenticated(true);
-	};
-
-	const logout = () => {
-		tokenStorage.set(null);
-		setIsAuthenticated(false);
-	};
-
-
-	return (
-		<AuthContext.Provider
-			value={{ isAuthenticated, login, logout, userDetails }}
-		>
-			{isAuthenticated !== null && children}
-		</AuthContext.Provider>
-	);
+useEffect(() => {
+const loadUserDetails = () => {
+executeUserDetailsRequest()
+.then((res) => setUserDetails(res))
+.catch(() => setUserDetails(null));
 };
 
-export const useAuth = () => useContext(AuthContext)!;
+const refreshToken = () => {
+executeRefreshRequest()
+.then((res) => res.json())
+.then((data) => {
+if (data.accessToken) {
+tokenStorage.set(data.accessToken);
+setIsAuthenticated(true);
+loadUserDetails();
+return;
+}
+tokenStorage.set(null);
+setUserDetails(null);
+setIsAuthenticated(false);
+})
+.catch(() => {
+tokenStorage.set(null);
+setUserDetails(null);
+setIsAuthenticated(false);
+});
+};
+
+const token = tokenStorage.get();
+
+if (token === null) {
+refreshToken();
+return;
+}
+
+executeCheckAuthState({ token })
+.then((res) => res.json())
+.then((data) => {
+const authenticated = data.isAuthenticated === true;
+setIsAuthenticated(authenticated);
+if (authenticated) {
+loadUserDetails();
+} else {
+setUserDetails(null);
+}
+})
+.catch(() => {
+refreshToken();
+});
+}, [setIsAuthenticated, setUserDetails]);
+
+return isAuthenticated !== null ? children : null;
+};
+
+export const useAuth = (): AuthState => {
+const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+const userDetails = useAuthStore((state) => state.userDetails);
+const setIsAuthenticated = useAuthStore((state) => state.setIsAuthenticated);
+const setUserDetails = useAuthStore((state) => state.setUserDetails);
+
+const login = useCallback(
+(token: string) => {
+tokenStorage.set(token);
+setIsAuthenticated(true);
+void executeUserDetailsRequest()
+.then((res) => setUserDetails(res))
+.catch(() => setUserDetails(null));
+},
+[setIsAuthenticated, setUserDetails]
+);
+
+const logout = useCallback(() => {
+tokenStorage.set(null);
+setUserDetails(null);
+setIsAuthenticated(false);
+}, [setIsAuthenticated, setUserDetails]);
+
+return {
+isAuthenticated,
+userDetails,
+login,
+logout,
+};
+};

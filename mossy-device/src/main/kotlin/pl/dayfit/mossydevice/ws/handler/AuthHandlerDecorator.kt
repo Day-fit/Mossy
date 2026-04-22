@@ -1,7 +1,5 @@
 package pl.dayfit.mossydevice.ws.handler
 
-import com.nimbusds.jose.JWSObject
-import com.nimbusds.jose.crypto.Ed25519Verifier
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
@@ -15,14 +13,14 @@ import pl.dayfit.mossydevice.type.MessageType
 import pl.dayfit.mossydevice.ws.dto.FrameMessageDto
 import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
 import tools.jackson.databind.json.JsonMapper
-import tools.jackson.module.kotlin.convertValue
 import tools.jackson.module.kotlin.readValue
-import java.text.ParseException
+import java.security.Signature
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlin.io.encoding.Base64
 
 @Component
 class AuthHandlerDecorator(
@@ -126,28 +124,17 @@ class AuthHandlerDecorator(
 
         val expectedNonce = nonceService.getAndConsumeNonce(deviceId)
         val device = userDeviceRepository.findById(deviceId)
-            .get() //if the device does not exist, an exception would be thrown in `getAndConsumeNonce` logic
+            .orElseThrow { NoSuchElementException("No device with given id") }
 
-        val publicDh = device.publicKeyDH
-        val publicId = device.publicKeyId
+        val expectedPayload = device.publicKeyDH.x.decode() + expectedNonce
+        val signatureBytes = runCatching { Base64.UrlSafe.decode(signature) }
+            .getOrElse { throw BadCredentialsException("Invalid token") }
 
-        val expectedPayload = publicDh.x.decode() + expectedNonce
-        try {
-            val jws = JWSObject.parse(signature)
-            val verifier = Ed25519Verifier(publicId)
+        val verifier = Signature.getInstance("Ed25519")
+        verifier.initVerify(device.publicKeyId.toPublicKey())
+        verifier.update(expectedPayload)
 
-            if (!jws.verify(verifier)) {
-                throw BadCredentialsException("Invalid token")
-            }
-
-            val result = jws.payload.toBytes().contentEquals(expectedPayload)
-
-            if (result) {
-                return
-            }
-
-            throw BadCredentialsException("Invalid token")
-        } catch (_: ParseException) {
+        if (!verifier.verify(signatureBytes)) {
             throw BadCredentialsException("Invalid token")
         }
     }

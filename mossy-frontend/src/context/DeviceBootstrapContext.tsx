@@ -1,45 +1,29 @@
-import { createContext, type ReactNode, useContext, useEffect } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { useDeviceBootstrap } from '../hooks/useDeviceBootstrap.ts';
 import { useAuth } from './AuthContext.tsx';
 
 type DeviceBootstrapState = {
-	bootstrapDevice: () => Promise<void>;
-	requiresSync: boolean;
+bootstrapDevice: () => Promise<void>;
+requiresSync: boolean;
 };
-
-const DeviceBootstrapContext = createContext<DeviceBootstrapState | null>(null);
 
 export const DeviceBootstrapProvider = ({
-	children,
+children,
 }: {
-	children: ReactNode;
+children: ReactNode;
 }) => {
-	const { isAuthenticated, userDetails } = useAuth();
-	const { bootstrapDevice, requiresSync } = useDeviceBootstrap(
-		userDetails?.userId
-	);
+const { isAuthenticated, userDetails } = useAuth();
+const { bootstrapDevice } = useDeviceBootstrap();
 
-	useEffect(() => {
-		if (!isAuthenticated || !userDetails?.userId) return;
+useEffect(() => {
+if (!isAuthenticated || !userDetails?.userId) return;
 
-		void bootstrapDevice();
-	}, [bootstrapDevice, isAuthenticated, userDetails?.userId]);
+void bootstrapDevice();
+}, [bootstrapDevice, isAuthenticated, userDetails?.userId]);
 
-	return (
-		<DeviceBootstrapContext.Provider
-			value={{ bootstrapDevice, requiresSync }}
-		>
-			{children}
-		</DeviceBootstrapContext.Provider>
-	);
+return children;
 };
 
-export const useDeviceBootstrapContext = () => {
-	const context = useContext(DeviceBootstrapContext);
-	if (!context) {
-		throw new Error(
-			'useDeviceBootstrap must be used within a DeviceBootstrapProvider'
-		);
-	}
-	return context;
+export const useDeviceBootstrapContext = (): DeviceBootstrapState => {
+return useDeviceBootstrap();
 };

@@ -1,211 +1,206 @@
-import {
-	type RefObject,
-	useCallback,
-	useRef,
-} from 'react';
+import { useCallback } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
-import { type IDBPDatabase } from 'idb';
 import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
 import { useDeviceKeys } from './useDeviceKeys.ts';
-
-type EncryptionKeys = Record<string, string | undefined>;
+import { useEncryptionStore } from '../store/encryptionStore.ts';
 
 export type UseEncryptionResult = {
-	encrypt: (password: string, vaultId: string) => Promise<string>;
-	decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
-	isPinPresent: (id: string) => Promise<boolean>;
-	saveKey: (id: string, pin: string) => Promise<void>;
-	loadKey: (id: string, pin: string) => Promise<CryptoKey>;
-	encryptionPins: RefObject<EncryptionKeys>;
+encrypt: (password: string, vaultId: string) => Promise<string>;
+decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
+isPinPresent: (id: string) => Promise<boolean>;
+saveKey: (id: string, pin: string) => Promise<void>;
+loadKey: (id: string, pin: string) => Promise<CryptoKey>;
+setPin: (vaultId: string, pin: string) => void;
 };
 
 export function useEncryptionHook(): UseEncryptionResult {
-	const deviceKeysHook = useDeviceKeys();
-	const dbRef = deviceKeysHook.dbRef as React.RefObject<IDBPDatabase | null>;
+const deviceKeysHook = useDeviceKeys();
+const dbRef = deviceKeysHook.dbRef;
+const pins = useEncryptionStore((state) => state.pins);
+const setPin = useEncryptionStore((state) => state.setPin);
+const clearPin = useEncryptionStore((state) => state.clearPin);
 
-	const encryptionPins = useRef<EncryptionKeys>({});
+const loadKey = useCallback(
+async (id: string, pin: string) => {
+const db = dbRef.current;
 
-	const loadKey = useCallback(
-		async (id: string, pin: string) => {
-			const db = dbRef.current;
+if (!db) {
+throw new Error('Database not initialized');
+}
 
-			if (!db) {
-				throw new Error('Database not initialized');
-			}
+await sodium.ready;
 
-			await sodium.ready;
+const keyRecord = await db.get('keys', id);
 
-			const keyRecord = await db.get('keys', id);
+if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
+throw new KeyNotFoundException('Key not found');
+}
 
-			if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-				throw new KeyNotFoundException('Key not found');
-			}
+const { wrappedKey, salt } = keyRecord;
 
-			const { wrappedKey, salt } = keyRecord;
+const pinBytes = sodium.crypto_pwhash(
+32,
+pin,
+salt,
+sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+sodium.crypto_pwhash_ALG_ARGON2ID13
+);
 
-			const pinBytes = sodium.crypto_pwhash(
-				32,
-				pin,
-				salt,
-				sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-				sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-				sodium.crypto_pwhash_ALG_ARGON2ID13
-			);
+const wrappingKey = await crypto.subtle.importKey(
+'raw',
+new Uint8Array(pinBytes),
+{ name: 'AES-KW', length: 256 },
+false,
+['wrapKey', 'unwrapKey']
+);
 
-			const wrappingKey = await crypto.subtle.importKey(
-				'raw',
-				new Uint8Array(pinBytes),
-				{ name: 'AES-KW', length: 256 },
-				false,
-				['wrapKey', 'unwrapKey']
-			);
+return await crypto.subtle
+.unwrapKey(
+'raw',
+wrappedKey,
+wrappingKey,
+'AES-KW',
+{ name: 'AES-GCM', length: 256 },
+false,
+['encrypt', 'decrypt']
+)
+.catch(() => {
+clearPin(id);
+throw new Error('Invalid pin');
+});
+},
+[clearPin, dbRef]
+);
 
-			return await crypto.subtle
-				.unwrapKey(
-					'raw',
-					wrappedKey,
-					wrappingKey,
-					'AES-KW',
-					{ name: 'AES-GCM', length: 256 },
-					false,
-					['encrypt', 'decrypt']
-				)
-				.catch(() => {
-					encryptionPins.current[id] = undefined;
-					throw new Error('Invalid pin');
-				});
-		},
-		[encryptionPins]
-	);
+const encrypt = useCallback(
+async (password: string, vaultId: string) => {
+const pin = pins[vaultId];
+if (!pin) {
+throw new Error('Pin not found');
+}
 
-	const encrypt = useCallback(
-		async (password: string, vaultId: string) => {
-			const pin = encryptionPins.current[vaultId];
-			if (!pin) {
-				throw new Error('Pin not found');
-			}
+const iv = new Uint8Array(sodium.randombytes_buf(12));
 
-			const iv = new Uint8Array(sodium.randombytes_buf(12));
+const loadedKey = await loadKey(vaultId, pin);
+const encoder = new TextEncoder();
+const plaintext = encoder.encode(password);
 
-			const loadedKey = await loadKey(vaultId, pin);
-			const encoder = new TextEncoder();
-			const plaintext = encoder.encode(password);
+const ciphertext = new Uint8Array(
+await crypto.subtle.encrypt(
+{ name: 'AES-GCM', iv },
+loadedKey,
+plaintext
+)
+);
 
-			const ciphertext = new Uint8Array(
-				await crypto.subtle.encrypt(
-					{ name: 'AES-GCM', iv },
-					loadedKey,
-					plaintext
-				)
-			);
+const blob = new Uint8Array(iv.length + ciphertext.length);
+blob.set(iv, 0);
+blob.set(ciphertext, 12);
 
-			const blob = new Uint8Array(iv.length + ciphertext.length);
-			blob.set(iv, 0);
-			blob.set(ciphertext, 12);
+return btoa(String.fromCharCode(...blob));
+},
+[loadKey, pins]
+);
 
-			return btoa(String.fromCharCode(...blob));
-		},
-		[encryptionPins, loadKey]
-	);
+const decrypt = useCallback(
+async (ciphertext: string, vaultId: string) => {
+const pin = pins[vaultId];
 
-	const decrypt = useCallback(
-		async (ciphertext: string, vaultId: string) => {
-			const pin = encryptionPins.current[vaultId];
+if (!pin) {
+throw new Error('Pin not found');
+}
 
-			if (!pin) {
-				throw new Error('Pin not found');
-			}
+const loadedKey = await loadKey(vaultId, pin);
+const blob = new Uint8Array(
+atob(ciphertext)
+.split('')
+.map((c) => c.charCodeAt(0))
+);
 
-			const loadedKey = await loadKey(vaultId, pin);
-			const blob = new Uint8Array(
-				atob(ciphertext)
-					.split('')
-					.map((c) => c.charCodeAt(0))
-			);
+const iv = blob.slice(0, 12);
+const ciphertextBytes = blob.slice(12);
 
-			const iv = blob.slice(0, 12);
-			const ciphertextBytes = blob.slice(12);
+const decryptedBytes = await crypto.subtle.decrypt(
+{ name: 'AES-GCM', iv: new Uint8Array(iv) },
+loadedKey,
+ciphertextBytes
+);
 
-			const decryptedBytes = await crypto.subtle.decrypt(
-				{ name: 'AES-GCM', iv: new Uint8Array(iv) },
-				loadedKey,
-				ciphertextBytes
-			);
+return new TextDecoder().decode(decryptedBytes);
+},
+[loadKey, pins]
+);
 
-			return new TextDecoder().decode(decryptedBytes);
-		},
-		[encryptionPins, loadKey]
-	);
+const saveKey = useCallback(async (id: string, pin: string) => {
+const db = dbRef.current;
 
-	const saveKey = useCallback(async (id: string, pin: string) => {
-		const db = dbRef.current;
+if (!db) {
+throw new Error('Database not initialized');
+}
 
-		if (!db) {
-			throw new Error('Database not initialized');
-		}
+await sodium.ready;
 
-		await sodium.ready;
+const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
 
-		const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
+const pinBytes = sodium.crypto_pwhash(
+32,
+pin,
+salt,
+sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+sodium.crypto_pwhash_ALG_ARGON2ID13
+);
 
-		const pinBytes = sodium.crypto_pwhash(
-			32,
-			pin,
-			salt,
-			sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-			sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-			sodium.crypto_pwhash_ALG_ARGON2ID13
-		);
+const wrappingKey = await crypto.subtle.importKey(
+'raw',
+new Uint8Array(pinBytes),
+{ name: 'AES-KW', length: 256 },
+false,
+['wrapKey', 'unwrapKey']
+);
 
-		const wrappingKey = await crypto.subtle.importKey(
-			'raw',
-			new Uint8Array(pinBytes),
-			{ name: 'AES-KW', length: 256 },
-			false,
-			['wrapKey', 'unwrapKey']
-		);
+const dataKey = await crypto.subtle.generateKey(
+{ name: 'AES-GCM', length: 256 },
+true,
+['encrypt', 'decrypt']
+);
 
-		const dataKey = await crypto.subtle.generateKey(
-			{ name: 'AES-GCM', length: 256 },
-			true,
-			['encrypt', 'decrypt']
-		);
+const wrappedKey = await crypto.subtle.wrapKey(
+'raw',
+dataKey,
+wrappingKey,
+'AES-KW'
+);
 
-		const wrappedKey = await crypto.subtle.wrapKey(
-			'raw',
-			dataKey,
-			wrappingKey,
-			'AES-KW'
-		);
+await db.put('keys', { wrappedKey, salt }, id);
+}, [dbRef]);
 
-		await db.put('keys', { wrappedKey, salt }, id);
-	}, [dbRef]);
+const isPinPresent = useCallback(
+async (id: string) => {
+const db = dbRef.current;
 
-	const isPinPresent = useCallback(
-		async (id: string) => {
-			const db = dbRef.current;
+if (!db) {
+throw new Error('Database not initialized');
+}
 
-			if (!db) {
-				throw new Error('Database not initialized');
-			}
+const keyRecord = await db.get('keys', id);
 
-			const keyRecord = await db.get('keys', id);
+if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
+throw new KeyNotFoundException('Key not found');
+}
 
-			if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-				throw new KeyNotFoundException('Key not found');
-			}
+return pins[id] !== undefined;
+},
+[dbRef, pins]
+);
 
-			return encryptionPins.current[id] !== undefined;
-		},
-		[encryptionPins, dbRef]
-	);
-
-	return {
-		encrypt,
-		decrypt,
-		isPinPresent,
-		saveKey,
-		loadKey,
-		encryptionPins,
-	};
+return {
+encrypt,
+decrypt,
+isPinPresent,
+saveKey,
+loadKey,
+setPin,
+};
 }

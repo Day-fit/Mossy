@@ -11,7 +11,7 @@ export function ensureDeviceRegistered(ctx: {
 	}>;
 	saveDeviceId: (id: string) => Promise<void> | void;
 }) {
-	if (ctx.deviceId !== null) return Promise.resolve();
+	if (ctx.deviceId != null) return Promise.resolve();
 
 	if (inFlight) return inFlight;
 
