@@ -39,6 +39,9 @@ class AuthHandlerDecorator(
                 it.deviceId,
                 session
             )
+
+            session.attributes["deviceId"] = it.deviceId
+
             it
         }.orTimeout(5, TimeUnit.SECONDS)
             .whenComplete { _: DevicePrincipal?, _: Throwable? ->
@@ -80,7 +83,14 @@ class AuthHandlerDecorator(
     private fun handleAuthFrame(session: WebSocketSession, dto: FrameMessageDto.AuthFrame) {
         runCatching {
             verifySignatureAndPayload(dto)
-            DevicePrincipal(dto.deviceId)
+
+            val device = userDeviceRepository.findById(dto.deviceId)
+                .orElseThrow()
+
+            DevicePrincipal(
+                dto.deviceId,
+                device.userId
+            )
         }.onSuccess { principal ->
             pendingSessions[session.id]?.complete(principal)
         }.onFailure { ex ->
@@ -119,7 +129,6 @@ class AuthHandlerDecorator(
         session.attributes["principal"] != null
 
     private fun verifySignatureAndPayload(authFrame: FrameMessageDto.AuthFrame) {
-        val signature = authFrame.signature
         val deviceId = authFrame.deviceId
 
         val expectedNonce = nonceService.getAndConsumeNonce(deviceId)
@@ -127,7 +136,7 @@ class AuthHandlerDecorator(
             .orElseThrow { NoSuchElementException("No device with id: $deviceId") }
 
         val expectedPayload = device.publicKeyDH.x.decode() + expectedNonce
-        val signatureBytes = runCatching { Base64.UrlSafe.decode(signature) }
+        val signatureBytes = runCatching { Base64.UrlSafe.decode(authFrame.signature) }
             .getOrElse { throw BadCredentialsException("Invalid token") }
 
         val verifier = Signature.getInstance("Ed25519")

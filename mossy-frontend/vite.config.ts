@@ -26,6 +26,12 @@ export default defineConfig({
 				changeOrigin: true,
 				secure: false,
 			},
+			'/api/v1/ws/key-sync': {
+				target: 'http://localhost:8081',
+				changeOrigin: true,
+				secure: false,
+				ws: true,
+			},
 			'/api/v1/statistics': {
 				target: 'http://localhost:8085',
 				changeOrigin: true,
