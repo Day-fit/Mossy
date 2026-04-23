@@ -34,7 +34,6 @@ export default function PasswordHero() {
 
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
 	const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
-
 	const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
 	const [revealedPasswords, setRevealedPasswords] = useState<
 		Record<string, string>

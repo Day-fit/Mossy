@@ -3,6 +3,7 @@ import RippleButton from '../layout/RippleButton.tsx';
 import { motion } from 'framer-motion';
 import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
+import { useDeviceKeys } from '../../hooks/useDeviceKeys.ts';
 
 type KeySyncModalProps = {
 	setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
@@ -50,7 +51,8 @@ const qrConfig: Partial<Options> = {
 export default function KeySyncModal({
 	setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-	const { isInitialized, syncCode } = useDeviceSync();
+	const { generateDhKey, clearDhKey } = useDeviceKeys();
+	const { isInitialized, syncCode, connect } = useDeviceSync();
 	const qrCodeRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -67,7 +69,18 @@ export default function KeySyncModal({
 		});
 
 		qr.append(el);
+
+		void handleReceivingKeySync()
 	}, [syncCode, isInitialized]);
+
+	async function handleReceivingKeySync(){
+		try {
+			await generateDhKey();
+			await connect(`/api/v1/ws/key-sync?${syncCode}`);
+		} finally {
+			clearDhKey();
+		}
+	}
 
 	return (
 		<div

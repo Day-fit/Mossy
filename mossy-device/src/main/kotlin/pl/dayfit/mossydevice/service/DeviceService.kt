@@ -1,6 +1,7 @@
 package pl.dayfit.mossydevice.service
 
 import com.nimbusds.jose.jwk.OctetKeyPair
+import com.nimbusds.jose.jwk.Curve
 import org.springframework.stereotype.Service
 import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
@@ -38,14 +39,16 @@ class DeviceService(
         )
 
         try {
-            val publicKeyDH = OctetKeyPair.parse(requestDto.publicKeyDh).toPublicJWK()
             val publicKeyId = OctetKeyPair.parse(requestDto.publicKeyId).toPublicJWK()
+
+            if (publicKeyId.curve != Curve.Ed25519) {
+                throw InvalidKeyFormat("Invalid key format")
+            }
 
             val result = userDeviceRepository.save(
                 UserDevice(
                     null,
                     userId,
-                    publicKeyDH,
                     publicKeyId,
                     hasAnyDevicePaired.not(),
                     null

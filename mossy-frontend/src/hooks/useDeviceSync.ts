@@ -5,6 +5,7 @@ import {
 	executeInitKeySyncRequest,
 } from '../api/device.api.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
+import { useDeviceKeys } from './useDeviceKeys.ts';
 
 export type UseDeviceSyncResult = {
 	isInitialized: boolean;
@@ -14,11 +15,18 @@ export type UseDeviceSyncResult = {
 	error: string | null;
 	connect: (wsUrl: string) => Promise<void>;
 	disconnect: () => void;
-	sendMessage: (payload: any) => void;
+	sendKey: (encodedKey: string) => void;
+};
+
+export type JWKFormat = {
+	kty: 'OKP';
+	crv: 'X25519' | 'Ed25519';
+	x: string;
 };
 
 export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 	const deviceId = useDeviceStore((state) => state.deviceId);
+	const { generateDhKey } = useDeviceKeys();
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
@@ -58,7 +66,89 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 			wsRef.current.close();
 			wsRef.current = null;
 		}
+
 		isConnectedRef.current = false;
+	};
+
+	const buildAuthFrame = async (wsUrl: string) => {
+		const currentDeviceId = useDeviceStore.getState().deviceId;
+		const idKey = useDeviceStore.getState().idKey;
+		const currentSyncCode = syncCodeRef.current;
+
+		if (!currentDeviceId) {
+			throw new Error(
+				'Device ID not found. Please register device first.'
+			);
+		}
+
+		if (!idKey) {
+			throw new Error(
+				'One of the keys is missing. Please generate keys first.'
+			);
+		}
+
+		if (!currentSyncCode) {
+			throw new Error(
+				'Sync code not found. Please initialize key sync first.'
+			);
+		}
+
+		await sodium.ready;
+
+		const dhKey = await generateDhKey();
+
+		const nonceResponse =
+			await executeGenerateNonceRequest(currentDeviceId);
+		setNonce(nonceResponse.nonce);
+
+		const nonceBytes = sodium.from_base64(
+			nonceResponse.nonce,
+			sodium.base64_variants.URLSAFE
+		);
+
+		const publicDhBytes = sodium.from_base64(
+			dhKey.public,
+			sodium.base64_variants.URLSAFE_NO_PADDING
+		);
+
+		const payload = new Uint8Array(
+			publicDhBytes.length + nonceBytes.length
+		);
+
+		payload.set(publicDhBytes, 0);
+		payload.set(nonceBytes, publicDhBytes.length);
+
+		if (!idKey?.private) {
+			console.log('idKey:', idKey);
+			throw new Error('Missing idKey.private');
+		}
+
+		const privateKeyBytes = sodium.from_base64(
+			idKey.private,
+			sodium.base64_variants.URLSAFE_NO_PADDING
+		);
+
+		const signature = sodium.crypto_sign_detached(payload, privateKeyBytes);
+
+		const signatureB64 = sodium.to_base64(
+			signature,
+			sodium.base64_variants.URLSAFE_NO_PADDING
+		);
+
+		const wsUrlWithCode = wsUrl.includes('?')
+			? `${wsUrl}&syncCode=${currentSyncCode}`
+			: `${wsUrl}?syncCode=${currentSyncCode}`;
+
+		return {
+			wsUrlWithCode,
+			publicDh: {
+				kty: 'OKP',
+				crv: 'X25519',
+				x: dhKey.public,
+			} as JWKFormat,
+			deviceId: currentDeviceId,
+			signature: signatureB64,
+		};
 	};
 
 	const connect = async (wsUrl: string): Promise<void> => {
@@ -73,137 +163,96 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 			return;
 		}
 
-		connectionPromiseRef.current = new Promise(async (resolve, reject) => {
+		connectionPromiseRef.current = (async () => {
 			try {
-				const currentDeviceId = useDeviceStore.getState().deviceId;
-				const currentDeviceKeys = useDeviceStore.getState().deviceKeys;
-				const currentSyncCode = syncCodeRef.current;
+				const { wsUrlWithCode, deviceId, signature, publicDh } =
+					await buildAuthFrame(wsUrl);
 
-				if (!currentDeviceId) {
-					throw new Error(
-						'Device ID not found. Please register device first.'
+				await connectToWs(wsUrlWithCode, deviceId, signature, publicDh);
+			} catch (error) {
+				disconnect();
+				throw error;
+			} finally {
+				connectionPromiseRef.current = null;
+			}
+		})();
+
+		return connectionPromiseRef.current;
+	};
+
+	const connectToWs = (
+		wsUrl: string,
+		deviceId: string,
+		signature: string,
+		publicDh: JWKFormat
+	): Promise<void> =>
+		new Promise((resolve, reject) => {
+			try {
+				console.log('Connecting to WebSocket:', wsUrl);
+				const ws = new WebSocket(wsUrl.toString());
+
+				const fail = (err: unknown) => {
+					disconnect();
+					connectionPromiseRef.current = null;
+					reject(
+						err instanceof Error
+							? err
+							: new Error('WebSocket connection failed')
 					);
-				}
-
-				if (!currentDeviceKeys) {
-					throw new Error(
-						'Device keys not found. Please generate device keys first.'
-					);
-				}
-
-				if (!currentSyncCode) {
-					throw new Error(
-						'Sync code not found. Please initialize key sync first.'
-					);
-				}
-
-				await sodium.ready;
-
-				const nonceResponse =
-					await executeGenerateNonceRequest(currentDeviceId);
-
-				setNonce(nonceResponse.nonce);
-
-				const nonceBytes = sodium.from_base64(
-					nonceResponse.nonce,
-					sodium.base64_variants.URLSAFE
-				);
-
-				const publicDhBytes = sodium.from_base64(
-					currentDeviceKeys.X25519.public,
-					sodium.base64_variants.URLSAFE_NO_PADDING
-				);
-
-				const payload = new Uint8Array(
-					publicDhBytes.length + nonceBytes.length
-				);
-				payload.set(publicDhBytes);
-				payload.set(nonceBytes, publicDhBytes.length);
-
-				const privateKeyBytes = sodium.from_base64(
-					currentDeviceKeys.Ed25519.private,
-					sodium.base64_variants.URLSAFE_NO_PADDING
-				);
-
-				const signature = sodium.crypto_sign_detached(
-					payload,
-					privateKeyBytes
-				);
-
-				const signatureB64 = sodium.to_base64(
-					signature,
-					sodium.base64_variants.URLSAFE_NO_PADDING
-				);
-
-				const wsUrlWithCode = wsUrl.includes('?')
-					? `${wsUrl}&syncCode=${currentSyncCode}`
-					: `${wsUrl}?syncCode=${currentSyncCode}`;
-
-				const ws = new WebSocket(wsUrlWithCode);
-
-				ws.onopen = () => {
-					const authFrame = {
-						type: 'AUTH_FRAME',
-						deviceId: currentDeviceId,
-						signature: signatureB64,
-					};
-
-					ws.send(JSON.stringify(authFrame));
 				};
 
-				ws.onerror = (error) => {
-					disconnect();
-					reject(new Error(`WebSocket error: ${error}`));
+				ws.onopen = () => {
+					try {
+						ws.send(
+							JSON.stringify({
+								type: 'AUTH_FRAME',
+								deviceId,
+								signature,
+								publicDh,
+							})
+						);
+
+						wsRef.current = ws;
+						isConnectedRef.current = true;
+						connectionPromiseRef.current = null;
+						resolve();
+					} catch (err) {
+						fail(err);
+					}
+				};
+
+				ws.onerror = () => {
+					fail(new Error('WebSocket error'));
 				};
 
 				ws.onclose = () => {
 					isConnectedRef.current = false;
 					wsRef.current = null;
 				};
-
-				wsRef.current = ws;
-				isConnectedRef.current = true;
-
-				await new Promise<void>((authResolve, authReject) => {
-					const timeout = setTimeout(() => {
-						authReject(new Error('Authentication timeout'));
-					}, 5000);
-
-					ws.onmessage = (event) => {
-						clearTimeout(timeout);
-
-						if (
-							event.data === 'unauthorized' ||
-							event.data === 'not found' ||
-							event.data === 'auth failed'
-						) {
-							authReject(new Error(event.data));
-						} else {
-							authResolve();
-						}
-					};
-				});
-
-				resolve();
-			} catch (error) {
-				disconnect();
-				reject(error);
-			} finally {
+			} catch (err) {
 				connectionPromiseRef.current = null;
+				reject(
+					err instanceof Error
+						? err
+						: new Error('Invalid WebSocket URL')
+				);
 			}
 		});
 
-		return connectionPromiseRef.current;
-	};
+	const sendKey = (encodedVaultKey: string) => {
+		const dhKey = useDeviceStore.getState().dhKey;
+		if (!dhKey) {
+			throw new Error('DH key not found');
+		}
 
-	const sendMessage = (payload: any) => {
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
 			throw new Error('WebSocket not connected');
 		}
 
 		const message = {
-			type: 'MESSAGE',
-			payload,
+			type: 'KeySync',
+			cipherText: encodedVaultKey,
+			publicDh: dhKey.public,
 		};
 
 		wsRef.current.send(JSON.stringify(message));
@@ -223,6 +272,6 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 		error: error,
 		connect,
 		disconnect,
-		sendMessage,
+		sendKey,
 	};
 }

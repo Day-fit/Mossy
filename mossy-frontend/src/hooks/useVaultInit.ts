@@ -1,11 +1,13 @@
 import { useCallback, useEffect } from 'react';
 import { executeUserVaultsRequest } from '../api/vault.api.ts';
 import { useVaultStore } from '../store/vaultStore.ts';
+import { useAuthStore } from '../store/authStore.ts';
 
 export function useVaultInit() {
 	const setVaults = useVaultStore((state) => state.setVaults);
 	const setIsLoading = useVaultStore((state) => state.setIsLoading);
 	const setErrorOccurred = useVaultStore((state) => state.setErrorOccurred);
+	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
 	const loadVaults = useCallback(async () => {
 		try {
@@ -21,6 +23,8 @@ export function useVaultInit() {
 	}, [setErrorOccurred, setIsLoading, setVaults]);
 
 	useEffect(() => {
+		if (!isAuthenticated) return;
+
 		void loadVaults();
 
 		const bc = new BroadcastChannel('vault_updates');
@@ -33,5 +37,5 @@ export function useVaultInit() {
 		return () => {
 			bc.close();
 		};
-	}, [loadVaults]);
+	}, [loadVaults, isAuthenticated]);
 }

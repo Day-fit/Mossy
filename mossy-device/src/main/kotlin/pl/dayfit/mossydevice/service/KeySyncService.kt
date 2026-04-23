@@ -8,12 +8,13 @@ import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
 import pl.dayfit.mossydevice.dto.response.InitKeySyncResponseDto
 import pl.dayfit.mossydevice.dto.response.KeySyncInfoResponseDto
-import pl.dayfit.mossydevice.dto.ws.KeySyncDto
 import pl.dayfit.mossydevice.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossydevice.model.redis.KeySyncRoom
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
 import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossydevice.type.KeySyncRole
+import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
 import tools.jackson.databind.json.JsonMapper
 import java.security.SecureRandom
 import java.util.UUID
@@ -31,9 +32,9 @@ class KeySyncService (
     @Throws(RoleAlreadyInRoomException::class)
     fun handleDeviceJoinedSync(syncCode: String, webSocketSession: WebSocketSession)
     {
-        val principal = webSocketSession.principal as JwtAuthenticationToken
-        val userId = principal.principal
-        val deviceId = webSocketSession.attributes["deviceId"] as UUID
+        val principal = webSocketSession.attributes["principal"] as DevicePrincipal
+        val deviceId = principal.deviceId
+        val userId = principal.userId
 
         val room = keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
             .filter { it.code == syncCode }
@@ -53,18 +54,31 @@ class KeySyncService (
             room.receiverPresent = true
         }
 
+        if (room.senderPresent && room.receiverPresent)
+        {
+            handleBothPeerPresent(room.receiverId, room.senderId!!)
+        }
+
         webSocketSession.attributes["role"] = role
         keySyncRoomRepository.save(room)
     }
 
+    fun handleBothPeerPresent(receiverId: UUID, senderId: UUID)
+    {
+        val receiverSession = sessionService.getSession(receiverId)
+        val senderSession = sessionService.getSession(senderId)
+
+        senderSession?.sendMessage(TextMessage("both_peer_present"))
+        receiverSession?.sendMessage(TextMessage("both_peer_present"))
+    }
+
     @Throws(IllegalStateException::class, NoSuchElementException::class)
-    fun handleSync(message: KeySyncDto, session: WebSocketSession)
+    fun handleSync(message: WebSocketMessageDto.KeySync, session: WebSocketSession)
     {
         val code = session.attributes["syncCode"] as String
-        val token = session.principal as JwtAuthenticationToken
-        val userId = token.principal
+        val principal = session.attributes["principal"] as DevicePrincipal
 
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
+        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(principal.userId)
             .filter { it.code == code }
             .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
 
@@ -124,7 +138,6 @@ class KeySyncService (
             val peerDevice = deviceRepository.findById(peerId!!)
                 .orElseThrow { NoSuchElementException("No device with given id") }
 
-            publicKeyDH = peerDevice.publicKeyDH
             publicKeyId = peerDevice.publicKeyId
         }
 

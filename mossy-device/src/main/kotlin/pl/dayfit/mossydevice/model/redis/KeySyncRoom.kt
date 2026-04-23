@@ -27,7 +27,9 @@ data class KeySyncRoom(
     @Indexed
     val userId: UUID,
     val receiverId: UUID,
+    var receiverDh: String? = null,
     var senderId: UUID? = null,
+    var senderDh: String? = null,
     var receiverPresent: Boolean = false,
     var senderPresent: Boolean = false
 )

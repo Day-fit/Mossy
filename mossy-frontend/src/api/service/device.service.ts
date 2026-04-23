@@ -18,10 +18,7 @@ export function ensureDeviceRegistered(ctx: {
 	inFlight = (async () => {
 		const keys = await ctx.generateDeviceKeys();
 
-		const res = await executeRegisterDeviceRequest(
-			keys.Ed25519.public,
-			keys.X25519.public
-		);
+		const res = await executeRegisterDeviceRequest(keys.Ed25519.public);
 
 		await ctx.saveDeviceId(res.deviceId);
 

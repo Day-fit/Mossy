@@ -14,7 +14,6 @@ data class UserDevice(
     @GeneratedValue(strategy = GenerationType.UUID)
     val deviceId: UUID?,
     val userId: UUID,
-    val publicKeyDH: OctetKeyPair,
     val publicKeyId: OctetKeyPair,
     val approved: Boolean,
     val lastUsed: Instant?

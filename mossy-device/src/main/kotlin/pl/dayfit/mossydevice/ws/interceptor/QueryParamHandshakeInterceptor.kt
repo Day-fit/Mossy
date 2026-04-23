@@ -10,7 +10,7 @@ import org.springframework.web.socket.server.HandshakeInterceptor
  * Extracts well-known query parameters from the WebSocket upgrade URL and
  * stores them in the session's attribute map so handlers can access them.
  *
- * Currently recognised parameters:
+ * Currently, recognized parameters:
  *  - `syncCode` – the 6-digit key-sync room code supplied by the joining device.
  */
 @Component

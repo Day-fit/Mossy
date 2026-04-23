@@ -8,13 +8,15 @@ type KeyPair = {
 	private: string;
 };
 
-type KeyType = 'X25519' | 'Ed25519';
-
-export type KeyRecord = Record<KeyType, KeyPair>;
+export type CryptoPair =
+	| ({ type: 'Ed25519' } & KeyPair)
+	| ({ type: 'X25519' } & KeyPair);
 
 export type UseDeviceKeysResult = {
-	generateDeviceKeys: () => Promise<KeyRecord>;
-	deviceKeys: KeyRecord | null | undefined;
+	generateIdKey: () => Promise<CryptoPair>;
+	generateDhKey: () => Promise<CryptoPair>;
+	clearDhKey: () => void;
+	idKey: CryptoPair | null | undefined;
 	deviceId: string | null | undefined;
 	saveDeviceId: (id: string) => Promise<void>;
 	dbRef: { current: IDBPDatabase | null };
@@ -51,9 +53,10 @@ async function getOrCreateDatabase(): Promise<IDBPDatabase> {
 }
 
 export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
-	const deviceKeys = useDeviceStore((state) => state.deviceKeys);
+	const deviceKeys = useDeviceStore((state) => state.idKey);
 	const deviceId = useDeviceStore((state) => state.deviceId);
-	const setDeviceKeys = useDeviceStore((state) => state.setDeviceKeys);
+	const setIdKey = useDeviceStore((state) => state.setIdKey);
+	const setDhKey = useDeviceStore((state) => state.setDhKey);
 	const setDeviceId = useDeviceStore((state) => state.setDeviceId);
 
 	useEffect(() => {
@@ -66,7 +69,7 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 		void (async () => {
 			const db = await getOrCreateDatabase();
 			const storedKeys = (await db.get('keys', userId)) as
-				| KeyRecord
+				| CryptoPair
 				| null
 				| undefined;
 			const storedDeviceId = (await db.get('device', 'deviceId')) as
@@ -74,13 +77,13 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 				| null
 				| undefined;
 
-			setDeviceKeys(storedKeys);
+			setIdKey(storedKeys);
 			setDeviceId(storedDeviceId);
 		})();
-	}, [setDeviceId, setDeviceKeys, userId]);
+	}, [setDeviceId, setIdKey, userId]);
 
-	async function generateDeviceKeys(): Promise<KeyRecord> {
-		if (useDeviceStore.getState().deviceKeys) {
+	async function generateIdKey(): Promise<CryptoPair> {
+		if (useDeviceStore.getState().idKey) {
 			throw new Error('Device keys already generated');
 		}
 
@@ -92,21 +95,11 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 
 		await sodium.ready;
 
-		const dhKeys = sodium.crypto_box_keypair();
 		const idKeys = sodium.crypto_sign_keypair();
 
-		const keys: KeyRecord = {
-			X25519: {
-				private: sodium.to_base64(
-					dhKeys.privateKey,
-					sodium.base64_variants.URLSAFE_NO_PADDING
-				),
-				public: sodium.to_base64(
-					dhKeys.publicKey,
-					sodium.base64_variants.URLSAFE_NO_PADDING
-				),
-			},
-			Ed25519: {
+		const keys: CryptoPair = {
+			type: 'Ed25519',
+			...{
 				private: sodium.to_base64(
 					idKeys.privateKey,
 					sodium.base64_variants.URLSAFE_NO_PADDING
@@ -119,9 +112,35 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 		};
 
 		await db.put('keys', keys, userId);
-		setDeviceKeys(keys);
+		setIdKey(keys);
 
 		return keys;
+	}
+
+	async function generateDhKey(): Promise<CryptoPair> {
+		await sodium.ready;
+		const dhKeys = sodium.crypto_box_keypair();
+
+		const keys: CryptoPair = {
+			type: 'X25519',
+			...{
+				private: sodium.to_base64(
+					dhKeys.privateKey,
+					sodium.base64_variants.URLSAFE_NO_PADDING
+				),
+				public: sodium.to_base64(
+					dhKeys.publicKey,
+					sodium.base64_variants.URLSAFE_NO_PADDING
+				),
+			},
+		};
+
+		setDhKey(keys);
+		return keys;
+	}
+
+	function clearDhKey() {
+		setDhKey(null);
 	}
 
 	async function saveDeviceId(id: string): Promise<void> {
@@ -131,8 +150,10 @@ export function useDeviceKeys(userId?: string): UseDeviceKeysResult {
 	}
 
 	return {
-		generateDeviceKeys,
-		deviceKeys,
+		generateIdKey,
+		generateDhKey,
+		clearDhKey,
+		idKey: deviceKeys,
 		saveDeviceId,
 		deviceId,
 		dbRef: sharedDbRef,
