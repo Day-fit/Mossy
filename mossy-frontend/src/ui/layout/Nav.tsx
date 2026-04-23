@@ -3,7 +3,7 @@ import RippleButton from './RippleButton.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth } from '../../hooks/useAuth.ts';
 import { CgProfile } from 'react-icons/cg';
 
 const menuVariants: Variants = {

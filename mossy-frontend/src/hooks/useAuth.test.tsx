@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AuthProvider, useAuth } from './AuthContext.tsx';
+import { useAuth } from './useAuth.ts';
+import { useAuthInit } from './useAuthInit.ts';
 
 const {
 	tokenStorage,
@@ -28,7 +29,13 @@ vi.mock('../api/auth.api.ts', () => ({
 	executeUserDetailsRequest,
 }));
 
-describe('AuthProvider', () => {
+function AuthInitWrapper({ children }: { children: React.ReactNode }) {
+	useAuthInit();
+	const { isAuthenticated } = useAuth();
+	return isAuthenticated !== null ? children : null;
+}
+
+describe('useAuth / useAuthInit', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		tokenStorage.get.mockReturnValue('test-token');
@@ -41,11 +48,11 @@ describe('AuthProvider', () => {
 		executeUserDetailsRequest.mockResolvedValue(null);
 	});
 
-	it('renders without DeviceBootstrapProvider above it', async () => {
+	it('renders children after auth init resolves', async () => {
 		render(
-			<AuthProvider>
+			<AuthInitWrapper>
 				<div>auth-ready</div>
-			</AuthProvider>
+			</AuthInitWrapper>
 		);
 
 		await waitFor(() => {
@@ -76,9 +83,9 @@ describe('AuthProvider', () => {
 		};
 
 		render(
-			<AuthProvider>
+			<AuthInitWrapper>
 				<LoginProbe />
-			</AuthProvider>
+			</AuthInitWrapper>
 		);
 
 		await waitFor(() => {
@@ -87,4 +94,3 @@ describe('AuthProvider', () => {
 		});
 	});
 });
-

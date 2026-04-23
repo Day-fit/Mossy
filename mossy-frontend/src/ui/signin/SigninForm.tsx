@@ -6,7 +6,7 @@ import RippleButton from '../layout/RippleButton.tsx';
 import type { Dispatch, SetStateAction } from 'react';
 import { loginSchema, type LoginSchema } from '../../forms/loginSchema.ts';
 import { executeLoginRequest } from '../../api/auth.api.ts';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth } from '../../hooks/useAuth.ts';
 
 interface SignupFormProps {
 	setResponseState: Dispatch<

@@ -1,12 +1,12 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
-import { useDeviceKey } from '../../context/DeviceKeyContext.tsx';
+import { useDeviceStore } from '../../store/deviceStore.ts';
 
 export default function KeySyncHero() {
 	const { code } = useParams();
 	const { connect } = useDeviceSync(code);
-	const { deviceId } = useDeviceKey();
+	const deviceId = useDeviceStore((state) => state.deviceId);
 	const navigate = useNavigate();
 
 	useEffect(() => {

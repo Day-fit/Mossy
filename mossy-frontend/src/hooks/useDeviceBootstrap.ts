@@ -1,10 +1,12 @@
 // useDeviceBootstrap.ts
 import { executeRegisterDeviceRequest } from '../api/device.api.ts';
-import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
+import { useAuthStore } from '../store/authStore.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
+import { useDeviceKeys } from './useDeviceKeys.ts';
 
 export function useDeviceBootstrap() {
-	const { deviceId, generateDeviceKeys, saveDeviceId } = useDeviceKey();
+	const userId = useAuthStore((state) => state.userDetails?.userId);
+	const { deviceId, generateDeviceKeys, saveDeviceId } = useDeviceKeys(userId);
 	const requiresSync = useDeviceStore((state) => state.requiresSync);
 	const setRequiresSync = useDeviceStore((state) => state.setRequiresSync);
 

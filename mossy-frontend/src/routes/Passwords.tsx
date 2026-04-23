@@ -1,6 +1,6 @@
 import PasswordHero from '../ui/passwords/PasswordHero.tsx';
 import { useEffect } from 'react';
-import { useAuth } from '../context/AuthContext.tsx';
+import { useAuth } from '../hooks/useAuth.ts';
 import { useNavigate } from 'react-router-dom';
 
 export default function Passwords() {

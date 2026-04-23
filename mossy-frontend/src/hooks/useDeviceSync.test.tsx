@@ -2,24 +2,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDeviceSync } from './useDeviceSync.ts';
 
-type MockDeviceKeyState = {
-	deviceId: string | null;
-	deviceKeys: {
-		X25519: { public: string; private: string };
-		Ed25519: { public: string; private: string };
-	};
-};
-
 const { executeInitKeySyncRequest, deviceKeyStateRef } = vi.hoisted(() => ({
 	executeInitKeySyncRequest: vi.fn(),
 	deviceKeyStateRef: {
 		current: {
-			deviceId: 'device-1',
-			deviceKeys: {
-				X25519: { public: 'x', private: 'x-private' },
-				Ed25519: { public: 'e', private: 'e-private' },
-			},
-		} as MockDeviceKeyState,
+			deviceId: 'device-1' as string | null,
+		},
 	},
 }));
 
@@ -27,14 +15,9 @@ vi.mock('../api/device.api.ts', () => ({
 	executeInitKeySyncRequest,
 }));
 
-vi.mock('../context/DeviceKeyContext.tsx', () => ({
-	useDeviceKey: () => ({
-		deviceId: deviceKeyStateRef.current.deviceId,
-		deviceKeys: deviceKeyStateRef.current.deviceKeys,
-		saveDeviceId: vi.fn(),
-		generateDeviceKeys: vi.fn(),
-		dbRef: { current: null },
-	}),
+vi.mock('../store/deviceStore.ts', () => ({
+	useDeviceStore: (selector: (state: { deviceId: string | null }) => unknown) =>
+		selector({ deviceId: deviceKeyStateRef.current.deviceId }),
 }));
 
 function HookConsumer() {
@@ -45,13 +28,7 @@ function HookConsumer() {
 describe('useDeviceSync', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		deviceKeyStateRef.current = {
-			deviceId: 'device-1',
-			deviceKeys: {
-				X25519: { public: 'x', private: 'x-private' },
-				Ed25519: { public: 'e', private: 'e-private' },
-			},
-		};
+		deviceKeyStateRef.current = { deviceId: 'device-1' };
 		executeInitKeySyncRequest.mockResolvedValue({ code: 'ABC123' });
 	});
 
@@ -76,5 +53,3 @@ describe('useDeviceSync', () => {
 		expect(executeInitKeySyncRequest).not.toHaveBeenCalled();
 	});
 });
-
-

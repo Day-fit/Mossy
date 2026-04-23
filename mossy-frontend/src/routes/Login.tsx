@@ -1,6 +1,6 @@
 import SigninHero from '../ui/signin/SigninHero.tsx';
 import { useEffect } from 'react';
-import { useAuth } from '../context/AuthContext.tsx';
+import { useAuth } from '../hooks/useAuth.ts';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {

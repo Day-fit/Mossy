@@ -4,7 +4,6 @@ import {
 	executeGenerateNonceRequest,
 	executeInitKeySyncRequest,
 } from '../api/device.api.ts';
-import { useDeviceKey } from '../context/DeviceKeyContext.tsx';
 import { useDeviceStore } from '../store/deviceStore.ts';
 
 export type UseDeviceSyncResult = {
@@ -19,7 +18,7 @@ export type UseDeviceSyncResult = {
 };
 
 export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
-	const { deviceId } = useDeviceKey();
+	const deviceId = useDeviceStore((state) => state.deviceId);
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);

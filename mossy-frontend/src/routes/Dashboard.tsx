@@ -1,5 +1,5 @@
 import DashboardHero from '../ui/dashboard/DashboardHero.tsx';
-import { useAuth } from '../context/AuthContext.tsx';
+import { useAuth } from '../hooks/useAuth.ts';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 

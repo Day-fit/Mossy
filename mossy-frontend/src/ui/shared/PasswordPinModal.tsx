@@ -9,7 +9,7 @@ type EncryptionPinSchema,
 import { motion, stagger, type Variants } from 'framer-motion';
 import { OTPInput } from 'input-otp';
 import { IoKeyOutline } from 'react-icons/io5';
-import { useEncryption } from '../../context/EncryptionContext.tsx';
+import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
 
 type PasswordPinModalProps = {
 setIsPinModalActive: React.Dispatch<React.SetStateAction<boolean>>;
@@ -30,7 +30,7 @@ formState: { errors },
 resolver: zodResolver(encryptionPinSchema),
 });
 
-const { setPin } = useEncryption();
+const { setPin } = useEncryptionHook();
 
 const containerVariants: Variants = {
 hidden: { opacity: 0, y: 50, scale: 0.98 },

@@ -10,8 +10,8 @@ import VaultCard from './VaultCard.tsx';
 import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
-import { useEncryption } from '../../context/EncryptionContext.tsx';
-import { useVault } from '../../context/VaultContext.tsx';
+import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
+import { useVault } from '../../hooks/useVault.ts';
 
 type CreatedVaultState = {
 	vaultId: string;
@@ -39,7 +39,7 @@ export default function VaultHero() {
 	const [renameState, setRenameState] = useState<RenameState>(null);
 	const [renameValue, setRenameValue] = useState('');
 	const [deleteState, setDeleteState] = useState<DeleteState>(null);
-	const { saveKey } = useEncryption();
+	const { saveKey } = useEncryptionHook();
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, y: 20 },

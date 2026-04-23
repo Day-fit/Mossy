@@ -10,7 +10,7 @@ import {
 } from '../../api/password.api.ts';
 import { type UserVaultDto } from '../../api/vault.api.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
-import { useEncryption } from '../../context/EncryptionContext.tsx';
+import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
 import type {
 	CiphertextPhase,
@@ -19,7 +19,7 @@ import type {
 } from './index.ts';
 import PasswordFormCard from './PasswordFormCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
-import { useVault } from '../../context/VaultContext.tsx';
+import { useVault } from '../../hooks/useVault.ts';
 import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
 import KeySyncModal from './KeySyncModal.tsx';
 
@@ -30,7 +30,7 @@ const INITIAL_FORM_STATE: PasswordFormState = {
 };
 
 export default function PasswordHero() {
-	const { encrypt, decrypt, isPinPresent } = useEncryption();
+	const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
 
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
 	const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
