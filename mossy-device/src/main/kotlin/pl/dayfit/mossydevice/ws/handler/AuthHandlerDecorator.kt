@@ -112,7 +112,7 @@ class AuthHandlerDecorator(
             DevicePrincipal(
                 dto.deviceId,
                 device.userId,
-                dto.publicDh
+                dto.jwkPublicDh
             )
         }.onSuccess { principal ->
             pendingSessions[session.id]?.complete(principal)
@@ -188,7 +188,7 @@ class AuthHandlerDecorator(
         val device = userDeviceRepository.findById(deviceId)
             .orElseThrow { NoSuchElementException("No device with id: $deviceId") }
 
-        val dh = OctetKeyPair.parse(authFrame.publicDh)
+        val dh = OctetKeyPair.parse(authFrame.jwkPublicDh)
         val expectedPayload = dh.x.decode() + expectedNonce
 
         val signatureBytes =

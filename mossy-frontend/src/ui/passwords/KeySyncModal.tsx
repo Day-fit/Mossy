@@ -76,7 +76,7 @@ export default function KeySyncModal({
 	async function handleReceivingKeySync() {
 		try {
 			await generateDhKey();
-			await connect(`/api/v1/ws/key-sync?${syncCode}`);
+			await connect(`/api/v1/ws/key-sync?${syncCode}`, 'RECEIVER');
 		} finally {
 			clearDhKey();
 		}

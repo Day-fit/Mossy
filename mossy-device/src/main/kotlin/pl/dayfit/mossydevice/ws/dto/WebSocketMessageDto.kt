@@ -5,7 +5,7 @@ import java.util.UUID
 
 sealed class WebSocketMessageDto {
     abstract val type: MessageType
-    data class AuthFrame(val deviceId: UUID, val signature: String, val publicDh: Map<String, Any>) : WebSocketMessageDto() {
+    data class AuthFrame(val deviceId: UUID, val signature: String, val jwkPublicDh: Map<String, Any>) : WebSocketMessageDto() {
         override val type = MessageType.AUTH_FRAME
     }
     data class KeySync(val cipherText: String) : WebSocketMessageDto() {

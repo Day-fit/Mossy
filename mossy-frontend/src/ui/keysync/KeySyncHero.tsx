@@ -16,7 +16,7 @@ export default function KeySyncHero() {
 		}
 
 		if (deviceId) {
-			void connect('/api/v1/ws/key-sync');
+			void connect('/api/v1/ws/key-sync', 'SENDER');
 		}
 	}, [code, deviceId, connect]);
 
