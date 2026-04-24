@@ -28,8 +28,10 @@ data class KeySyncRoom(
     val userId: UUID,
     val receiverId: UUID,
     var receiverDh: String? = null,
+    val receiverIdKey: String,
+    var receiverPresent: Boolean = false,
     var senderId: UUID? = null,
     var senderDh: String? = null,
-    var receiverPresent: Boolean = false,
+    var senderIdKey: String? = null,
     var senderPresent: Boolean = false
 )

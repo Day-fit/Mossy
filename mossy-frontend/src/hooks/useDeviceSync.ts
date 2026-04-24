@@ -6,6 +6,8 @@ import {
 } from '../api/device.api.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
 import { useDeviceKeys } from './useDeviceKeys.ts';
+import { useEncryptionHook } from './useEncryptionHook.ts';
+import { useEncryptionStore } from '../store/encryptionStore.ts';
 
 export type UseDeviceSyncResult = {
 	isInitialized: boolean;
@@ -13,9 +15,8 @@ export type UseDeviceSyncResult = {
 	syncCode: string | null;
 	isConnected: boolean;
 	error: string | null;
-	connect: (wsUrl: string) => Promise<void>;
+	connect: (wsUrl: string, role: KeySyncRole) => Promise<void>;
 	disconnect: () => void;
-	sendKey: (encodedKey: string) => void;
 };
 
 export type JWKFormat = {
@@ -24,9 +25,20 @@ export type JWKFormat = {
 	x: string;
 };
 
+type KeySyncMessage = {
+	type: 'KEY_SYNC';
+	cipherText: string;
+	nonce: string;
+	signature: string;
+	vaultId: string;
+};
+
+export type KeySyncRole = 'SENDER' | 'RECEIVER';
+
 export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 	const deviceId = useDeviceStore((state) => state.deviceId);
-	const { generateDhKey } = useDeviceKeys();
+	const { generateDhKey, idKey } = useDeviceKeys();
+	const { loadKey } = useEncryptionHook();
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
@@ -36,6 +48,7 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 	const [syncCode, setSyncCode] = useState<string | null>(
 		providedSyncCode || null
 	);
+
 	const [error, setError] = useState<string | null>(null);
 
 	const syncCodeRef = useRef(providedSyncCode || syncCode);
@@ -72,7 +85,6 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 
 	const buildAuthFrame = async (wsUrl: string) => {
 		const currentDeviceId = useDeviceStore.getState().deviceId;
-		const idKey = useDeviceStore.getState().idKey;
 		const currentSyncCode = syncCodeRef.current;
 
 		if (!currentDeviceId) {
@@ -141,17 +153,16 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 
 		return {
 			wsUrlWithCode,
-			publicDh: {
-				kty: 'OKP',
-				crv: 'X25519',
-				x: dhKey.public,
-			} as JWKFormat,
+			userDhPair: dhKey,
 			deviceId: currentDeviceId,
 			signature: signatureB64,
 		};
 	};
 
-	const connect = async (wsUrl: string): Promise<void> => {
+	const connect = async (
+		wsUrl: string,
+		syncRole: KeySyncRole
+	): Promise<void> => {
 		if (connectionPromiseRef.current) {
 			return connectionPromiseRef.current;
 		}
@@ -165,10 +176,20 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 
 		connectionPromiseRef.current = (async () => {
 			try {
-				const { wsUrlWithCode, deviceId, signature, publicDh } =
+				const { wsUrlWithCode, deviceId, signature, userDhPair } =
 					await buildAuthFrame(wsUrl);
 
-				await connectToWs(wsUrlWithCode, deviceId, signature, publicDh);
+				await connectToWs(
+					wsUrlWithCode,
+					deviceId,
+					signature,
+					userDhPair.public
+				);
+				const { mutualSecret, vaultId, peerIdKey } =
+					await calculateMutualSecret(userDhPair.private);
+				syncRole === 'SENDER'
+					? await sendKey(mutualSecret, vaultId, peerIdKey)
+					: await receiveKey(mutualSecret, peerIdKey);
 			} catch (error) {
 				disconnect();
 				throw error;
@@ -180,16 +201,205 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 		return connectionPromiseRef.current;
 	};
 
+	const receiveKey = async (
+		mutualSecret: Uint8Array,
+		peerIdKey: Uint8Array
+	) => {
+		const currentWs = wsRef.current;
+
+		if (currentWs == null || currentWs.readyState !== WebSocket.OPEN) {
+			return;
+		}
+
+		await sodium.ready;
+
+		currentWs.onmessage = (event) => {
+			const data: KeySyncMessage = JSON.parse(event.data);
+
+			if (idKey == null) {
+				return;
+			}
+
+			const publicIdKey = sodium.from_base64(
+				idKey.public,
+				sodium.base64_variants.URLSAFE_NO_PADDING
+			);
+
+			const expectedPayload = new Uint8Array([
+				...peerIdKey,
+				...sodium.from_string(data.vaultId),
+				...publicIdKey,
+			]);
+
+			const isSignatureValid = sodium.crypto_sign_verify_detached(
+				sodium.from_base64(data.signature),
+				expectedPayload,
+				peerIdKey
+			);
+
+			if (!isSignatureValid) {
+				throw new Error('Received key with invalid signature');
+			}
+
+			const decryptedKey = sodium.crypto_secretbox_open_easy(
+				sodium.from_base64(data.cipherText),
+				sodium.from_base64(data.nonce, sodium.base64_variants.URLSAFE),
+				mutualSecret
+			);
+
+			//TODO: save key into crypto api
+		};
+	};
+
+	const sendKey = async (
+		mutualSecret: Uint8Array,
+		vaultId: string,
+		peerIdKey: Uint8Array
+	) => {
+		const currentWs = wsRef.current;
+		const pin = useEncryptionStore.getState().pins[vaultId];
+		if (!pin) {
+			throw new Error('Pin needs to be set');
+		}
+
+		await sodium.ready;
+
+		const rawKey = await loadKey(vaultId, pin);
+		const exportedKey = await crypto.subtle.exportKey('raw', rawKey);
+		const key = new Uint8Array(exportedKey);
+
+		if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
+			throw new Error('WebSocket not connected');
+		}
+
+		const nonce = sodium.randombytes_buf(
+			sodium.crypto_secretbox_NONCEBYTES
+		);
+
+		const cipherText = sodium.crypto_secretbox_easy(
+			sodium.to_base64(key),
+			mutualSecret,
+			nonce
+		);
+
+		const idKey = useDeviceStore.getState().idKey;
+
+		if (!idKey) {
+			throw new Error(
+				'One of the keys is missing. Please generate keys first.'
+			);
+		}
+
+		const privateIdKey = sodium.from_base64(
+			idKey.private,
+			sodium.base64_variants.URLSAFE_NO_PADDING
+		);
+
+		const publicIdKey = sodium.from_base64(
+			idKey.public,
+			sodium.base64_variants.URLSAFE_NO_PADDING
+		);
+
+		const payload = new Uint8Array([
+			...peerIdKey,
+			...sodium.from_string(vaultId),
+			...publicIdKey,
+		]);
+
+		const signature = sodium.crypto_sign_detached(payload, privateIdKey);
+
+		const message = {
+			type: 'KEY_SYNC',
+			cipherText: sodium.to_base64(cipherText),
+			nonce: sodium.to_base64(nonce),
+			signature: sodium.to_base64(signature),
+		};
+
+		currentWs.send(JSON.stringify(message));
+	};
+
+	const calculateMutualSecret = async (
+		privateDhKey: string
+	): Promise<{
+		mutualSecret: Uint8Array;
+		peerIdKey: Uint8Array;
+		vaultId: string;
+	}> => {
+		const currentWs = wsRef.current;
+
+		await sodium.ready;
+
+		if (!currentWs) {
+			throw new Error('WebSocket is not connected');
+		}
+
+		return new Promise((resolve, reject) => {
+			const timeoutId = setTimeout(() => {
+				reject(new Error('Timeout waiting for PEER_DETAILS'));
+			}, 10000);
+
+			currentWs.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+
+					if (data.type !== 'PEER_DETAILS') {
+						return;
+					}
+
+					clearTimeout(timeoutId);
+
+					const peerPublicDh = sodium.from_base64(
+						data.peerPublicDh,
+						sodium.base64_variants.URLSAFE_NO_PADDING
+					);
+
+					const userPrivateDh = sodium.from_base64(
+						privateDhKey,
+						sodium.base64_variants.URLSAFE_NO_PADDING
+					);
+
+					const mutualSecret = sodium.crypto_scalarmult(
+						userPrivateDh,
+						peerPublicDh
+					);
+
+					const vaultId = data.vaultId;
+
+					resolve({
+						mutualSecret,
+						peerIdKey: sodium.from_base64(data.peerIdKey),
+						vaultId,
+					});
+				} catch (error) {
+					clearTimeout(timeoutId);
+					reject(error);
+				}
+			};
+
+			currentWs.onerror = (_) => {
+				clearTimeout(timeoutId);
+				reject(
+					new Error('WebSocket error while waiting for PEER_DETAILS')
+				);
+			};
+		});
+	};
+
 	const connectToWs = (
 		wsUrl: string,
 		deviceId: string,
 		signature: string,
-		publicDh: JWKFormat
+		publicDh: string
 	): Promise<void> =>
 		new Promise((resolve, reject) => {
 			try {
 				console.log('Connecting to WebSocket:', wsUrl);
 				const ws = new WebSocket(wsUrl.toString());
+				const jwkPublicDh: JWKFormat = {
+					crv: 'X25519',
+					kty: 'OKP',
+					x: publicDh,
+				};
 
 				const fail = (err: unknown) => {
 					disconnect();
@@ -208,7 +418,7 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 								type: 'AUTH_FRAME',
 								deviceId,
 								signature,
-								publicDh,
+								jwkPublicDh,
 							})
 						);
 
@@ -239,25 +449,6 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 			}
 		});
 
-	const sendKey = (encodedVaultKey: string) => {
-		const dhKey = useDeviceStore.getState().dhKey;
-		if (!dhKey) {
-			throw new Error('DH key not found');
-		}
-
-		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-			throw new Error('WebSocket not connected');
-		}
-
-		const message = {
-			type: 'KeySync',
-			cipherText: encodedVaultKey,
-			publicDh: dhKey.public,
-		};
-
-		wsRef.current.send(JSON.stringify(message));
-	};
-
 	useEffect(() => {
 		return () => {
 			disconnect();
@@ -272,6 +463,5 @@ export function useDeviceSync(providedSyncCode?: string): UseDeviceSyncResult {
 		error: error,
 		connect,
 		disconnect,
-		sendKey,
 	};
 }

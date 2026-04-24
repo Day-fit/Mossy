@@ -12,7 +12,7 @@ type KeySyncModalProps = {
 const qrConfig: Partial<Options> = {
 	width: 240,
 	height: 240,
-	type: 'canvas',
+	type: 'svg',
 	data: '',
 
 	image: '/mossy_logo.png',
@@ -70,10 +70,10 @@ export default function KeySyncModal({
 
 		qr.append(el);
 
-		void handleReceivingKeySync()
+		void handleReceivingKeySync();
 	}, [syncCode, isInitialized]);
 
-	async function handleReceivingKeySync(){
+	async function handleReceivingKeySync() {
 		try {
 			await generateDhKey();
 			await connect(`/api/v1/ws/key-sync?${syncCode}`);
