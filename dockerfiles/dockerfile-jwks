@@ -1,6 +1,7 @@
 FROM amazoncorretto:21-alpine3.22-jdk AS build
-COPY ../mossy-core /app/
-WORKDIR /app
+
+COPY mossy-jwks/ /mossy/
+WORKDIR /mossy
 
 RUN --mount=type=secret,id=gh_name \
     --mount=type=secret,id=github_token \
@@ -10,15 +11,15 @@ RUN --mount=type=secret,id=gh_name \
 "    <server>" \
 "      <id>github</id>" \
 "      <username>$(cat /run/secrets/gh_name)</username>" \
-"      <passwords>$(cat /run/secrets/github_token)</passwords>" \
+"      <password>$(cat /run/secrets/github_token)</password>" \
 "    </server>" \
 "  </servers>" \
 "</settings>" > /tmp/settings.xml'
 
 RUN chmod +x ./mvnw && \
-    ./mwnw clean package -DskipTests -s /app/
+    ./mvnw clean package -DskipTests -s /tmp/settings.xml
 
 FROM amazoncorretto:21-al2023-headless
-COPY --from=build /app/target/mossy-core-*.jar /aurora/mossy-core.jar
-CMD ["java", "-jar", "/app/mossy-core.jar"]
-EXPOSE 6797
+COPY --from=build /mossy/target/mossy-jwks-*.jar /mossy/mossy-jwks.jar
+CMD ["java", "-jar", "/mossy/mossy-jwks.jar"]
+EXPOSE 8084

@@ -7,7 +7,8 @@ services:
       timeout: 5s
       interval: 10s
     depends_on:
-      - 'postgres'
+      postgres:
+        condition: service_healthy
     ports:
       - '6797:6797'
     environment:
@@ -15,9 +16,12 @@ services:
       - 'DB_NAME=mossy_vault'
       - 'DB_USER=${DB_USER}'
       - 'DB_PASSWORD=${DB_PASSWORD}'
-      - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
+      - 'DB_URL=postgres:5432'
+      - 'MOSSY_STOMP_HOST=https://mossy.dayfit.pl'
+      - 'MOSSY_VAULT_ID=${MOSSY_VAULT_ID}'
+      - 'MOSSY_VAULT_SECRET=${MOSSY_VAULT_SECRET}'
     profiles:
-      - !dev
+      - prod
 
   postgres:
     image: 'postgres:18.1-alpine'
