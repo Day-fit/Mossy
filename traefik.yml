@@ -10,9 +10,13 @@ entryPoints:
     address: ":443"
 
 certificatesResolvers:
-  mossyresolver:
+  myresolver:
     acme:
       email: xdayfit@gmail.com
       storage: acme.json
       httpChallenge:
         entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false
