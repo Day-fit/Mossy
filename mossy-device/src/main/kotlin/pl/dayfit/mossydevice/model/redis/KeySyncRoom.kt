@@ -24,6 +24,7 @@ data class KeySyncRoom(
     @Id
     var roomId: String?,
     val code: String,
+    val vaultId: UUID,
     @Indexed
     val userId: UUID,
     val receiverId: UUID,

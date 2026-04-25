@@ -345,6 +345,7 @@ export default function PasswordHero() {
 			{isKeySyncModalActive && (
 				<KeySyncModal
 					setIsKeySyncModalActive={setIsKeySyncModalActive}
+					vaultId={selectedVaultId}
 				/>
 			)}
 

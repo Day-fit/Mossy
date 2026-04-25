@@ -36,12 +36,16 @@ export async function executeRegisterDeviceRequest(
 }
 
 export async function executeInitKeySyncRequest(
-	deviceId: string
+	deviceId: string,
+	vaultId: string
 ): Promise<{ code: string }> {
 	return await apiFetch('/api/v1/key-sync/init', {
 		method: 'POST',
 		headers: {
 			'X-Device-ID': deviceId,
 		},
+		body: JSON.stringify({
+			vaultId: vaultId,
+		}),
 	}).then((res) => res.json());
 }

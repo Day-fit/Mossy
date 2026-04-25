@@ -9,6 +9,11 @@ export type UseEncryptionResult = {
 	decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
 	isPinPresent: (id: string) => Promise<boolean>;
 	saveKey: (id: string, pin: string) => Promise<void>;
+	saveRawKey: (
+		vaultId: string,
+		pin: string,
+		rawKey: Uint8Array<ArrayBuffer>
+	) => Promise<void>;
 	loadKey: (id: string, pin: string) => Promise<CryptoKey>;
 	setPin: (vaultId: string, pin: string) => void;
 };
@@ -61,7 +66,7 @@ export function useEncryptionHook(): UseEncryptionResult {
 					wrappingKey,
 					'AES-KW',
 					{ name: 'AES-GCM', length: 256 },
-					false,
+					true,
 					['encrypt', 'decrypt']
 				)
 				.catch(() => {
@@ -132,8 +137,8 @@ export function useEncryptionHook(): UseEncryptionResult {
 		[loadKey]
 	);
 
-	const saveKey = useCallback(
-		async (id: string, pin: string) => {
+	const wrapAndStore = useCallback(
+		async (vaultId: string, pin: string, dataKey: CryptoKey) => {
 			const db = dbRef.current;
 
 			if (!db) {
@@ -161,12 +166,6 @@ export function useEncryptionHook(): UseEncryptionResult {
 				['wrapKey', 'unwrapKey']
 			);
 
-			const dataKey = await crypto.subtle.generateKey(
-				{ name: 'AES-GCM', length: 256 },
-				true,
-				['encrypt', 'decrypt']
-			);
-
 			const wrappedKey = await crypto.subtle.wrapKey(
 				'raw',
 				dataKey,
@@ -174,9 +173,41 @@ export function useEncryptionHook(): UseEncryptionResult {
 				'AES-KW'
 			);
 
-			await db.put('keys', { wrappedKey, salt }, id);
+			await db.put('keys', { wrappedKey, salt }, vaultId);
 		},
 		[dbRef]
+	);
+
+	const saveKey = useCallback(
+		async (vaultId: string, pin: string) => {
+			const dataKey = await crypto.subtle.generateKey(
+				{ name: 'AES-GCM', length: 256 },
+				true,
+				['encrypt', 'decrypt']
+			);
+
+			await wrapAndStore(vaultId, pin, dataKey);
+		},
+		[wrapAndStore]
+	);
+
+	const saveRawKey = useCallback(
+		async (
+			vaultId: string,
+			pin: string,
+			rawKey: Uint8Array<ArrayBuffer>
+		) => {
+			const dataKey = await crypto.subtle.importKey(
+				'raw',
+				rawKey,
+				{ name: 'AES-GCM', length: 256 },
+				true,
+				['encrypt', 'decrypt']
+			);
+
+			await wrapAndStore(vaultId, pin, dataKey);
+		},
+		[wrapAndStore]
 	);
 
 	const isPinPresent = useCallback(
@@ -203,6 +234,7 @@ export function useEncryptionHook(): UseEncryptionResult {
 		decrypt,
 		isPinPresent,
 		saveKey,
+		saveRawKey,
 		loadKey,
 		setPin,
 	};

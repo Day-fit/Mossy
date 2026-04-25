@@ -1,13 +1,10 @@
 package pl.dayfit.mossydevice.service
 
-import com.nimbusds.jose.jwk.OctetKeyPair
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
-import pl.dayfit.mossyauthstarter.auth.token.JwtAuthenticationToken
 import pl.dayfit.mossydevice.dto.response.InitKeySyncResponseDto
-import pl.dayfit.mossydevice.dto.response.KeySyncInfoResponseDto
 import pl.dayfit.mossydevice.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossydevice.model.redis.KeySyncRoom
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
@@ -80,11 +77,13 @@ class KeySyncService (
         val receiverMessage = WebSocketServerMessageDto.PeerDetails(
             room.senderIdKey!!,
             room.senderDh!!,
+            room.vaultId,
         )
 
         val senderMessage = WebSocketServerMessageDto.PeerDetails(
             room.receiverIdKey,
             room.receiverDh!!,
+            room.vaultId,
         )
 
         receiverSession.sendMessage(
@@ -113,7 +112,7 @@ class KeySyncService (
         val receiverId = room.receiverId
 
         if (!room.receiverPresent) {
-            logger.warn("Received sync message from unregistered device")
+            logger.debug("Receiver not present in room, ignoring message")
             return
         }
 
@@ -131,9 +130,11 @@ class KeySyncService (
     {
         val role = webSocketSession.attributes["role"] as KeySyncRole
         val syncCode = webSocketSession.attributes["syncCode"] as String
-        val token = webSocketSession.principal as JwtAuthenticationToken
+        val devicePrincipal = webSocketSession.attributes["principal"] as DevicePrincipal
 
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(token.principal)
+        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(
+            devicePrincipal.userId
+        )
             .filter { it.code == syncCode }
             .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
 
@@ -147,38 +148,10 @@ class KeySyncService (
         keySyncRoomRepository.save(room)
     }
 
-    fun getKeySyncInfo(code: String, userId: UUID, deviceId: UUID): KeySyncInfoResponseDto
-    {
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
-            .filter { it.code == code }
-            .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
-
-        if (userId != room.userId) throw AccessDeniedException("User does not have access to this room")
-        val role = if (room.receiverId == deviceId) KeySyncRole.RECEIVER else KeySyncRole.SENDER
-        val peerPresent = if (role == KeySyncRole.SENDER) room.receiverPresent else room.senderPresent
-
-        var publicKeyDH: OctetKeyPair? = null
-        var publicKeyId: OctetKeyPair? = null
-
-        if (peerPresent)
-        {
-            val peerId = if (role == KeySyncRole.SENDER) room.receiverId else room.senderId
-            val peerDevice = deviceRepository.findById(peerId!!)
-                .orElseThrow { NoSuchElementException("No device with given id") }
-
-            publicKeyId = peerDevice.publicKeyId
-        }
-
-        return KeySyncInfoResponseDto(
-            peerPresent,
-            publicKeyDH?.toJSONObject(),
-            publicKeyId?.toJSONObject()
-        )
-    }
-
     fun initKeySync(
         userId: UUID,
         deviceId: UUID,
+        vaultId: UUID
     ): InitKeySyncResponseDto {
         val device = deviceRepository.findById(deviceId)
             .orElseThrow { NoSuchElementException("No device with given id") }
@@ -189,6 +162,7 @@ class KeySyncService (
         val room = KeySyncRoom(
             roomId = null,
             code,
+            vaultId,
             userId,
             deviceId,
             receiverIdKey = device.publicKeyId.x.toString(),

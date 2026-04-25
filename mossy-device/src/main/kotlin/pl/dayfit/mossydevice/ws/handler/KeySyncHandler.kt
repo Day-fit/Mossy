@@ -78,7 +78,8 @@ class KeySyncHandler(
         closeStatus: CloseStatus
     ) {
         logger.debug("WebSocket session closed: {}", session.id)
-        val deviceId = session.attributes["deviceId"] as? UUID
+        val deviceId = runCatching { UUID.fromString(session.attributes["deviceId"] as String)}
+            .getOrNull()
 
         if (deviceId == null) {
             logger.debug("No deviceId found in session, ignoring it")

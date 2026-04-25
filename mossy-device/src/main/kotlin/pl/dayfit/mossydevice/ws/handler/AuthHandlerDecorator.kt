@@ -172,10 +172,11 @@ class AuthHandlerDecorator(
     }
 
     override fun afterConnectionClosed(session: WebSocketSession, status: org.springframework.web.socket.CloseStatus) {
-        val deviceId = session.attributes["deviceId"] as? UUID
-            ?: return
+        if (!isAuthenticated(session)) {
+            return
+        }
 
-        webSocketSessionService.removeSession(deviceId)
+        super.afterConnectionClosed(session, status)
     }
 
     private fun isAuthenticated(session: WebSocketSession) =

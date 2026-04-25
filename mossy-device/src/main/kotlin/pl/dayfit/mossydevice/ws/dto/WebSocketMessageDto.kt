@@ -8,7 +8,7 @@ sealed class WebSocketMessageDto {
     data class AuthFrame(val deviceId: UUID, val signature: String, val jwkPublicDh: Map<String, Any>) : WebSocketMessageDto() {
         override val type = MessageType.AUTH_FRAME
     }
-    data class KeySync(val cipherText: String) : WebSocketMessageDto() {
+    data class KeySync(val ciphertext: String, val nonce: String, val signature: String, val vaultId: UUID) : WebSocketMessageDto() {
         override val type = MessageType.KEY_SYNC
     }
 }
