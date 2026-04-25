@@ -36,7 +36,7 @@ services:
   mossy-auth:
     image: 'ghcr.io/day-fit/mossy-auth:latest'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/v1/auth/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s
@@ -72,7 +72,7 @@ services:
   mossy-password:
     image: 'ghcr.io/day-fit/mossy-password:latest'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8082/api/v1/passwords/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s
@@ -114,7 +114,7 @@ services:
   mossy-device:
     image: 'ghcr.io/day-fit/mossy-device:latest'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s
@@ -153,6 +153,11 @@ services:
 
   mossy-statistics:
     image: 'ghcr.io/day-fit/mossy-statistics:latest'
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/api/v1/statistics/actuator/health" ]
+      retries: 3
+      timeout: 5s
+      interval: 10s
     depends_on:
       - 'postgres'
       - 'kafka'
