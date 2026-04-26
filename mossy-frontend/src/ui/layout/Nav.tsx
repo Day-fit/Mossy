@@ -71,15 +71,12 @@ function Nav() {
 
 				<div className={'hidden sm:flex mr-2'}>
 					{!isAuthenticated ? (
-						<div className="hidden sm:flex mr-2">
-							<RippleButton
-								className="text-white sm:mr-1"
-								onClick={() => navigate('/register')}
-							>
+						<div className="hidden sm:flex mr-2 gap-1">
+							<RippleButton onClick={() => navigate('/register')}>
 								Sign Up
 							</RippleButton>
 							<RippleButton
-								className="bg-transparent border-2 border-gray-800"
+								variant={'outline'}
 								rippleColor="rgb(0, 0, 0, 0.7)"
 								onClick={() => navigate('/login')}
 							>

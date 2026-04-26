@@ -56,14 +56,10 @@ export default function RippleButton({
 		onClick && onClick(e);
 	};
 
-	const variantClassNames = (variant: Variant) => {
-		switch (variant) {
-			case 'primary':
-				return 'bg-black text-white';
-
-			case 'outline':
-				return 'bg-transparent box-border border-2 border-gray-800 text-gray-800';
-		}
+	const variantClassNames: Record<Variant, string> = {
+		primary: 'bg-black text-white',
+		outline:
+			'bg-transparent box-border border-2 border-gray-800 text-gray-800',
 	};
 
 	return (
@@ -72,7 +68,7 @@ export default function RippleButton({
 			type={type}
 			onClick={handleClick}
 			className={[
-				`relative overflow-hidden px-8 py-4 cursor-pointer rounded-md ${variantClassNames(variant)}`,
+				`relative overflow-hidden px-8 py-4 cursor-pointer rounded-md ${variantClassNames[variant]}`,
 				className,
 			]
 				.filter(Boolean)

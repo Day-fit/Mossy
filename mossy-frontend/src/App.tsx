@@ -36,7 +36,7 @@ function App() {
 			<Route element={<Layout />}>
 				<Route path="/" element={<Home />} />
 				<Route path="/dashboard" element={<Dashboard />} />
-				<Route path={'/keysync/:code'} element={<KeySyncHero />} />
+				<Route path={'/key-sync'} element={<KeySyncHero />} />
 				<Route path="/vaults" element={<Vaults />} />
 				<Route path="/passwords" element={<Passwords />} />
 				<Route path="/register" element={<Register />} />
