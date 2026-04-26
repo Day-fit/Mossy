@@ -11,14 +11,18 @@ import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { PinNotFoundException } from '../exception/PinNotFoundException.ts';
 
 export type UseDeviceSyncResult = {
-	isInitialized: boolean;
 	nonce: string | null;
-	syncCode: string | null;
 	isConnected: boolean;
 	error: string | null;
-	connect: (wsUrl: string, role: KeySyncRole, pin?: string) => Promise<void>;
+	connect: (
+		wsUrl: string,
+		role: KeySyncRole,
+		syncCode: string,
+		pin?: string
+	) => Promise<void>;
 	disconnect: () => void;
 	resumeWithPin: (pin: string) => Promise<void>;
+	initializeKeySync: (vaultId: string) => Promise<string>;
 };
 
 export type JWKFormat = {
@@ -50,10 +54,7 @@ type PeerInfo = {
 	vaultId: string;
 };
 
-export function useDeviceSync(
-	providedSyncCode?: string,
-	vaultId?: string
-): UseDeviceSyncResult {
+export function useDeviceSync(): UseDeviceSyncResult {
 	const deviceId = useDeviceStore((state) => state.deviceId);
 	const { generateDhKey, idKey } = useDeviceKeys();
 	const { loadKey, saveRawKey } = useEncryptionHook();
@@ -61,43 +62,27 @@ export function useDeviceSync(
 	const wsRef = useRef<WebSocket | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
-	const initSyncAttemptedRef = useRef(false);
 	const peerInfo = useRef<PeerInfo | null>(null);
 	const pendingResumeRef = useRef<KeySyncRole | null>(null);
 
 	const [nonce, setNonce] = useState<string | null>(null);
-	const [syncCode, setSyncCode] = useState<string | null>(
-		providedSyncCode || null
-	);
 	const [error, setError] = useState<string | null>(null);
 
-	const syncCodeRef = useRef(providedSyncCode || syncCode);
-
-	useEffect(() => {
-		syncCodeRef.current = providedSyncCode || syncCode;
-	}, [providedSyncCode, syncCode]);
-
-	useEffect(() => {
-		if (
-			!deviceId ||
-			syncCodeRef.current ||
-			!vaultId ||
-			initSyncAttemptedRef.current
-		) {
-			return;
+	const initializeKeySync = async (vaultId: string) => {
+		if (!deviceId) {
+			throw new Error(
+				'Device ID not found. Please register device first.'
+			);
 		}
 
-		initSyncAttemptedRef.current = true;
-
-		executeInitKeySyncRequest(deviceId, vaultId)
-			.then((response: any) => {
-				setSyncCode(response.code);
-			})
-			.catch((error: any) => {
-				setError(error.message || 'Key sync initialization failed');
-				initSyncAttemptedRef.current = false;
-			});
-	}, [deviceId, syncCode]);
+		try {
+			const response = await executeInitKeySyncRequest(deviceId, vaultId);
+			return response.code;
+		} catch (error: any) {
+			setError(error?.message ?? 'Key sync initialization failed');
+			throw error;
+		}
+	};
 
 	const disconnect = () => {
 		if (wsRef.current) {
@@ -110,9 +95,8 @@ export function useDeviceSync(
 		pendingResumeRef.current = null;
 	};
 
-	const buildAuthFrame = async (wsUrl: string) => {
+	const buildAuthFrame = async (wsUrl: string, syncCode: string) => {
 		const currentDeviceId = useDeviceStore.getState().deviceId;
-		const currentSyncCode = syncCodeRef.current;
 
 		if (!currentDeviceId) {
 			throw new Error(
@@ -126,7 +110,7 @@ export function useDeviceSync(
 			);
 		}
 
-		if (!currentSyncCode) {
+		if (!syncCode) {
 			throw new Error(
 				'Sync code not found. Please initialize key sync first.'
 			);
@@ -174,8 +158,8 @@ export function useDeviceSync(
 		);
 
 		const wsUrlWithCode = wsUrl.includes('?')
-			? `${wsUrl}&syncCode=${currentSyncCode}`
-			: `${wsUrl}?syncCode=${currentSyncCode}`;
+			? `${wsUrl}&syncCode=${syncCode}`
+			: `${wsUrl}?syncCode=${syncCode}`;
 
 		return {
 			wsUrlWithCode,
@@ -482,6 +466,7 @@ export function useDeviceSync(
 	const connect = async (
 		wsUrl: string,
 		syncRole: KeySyncRole,
+		syncCode: string,
 		pin?: string
 	): Promise<void> => {
 		if (connectionPromiseRef.current) {
@@ -502,7 +487,7 @@ export function useDeviceSync(
 		connectionPromiseRef.current = (async () => {
 			try {
 				const { wsUrlWithCode, deviceId, signature, userDhPair } =
-					await buildAuthFrame(wsUrl);
+					await buildAuthFrame(wsUrl, syncCode);
 
 				await connectToWs(
 					wsUrlWithCode,
@@ -542,13 +527,12 @@ export function useDeviceSync(
 	}, []);
 
 	return {
-		isInitialized: !!syncCode,
 		nonce,
-		syncCode,
 		isConnected: isConnectedRef.current,
 		error,
 		connect,
 		disconnect,
 		resumeWithPin,
+		initializeKeySync,
 	};
 }

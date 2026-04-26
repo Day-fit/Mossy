@@ -68,33 +68,36 @@ export default function KeySyncStep({
 	pin,
 	setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-	const { isInitialized, syncCode, connect, disconnect } = useDeviceSync(
-		undefined,
-		vaultId
-	);
+	const { initializeKeySync, connect, disconnect } = useDeviceSync();
 	const qrCodeRef = useRef<HTMLDivElement>(null);
 	const [synced, setSynced] = useState(false);
+	const [syncCode, setSyncCode] = useState<string | undefined>(undefined);
 
 	useEffect(() => {
-		if (!qrCodeRef.current || !isInitialized || !syncCode) return;
+		if (syncCode) return;
+
+		initializeKeySync(vaultId).then(setSyncCode);
+	}, [vaultId]);
+
+	useEffect(() => {
+		if (!syncCode) return;
+		if (!qrCodeRef.current) return;
 
 		const el = qrCodeRef.current;
-		const url = `${window.location.origin}/key-sync?code=${syncCode}`;
-
-		el.replaceChildren();
+		el.innerHTML = '';
 
 		const qr = new QRCodeStyling({
 			...qrConfig,
-			data: url,
+			data: `${window.location.origin}/key-sync?code=${syncCode}`,
 		});
 
 		qr.append(el);
 
-		connect(`/api/v1/ws/key-sync?${syncCode}`, 'RECEIVER', pin).then(() => {
+		connect(`/api/v1/ws/key-sync`, 'RECEIVER', syncCode, pin).then(() => {
 			setSynced(true);
 			setTimeout(() => setIsKeySyncModalActive(false), 3500);
 		});
-	}, [syncCode, isInitialized]);
+	}, [syncCode, connect, pin, setIsKeySyncModalActive]);
 
 	return (
 		<motion.div
@@ -137,32 +140,30 @@ export default function KeySyncStep({
 								synchronization
 							</p>
 						</div>
-						{isInitialized && (
-							<div className="flex flex-col items-center gap-2">
-								<div
-									ref={qrCodeRef}
-									className="w-56 h-56 flex justify-center items-center subpixel-antialiased"
-									style={{
-										transform: 'translateZ(0)',
-										backfaceVisibility: 'hidden',
-									}}
-								/>
-								<p className="text-center text-sm text-gray-600">
-									Scan the QR code, or go to{' '}
-									<span className="font-mono text-gray-800">
-										{window.origin}/key-sync
-									</span>{' '}
-									on the device that has access to this vault
-									and enter the code below.
-								</p>
-								<input
-									type="text"
-									value={syncCode || 'Failed to get code'}
-									readOnly
-									className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
-								/>
-							</div>
-						)}
+						<div className="flex flex-col items-center gap-2">
+							<div
+								ref={qrCodeRef}
+								className="w-56 h-56 flex justify-center items-center subpixel-antialiased"
+								style={{
+									transform: 'translateZ(0)',
+									backfaceVisibility: 'hidden',
+								}}
+							/>
+							<p className="text-center text-sm text-gray-600">
+								Scan the QR code, or go to{' '}
+								<span className="font-mono text-gray-800">
+									{window.origin}/key-sync
+								</span>{' '}
+								on the device that has access to this vault and
+								enter the code below.
+							</p>
+							<input
+								type="text"
+								value={syncCode || 'Failed to get code'}
+								readOnly
+								className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
+							/>
+						</div>
 						<div className="flex gap-2 mt-5">
 							<RippleButton
 								onClick={() => {
