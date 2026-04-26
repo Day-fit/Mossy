@@ -20,7 +20,7 @@ function HomeHero() {
 
 			<div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
 				<RippleButton
-					className="text-white sm:mr-1"
+					className="sm:mr-1"
 					onClick={() => navigate('/register')}
 				>
 					Sign Up

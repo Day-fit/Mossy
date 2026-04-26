@@ -6,22 +6,20 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
-import pl.dayfit.mossydevice.ws.interceptor.BearerInterceptor
-import pl.dayfit.mossydevice.ws.handler.KeySyncHandler
-import pl.dayfit.mossydevice.ws.interceptor.KeySyncInterceptor
+import pl.dayfit.mossydevice.ws.handler.AuthHandlerDecorator
+import pl.dayfit.mossydevice.ws.interceptor.QueryParamHandshakeInterceptor
 
 @Profile("!raw-websocket")
 @Configuration
 @EnableWebSocket
 class SockJsWebSocketConfiguration(
-    private val keySyncHandler: KeySyncHandler,
-    private val keySyncInterceptor: KeySyncInterceptor,
-    private val bearerInterceptor: BearerInterceptor,
-    private val securityConfigurationProperties: SecurityConfigurationProperties
+    private val authHandlerDecorator: AuthHandlerDecorator,
+    private val securityConfigurationProperties: SecurityConfigurationProperties,
+    private val queryParamHandshakeInterceptor: QueryParamHandshakeInterceptor
 ): WebSocketConfigurer {
     override fun registerWebSocketHandlers(registry: WebSocketHandlerRegistry) {
-        registry.addHandler(keySyncHandler, "/ws/key-sync")
-            .addInterceptors(keySyncInterceptor, bearerInterceptor)
+        registry.addHandler(authHandlerDecorator, "/ws/key-sync")
+            .addInterceptors(queryParamHandshakeInterceptor)
             .setAllowedOriginPatterns(*securityConfigurationProperties.allowedOrigins.toTypedArray())
             .withSockJS()
     }

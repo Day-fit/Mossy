@@ -40,6 +40,7 @@ class SecurityConfiguration {
             .httpBasic { it.disable() }
             .authorizeHttpRequests {
                 it.requestMatchers(*securityConfigurationProperties.publicRoutesPatterns.toTypedArray()).permitAll()
+                it.requestMatchers("/ws/key-sync").permitAll() // Auth is handled via AUTH_FRAME after connection
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(bearerTokenFilter, UsernamePasswordAuthenticationFilter::class.java)

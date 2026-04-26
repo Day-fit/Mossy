@@ -1,23 +1,19 @@
 package pl.dayfit.mossydevice.service
 
 import com.nimbusds.jose.jwk.OctetKeyPair
+import com.nimbusds.jose.jwk.Curve
 import org.springframework.stereotype.Service
 import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.exception.InvalidKeyFormat
 import pl.dayfit.mossydevice.model.UserDevice
-import pl.dayfit.mossydevice.model.redis.KeySyncRoom
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
-import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
-import java.security.SecureRandom
 import java.text.ParseException
 import java.util.UUID
 
 @Service
 class DeviceService(
     private val userDeviceRepository: UserDeviceRepository,
-    private val secureRandom: SecureRandom,
-    private val keySyncRoomRepository: KeySyncRoomRepository
 ) {
     private val logger = org.slf4j.LoggerFactory.getLogger(DeviceService::class.java)
 
@@ -43,14 +39,16 @@ class DeviceService(
         )
 
         try {
-            val publicKeyDH = OctetKeyPair.parse(requestDto.publicKeyDH).toPublicJWK()
             val publicKeyId = OctetKeyPair.parse(requestDto.publicKeyId).toPublicJWK()
+
+            if (publicKeyId.curve != Curve.Ed25519) {
+                throw InvalidKeyFormat("Invalid key format")
+            }
 
             val result = userDeviceRepository.save(
                 UserDevice(
                     null,
                     userId,
-                    publicKeyDH,
                     publicKeyId,
                     hasAnyDevicePaired.not(),
                     null
@@ -61,38 +59,16 @@ class DeviceService(
                 return RegisterDeviceResponseDto(
                     result.deviceId!!,
                     false,
-                    null
                 )
             }
-
-            val code = generateSyncCode()
-            val room = KeySyncRoom(
-                roomId = null,
-                code,
-                userId,
-                result.deviceId!!,
-                senderId = result.deviceId,
-            )
-
-            keySyncRoomRepository.save(room)
 
             return RegisterDeviceResponseDto(
                 result.deviceId!!,
                 true,
-                code
             )
         } catch (e: ParseException) {
             logger.debug("Invalid key format provided", e)
             throw InvalidKeyFormat("Invalid key format")
         }
-    }
-
-    /**
-     * Generates 6-digit sync code
-     * @return generated sync code
-     */
-    private fun generateSyncCode(): String {
-        val randomInt = secureRandom.nextInt(1, 1_000_000)
-        return String.format("%06d", randomInt)
     }
 }

@@ -10,7 +10,7 @@ import {
 } from '../../api/password.api.ts';
 import { type UserVaultDto } from '../../api/vault.api.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
-import { useEncryptionContext } from '../../context/EncryptionContext.tsx';
+import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
 import type {
 	CiphertextPhase,
@@ -19,7 +19,9 @@ import type {
 } from './index.ts';
 import PasswordFormCard from './PasswordFormCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
-import { useVault } from '../../context/VaultContext.tsx';
+import { useVault } from '../../hooks/useVault.ts';
+import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
+import KeySyncModal from './KeySyncModal.tsx';
 
 const INITIAL_FORM_STATE: PasswordFormState = {
 	identifier: '',
@@ -28,9 +30,10 @@ const INITIAL_FORM_STATE: PasswordFormState = {
 };
 
 export default function PasswordHero() {
-	const { encrypt, decrypt, isPinPresent } = useEncryptionContext();
+	const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
 
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
+	const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
 	const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
 	const [revealedPasswords, setRevealedPasswords] = useState<
 		Record<string, string>
@@ -44,9 +47,8 @@ export default function PasswordHero() {
 	const { vaults, refreshVaults } = useVault();
 	const [selectedVaultId, setSelectedVaultId] = useState('');
 
-	const [isLoadingPasswords, setIsLoadingPasswords] =
-		useState<boolean>(false);
-	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+	const [isLoadingPasswords, setIsLoadingPasswords] = useState(false);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [loadingCiphertextPhase, setLoadingCiphertextPhase] = useState<
 		Record<string, CiphertextPhase>
 	>({});
@@ -57,7 +59,7 @@ export default function PasswordHero() {
 	const [status, setStatus] = useState<StatusMessage>(null);
 
 	const selectedVault =
-		vaults.find((vault) => vault.vaultId === selectedVaultId) ?? null;
+		vaults.find((v) => v.vaultId === selectedVaultId) ?? null;
 
 	const isEditing = editedPasswordId !== null;
 	const canManagePasswords = Boolean(
@@ -84,14 +86,16 @@ export default function PasswordHero() {
 		setIsLoadingPasswords(true);
 
 		try {
-			const nextPasswords = await executePasswordMetadataRequest(vaultId);
+			const next = await executePasswordMetadataRequest(vaultId);
+
 			setPasswords(
-				nextPasswords.sort((a, b) => {
+				next.sort((a, b) => {
 					const timeA = new Date(a.lastModified).getTime();
 					const timeB = new Date(b.lastModified).getTime();
 					return timeB - timeA;
 				})
 			);
+
 			setRevealedPasswords({});
 		} catch {
 			setPasswords([]);
@@ -101,55 +105,61 @@ export default function PasswordHero() {
 		}
 	};
 
-	// Load initial vault passwords only on mount or when vaults first become available
 	useEffect(() => {
 		if (vaults.length === 0 || selectedVaultId) return;
 
-		const initialVault = vaults.find((vault) => vault.isOnline) ?? vaults[0];
-		if (initialVault) {
-			setSelectedVaultId(initialVault.vaultId);
-			if (initialVault.isOnline) {
-				void loadPasswords(initialVault.vaultId);
-			} else {
-				resetPasswordView();
-			}
+		const initial = vaults.find((v) => v.isOnline) ?? vaults[0];
+		if (!initial) return;
+
+		setSelectedVaultId(initial.vaultId);
+
+		if (initial.isOnline) {
+			void loadPasswords(initial.vaultId);
+			return;
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
+
+		resetPasswordView();
 	}, [vaults, selectedVaultId]);
 
-	// Listen to cross-tab vault refresh events to reload current vault passwords
 	useEffect(() => {
 		const bc = new BroadcastChannel('vault_updates');
+
 		bc.onmessage = (event) => {
-			if (event.data === 'refresh' && selectedVaultId) {
-				const currentVault = vaults.find(v => v.vaultId === selectedVaultId);
-				if (currentVault?.isOnline) {
-					void loadPasswords(selectedVaultId);
-				}
-			}
+			if (event.data !== 'refresh' || !selectedVaultId) return;
+
+			const vault = vaults.find((v) => v.vaultId === selectedVaultId);
+			if (!vault?.isOnline) return;
+
+			void loadPasswords(selectedVaultId);
 		};
+
 		return () => bc.close();
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedVaultId, vaults]);
 
-	const handleSubmit = async () => {
-		if (!selectedVaultId || !selectedVault?.isOnline) {
-			setStatus({
-				type: 'error',
-				message: 'Select an online vault to save password',
-			});
-			return;
+	const runWithVaultKeySync = async (
+		vaultId: string,
+		action: () => Promise<void>
+	) => {
+		try {
+			if (!(await isPinPresent(vaultId))) {
+				setLastAction(() => (_: string) => {
+					void action();
+				});
+				setIsPinModalActive(true);
+				return;
+			}
+		} catch (error) {
+			if (error instanceof KeyNotFoundException) {
+				setLastAction(() => (_: string) => {
+					void action();
+				});
+				setIsKeySyncModalActive(true);
+				return;
+			}
+			throw error;
 		}
 
-		if (!isPinPresent(selectedVaultId)) {
-			setLastAction(() => (_: string) => {
-				void resumeSubmit();
-			});
-			setIsPinModalActive(true);
-			return;
-		}
-
-		await resumeSubmit();
+		await action();
 	};
 
 	const resumeSubmit = async () => {
@@ -187,10 +197,74 @@ export default function PasswordHero() {
 		}
 	};
 
-	const handleDelete = async (passwordId: string) => {
-		if (!selectedVaultId || !selectedVault?.isOnline) {
+	const resumeRevealToggle = async (passwordId: string) => {
+		if (revealedPasswords[passwordId]) {
+			setRevealedPasswords((prev) => {
+				const next = { ...prev };
+				delete next[passwordId];
+				return next;
+			});
 			return;
 		}
+
+		setLoadingCiphertextPhase((prev) => ({
+			...prev,
+			[passwordId]: 'Fetching',
+		}));
+
+		setStatus(null);
+
+		try {
+			const response = await executePasswordCiphertextRequest(
+				passwordId,
+				selectedVaultId
+			);
+
+			setLoadingCiphertextPhase((prev) => ({
+				...prev,
+				[passwordId]: 'Decrypting',
+			}));
+
+			const decrypted = await decrypt(
+				response.ciphertext,
+				selectedVaultId
+			);
+
+			setRevealedPasswords((prev) => ({
+				...prev,
+				[passwordId]: decrypted,
+			}));
+		} catch (error) {
+			setStatus({
+				type: 'error',
+				message:
+					error instanceof Error
+						? error.message
+						: 'Failed to reveal password',
+			});
+		} finally {
+			setLoadingCiphertextPhase((prev) => {
+				const next = { ...prev };
+				delete next[passwordId];
+				return next;
+			});
+		}
+	};
+
+	const handleSubmit = async () => {
+		if (!selectedVaultId || !selectedVault?.isOnline) {
+			setStatus({
+				type: 'error',
+				message: 'Select an online vault to save password',
+			});
+			return;
+		}
+
+		await runWithVaultKeySync(selectedVaultId, resumeSubmit);
+	};
+
+	const handleDelete = async (passwordId: string) => {
+		if (!selectedVaultId || !selectedVault?.isOnline) return;
 
 		setIsSubmitting(true);
 		setStatus(null);
@@ -202,9 +276,9 @@ export default function PasswordHero() {
 			});
 
 			setStatus({ type: 'success', message: response.message });
-			if (editedPasswordId === passwordId) {
-				resetForm();
-			}
+
+			if (editedPasswordId === passwordId) resetForm();
+
 			await refreshVaults();
 		} catch (error) {
 			setStatus({
@@ -220,81 +294,21 @@ export default function PasswordHero() {
 	};
 
 	const handleRevealToggle = async (passwordId: string) => {
-		if (!selectedVaultId || !selectedVault?.isOnline) {
-			return;
-		}
+		if (!selectedVaultId || !selectedVault?.isOnline) return;
 
-		if (!isPinPresent(selectedVaultId)) {
-			setLastAction(() => (_: string) => {
-				void resumeRevealToggle(passwordId);
-			});
-			setIsPinModalActive(true);
-			return;
-		}
-
-		await resumeRevealToggle(passwordId);
+		await runWithVaultKeySync(selectedVaultId, () =>
+			resumeRevealToggle(passwordId)
+		);
 	};
 
-	const resumeRevealToggle = async (passwordId: string) => {
-		if (revealedPasswords[passwordId]) {
-			setRevealedPasswords((prev) => {
-				const next = { ...prev };
-				delete next[passwordId];
-				return next;
-			});
-			return;
-		}
-
-		setLoadingCiphertextPhase((prevState) => ({
-			...prevState,
-			[passwordId]: 'Fetching',
-		}));
-		setStatus(null);
-
-		try {
-			const response = await executePasswordCiphertextRequest(
-				passwordId,
-				selectedVaultId
-			);
-
-			setLoadingCiphertextPhase((prevState) => {
-				const next = { ...prevState };
-				next[passwordId] = 'Decrypting';
-				return next;
-			});
-
-			const decryptedPassword = await decrypt(
-				response.ciphertext,
-				selectedVaultId
-			);
-			setRevealedPasswords((prev) => ({
-				...prev,
-				[passwordId]: decryptedPassword,
-			}));
-		} catch (error) {
-			setStatus({
-				type: 'error',
-				message:
-					error instanceof Error
-						? error.message
-						: 'Failed to reveal password',
-			});
-		} finally {
-			setLoadingCiphertextPhase((prevState) => {
-				const next = { ...prevState };
-				delete next[passwordId];
-				return next;
-			});
-		}
-	};
-
-	const handleEdit = (passwordDto: PasswordMetadataDto) => {
+	const handleEdit = (dto: PasswordMetadataDto) => {
 		setFormState({
-			identifier: passwordDto.identifier,
-			domain: passwordDto.domain,
+			identifier: dto.identifier,
+			domain: dto.domain,
 			password: '',
 		});
-		setEditedPasswordId(passwordDto.passwordId);
+
+		setEditedPasswordId(dto.passwordId);
 		setStatus(null);
 	};
 
@@ -302,7 +316,7 @@ export default function PasswordHero() {
 		field: keyof PasswordFormState,
 		value: string
 	) => {
-		setFormState((prevState) => ({ ...prevState, [field]: value }));
+		setFormState((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handleVaultSelect = async (vault: UserVaultDto) => {
@@ -311,13 +325,13 @@ export default function PasswordHero() {
 		setStatus(null);
 		resetPasswordView();
 
-		if (vault.isOnline) {
-			await loadPasswords(vault.vaultId);
-		}
+		if (!vault.isOnline) return;
+
+		await loadPasswords(vault.vaultId);
 	};
 
 	return (
-		<section className="w-full p-5">
+		<section className="w-full p-5 flex flex-col gap-6">
 			{isPinModalActive && (
 				<PasswordPinModal
 					vaultId={selectedVaultId}
@@ -326,12 +340,17 @@ export default function PasswordHero() {
 				/>
 			)}
 
+			{isKeySyncModalActive && (
+				<KeySyncModal
+					setIsKeySyncModalActive={setIsKeySyncModalActive}
+					vaultId={selectedVaultId}
+				/>
+			)}
+
 			<VaultSelectorCard
 				vaults={vaults}
 				selectedVaultId={selectedVaultId}
-				onSelectVault={(vault) => {
-					void handleVaultSelect(vault);
-				}}
+				onSelectVault={(vault) => void handleVaultSelect(vault)}
 			/>
 
 			{!selectedVaultId ? (
@@ -359,9 +378,7 @@ export default function PasswordHero() {
 						isSubmitting={isSubmitting}
 						isVaultOnline={Boolean(selectedVault?.isOnline)}
 						status={status}
-						onSubmit={() => {
-							void handleSubmit();
-						}}
+						onSubmit={() => void handleSubmit()}
 						onChange={handleFormChange}
 						onCancelEdit={resetForm}
 					/>
@@ -373,12 +390,8 @@ export default function PasswordHero() {
 						isLoadingPasswords={isLoadingPasswords}
 						isSubmitting={isSubmitting}
 						onEdit={handleEdit}
-						onDelete={(passwordId) => {
-							void handleDelete(passwordId);
-						}}
-						onRevealToggle={(passwordId) => {
-							void handleRevealToggle(passwordId);
-						}}
+						onDelete={(id) => void handleDelete(id)}
+						onRevealToggle={(id) => void handleRevealToggle(id)}
 					/>
 				</div>
 			) : null}

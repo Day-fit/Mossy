@@ -4,6 +4,8 @@ services:
     ports:
       - '80:80'
       - '443:443'
+    profiles:
+      - 'prod'
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - ./data/acme.json:/etc/traefik/acme.json
@@ -19,6 +21,8 @@ services:
     depends_on:
       - 'redis'
       - 'rabbitmq'
+    profiles:
+      - 'prod'
     expose:
       - '8084'
     environment:

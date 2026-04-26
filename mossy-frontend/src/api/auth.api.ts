@@ -1,5 +1,12 @@
 import { apiFetch } from './client.ts';
 
+export type UserDetailsResponse = {
+	userId: string;
+	username: string;
+	email: string;
+	grantedAuthorities: string[];
+};
+
 export async function executeRegisterRequest(data: {
 	username: string;
 	email: string;
@@ -37,6 +44,16 @@ export async function executeCheckAuthState(data: { token: string }) {
 			method: 'GET',
 			authToken: data.token,
 		});
+	} catch (e) {
+		throw e;
+	}
+}
+
+export async function executeUserDetailsRequest() {
+	try {
+		return (await apiFetch('/api/v1/auth/user/details', {
+			method: 'GET',
+		}).then((res) => res.json())) as UserDetailsResponse;
 	} catch (e) {
 		throw e;
 	}

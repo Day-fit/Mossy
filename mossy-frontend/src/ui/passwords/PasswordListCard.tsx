@@ -25,7 +25,7 @@ function PasswordListCard({
 }: PasswordListCardProps) {
 	return (
 		<section className="rounded-md bg-white p-5 shadow-md">
-			<h2 className="mb-4 text-xl font-semibold text-gray-800">
+			<h2 className="mb-4 text-xl font-semibold text-emerald-900">
 				Passwords
 			</h2>
 			{isLoadingPasswords ? (

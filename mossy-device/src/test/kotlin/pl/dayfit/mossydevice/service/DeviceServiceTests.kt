@@ -13,15 +13,12 @@ import pl.dayfit.mossydevice.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevice.dto.response.RegisterDeviceResponseDto
 import pl.dayfit.mossydevice.model.UserDevice
 import pl.dayfit.mossydevice.repository.UserDeviceRepository
-import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
-import java.security.SecureRandom
 import java.util.UUID
 
 @ExtendWith(MockitoExtension::class)
 class DeviceServiceTests {
     private val deviceRepository: UserDeviceRepository = mock()
-    private val keySyncRoomRepository: KeySyncRoomRepository = mock()
-    private val deviceService = DeviceService(deviceRepository, SecureRandom(), keySyncRoomRepository)
+    private val deviceService = DeviceService(deviceRepository)
 
     @Test
     fun `test register device when no device approved does not require approval`() {
@@ -39,17 +36,12 @@ class DeviceServiceTests {
             .generate()
             .toPublicJWK()
 
-        val pkDH = OctetKeyPairGenerator(Curve.X25519)
-            .generate()
-            .toPublicJWK()
-
         whenever(
             deviceRepository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,
                 userId,
-                pkDH,
                 pkId,
                 true,
                 null
@@ -59,7 +51,6 @@ class DeviceServiceTests {
         val result: RegisterDeviceResponseDto = deviceService.registerDevice(
             UUID.randomUUID(),
             RegisterDeviceRequestDto(
-                pkDH.toJSONObject(),
                 pkId.toJSONObject()
             )
         )
@@ -85,17 +76,12 @@ class DeviceServiceTests {
             .generate()
             .toPublicJWK()
 
-        val pkDH = OctetKeyPairGenerator(Curve.X25519)
-            .generate()
-            .toPublicJWK()
-
         whenever(
             deviceRepository.save(any<UserDevice>())
         ).thenReturn(
             UserDevice(
                 deviceId,
                 userId,
-                pkDH,
                 pkId,
                 false,
                 null
@@ -105,7 +91,6 @@ class DeviceServiceTests {
         val result: RegisterDeviceResponseDto = deviceService.registerDevice(
             userId,
             RegisterDeviceRequestDto(
-                pkDH.toJSONObject(),
                 pkId.toJSONObject()
             )
         )

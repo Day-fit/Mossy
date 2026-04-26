@@ -24,10 +24,15 @@ data class KeySyncRoom(
     @Id
     var roomId: String?,
     val code: String,
+    val vaultId: UUID,
     @Indexed
     val userId: UUID,
     val receiverId: UUID,
-    var senderId: UUID? = null,
+    var receiverDh: String? = null,
+    val receiverIdKey: String,
     var receiverPresent: Boolean = false,
+    var senderId: UUID? = null,
+    var senderDh: String? = null,
+    var senderIdKey: String? = null,
     var senderPresent: Boolean = false
 )

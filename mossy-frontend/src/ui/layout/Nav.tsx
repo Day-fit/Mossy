@@ -3,7 +3,7 @@ import RippleButton from './RippleButton.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
-import { useAuth } from '../../context/AuthContext.tsx';
+import { useAuth } from '../../hooks/useAuth.ts';
 import { CgProfile } from 'react-icons/cg';
 
 const menuVariants: Variants = {
@@ -71,15 +71,12 @@ function Nav() {
 
 				<div className={'hidden sm:flex mr-2'}>
 					{!isAuthenticated ? (
-						<div className="hidden sm:flex mr-2">
-							<RippleButton
-								className="text-white sm:mr-1"
-								onClick={() => navigate('/register')}
-							>
+						<div className="hidden sm:flex mr-2 gap-1">
+							<RippleButton onClick={() => navigate('/register')}>
 								Sign Up
 							</RippleButton>
 							<RippleButton
-								className="bg-transparent border-2 border-gray-800"
+								variant={'outline'}
 								rippleColor="rgb(0, 0, 0, 0.7)"
 								onClick={() => navigate('/login')}
 							>
@@ -157,7 +154,6 @@ function Nav() {
 									className="flex flex-col gap-3 w-full pt-2"
 								>
 									<RippleButton
-										className="text-white w-full"
 										onClick={() => {
 											navigate('/register');
 											closeMenu();
@@ -166,7 +162,7 @@ function Nav() {
 										Sign Up
 									</RippleButton>
 									<RippleButton
-										className="bg-transparent border-2 border-gray-800 w-full"
+										variant={'outline'}
 										rippleColor="rgb(0, 0, 0, 0.7)"
 										onClick={() => {
 											navigate('/login');

@@ -6,5 +6,4 @@ data class RegisterDeviceResponseDto(
     //If true, the user needs to approve a device with a device that is already registered
     val deviceId: UUID,
     val requiresSync: Boolean,
-    val syncCode: String?
 )

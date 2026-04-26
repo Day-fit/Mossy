@@ -8,10 +8,9 @@ import org.springframework.web.socket.WebSocketHandler
 import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
-import pl.dayfit.mossydevice.dto.ws.KeySyncDto
 import pl.dayfit.mossydevice.service.KeySyncService
 import pl.dayfit.mossydevice.service.WebSocketSessionService
-import pl.dayfit.mossydevice.type.KeySyncRole
+import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
 import tools.jackson.databind.DatabindException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
@@ -27,27 +26,12 @@ class KeySyncHandler(
 
     override fun afterConnectionEstablished(session: WebSocketSession) {
         logger.debug("New WebSocket session established: {}", session.id)
-
-        keySyncService.handleDeviceJoinedSync(session.attributes["syncCode"] as String, session)
-        webSocketSessionService.addSession(session.attributes["deviceId"] as UUID, session)
     }
 
     override fun handleMessage(
         session: WebSocketSession,
         message: WebSocketMessage<*>
     ) {
-        val roles = session.attributes["role"] as? KeySyncRole
-
-        if (roles == null) {
-            logger.debug("Received message from unauthorized peer, ignoring it")
-            return
-        }
-
-        if (roles != KeySyncRole.SENDER) {
-            logger.debug("Not a sender sent message, ignoring message")
-            return
-        }
-
         val textMessage = message as? TextMessage
 
         if (textMessage == null) {
@@ -56,7 +40,7 @@ class KeySyncHandler(
         }
 
         try {
-            val dto = jsonMapper.readValue<KeySyncDto>(textMessage.payload)
+            val dto = jsonMapper.readValue<WebSocketMessageDto.KeySync>(textMessage.payload)
             keySyncService.handleSync(dto, session)
         } catch (_: DatabindException){
             logger.debug("Received invalid payload, ignoring it")
@@ -76,6 +60,7 @@ class KeySyncHandler(
                     )
                 )
             )
+            session.close()
         } catch (e: Exception) {
             logger.error("Unhandled error occurred while handling sync message", e)
         }
@@ -93,7 +78,13 @@ class KeySyncHandler(
         closeStatus: CloseStatus
     ) {
         logger.debug("WebSocket session closed: {}", session.id)
-        val deviceId = session.attributes["deviceId"] as UUID
+        val deviceId = runCatching { UUID.fromString(session.attributes["deviceId"] as String)}
+            .getOrNull()
+
+        if (deviceId == null) {
+            logger.debug("No deviceId found in session, ignoring it")
+            return
+        }
 
         keySyncService.handlePeerDisconnected(session)
         webSocketSessionService.removeSession(deviceId)

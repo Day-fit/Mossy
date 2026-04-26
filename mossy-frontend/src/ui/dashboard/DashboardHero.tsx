@@ -3,7 +3,7 @@ import { useDashboardStatistics } from '../../hooks/useDashboardStatistics.ts';
 import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
-import { useVault } from '../../context/VaultContext.tsx';
+import { useVault } from '../../hooks/useVault.ts';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();

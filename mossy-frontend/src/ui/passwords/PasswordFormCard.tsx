@@ -1,5 +1,6 @@
 import StrengthMeter from './StrengthMeter.tsx';
 import type { PasswordFormState, StatusMessage } from './index.ts';
+import RippleButton from '../layout/RippleButton.tsx';
 
 type PasswordFormCardProps = {
 	formState: PasswordFormState;
@@ -22,15 +23,32 @@ function PasswordFormCard({
 	onChange,
 	onCancelEdit,
 }: PasswordFormCardProps) {
+	function normalizeDomain(input: string) {
+		try {
+			const url = new URL(
+				input.startsWith('http') ? input : `https://${input}`
+			);
+			return url.hostname.replace(/^www\./, '');
+		} catch {
+			return input
+				.replace(/^https?:\/\//, '')
+				.replace(/^www\./, '')
+				.split('/')[0]
+				.split('?')[0]
+				.split('#')[0];
+		}
+	}
+
 	return (
 		<form
 			onSubmit={(event) => {
 				event.preventDefault();
+				onChange('domain', normalizeDomain(formState.domain));
 				onSubmit();
 			}}
 			className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-md"
 		>
-			<h2 className="text-xl font-semibold text-gray-800">
+			<h2 className="text-xl font-semibold text-emerald-900">
 				{isEditing ? 'Update password' : 'Add password'}
 			</h2>
 
@@ -76,27 +94,27 @@ function PasswordFormCard({
 			</div>
 
 			<div className="flex items-center gap-3">
-				<button
+				<RippleButton
 					type="submit"
-					className="rounded-sm border-2 px-4 py-2"
 					disabled={isSubmitting || !isVaultOnline}
 				>
 					{isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Add'}
-				</button>
+				</RippleButton>
 
 				{isEditing ? (
-					<button
+					<RippleButton
 						type="button"
-						className="rounded-sm border-2 px-4 py-2"
+						variant="outline"
 						onClick={onCancelEdit}
 					>
 						Cancel edit
-					</button>
+					</RippleButton>
 				) : null}
 
 				{status?.type === 'success' ? (
 					<p className="text-sm text-emerald-700">{status.message}</p>
 				) : null}
+
 				{status?.type === 'error' ? (
 					<p className="text-sm text-red-600">{status.message}</p>
 				) : null}
