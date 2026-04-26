@@ -34,7 +34,7 @@ describe('ensureDeviceRegistered', () => {
 		});
 
 		expect(generateDeviceKeys).toHaveBeenCalledTimes(1);
-		expect(executeRegisterDeviceRequest).toHaveBeenCalledWith('ed', 'x');
+		expect(executeRegisterDeviceRequest).toHaveBeenCalledWith('ed');
 		expect(saveDeviceId).toHaveBeenCalledWith('device-100');
 		expect(setSyncRequired).toHaveBeenCalledWith(true);
 	});
@@ -57,4 +57,3 @@ describe('ensureDeviceRegistered', () => {
 		expect(setSyncRequired).not.toHaveBeenCalled();
 	});
 });
-
