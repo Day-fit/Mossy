@@ -1,6 +1,7 @@
 import type { CapturedCredential } from "./types";
 import { decryptPassword } from "./utils/decryptPassword";
 import { executeRefreshRequest } from "./api/auth.api";
+import { executePasswordCiphertextRequest } from "./api/password.api";
 import { tokenStorage } from "./auth/tokenStorage";
 
 const KEY = "captured_credentials";
@@ -28,6 +29,24 @@ function normalizeUrl(url?: string) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "MOSSY_GET_CIPHERTEXT") {
+    void (async () => {
+      try {
+        const data = await executePasswordCiphertextRequest(
+          message.passwordId as string,
+          message.vaultId as string,
+        );
+        sendResponse({ ok: true, ciphertext: data.ciphertext });
+      } catch (e) {
+        sendResponse({
+          ok: false,
+          error: e instanceof Error ? e.message : "Failed to fetch ciphertext",
+        });
+      }
+    })();
+    return true;
+  }
+
   if (message?.type === "MOSSY_DECRYPT_PASSWORD") {
     void (async () => {
       try {
