@@ -1,9 +1,7 @@
 import { normalizeDomain } from "./utils/domain";
 import { usePasswordsStore } from "./store/passwordsStore.ts";
-import { executeRefreshRequest } from "./api/auth.api.ts";
 import { executePasswordCiphertextRequest } from "./api/password.api.ts";
 import { loadSelectedVaultId } from "./utils/chromeStorage.ts";
-import { tokenStorage } from "./auth/tokenStorage.ts";
 
 const getPasswords = usePasswordsStore.getState().getPasswords;
 let suggestionElement: HTMLElement | null = null;
@@ -16,19 +14,6 @@ type CapturePayload = {
 };
 
 let lastCaptureHash = "";
-
-refreshAccessToken().catch(console.error);
-setTimeout(async () => {
-  await refreshAccessToken();
-}, 840000);
-
-async function refreshAccessToken() {
-  const response = await executeRefreshRequest().then((response) =>
-    response.json(),
-  );
-
-  tokenStorage.set(response.accessToken);
-}
 
 function getInputs() {
   const inputs = Array.from(document.querySelectorAll("input"));
@@ -74,6 +59,8 @@ function tryCapture() {
     }
   });
 }
+
+const PIN_LENGTH = 4;
 
 // ── Session PIN cache helpers ────────────────────────────────────────────────
 
@@ -170,7 +157,7 @@ function showInPagePinModal(): Promise<string | null> {
         <div class="card">
           <h3 id="pin-modal-title">Enter Vault PIN</h3>
           <p>Enter your 4-digit PIN to fill credentials.</p>
-          <input type="password" inputmode="numeric" maxlength="4" id="pin" autocomplete="off" aria-label="4-digit vault PIN" aria-labelledby="pin-modal-title" />
+          <input type="password" inputmode="numeric" maxlength="4" id="pin" autocomplete="off" aria-labelledby="pin-modal-title" />
           <div class="buttons">
             <button class="btn-primary" id="submit">Fill</button>
             <button class="btn-secondary" id="cancel">Cancel</button>
@@ -186,11 +173,11 @@ function showInPagePinModal(): Promise<string | null> {
     }
 
     const pinInput = shadow.getElementById("pin") as HTMLInputElement;
-    // Delay focus slightly to allow the shadow DOM to be painted before focusing
-    requestAnimationFrame(() => pinInput?.focus());
+    // requestAnimationFrame ensures the shadow DOM is painted before we focus
+    requestAnimationFrame(() => pinInput.focus());
 
     function submit() {
-      if (pinInput.value.length !== 4) return;
+      if (pinInput.value.length !== PIN_LENGTH) return;
       const pin = pinInput.value;
       cleanup();
       resolve(pin);

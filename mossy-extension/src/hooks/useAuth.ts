@@ -10,16 +10,16 @@ export const useAuth = () => {
   const setUserDetails = useAuthStore((state) => state.setUserDetails);
 
   const login = useCallback(
-    (token: string) => {
-      tokenStorage.set(token);
+    async (token: string) => {
+      await tokenStorage.set(token);
       setIsAuthenticated(true);
       void executeUserDetailsRequest().then(setUserDetails).catch(() => setUserDetails(null));
     },
     [setIsAuthenticated, setUserDetails]
   );
 
-  const logout = useCallback(() => {
-    tokenStorage.set(null);
+  const logout = useCallback(async () => {
+    await tokenStorage.set(null);
     setUserDetails(null);
     setIsAuthenticated(false);
   }, [setIsAuthenticated, setUserDetails]);

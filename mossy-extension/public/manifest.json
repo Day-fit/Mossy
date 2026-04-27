@@ -3,7 +3,7 @@
   "name": "Mossy",
   "version": "0.1.0",
   "description": "Mossy password manager extension",
-  "permissions": ["storage", "tabs", "activeTab"],
+  "permissions": ["storage", "tabs", "activeTab", "alarms"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost:8081/*",

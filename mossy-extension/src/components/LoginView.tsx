@@ -19,7 +19,7 @@ export default function LoginView() {
       const data = await response.json();
       if (!data.accessToken) throw new Error("Missing access token");
 
-      tokenStorage.set(data.accessToken);
+      await tokenStorage.set(data.accessToken);
 
       const detailsResponse = await executeUserDetailsRequest();
       setUserDetails(detailsResponse);
