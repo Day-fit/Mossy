@@ -19,11 +19,13 @@ export default function AddPasswordForm({ onSubmit }: Props) {
   }
 
   return (
-    <section
-      className="card"
-      style={{ display: "flex", flexDirection: "column", gap: 8 }}
-    >
-      <h2 style={{ fontSize: 16 }}>Add Password</h2>
+    <section className="card section">
+      <div className="section-header">
+        <h2 className="section-title">Add password</h2>
+        <p className="section-subtitle">
+          Encrypt and store a new credential.
+        </p>
+      </div>
       <input
         placeholder="Identifier"
         value={identifier}

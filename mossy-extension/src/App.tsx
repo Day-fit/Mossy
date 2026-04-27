@@ -257,11 +257,13 @@ export default function App() {
 
   return (
     <div className="app">
-      <section className="card hero">
-        <h1 style={{ fontSize: 20 }}>{userDetails?.username ?? "Mossy"}</h1>
-        <p className="small">
-          Select vault, sync key, then save/reveal passwords.
-        </p>
+      <section className="card hero section">
+        <div className="section-header">
+          <h1 className="hero-title">{userDetails?.username ?? "Mossy"}</h1>
+          <p className="section-subtitle">
+            Select a vault, sync a key, then save or reveal passwords.
+          </p>
+        </div>
       </section>
 
       <VaultSelector />

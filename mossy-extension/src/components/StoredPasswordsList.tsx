@@ -18,12 +18,16 @@ export default function StoredPasswordsList({ onReveal }: Props) {
   }
 
   return (
-    <section
-      className="card"
-      style={{ display: "flex", flexDirection: "column", gap: 8 }}
-    >
-      <h2 style={{ fontSize: 16 }}>Stored Passwords</h2>
-      {passwords.length === 0 ? <p className="small">No passwords</p> : null}
+    <section className="card section">
+      <div className="section-header">
+        <h2 className="section-title">Stored passwords</h2>
+        <p className="section-subtitle">
+          Reveal or hide encrypted passwords on demand.
+        </p>
+      </div>
+      {passwords.length === 0 ? (
+        <p className="empty-state">No passwords saved yet.</p>
+      ) : null}
       {passwords.map((item) => (
         <div key={item.passwordId} className="password-item">
           <p style={{ fontSize: 13 }}>
