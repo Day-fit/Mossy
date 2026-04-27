@@ -1,42 +1,80 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useAuthInit } from './hooks/useAuthInit';
-import { useAuth } from './hooks/useAuth';
-import { executeLoginRequest } from './api/auth.api';
-import { useVault } from './hooks/useVault';
-import { useDeviceBootstrap } from './hooks/useDeviceBootstrap';
-import { useEncryptionHook } from './hooks/useEncryptionHook';
-import { executePasswordCiphertextRequest, executePasswordMetadataRequest, executeSavePasswordRequest } from './api/password.api';
-import { normalizeDomain } from './utils/domain';
-import { loadCapturedCredentials, saveCapturedCredentials } from './utils/chromeStorage';
-import type { CapturedCredential, PasswordMetadataDto } from './types';
-import { KeyNotFoundException } from './exception/KeyNotFoundException';
-import KeySyncModal from './components/KeySyncModal';
-import PasswordPinModal from './components/PasswordPinModal';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuthInit } from "./hooks/useAuthInit";
+import { useAuthStore } from "./store/authStore";
+import { useVaultStore } from "./store/vaultStore";
+import { useEncryptionStore } from "./store/encryptionStore";
+import { useCapturedStore } from "./store/capturedStore";
+import { usePasswordsStore } from "./store/passwordsStore";
+import { useRevealedStore } from "./store/revealedStore";
+import { useDeviceBootstrap } from "./hooks/useDeviceBootstrap";
+import { useEncryptionHook } from "./hooks/useEncryptionHook";
+import {
+  executePasswordCiphertextRequest,
+  executePasswordMetadataRequest,
+  executeSavePasswordRequest,
+} from "./api/password.api";
+import { normalizeDomain } from "./utils/domain";
+import {
+  loadCapturedCredentials,
+  saveCapturedCredentials,
+} from "./utils/chromeStorage";
+import type { CapturedCredential } from "./types";
+import { KeyNotFoundException } from "./exception/KeyNotFoundException";
+import KeySyncModal from "./components/KeySyncModal";
+import PasswordPinModal from "./components/PasswordPinModal";
+import LoginView from "./components/LoginView";
+import VaultSelector from "./components/VaultSelector";
+import AddPasswordForm from "./components/AddPasswordForm";
+import CapturedCredentialsList from "./components/CapturedCredentialsList";
+import StoredPasswordsList from "./components/StoredPasswordsList";
+import { executeUserVaultsRequest } from "./api/vault.api.ts";
+
+type SaveValues = { identifier: string; password: string; domain: string };
 
 export default function App() {
   useAuthInit();
-  const { isAuthenticated, userDetails, login } = useAuth();
-  const { vaults, selectedVaultId, setSelectedVaultId, refreshVaults } = useVault();
-  const { bootstrapDevice } = useDeviceBootstrap();
-  const { setPin, encrypt, decrypt, isPinPresent } = useEncryptionHook();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
-  const [domain, setDomain] = useState('');
-  const [status, setStatus] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [loginIdentifier, setLoginIdentifier] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
-  const [revealed, setRevealed] = useState<Record<string, string>>({});
-  const [captured, setCaptured] = useState<CapturedCredential[]>([]);
+  const { isAuthenticated, userDetails } = useAuthStore();
+  const { vaults, selectedVaultId, setVaults } = useVaultStore();
+  const { setPin } = useEncryptionStore();
+  const { setCaptured } = useCapturedStore();
+  const { setPasswords } = usePasswordsStore();
+
+  const { bootstrapDevice } = useDeviceBootstrap();
+  const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
+
+  const [status, setStatus] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [isPinModalActive, setIsPinModalActive] = useState(false);
   const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
   const [keySyncVaultId, setKeySyncVaultId] = useState<string | null>(null);
-  const [pendingAction, setPendingAction] = useState<(() => Promise<void>) | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    (() => Promise<void>) | null
+  >(null);
   const initializedUserIdRef = useRef<string | null>(null);
 
-  const selectedVault = useMemo(() => vaults.find((v) => v.vaultId === selectedVaultId), [vaults, selectedVaultId]);
+  const selectedVault = useMemo(
+    () => vaults.find((v) => v.vaultId === selectedVaultId),
+    [vaults, selectedVaultId],
+  );
+
+  async function refreshVaults() {
+    const result = await executeUserVaultsRequest();
+    setVaults(result);
+  }
+
+  async function refreshPasswords() {
+    const { selectedVaultId: id } = useVaultStore.getState();
+    if (!id) return;
+    const metadata = await executePasswordMetadataRequest(id);
+    setPasswords(
+      metadata.sort(
+        (a, b) =>
+          new Date(b.lastModified).getTime() -
+          new Date(a.lastModified).getTime(),
+      ),
+    );
+  }
 
   useEffect(() => {
     if (isAuthenticated !== true || !userDetails?.userId) {
@@ -49,16 +87,27 @@ export default function App() {
     void (async () => {
       await refreshVaults();
       await bootstrapDevice();
-      const capturedCredentials = await loadCapturedCredentials();
-      setCaptured(capturedCredentials);
+      setCaptured(await loadCapturedCredentials());
     })();
-  }, [bootstrapDevice, isAuthenticated, refreshVaults, userDetails?.userId]);
+  }, [
+    bootstrapDevice,
+    isAuthenticated,
+    userDetails?.userId,
+    refreshVaults,
+    setCaptured,
+  ]);
 
   useEffect(() => {
-    const listener = (changes: { [key: string]: chrome.storage.StorageChange }, areaName: string) => {
-      if (areaName !== 'local') return;
-      if (!changes.captured_credentials) return;
-      setCaptured((changes.captured_credentials.newValue as CapturedCredential[] | undefined) ?? []);
+    const listener = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string,
+    ) => {
+      if (areaName !== "local" || !changes.captured_credentials) return;
+      setCaptured(
+        (changes.captured_credentials.newValue as
+          | CapturedCredential[]
+          | undefined) ?? [],
+      );
     };
 
     chrome.storage.onChanged.addListener(listener);
@@ -67,12 +116,7 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedVaultId) return;
-
-    void executePasswordMetadataRequest(selectedVaultId)
-      .then((result) => {
-        setPasswords(result.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime()));
-      })
-      .catch(() => setPasswords([]));
+    void refreshPasswords().catch(() => setPasswords([]));
   }, [selectedVaultId]);
 
   useEffect(() => {
@@ -85,8 +129,7 @@ export default function App() {
     let cancelled = false;
 
     void isPinPresent(selectedVaultId).catch((e: unknown) => {
-      if (cancelled) return;
-      if (!(e instanceof KeyNotFoundException)) return;
+      if (cancelled || !(e instanceof KeyNotFoundException)) return;
       setKeySyncVaultId(selectedVaultId);
       setIsKeySyncModalActive(true);
     });
@@ -96,26 +139,18 @@ export default function App() {
     };
   }, [isPinPresent, selectedVaultId, selectedVault?.isOnline]);
 
-  async function handleLogin() {
-    setError('');
-    setStatus('');
+  async function runWithVaultKeySync(
+    vaultId: string,
+    action: () => Promise<void>,
+  ) {
     try {
-      const response = await executeLoginRequest({ identifier: loginIdentifier, password: loginPassword });
-      const data = await response.json();
-      if (!data.accessToken) throw new Error('Missing access token');
-      login(data.accessToken);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Login failed');
-    }
-  }
-
-  async function runWithVaultKeySync(vaultId: string, action: () => Promise<void>) {
-    try {
-      if (!(await isPinPresent(vaultId))) {
+      const hasPin = await isPinPresent(vaultId);
+      if (!hasPin) {
         setPendingAction(() => action);
         setIsPinModalActive(true);
         return;
       }
+      await action();
     } catch (e) {
       if (e instanceof KeyNotFoundException) {
         setPendingAction(() => action);
@@ -125,98 +160,97 @@ export default function App() {
       }
       throw e;
     }
-
-    await action();
   }
 
-  async function resumeSave(source?: CapturedCredential) {
-    if (!selectedVaultId) return;
+  async function resumeSave(values: SaveValues, source?: CapturedCredential) {
+    const { selectedVaultId: id } = useVaultStore.getState();
+    if (!id) return;
 
-    const finalIdentifier = source?.identifier ?? identifier;
-    const finalPassword = source?.password ?? password;
-    const finalDomain = normalizeDomain(source?.domain ?? domain);
-    const cipherText = await encrypt(finalPassword, selectedVaultId);
+    const cipherText = await encrypt(values.password, id);
     const result = await executeSavePasswordRequest({
-      identifier: finalIdentifier,
-      domain: finalDomain,
+      identifier: values.identifier,
+      domain: normalizeDomain(values.domain),
       cipherText,
-      vaultId: selectedVaultId,
+      vaultId: id,
     });
 
     setStatus(result.message);
-    setIdentifier('');
-    setPassword('');
-    setDomain('');
     await refreshVaults();
-    const metadata = await executePasswordMetadataRequest(selectedVaultId);
-    setPasswords(metadata);
+    await refreshPasswords();
 
     if (source) {
+      const { captured } = useCapturedStore.getState();
       const next = captured.filter((item) => item.id !== source.id);
       setCaptured(next);
       await saveCapturedCredentials(next);
-      await chrome.action.setBadgeText({ text: next.length > 0 ? String(next.length) : '' });
-    }
-  }
-
-  async function handleAddPassword(source?: CapturedCredential) {
-    setError('');
-    setStatus('');
-
-    try {
-      if (!selectedVaultId || !selectedVault?.isOnline) {
-        throw new Error('Select an online vault');
-      }
-
-      await runWithVaultKeySync(selectedVaultId, () => resumeSave(source));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
-    }
-  }
-
-  async function resumeRevealToggle(passwordId: string) {
-    if (!selectedVaultId) return;
-
-    if (revealed[passwordId]) {
-      setRevealed((prev) => {
-        const next = { ...prev };
-        delete next[passwordId];
-        return next;
+      await chrome.action.setBadgeText({
+        text: next.length > 0 ? String(next.length) : "",
       });
-      return;
     }
+  }
 
-    const response = await executePasswordCiphertextRequest(passwordId, selectedVaultId);
-    const plain = await decrypt(response.ciphertext, selectedVaultId);
-    setRevealed((prev) => ({ ...prev, [passwordId]: plain }));
+  async function handleSave(values: SaveValues) {
+    setError("");
+    setStatus("");
+    try {
+      if (!selectedVaultId || !selectedVault?.isOnline)
+        throw new Error("Select an online vault");
+      await runWithVaultKeySync(selectedVaultId, () => resumeSave(values));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
+  async function handleSaveCaptured(item: CapturedCredential) {
+    setError("");
+    setStatus("");
+    try {
+      if (!selectedVaultId || !selectedVault?.isOnline)
+        throw new Error("Select an online vault");
+      await runWithVaultKeySync(selectedVaultId, () =>
+        resumeSave(
+          {
+            identifier: item.identifier,
+            password: item.password,
+            domain: item.domain,
+          },
+          item,
+        ),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    }
   }
 
   async function handleReveal(passwordId: string) {
-    setError('');
-
+    setError("");
     try {
       if (!selectedVaultId || !selectedVault?.isOnline) return;
-      await runWithVaultKeySync(selectedVaultId, () => resumeRevealToggle(passwordId));
+      await runWithVaultKeySync(selectedVaultId, async () => {
+        const { selectedVaultId: id } = useVaultStore.getState();
+        if (!id) return;
+        const response = await executePasswordCiphertextRequest(passwordId, id);
+        const plain = await decrypt(response.ciphertext, id);
+        useRevealedStore.getState().setRevealedPassword(passwordId, plain);
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Decrypt failed');
+      setError(e instanceof Error ? e.message : "Decrypt failed");
+    }
+  }
+
+  async function runPendingAction() {
+    if (!pendingAction) return;
+    try {
+      await pendingAction();
+    } finally {
+      setPendingAction(null);
     }
   }
 
   if (isAuthenticated !== true) {
     return (
       <div className="app">
-        <section className="card hero">
-          <h1 style={{ fontSize: 22, marginBottom: 8 }}>An open-source password manager that never wants your secrets</h1>
-          <p className="small">A self-hosted vault with end-to-end encryption and key synchronization.</p>
-        </section>
-
-        <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <h2 style={{ fontSize: 18 }}>Sign in</h2>
-          <input placeholder="Email or username" value={loginIdentifier} onChange={(e) => setLoginIdentifier(e.target.value)} />
-          <input type="password" placeholder="Password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-          <button onClick={() => void handleLogin()}>Login</button>
-          {error ? <p className="status-err">{error}</p> : null}
-        </section>
+        <LoginView />
       </div>
     );
   }
@@ -224,60 +258,16 @@ export default function App() {
   return (
     <div className="app">
       <section className="card hero">
-        <h1 style={{ fontSize: 20 }}>{userDetails?.username ?? 'Mossy'}</h1>
-        <p className="small">Select vault, sync key, then save/reveal passwords.</p>
+        <h1 style={{ fontSize: 20 }}>{userDetails?.username ?? "Mossy"}</h1>
+        <p className="small">
+          Select vault, sync key, then save/reveal passwords.
+        </p>
       </section>
 
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={{ fontSize: 16 }}>Vault</h2>
-        <select value={selectedVaultId} onChange={(e) => setSelectedVaultId(e.target.value)}>
-          <option value="">Choose vault</option>
-          {vaults.map((vault) => (
-            <option key={vault.vaultId} value={vault.vaultId}>
-              {vault.vaultName} ({vault.isOnline ? 'online' : 'offline'})
-            </option>
-          ))}
-        </select>
-      </section>
-
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={{ fontSize: 16 }}>Add Password</h2>
-        <input placeholder="Identifier" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-        <input placeholder="Domain" value={domain} onChange={(e) => setDomain(e.target.value)} />
-        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button onClick={() => void handleAddPassword()}>Encrypt & Save</button>
-      </section>
-
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={{ fontSize: 16 }}>Captured From Websites</h2>
-        {captured.length === 0 ? <p className="small">No captured credentials</p> : null}
-        {captured.map((item) => (
-          <div key={item.id} className="password-item">
-            <p style={{ fontSize: 13 }}>
-              {item.identifier} @ {item.domain}
-            </p>
-            <div className="row">
-              <button onClick={() => void handleAddPassword(item)}>Save to vault</button>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h2 style={{ fontSize: 16 }}>Stored Passwords</h2>
-        {passwords.length === 0 ? <p className="small">No passwords</p> : null}
-        {passwords.map((item) => (
-          <div key={item.passwordId} className="password-item">
-            <p style={{ fontSize: 13 }}>
-              {item.identifier} @ {item.domain}
-            </p>
-            <p className="small">{revealed[item.passwordId] ?? '••••••••••'}</p>
-            <button className="secondary" onClick={() => void handleReveal(item.passwordId)}>
-              {revealed[item.passwordId] ? 'Hide' : 'Reveal'}
-            </button>
-          </div>
-        ))}
-      </section>
+      <VaultSelector />
+      <AddPasswordForm onSubmit={handleSave} />
+      <CapturedCredentialsList onSave={handleSaveCaptured} />
+      <StoredPasswordsList onReveal={handleReveal} />
 
       {status ? <p className="status-ok">{status}</p> : null}
       {error ? <p className="status-err">{error}</p> : null}
@@ -286,14 +276,10 @@ export default function App() {
         <PasswordPinModal
           vaultId={selectedVaultId}
           onClose={() => setIsPinModalActive(false)}
-          onPinEntered={async () => {
+          onPinEntered={async (pin) => {
             setIsPinModalActive(false);
-            if (!pendingAction) return;
-            try {
-              await pendingAction();
-            } finally {
-              setPendingAction(null);
-            }
+            setPin(selectedVaultId, pin);
+            await runPendingAction();
           }}
         />
       ) : null}
@@ -302,9 +288,9 @@ export default function App() {
         <KeySyncModal
           vaultId={keySyncVaultId}
           onClose={() => setIsKeySyncModalActive(false)}
-          onSynchronized={() => {
-            setStatus('Key synchronized');
-            setPendingAction(null);
+          onSynchronized={async () => {
+            setStatus("Key synchronized");
+            await runPendingAction();
           }}
         />
       ) : null}

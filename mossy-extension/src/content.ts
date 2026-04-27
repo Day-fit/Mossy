@@ -1,45 +1,76 @@
-import { normalizeDomain } from './utils/domain';
+import { normalizeDomain } from "./utils/domain";
 
-const trackedForms = new WeakSet<HTMLFormElement>();
+type CapturePayload = {
+  type: "MOSSY_CAPTURE_CREDENTIAL";
+  identifier: string;
+  password: string;
+  domain: string;
+};
 
-function getIdentifier(form: HTMLFormElement): string {
-  const email = form.querySelector('input[type="email"]') as HTMLInputElement | null;
-  if (email?.value) return email.value;
+let lastCaptureHash = "";
 
-  const username = form.querySelector('input[name*="user" i], input[name*="login" i], input[name*="identifier" i]') as HTMLInputElement | null;
-  if (username?.value) return username.value;
+function getInputs() {
+  const inputs = Array.from(document.querySelectorAll("input"));
+  const password = inputs.find((i) => i.type === "password") as
+    | HTMLInputElement
+    | undefined;
 
-  const text = form.querySelector('input[type="text"]') as HTMLInputElement | null;
-  return text?.value ?? '';
+  if (!password?.value) return null;
+
+  const identifier =
+    inputs.find((i) => i.type === "email")?.value ||
+    inputs.find((i) => /user|login|identifier/i.test(i.name))?.value ||
+    inputs.find((i) => i.type === "text")?.value ||
+    "";
+
+  return {
+    identifier,
+    password: password.value,
+  };
 }
 
-function attachListeners() {
-  const forms = document.querySelectorAll('form');
-  forms.forEach((form) => {
-    if (trackedForms.has(form)) return;
+function hashPayload(identifier: string, password: string, domain: string) {
+  return `${identifier}|${password}|${domain}`;
+}
 
-    form.addEventListener('submit', () => {
-      const passwordInput = form.querySelector('input[type="password"]') as HTMLInputElement | null;
-      if (!passwordInput?.value) return;
+function tryCapture() {
+  const data = getInputs();
+  if (!data) return;
 
-      const payload = {
-        type: 'MOSSY_CAPTURE_CREDENTIAL',
-        identifier: getIdentifier(form),
-        password: passwordInput.value,
-        domain: normalizeDomain(window.location.hostname),
-      };
+  const domain = normalizeDomain(window.location.hostname);
+  const hash = hashPayload(data.identifier, data.password, domain);
 
-      chrome.runtime.sendMessage(payload);
-    });
+  if (hash === lastCaptureHash) return;
+  lastCaptureHash = hash;
 
-    trackedForms.add(form);
+  const payload: CapturePayload = {
+    type: "MOSSY_CAPTURE_CREDENTIAL",
+    identifier: data.identifier,
+    password: data.password,
+    domain,
+  };
+
+  chrome.runtime.sendMessage(payload, () => {
+    if (chrome.runtime.lastError) {
+      console.error("Capture error:", chrome.runtime.lastError);
+    }
   });
 }
 
-attachListeners();
+document.addEventListener("click", (e) => {
+  const target = e.target as HTMLElement;
 
-const observer = new MutationObserver(() => {
-  attachListeners();
+  const isSubmit =
+    target.closest('button[type="submit"]') ||
+    target.closest('input[type="submit"]') ||
+    target.closest("button:not([type])");
+
+  if (!isSubmit) return;
+
+  tryCapture();
 });
 
-observer.observe(document.documentElement, { childList: true, subtree: true });
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  tryCapture();
+});
