@@ -29,6 +29,8 @@
     }
   ],
   "icons": {
-    "128": "mossy_logo.png"
+    "128": "mossy_logo_128.png",
+    "48": "mossy_logo_48.png",
+    "32": "mossy_logo_32.png"
   }
 }
