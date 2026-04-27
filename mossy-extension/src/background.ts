@@ -1,4 +1,5 @@
 import type { CapturedCredential } from "./types";
+import { decryptPassword } from "./utils/decryptPassword";
 
 const KEY = "captured_credentials";
 
@@ -22,6 +23,25 @@ function normalizeUrl(url?: string) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "MOSSY_DECRYPT_PASSWORD") {
+    void (async () => {
+      try {
+        const plaintext = await decryptPassword(
+          message.ciphertext as string,
+          message.vaultId as string,
+          message.pin as string,
+        );
+        sendResponse({ ok: true, plaintext });
+      } catch (e) {
+        sendResponse({
+          ok: false,
+          error: e instanceof Error ? e.message : "Decryption failed",
+        });
+      }
+    })();
+    return true;
+  }
+
   if (message?.type !== "MOSSY_CAPTURE_CREDENTIAL") return;
 
   void (async () => {

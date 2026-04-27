@@ -75,6 +75,182 @@ function tryCapture() {
   });
 }
 
+// ── Session PIN cache helpers ────────────────────────────────────────────────
+
+async function getCachedPin(vaultId: string): Promise<string | null> {
+  try {
+    if (!chrome.storage?.session) return null;
+    const result = await chrome.storage.session.get(`pin:${vaultId}`);
+    return (result[`pin:${vaultId}`] as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function cachePin(vaultId: string, pin: string): Promise<void> {
+  try {
+    if (!chrome.storage?.session) return;
+    await chrome.storage.session.set({ [`pin:${vaultId}`]: pin });
+  } catch {
+    // storage.session may not be available in older builds
+  }
+}
+
+// ── In-page PIN modal (Shadow DOM) ───────────────────────────────────────────
+
+function showInPagePinModal(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+
+    shadow.innerHTML = `
+      <style>
+        .overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 2147483647;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .card {
+          background: #fff;
+          border-radius: 14px;
+          padding: 28px 24px 22px;
+          width: 300px;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        h3 { margin: 0; font-size: 17px; font-weight: 600; color: #111; }
+        p  { margin: 0; font-size: 13px; color: #666; }
+        input {
+          border: 1.5px solid #ddd;
+          border-radius: 8px;
+          padding: 9px 12px;
+          font-size: 22px;
+          letter-spacing: 10px;
+          text-align: center;
+          outline: none;
+          width: 100%;
+          box-sizing: border-box;
+          transition: border-color 0.15s;
+        }
+        input:focus { border-color: #007735; }
+        .buttons { display: flex; gap: 8px; }
+        .btn-primary {
+          flex: 1;
+          padding: 9px;
+          background: #007735;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .btn-primary:hover { background: #006029; }
+        .btn-secondary {
+          flex: 1;
+          padding: 9px;
+          background: transparent;
+          color: #555;
+          border: 1.5px solid #ddd;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .error { font-size: 12px; color: #c0392b; text-align: center; }
+      </style>
+      <div class="overlay">
+        <div class="card">
+          <h3 id="pin-modal-title">Enter Vault PIN</h3>
+          <p>Enter your 4-digit PIN to fill credentials.</p>
+          <input type="password" inputmode="numeric" maxlength="4" id="pin" autocomplete="off" aria-label="4-digit vault PIN" aria-labelledby="pin-modal-title" />
+          <div class="buttons">
+            <button class="btn-primary" id="submit">Fill</button>
+            <button class="btn-secondary" id="cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(host);
+
+    function cleanup() {
+      host.remove();
+    }
+
+    const pinInput = shadow.getElementById("pin") as HTMLInputElement;
+    // Delay focus slightly to allow the shadow DOM to be painted before focusing
+    requestAnimationFrame(() => pinInput?.focus());
+
+    function submit() {
+      if (pinInput.value.length !== 4) return;
+      const pin = pinInput.value;
+      cleanup();
+      resolve(pin);
+    }
+
+    const submitBtn = shadow.getElementById("submit");
+    const cancelBtn = shadow.getElementById("cancel");
+    const overlay = shadow.querySelector(".overlay");
+
+    if (!submitBtn || !cancelBtn || !overlay) {
+      cleanup();
+      resolve(null);
+      return;
+    }
+
+    submitBtn.addEventListener("click", submit);
+
+    cancelBtn.addEventListener("click", () => {
+      cleanup();
+      resolve(null);
+    });
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve(null);
+      }
+    });
+
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+    });
+  });
+}
+
+// ── Decrypt & fill helpers ───────────────────────────────────────────────────
+
+type DecryptResponse =
+  | { ok: true; plaintext: string }
+  | { ok: false; error: string };
+
+async function decryptViaBackground(
+  ciphertext: string,
+  vaultId: string,
+  pin: string,
+): Promise<DecryptResponse> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { type: "MOSSY_DECRYPT_PASSWORD", ciphertext, vaultId, pin },
+      (response: DecryptResponse) => {
+        if (chrome.runtime.lastError) {
+          resolve({ ok: false, error: chrome.runtime.lastError.message ?? "Runtime error" });
+        } else {
+          resolve(response);
+        }
+      },
+    );
+  });
+}
+
 document.addEventListener("click", (e) => {
   const target = e.target as HTMLElement;
 
@@ -160,31 +336,50 @@ function suggestFill(target: EventTarget) {
 
     item.addEventListener("click", async () => {
       const inputs = Array.from(document.querySelectorAll("input"));
-      const password = inputs.find((i) => i.type === "password");
+      const passwordInput = inputs.find((i) => i.type === "password");
 
-      const identifier =
+      const identifierInput =
         inputs.find((i) => i.type === "email") ||
         inputs.find((i) => /user|login|identifier/i.test(i.name)) ||
         inputs.find((i) => i.type === "text");
 
-      if (!identifier || !password) return;
+      if (!identifierInput || !passwordInput) return;
 
       root.remove();
       suggestionElement = null;
 
       const vaultId = await loadSelectedVaultId();
-
       if (!vaultId) return;
 
-      const response = await executePasswordCiphertextRequest(
+      // Fetch ciphertext from API
+      const { ciphertext } = await executePasswordCiphertextRequest(
         s.passwordId,
         vaultId,
       );
 
-      identifier.value = s.identifier;
-      identifier.dispatchEvent(new Event("input", { bubbles: true }));
-      password.value = response.ciphertext;
-      password.dispatchEvent(new Event("input", { bubbles: true }));
+      // Retrieve PIN — from session cache or by prompting the user in the host page
+      let pin = await getCachedPin(vaultId);
+      if (!pin) {
+        pin = await showInPagePinModal();
+        if (!pin) return;
+      }
+
+      // Decrypt via background service worker (has access to IDB + libsodium)
+      const result = await decryptViaBackground(ciphertext, vaultId, pin);
+
+      if (!result.ok) {
+        console.error("Mossy: decryption failed —", result.error);
+        return;
+      }
+
+      // Cache the validated PIN for subsequent fills in this session
+      await cachePin(vaultId, pin);
+
+      // Fill the form fields
+      identifierInput.value = s.identifier;
+      identifierInput.dispatchEvent(new Event("input", { bubbles: true }));
+      passwordInput.value = result.plaintext;
+      passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
     root.appendChild(item);
@@ -210,3 +405,4 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   tryCapture();
 });
+
