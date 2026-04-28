@@ -8,7 +8,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import RippleButton from '../layout/RippleButton.tsx';
 import type { Dispatch, SetStateAction } from 'react';
-import { executeRegisterRequest } from '../../api/auth.api.ts';
+import {
+	executeLoginRequest,
+	executeRegisterRequest,
+} from '../../api/auth.api.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
 
 interface SignupFormProps {
 	setResponseState: Dispatch<
@@ -24,6 +28,7 @@ export default function SignupForm({
 	setResponseState,
 	onSuccess,
 }: SignupFormProps) {
+	const { login } = useAuth();
 	const {
 		register,
 		handleSubmit,
@@ -48,9 +53,18 @@ export default function SignupForm({
 					isError: res.status !== 200,
 				});
 
-				if (success) {
-					onSuccess();
+				if (!success) {
+					return;
 				}
+
+				const loginRequest = await executeLoginRequest({
+					identifier: data.email,
+					password: data.password,
+				}).then(async (res) => await res.json());
+
+				const accessToken: string = loginRequest.accessToken;
+				login(accessToken);
+				onSuccess();
 			})
 			.catch((err) => {
 				console.log(err);

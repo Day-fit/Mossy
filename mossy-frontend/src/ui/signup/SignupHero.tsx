@@ -3,11 +3,13 @@ import { useState } from 'react';
 import ResponseToast from '../layout/ResponseToast.tsx';
 import SignupForm from './SignupForm.tsx';
 import EmailConfirmation from './EmailConfirmation.tsx';
+import { useNavigate } from 'react-router-dom';
 
 export default function SignupHero() {
-	const [phase, setPhase] = useState<'register' | 'email-verification'>(
-		'register'
-	);
+	const [phase] = useState<'register' | 'email-verification'>('register');
+
+	const navigate = useNavigate();
+
 	const [responseState, setResponseState] = useState<{
 		message: string;
 		isError?: boolean;
@@ -37,7 +39,9 @@ export default function SignupHero() {
 					>
 						<SignupForm
 							setResponseState={setResponseState}
-							onSuccess={() => setPhase('email-verification')}
+							onSuccess={() => {
+								navigate('/dashboard');
+							}}
 						/>
 					</motion.div>
 				) : (

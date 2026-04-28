@@ -4,10 +4,21 @@ import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
 import { useVault } from '../../hooks/useVault.ts';
+import RippleButton from '../layout/RippleButton.tsx';
+import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
 	const { vaults } = useVault();
+	const navigate = useNavigate();
+	const addPasswordAction = useMemo(
+		() => ({
+			label: 'Add a password',
+			onClick: () => navigate('/passwords'),
+		}),
+		[navigate]
+	);
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
@@ -49,6 +60,7 @@ export default function DashboardHero() {
 							) : (
 								<PasswordChart
 									data={statistics.passwordChart}
+									emptyAction={addPasswordAction}
 								/>
 							)}
 						</div>
@@ -58,8 +70,15 @@ export default function DashboardHero() {
 				<motion.div className="flex-1 min-h-0" variants={childVariants}>
 					<div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
 						{!isLoading && !error && vaults.length === 0 ? (
-							<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
-								No vaults yet.
+							<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
+								<p>No vaults yet.</p>
+								<RippleButton
+									type="button"
+									className="px-4 py-2 text-sm"
+									onClick={() => navigate('/vaults')}
+								>
+									Create a vault
+								</RippleButton>
 							</div>
 						) : null}
 
@@ -94,7 +113,10 @@ export default function DashboardHero() {
 				) : null}
 
 				{!error && (
-					<RecentActionSection actions={statistics.recentActions} />
+					<RecentActionSection
+						actions={statistics.recentActions}
+						emptyAction={addPasswordAction}
+					/>
 				)}
 			</div>
 		</section>

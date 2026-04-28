@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import RecentActionEntry from './RecentActionEntry.tsx';
 import type { ActionType } from './index.ts';
+import RippleButton from '../layout/RippleButton.tsx';
 
 type RecentAction = {
 	date: string;
@@ -10,10 +11,15 @@ type RecentAction = {
 
 type RecentActionSectionProps = {
 	actions: RecentAction[];
+	emptyAction?: {
+		label: string;
+		onClick: () => void;
+	};
 };
 
 export default function RecentActionSection({
 	actions,
+	emptyAction,
 }: RecentActionSectionProps) {
 	return (
 		<motion.aside
@@ -28,8 +34,17 @@ export default function RecentActionSection({
 
 			<div className="flex flex-col lg:flex-1 lg:min-h-0 gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
 				{actions.length === 0 ? (
-					<div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
-						No actions yet.
+					<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
+						<p>No actions yet.</p>
+						{emptyAction ? (
+							<RippleButton
+								type="button"
+								className="px-4 py-2 text-sm"
+								onClick={emptyAction.onClick}
+							>
+								{emptyAction.label}
+							</RippleButton>
+						) : null}
 					</div>
 				) : (
 					actions.map((action, index) => (
