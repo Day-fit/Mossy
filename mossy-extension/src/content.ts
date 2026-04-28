@@ -14,13 +14,24 @@ type CapturePayload = {
 
 let lastCaptureHash = "";
 
+const userEditedPasswords = new WeakSet<HTMLInputElement>();
+
+document.addEventListener("input", (e) => {
+  if (!e.isTrusted) return;
+  const input = e.target as HTMLInputElement;
+  if (input?.type === "password") {
+    userEditedPasswords.add(input);
+  }
+});
+
 function getInputs() {
   const inputs = Array.from(document.querySelectorAll("input"));
-  const password = inputs.find((i) => i.type === "password") as
+  const passwordEl = inputs.find((i) => i.type === "password") as
     | HTMLInputElement
     | undefined;
 
-  if (!password?.value) return null;
+  if (!passwordEl?.value) return null;
+  if (!userEditedPasswords.has(passwordEl)) return null;
 
   const identifier =
     inputs.find((i) => i.type === "email")?.value ||
@@ -28,7 +39,7 @@ function getInputs() {
     inputs.find((i) => i.type === "text")?.value ||
     "";
 
-  return { identifier, password: password.value };
+  return { identifier, password: passwordEl.value };
 }
 
 function hashPayload(identifier: string, password: string, domain: string) {
@@ -61,8 +72,6 @@ function tryCapture() {
 
 const PIN_LENGTH = 4;
 
-// ── In-memory PIN cache (lives for the lifetime of this content script) ───────
-
 const pinCache = new Map<string, string>();
 
 function getCachedPin(vaultId: string): string | null {
@@ -72,8 +81,6 @@ function getCachedPin(vaultId: string): string | null {
 function cachePin(vaultId: string, pin: string): void {
   pinCache.set(vaultId, pin);
 }
-
-// ── In-page PIN modal (Shadow DOM) ───────────────────────────────────────────
 
 function showInPagePinModal(): Promise<string | null> {
   return new Promise((resolve) => {
@@ -163,7 +170,6 @@ function showInPagePinModal(): Promise<string | null> {
     }
 
     const pinInput = shadow.getElementById("pin") as HTMLInputElement;
-    // requestAnimationFrame ensures the shadow DOM is painted before we focus
     requestAnimationFrame(() => pinInput.focus());
 
     function submit() {
@@ -203,8 +209,6 @@ function showInPagePinModal(): Promise<string | null> {
   });
 }
 
-// ── Decrypt & fill helpers ───────────────────────────────────────────────────
-
 type DecryptResponse =
   | { ok: true; plaintext: string }
   | { ok: false; error: string };
@@ -219,7 +223,10 @@ async function decryptViaBackground(
       { type: "MOSSY_DECRYPT_PASSWORD", ciphertext, vaultId, pin },
       (response: DecryptResponse) => {
         if (chrome.runtime.lastError) {
-          resolve({ ok: false, error: chrome.runtime.lastError.message ?? "Runtime error" });
+          resolve({
+            ok: false,
+            error: chrome.runtime.lastError.message ?? "Runtime error",
+          });
         } else {
           resolve(response);
         }
@@ -241,7 +248,10 @@ async function fetchCiphertextViaBackground(
       { type: "MOSSY_GET_CIPHERTEXT", passwordId, vaultId },
       (response: CiphertextResponse) => {
         if (chrome.runtime.lastError) {
-          resolve({ ok: false, error: chrome.runtime.lastError.message ?? "Runtime error" });
+          resolve({
+            ok: false,
+            error: chrome.runtime.lastError.message ?? "Runtime error",
+          });
         } else {
           resolve(response);
         }
@@ -350,36 +360,38 @@ function suggestFill(target: EventTarget) {
       const vaultId = await loadSelectedVaultId();
       if (!vaultId) return;
 
-      // Fetch ciphertext via background service worker (avoids CORS + storage restrictions)
       const ciphertextResult = await fetchCiphertextViaBackground(
         s.passwordId,
         vaultId,
       );
 
       if (!ciphertextResult.ok) {
-        console.error("Mossy: failed to fetch ciphertext —", ciphertextResult.error);
+        console.error(
+          "Mossy: failed to fetch ciphertext —",
+          ciphertextResult.error,
+        );
         return;
       }
 
-      // Retrieve PIN — from in-memory cache or by prompting the user in the host page
       let pin = getCachedPin(vaultId);
       if (!pin) {
         pin = await showInPagePinModal();
         if (!pin) return;
       }
 
-      // Decrypt via background service worker (has access to IDB + libsodium)
-      const result = await decryptViaBackground(ciphertextResult.ciphertext, vaultId, pin);
+      const result = await decryptViaBackground(
+        ciphertextResult.ciphertext,
+        vaultId,
+        pin,
+      );
 
       if (!result.ok) {
         console.error("Mossy: decryption failed —", result.error);
         return;
       }
 
-      // Cache the validated PIN for subsequent fills in this session
       cachePin(vaultId, pin);
 
-      // Fill the form fields
       identifierInput.value = s.identifier;
       identifierInput.dispatchEvent(new Event("input", { bubbles: true }));
       passwordInput.value = result.plaintext;
@@ -409,4 +421,3 @@ document.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   tryCapture();
 });
-
