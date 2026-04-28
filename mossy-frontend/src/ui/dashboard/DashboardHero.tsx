@@ -11,6 +11,10 @@ export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
 	const { vaults } = useVault();
 	const navigate = useNavigate();
+	const addPasswordAction = {
+		label: 'Add a password',
+		onClick: () => navigate('/passwords'),
+	};
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
@@ -52,10 +56,7 @@ export default function DashboardHero() {
 							) : (
 								<PasswordChart
 									data={statistics.passwordChart}
-									emptyAction={{
-										label: 'Add a password',
-										onClick: () => navigate('/passwords'),
-									}}
+									emptyAction={addPasswordAction}
 								/>
 							)}
 						</div>
@@ -110,10 +111,7 @@ export default function DashboardHero() {
 				{!error && (
 					<RecentActionSection
 						actions={statistics.recentActions}
-						emptyAction={{
-							label: 'Add a password',
-							onClick: () => navigate('/passwords'),
-						}}
+						emptyAction={addPasswordAction}
 					/>
 				)}
 			</div>
