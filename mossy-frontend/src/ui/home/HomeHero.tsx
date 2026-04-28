@@ -1,8 +1,10 @@
 import RippleButton from '../layout/RippleButton.tsx';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth.ts';
 
 function HomeHero() {
 	const navigate = useNavigate();
+	const { isAuthenticated } = useAuth();
 
 	return (
 		<section className="bg-[url('/hero.png')] bg-cover bg-bottom bg-no-repeat w-full p-6 sm:p-10 md:p-20 lg:p-30 drop-shadow-xl/25">
@@ -19,19 +21,27 @@ function HomeHero() {
 			</div>
 
 			<div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
-				<RippleButton
-					className="sm:mr-1"
-					onClick={() => navigate('/register')}
-				>
-					Sign Up
-				</RippleButton>
-				<RippleButton
-					variant={'outline'}
-					rippleColor="rgb(0, 0, 0, 0.7)"
-					onClick={() => navigate('/login')}
-				>
-					Sign In
-				</RippleButton>
+				{!isAuthenticated ? (
+					<>
+						<RippleButton
+							className="sm:mr-1"
+							onClick={() => navigate('/register')}
+						>
+							Sign Up
+						</RippleButton>
+						<RippleButton
+							variant={'outline'}
+							rippleColor="rgb(0, 0, 0, 0.7)"
+							onClick={() => navigate('/login')}
+						>
+							Sign In
+						</RippleButton>
+					</>
+				) : (
+					<RippleButton onClick={() => navigate('/dashboard')}>
+						Go to dashboard
+					</RippleButton>
+				)}
 			</div>
 		</section>
 	);
