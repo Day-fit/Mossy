@@ -15,42 +15,44 @@ export const useAuthInit = () => {
     const refreshToken = () => {
       executeRefreshRequest()
         .then((res) => res.json())
-        .then((data) => {
+        .then(async (data) => {
           if (data.accessToken) {
-            tokenStorage.set(data.accessToken);
+            await tokenStorage.set(data.accessToken);
             setIsAuthenticated(true);
             loadUserDetails();
             return;
           }
-          tokenStorage.set(null);
+          await tokenStorage.set(null);
           setUserDetails(null);
           setIsAuthenticated(false);
         })
-        .catch(() => {
-          tokenStorage.set(null);
+        .catch(async () => {
+          await tokenStorage.set(null);
           setUserDetails(null);
           setIsAuthenticated(false);
         });
     };
 
-    const token = tokenStorage.get();
+    void (async () => {
+      const token = await tokenStorage.get();
 
-    if (token === null) {
-      refreshToken();
-      return;
-    }
+      if (token === null) {
+        refreshToken();
+        return;
+      }
 
-    executeCheckAuthState({ token })
-      .then((res) => res.json())
-      .then((data) => {
-        const authenticated = data.isAuthenticated === true;
-        setIsAuthenticated(authenticated);
-        if (authenticated) {
-          loadUserDetails();
-        } else {
-          setUserDetails(null);
-        }
-      })
-      .catch(refreshToken);
+      executeCheckAuthState({ token })
+        .then((res) => res.json())
+        .then((data) => {
+          const authenticated = data.isAuthenticated === true;
+          setIsAuthenticated(authenticated);
+          if (authenticated) {
+            loadUserDetails();
+          } else {
+            setUserDetails(null);
+          }
+        })
+        .catch(refreshToken);
+    })();
   }, [setIsAuthenticated, setUserDetails]);
 };

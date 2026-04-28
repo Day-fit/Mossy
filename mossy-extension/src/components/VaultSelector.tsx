@@ -25,11 +25,13 @@ export default function VaultSelector() {
   }
 
   return (
-    <section
-      className="card"
-      style={{ display: "flex", flexDirection: "column", gap: 8 }}
-    >
-      <h2 style={{ fontSize: 16 }}>Vault</h2>
+    <section className="card section">
+      <div className="section-header">
+        <h2 className="section-title">Vault</h2>
+        <p className="section-subtitle">
+          Choose the vault you want to manage.
+        </p>
+      </div>
       <select
         value={selectedVaultId}
         onChange={(e) => void handleChange(e.target.value)}

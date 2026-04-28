@@ -8,18 +8,26 @@ type EncryptionStoreState = {
 
 export const useEncryptionStore = create<EncryptionStoreState>((set) => ({
   pins: {},
-  setPin: (vaultId, pin) =>
+  setPin: (vaultId, pin) => {
     set((state) => ({
       pins: {
         ...state.pins,
         [vaultId]: pin,
       },
-    })),
-  clearPin: (vaultId) =>
+    }));
+    if (typeof chrome !== 'undefined' && chrome.storage?.session) {
+      void chrome.storage.session.set({ [`pin:${vaultId}`]: pin });
+    }
+  },
+  clearPin: (vaultId) => {
     set((state) => ({
       pins: {
         ...state.pins,
         [vaultId]: undefined,
       },
-    })),
+    }));
+    if (typeof chrome !== 'undefined' && chrome.storage?.session) {
+      void chrome.storage.session.remove(`pin:${vaultId}`);
+    }
+  },
 }));

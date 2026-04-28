@@ -19,7 +19,7 @@ export default function LoginView() {
       const data = await response.json();
       if (!data.accessToken) throw new Error("Missing access token");
 
-      tokenStorage.set(data.accessToken);
+      await tokenStorage.set(data.accessToken);
 
       const detailsResponse = await executeUserDetailsRequest();
       setUserDetails(detailsResponse);
@@ -31,21 +31,23 @@ export default function LoginView() {
 
   return (
     <>
-      <section className="card hero">
-        <h1 style={{ fontSize: 22, marginBottom: 8 }}>
-          An open-source password manager that never wants your secrets
-        </h1>
-        <p className="small">
-          A self-hosted vault with end-to-end encryption and key
-          synchronization.
-        </p>
+      <section className="card hero section">
+        <div className="section-header">
+          <h1 className="hero-title">
+            An open-source password manager that never wants your secrets
+          </h1>
+          <p className="section-subtitle">
+            A self-hosted vault with end-to-end encryption and key
+            synchronization.
+          </p>
+        </div>
       </section>
 
-      <section
-        className="card"
-        style={{ display: "flex", flexDirection: "column", gap: 8 }}
-      >
-        <h2 style={{ fontSize: 18 }}>Sign in</h2>
+      <section className="card section">
+        <div className="section-header">
+          <h2 className="section-title">Sign in</h2>
+          <p className="section-subtitle">Access your vaults securely.</p>
+        </div>
         <input
           placeholder="Email or username"
           value={identifier}

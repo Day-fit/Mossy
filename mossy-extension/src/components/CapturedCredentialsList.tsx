@@ -9,13 +9,15 @@ export default function CapturedCredentialsList({ onSave }: Props) {
   const { captured } = useCapturedStore();
 
   return (
-    <section
-      className="card"
-      style={{ display: "flex", flexDirection: "column", gap: 8 }}
-    >
-      <h2 style={{ fontSize: 16 }}>Captured From Websites</h2>
+    <section className="card section">
+      <div className="section-header">
+        <h2 className="section-title">Captured from websites</h2>
+        <p className="section-subtitle">
+          Review autofilled credentials before saving.
+        </p>
+      </div>
       {captured.length === 0 ? (
-        <p className="small">No captured credentials</p>
+        <p className="empty-state">No captured credentials yet.</p>
       ) : null}
       {captured.map((item) => (
         <div key={item.id} className="password-item">

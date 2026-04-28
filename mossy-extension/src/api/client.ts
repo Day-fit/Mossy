@@ -8,7 +8,7 @@ type ApiFetchOptions = RequestInit & {
 
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
   const { includeAuth = true, authToken, includeCredentials = false, ...requestOptions } = options;
-  const token = includeAuth ? (authToken ?? tokenStorage.get()) : null;
+  const token = includeAuth ? (authToken ?? await tokenStorage.get()) : null;
 
   const response = await fetch(url, {
     ...requestOptions,

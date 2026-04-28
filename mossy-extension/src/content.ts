@@ -1,9 +1,6 @@
 import { normalizeDomain } from "./utils/domain";
 import { usePasswordsStore } from "./store/passwordsStore.ts";
-import { executeRefreshRequest } from "./api/auth.api.ts";
-import { executePasswordCiphertextRequest } from "./api/password.api.ts";
 import { loadSelectedVaultId } from "./utils/chromeStorage.ts";
-import { tokenStorage } from "./auth/tokenStorage.ts";
 
 const getPasswords = usePasswordsStore.getState().getPasswords;
 let suggestionElement: HTMLElement | null = null;
@@ -17,26 +14,24 @@ type CapturePayload = {
 
 let lastCaptureHash = "";
 
-refreshAccessToken().catch(console.error);
-setTimeout(async () => {
-  await refreshAccessToken();
-}, 840000);
+const userEditedPasswords = new WeakSet<HTMLInputElement>();
 
-async function refreshAccessToken() {
-  const response = await executeRefreshRequest().then((response) =>
-    response.json(),
-  );
-
-  tokenStorage.set(response.accessToken);
-}
+document.addEventListener("input", (e) => {
+  if (!e.isTrusted) return;
+  const input = e.target as HTMLInputElement;
+  if (input?.type === "password") {
+    userEditedPasswords.add(input);
+  }
+});
 
 function getInputs() {
   const inputs = Array.from(document.querySelectorAll("input"));
-  const password = inputs.find((i) => i.type === "password") as
+  const passwordEl = inputs.find((i) => i.type === "password") as
     | HTMLInputElement
     | undefined;
 
-  if (!password?.value) return null;
+  if (!passwordEl?.value) return null;
+  if (!userEditedPasswords.has(passwordEl)) return null;
 
   const identifier =
     inputs.find((i) => i.type === "email")?.value ||
@@ -44,7 +39,7 @@ function getInputs() {
     inputs.find((i) => i.type === "text")?.value ||
     "";
 
-  return { identifier, password: password.value };
+  return { identifier, password: passwordEl.value };
 }
 
 function hashPayload(identifier: string, password: string, domain: string) {
@@ -72,6 +67,196 @@ function tryCapture() {
     if (chrome.runtime.lastError) {
       console.error("Capture error:", chrome.runtime.lastError);
     }
+  });
+}
+
+const PIN_LENGTH = 4;
+
+const pinCache = new Map<string, string>();
+
+function getCachedPin(vaultId: string): string | null {
+  return pinCache.get(vaultId) ?? null;
+}
+
+function cachePin(vaultId: string, pin: string): void {
+  pinCache.set(vaultId, pin);
+}
+
+function showInPagePinModal(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const host = document.createElement("div");
+    const shadow = host.attachShadow({ mode: "open" });
+
+    shadow.innerHTML = `
+      <style>
+        .overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 2147483647;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .card {
+          background: #fff;
+          border-radius: 14px;
+          padding: 28px 24px 22px;
+          width: 300px;
+          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        h3 { margin: 0; font-size: 17px; font-weight: 600; color: #111; }
+        p  { margin: 0; font-size: 13px; color: #666; }
+        input {
+          border: 1.5px solid #ddd;
+          border-radius: 8px;
+          padding: 9px 12px;
+          font-size: 22px;
+          letter-spacing: 10px;
+          text-align: center;
+          outline: none;
+          width: 100%;
+          box-sizing: border-box;
+          transition: border-color 0.15s;
+        }
+        input:focus { border-color: #007735; }
+        .buttons { display: flex; gap: 8px; }
+        .btn-primary {
+          flex: 1;
+          padding: 9px;
+          background: #007735;
+          color: #fff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .btn-primary:hover { background: #006029; }
+        .btn-secondary {
+          flex: 1;
+          padding: 9px;
+          background: transparent;
+          color: #555;
+          border: 1.5px solid #ddd;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 14px;
+        }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .error { font-size: 12px; color: #c0392b; text-align: center; }
+      </style>
+      <div class="overlay">
+        <div class="card">
+          <h3 id="pin-modal-title">Enter Vault PIN</h3>
+          <p>Enter your 4-digit PIN to fill credentials.</p>
+          <input type="password" inputmode="numeric" maxlength="4" id="pin" autocomplete="off" aria-labelledby="pin-modal-title" />
+          <div class="buttons">
+            <button class="btn-primary" id="submit">Fill</button>
+            <button class="btn-secondary" id="cancel">Cancel</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(host);
+
+    function cleanup() {
+      host.remove();
+    }
+
+    const pinInput = shadow.getElementById("pin") as HTMLInputElement;
+    requestAnimationFrame(() => pinInput.focus());
+
+    function submit() {
+      if (pinInput.value.length !== PIN_LENGTH) return;
+      const pin = pinInput.value;
+      cleanup();
+      resolve(pin);
+    }
+
+    const submitBtn = shadow.getElementById("submit");
+    const cancelBtn = shadow.getElementById("cancel");
+    const overlay = shadow.querySelector(".overlay");
+
+    if (!submitBtn || !cancelBtn || !overlay) {
+      cleanup();
+      resolve(null);
+      return;
+    }
+
+    submitBtn.addEventListener("click", submit);
+
+    cancelBtn.addEventListener("click", () => {
+      cleanup();
+      resolve(null);
+    });
+
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay) {
+        cleanup();
+        resolve(null);
+      }
+    });
+
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submit();
+    });
+  });
+}
+
+type DecryptResponse =
+  | { ok: true; plaintext: string }
+  | { ok: false; error: string };
+
+async function decryptViaBackground(
+  ciphertext: string,
+  vaultId: string,
+  pin: string,
+): Promise<DecryptResponse> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { type: "MOSSY_DECRYPT_PASSWORD", ciphertext, vaultId, pin },
+      (response: DecryptResponse) => {
+        if (chrome.runtime.lastError) {
+          resolve({
+            ok: false,
+            error: chrome.runtime.lastError.message ?? "Runtime error",
+          });
+        } else {
+          resolve(response);
+        }
+      },
+    );
+  });
+}
+
+type CiphertextResponse =
+  | { ok: true; ciphertext: string }
+  | { ok: false; error: string };
+
+async function fetchCiphertextViaBackground(
+  passwordId: string,
+  vaultId: string,
+): Promise<CiphertextResponse> {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { type: "MOSSY_GET_CIPHERTEXT", passwordId, vaultId },
+      (response: CiphertextResponse) => {
+        if (chrome.runtime.lastError) {
+          resolve({
+            ok: false,
+            error: chrome.runtime.lastError.message ?? "Runtime error",
+          });
+        } else {
+          resolve(response);
+        }
+      },
+    );
   });
 }
 
@@ -160,31 +345,57 @@ function suggestFill(target: EventTarget) {
 
     item.addEventListener("click", async () => {
       const inputs = Array.from(document.querySelectorAll("input"));
-      const password = inputs.find((i) => i.type === "password");
+      const passwordInput = inputs.find((i) => i.type === "password");
 
-      const identifier =
+      const identifierInput =
         inputs.find((i) => i.type === "email") ||
         inputs.find((i) => /user|login|identifier/i.test(i.name)) ||
         inputs.find((i) => i.type === "text");
 
-      if (!identifier || !password) return;
+      if (!identifierInput || !passwordInput) return;
 
       root.remove();
       suggestionElement = null;
 
       const vaultId = await loadSelectedVaultId();
-
       if (!vaultId) return;
 
-      const response = await executePasswordCiphertextRequest(
+      const ciphertextResult = await fetchCiphertextViaBackground(
         s.passwordId,
         vaultId,
       );
 
-      identifier.value = s.identifier;
-      identifier.dispatchEvent(new Event("input", { bubbles: true }));
-      password.value = response.ciphertext;
-      password.dispatchEvent(new Event("input", { bubbles: true }));
+      if (!ciphertextResult.ok) {
+        console.error(
+          "Mossy: failed to fetch ciphertext —",
+          ciphertextResult.error,
+        );
+        return;
+      }
+
+      let pin = getCachedPin(vaultId);
+      if (!pin) {
+        pin = await showInPagePinModal();
+        if (!pin) return;
+      }
+
+      const result = await decryptViaBackground(
+        ciphertextResult.ciphertext,
+        vaultId,
+        pin,
+      );
+
+      if (!result.ok) {
+        console.error("Mossy: decryption failed —", result.error);
+        return;
+      }
+
+      cachePin(vaultId, pin);
+
+      identifierInput.value = s.identifier;
+      identifierInput.dispatchEvent(new Event("input", { bubbles: true }));
+      passwordInput.value = result.plaintext;
+      passwordInput.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
     root.appendChild(item);
