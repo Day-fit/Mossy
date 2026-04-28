@@ -17,7 +17,7 @@ type PasswordData = {
 };
 
 type PasswordChartProps = {
-	data?: PasswordData[];
+	data: PasswordData[];
 	emptyAction?: {
 		label: string;
 		onClick: () => void;
@@ -28,7 +28,7 @@ export default function PasswordChart({
 	data,
 	emptyAction,
 }: PasswordChartProps) {
-	const chartData = data ?? [];
+	const chartData = data;
 
 	return (
 		<motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
