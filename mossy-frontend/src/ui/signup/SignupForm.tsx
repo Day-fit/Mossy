@@ -12,7 +12,7 @@ import {
 	executeLoginRequest,
 	executeRegisterRequest,
 } from '../../api/auth.api.ts';
-import { tokenStorage } from '../../auth/tokenStorage.ts';
+import { useAuth } from '../../hooks/useAuth.ts';
 
 interface SignupFormProps {
 	setResponseState: Dispatch<
@@ -28,6 +28,7 @@ export default function SignupForm({
 	setResponseState,
 	onSuccess,
 }: SignupFormProps) {
+	const { login } = useAuth();
 	const {
 		register,
 		handleSubmit,
@@ -56,15 +57,14 @@ export default function SignupForm({
 					return;
 				}
 
-				onSuccess();
-
 				const loginRequest = await executeLoginRequest({
 					identifier: data.email,
 					password: data.password,
 				}).then(async (res) => await res.json());
 
 				const accessToken: string = loginRequest.accessToken;
-				tokenStorage.set(accessToken);
+				login(accessToken);
+				onSuccess();
 			})
 			.catch((err) => {
 				console.log(err);
