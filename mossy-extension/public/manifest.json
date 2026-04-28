@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Mossy",
+  "version": "0.1.0",
+  "description": "Mossy password manager extension",
+  "permissions": ["storage", "tabs", "activeTab", "alarms"],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:8081/*",
+    "http://localhost:8082/*",
+    "http://localhost:8083/*"
+  ],
+  "action": {
+    "default_title": "Mossy",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "mossy_logo_128.png",
+    "48": "mossy_logo_48.png",
+    "32": "mossy_logo_32.png"
+  }
+}

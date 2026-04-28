@@ -1,0 +1,30 @@
+{
+  "name": "mossy-extension",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build && vite build --config vite.config.content.ts",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource/syne": "^5.2.7",
+    "framer-motion": "^12.38.0",
+    "idb": "^8.0.3",
+    "input-otp": "^1.4.2",
+    "libsodium-wrappers-sumo": "^0.8.2",
+    "qr-code-styling": "^1.9.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.74.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.24",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1"
+  }
+}
