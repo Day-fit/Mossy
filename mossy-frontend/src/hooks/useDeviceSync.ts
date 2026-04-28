@@ -9,6 +9,7 @@ import { useDeviceKeys } from './useDeviceKeys.ts';
 import { useEncryptionHook } from './useEncryptionHook.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { PinNotFoundException } from '../exception/PinNotFoundException.ts';
+import SockJS from 'sockjs-client';
 
 export type UseDeviceSyncResult = {
 	nonce: string | null;
@@ -59,7 +60,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 	const { generateDhKey, idKey } = useDeviceKeys();
 	const { loadKey, saveRawKey } = useEncryptionHook();
 
-	const wsRef = useRef<WebSocket | null>(null);
+	const wsRef = useRef<InstanceType<typeof SockJS> | null>(null);
 	const connectionPromiseRef = useRef<Promise<void> | null>(null);
 	const isConnectedRef = useRef(false);
 	const peerInfo = useRef<PeerInfo | null>(null);
@@ -176,7 +177,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 		if (!currentPeerInfo)
 			return Promise.reject(new Error('Missing peer info'));
 		if (!idKey) return Promise.reject(new Error('Missing idKey'));
-		if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
+		if (!currentWs || currentWs.readyState !== SockJS.OPEN) {
 			return Promise.reject(new Error('WebSocket not connected'));
 		}
 
@@ -262,7 +263,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 		const exportedKey = await crypto.subtle.exportKey('raw', rawKey);
 		const key = new Uint8Array(exportedKey);
 
-		if (!currentWs || currentWs.readyState !== WebSocket.OPEN) {
+		if (!currentWs || currentWs.readyState !== SockJS.OPEN) {
 			throw new Error('WebSocket not connected');
 		}
 
@@ -385,7 +386,7 @@ export function useDeviceSync(): UseDeviceSyncResult {
 	): Promise<void> =>
 		new Promise((resolve, reject) => {
 			try {
-				const ws = new WebSocket(wsUrl);
+				const ws = new SockJS(wsUrl);
 
 				const jwkPublicDh: JWKFormat = {
 					crv: 'X25519',
