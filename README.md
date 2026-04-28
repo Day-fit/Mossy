@@ -8,7 +8,7 @@ Mossy's backend is build in microservice architecture thanks to that if somethin
 #### Optimization
 Some of microservices use redis as cache layer to speed up database queries
 
-## Browser extension
+### Browser extension
 Provides suggestions for filling password, and captures passwords
 
 ### Vault
