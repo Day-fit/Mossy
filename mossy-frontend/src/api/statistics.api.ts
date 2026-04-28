@@ -20,7 +20,7 @@ export async function executeDashboardStatisticsRequest(): Promise<DashboardStat
 
 	const data = (await response.json()) as Partial<DashboardStatisticsResponse>;
 
-	return {
+	const normalized: DashboardStatisticsResponse = {
 		passwordChart: Array.isArray(data?.passwordChart)
 			? data.passwordChart
 			: [],
@@ -28,4 +28,6 @@ export async function executeDashboardStatisticsRequest(): Promise<DashboardStat
 			? data.recentActions
 			: [],
 	};
+
+	return normalized;
 }

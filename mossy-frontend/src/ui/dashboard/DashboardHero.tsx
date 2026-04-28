@@ -6,15 +6,19 @@ import VaultDashboardView from './VaultDashboardView.tsx';
 import { useVault } from '../../hooks/useVault.ts';
 import RippleButton from '../layout/RippleButton.tsx';
 import { useNavigate } from 'react-router-dom';
+import { useMemo } from 'react';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
 	const { vaults } = useVault();
 	const navigate = useNavigate();
-	const addPasswordAction = {
-		label: 'Add a password',
-		onClick: () => navigate('/passwords'),
-	};
+	const addPasswordAction = useMemo(
+		() => ({
+			label: 'Add a password',
+			onClick: () => navigate('/passwords'),
+		}),
+		[navigate]
+	);
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
