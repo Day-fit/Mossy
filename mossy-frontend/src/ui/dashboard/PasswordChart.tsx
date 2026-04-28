@@ -28,12 +28,10 @@ export default function PasswordChart({
 	data,
 	emptyAction,
 }: PasswordChartProps) {
-	const chartData = data;
-
 	return (
 		<motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
 			<h2 className="text-lg text-gray-700">Secured passwords</h2>
-			{chartData.length === 0 ? (
+			{data.length === 0 ? (
 				<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 					<p>No password history yet.</p>
 					{emptyAction ? (
@@ -48,7 +46,7 @@ export default function PasswordChart({
 				</div>
 			) : (
 				<ResponsiveContainer width="100%" height="100%">
-					<LineChart data={chartData}>
+					<LineChart data={data}>
 						<CartesianGrid strokeDasharray="3 3" />
 						<XAxis dataKey="date" tickFormatter={formatDate} />
 						<YAxis />

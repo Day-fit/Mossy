@@ -18,8 +18,7 @@ export async function executeDashboardStatisticsRequest(): Promise<DashboardStat
 		method: 'GET',
 	});
 
-	const data =
-		(await response.json()) as Partial<DashboardStatisticsResponse> | null;
+	const data = (await response.json()) as Partial<DashboardStatisticsResponse>;
 
 	return {
 		passwordChart: Array.isArray(data?.passwordChart)
