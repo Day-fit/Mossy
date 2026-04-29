@@ -7,6 +7,7 @@ import {
 import { useDeviceStore } from "../store/deviceStore";
 import { useDeviceKeys } from "./useDeviceKeys";
 import { useEncryptionHook } from "./useEncryptionHook";
+import SockJS from "sockjs-client";
 
 type KeySyncMessage = {
   type: "KEY_SYNC";
@@ -40,7 +41,7 @@ export function useDeviceSync() {
   const { generateDhKey, idKey } = useDeviceKeys();
   const { saveRawKey } = useEncryptionHook();
 
-  const wsRef = useRef<WebSocket | null>(null);
+  const wsRef = useRef<InstanceType<typeof SockJS> | null>(null);
   const connectionPromiseRef = useRef<Promise<void> | null>(null);
   const peerInfo = useRef<PeerInfo | null>(null);
   const isConnectedRef = useRef(false);
@@ -126,7 +127,7 @@ export function useDeviceSync() {
   ) =>
     new Promise<void>((resolve, reject) => {
       try {
-        const ws = new WebSocket(wsUrl);
+        const ws = new SockJS(wsUrl);
         const jwkPublicDh: JwkPublicDh = {
           kty: "OKP",
           crv: "X25519",
@@ -293,7 +294,7 @@ export function useDeviceSync() {
     if (connectionPromiseRef.current) return connectionPromiseRef.current;
     if (!deviceId) throw new Error("Device ID not found");
     if (!pin) throw new Error("Pin is required for receiver");
-    if (isConnectedRef.current && wsRef.current?.readyState === WebSocket.OPEN)
+    if (isConnectedRef.current && wsRef.current?.readyState === SockJS.OPEN)
       return;
 
     connectionPromiseRef.current = (async () => {
