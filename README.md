@@ -1,11 +1,45 @@
 # Mossy
 Mossy is self-hosted password manager that is built to counter self-hosted disadvantages.
 
+## Why Mossy? (vs Vaultwarden/Bitwarden)
+
+| Problem with self-hosting | Mossy's solution |
+|---|---|
+| Requires open ports / port forwarding | Backend acts as relay via STOMP — vault connects *out*, not in |
+| Firewall & uPnP headaches | Zero config — just run `docker compose up` |
+| Trusting the server with your keys | Impossible — E2EE means vault never sees plaintext keys |
+| Single point of failure | Microservice architecture isolates failures |
+
 ## Security Model
 Mossy uses End-to-End Encryption with a Diffie-Hellman key exchange, meaning your passwords are encrypted in the browser before they ever leave your device.
 
 - What the backend (our servers) can see: session tokens, metadata
 - What the backend cannot see: your passwords, your keys - ever
+
+## How NAT Traversal Works
+
+Most self-hosted tools require you to open ports on your router so the server can reach you.
+Mossy flips this — **your vault connects out to our backend, not the other way around.**
+No uPnP, firewall config or security concerns
+
+## End-to-End Encryption
+
+Your passwords are encrypted in the browser before they ever leave your device.
+The vault stores only ciphertext — even if someone compromises the server, they get nothing useful.
+
+### Password encryption
+Passwords are encrypted with **AES-256** symmetric encryption.
+The key never leaves your device in plaintext.
+
+### Cross-device key sync
+When syncing your vault key to another device, Mossy uses **X25519 (XCurve)** — 
+an ephemeral key pair generated **per message**, so even if one message is compromised, 
+past and future messages remain safe (forward secrecy).
+
+### MitM protection
+Each device has a static **Ed25519** keypair. Every sync message is signed with the sender's 
+`deviceKeyId` — the receiving device verifies the signature before accepting the key.
+This ensures you're syncing with *your* device, not an attacker's.
 
 ## Architecture
 Mossy is build in hybrid architecture, it uses backend (hosted by us) that makes transporting password to any location possible, it communicates with vault (hosted by you), via STOMP, thanks to that, you don't have to worry about firewall, or opening ports on your router
