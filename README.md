@@ -1,5 +1,12 @@
 # Mossy
 Mossy is self-hosted password manager that is built to counter self-hosted disadvantages.
+
+## Security Model
+Mossy uses End-to-End Encryption with a Diffie-Hellman key exchange, meaning your passwords are encrypted in the browser before they ever leave your device.
+
+- What the backend (our servers) can see: session tokens, metadata
+- What the backend cannot see: your passwords, your keys - ever
+
 ## Architecture
 Mossy is build in hybrid architecture, it uses backend (hosted by us) that makes transporting password to any location possible, it communicates with vault (hosted by you), via STOMP, thanks to that, you don't have to worry about firewall, or opening ports on your router
 
