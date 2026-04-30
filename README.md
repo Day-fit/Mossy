@@ -29,7 +29,7 @@ docker compose --profile prod up -d
 
 ## Browser extension installation
 - Go to [releases](https://github.com/Day-fit/Mossy/releases)
-- Download latest version (`.crx` file)
+- Download latest version (`.crx` file) OR use unpacked version (use dist as folder (NOT ASSETS), and skip next step)
 - Add it to your browser, you might need to allow installation of untrusted extensions (from other source than web store)
 - Login into extension (with regular credentials)
 - Synchronize vault key
