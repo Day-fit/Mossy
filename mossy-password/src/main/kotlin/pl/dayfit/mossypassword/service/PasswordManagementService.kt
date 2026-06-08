@@ -16,6 +16,7 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.exception.VaultFailedException
+import pl.dayfit.mossypassword.exception.VaultResourceAlreadyExists
 import pl.dayfit.mossypassword.helper.VaultHelper
 import type.PasswordSaveType
 import type.VaultResponseStatus
@@ -88,6 +89,7 @@ class VaultManagementService(
                 VaultResponseStatus.OK -> it.payload
                 VaultResponseStatus.ERROR -> throw VaultFailedException("Vault failed when processing request")
                 VaultResponseStatus.NOT_FOUND -> throw NoSuchElementException("Vault couldn't find requested resource")
+                VaultResponseStatus.ALREADY_EXISTS -> throw VaultResourceAlreadyExists("Vault already has requested resource")
             }
         } as CompletableFuture<Res>
     }
