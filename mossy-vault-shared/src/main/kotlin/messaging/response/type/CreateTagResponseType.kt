@@ -1,3 +1,7 @@
 package messaging.response.type
 
-class SaveTagResponseType : AbstractVaultResponseType()
+import java.util.UUID
+
+class CreateTagResponseType(
+    val tagId: UUID? = null
+) : AbstractVaultResponseType()

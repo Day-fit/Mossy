@@ -17,13 +17,13 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.VaultManagementService
+import pl.dayfit.mossypassword.service.PasswordManagementService
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
 @RestController
 class PasswordController(
-    private val vaultManagementService: VaultManagementService,
+    private val passwordManagementService: PasswordManagementService,
 ) {
     /**
      * Saves a password by forwarding it to the vault specified in the request DTO.
@@ -36,7 +36,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultManagementService.savePassword(userId, requestDto)
+        passwordManagementService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
             ServerResponseDto("Password save request accepted")
@@ -48,7 +48,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultManagementService.updatePassword(userId, requestDto)
+        passwordManagementService.updatePassword(userId, requestDto)
 
         return ResponseEntity
             .status(HttpStatus.OK)
@@ -67,7 +67,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        vaultManagementService.deletePassword(
+        passwordManagementService.deletePassword(
             userId,
             deletePasswordRequestDto
         )
@@ -88,7 +88,7 @@ class PasswordController(
         @AuthenticationPrincipal userId: UUID,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<List<PasswordMetadataDto>>> {
-        return vaultManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
+        return passwordManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
             ResponseEntity.ok(it.metadata)
         }
     }
@@ -106,7 +106,7 @@ class PasswordController(
         @PathVariable passwordId: UUID,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<CiphertextResponseType>> {
-        return vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId)
+        return passwordManagementService.getPasswordCipherText(userId, vaultId, passwordId)
             .thenApply { ResponseEntity.ok(it) }
     }
 }

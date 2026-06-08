@@ -1,3 +1,3 @@
 package messaging.request.type
 
-data class GetTagsRequestType()
+class GetTagsRequestType : AbstractVaultRequestType()

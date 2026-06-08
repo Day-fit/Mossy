@@ -13,7 +13,7 @@ import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
-import pl.dayfit.mossypassword.service.VaultManagementService
+import pl.dayfit.mossypassword.service.PasswordManagementService
 import pl.dayfit.mossypassword.exception.VaultNotFoundException
 import java.time.Instant
 import java.util.UUID
@@ -23,8 +23,8 @@ import kotlin.test.assertNotNull
 
 class PasswordControllerMvcTest {
 
-    private val vaultManagementService: VaultManagementService = mock()
-    private val controller = PasswordController(vaultManagementService)
+    private val passwordManagementService: PasswordManagementService = mock()
+    private val controller = PasswordController(passwordManagementService)
 
     @Test
     fun `save endpoint forwards payload and returns accepted response`() {
@@ -43,7 +43,7 @@ class PasswordControllerMvcTest {
         assertEquals(200, response.statusCode.value())
         assertNotNull(body)
         assertEquals(ServerResponseDto("Password save request accepted"), body)
-        verify(vaultManagementService, times(1)).savePassword(userId, request)
+        verify(passwordManagementService, times(1)).savePassword(userId, request)
     }
 
     @Test
@@ -57,7 +57,7 @@ class PasswordControllerMvcTest {
             vaultId = vaultId
         )
 
-        whenever(vaultManagementService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
+        whenever(passwordManagementService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
 
         assertThrows<VaultNotFoundException> {
             controller.savePassword(userId, request)
@@ -79,7 +79,7 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password updated successfully", response.body?.message)
-        verify(vaultManagementService, times(1)).updatePassword(userId, request)
+        verify(passwordManagementService, times(1)).updatePassword(userId, request)
     }
 
     @Test
@@ -93,7 +93,7 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password deleted successfully", response.body?.message)
-        verify(vaultManagementService, times(1)).deletePassword(userId, request)
+        verify(passwordManagementService, times(1)).deletePassword(userId, request)
     }
 
     @Test
@@ -113,7 +113,7 @@ class PasswordControllerMvcTest {
             lastModified = Instant.now()
         )
 
-        whenever(vaultManagementService.getPasswordsMetadata(userId, vaultId))
+        whenever(passwordManagementService.getPasswordsMetadata(userId, vaultId))
             .thenReturn(
                 CompletableFuture.completedFuture(MetadataResponseType(listOf(first, second)))
             )
@@ -122,7 +122,7 @@ class PasswordControllerMvcTest {
 
         assertEquals(200, response.get().statusCode.value())
         assertEquals(listOf(first, second), response.get().body)
-        verify(vaultManagementService, times(1)).getPasswordsMetadata(userId, vaultId)
+        verify(passwordManagementService, times(1)).getPasswordsMetadata(userId, vaultId)
     }
 
     @Test
@@ -133,13 +133,13 @@ class PasswordControllerMvcTest {
         
         val expectedResponse = CompletableFuture.completedFuture(CiphertextResponseType("BASE64", passwordId))
 
-        whenever(vaultManagementService.getPasswordCipherText(userId, vaultId, passwordId))
+        whenever(passwordManagementService.getPasswordCipherText(userId, vaultId, passwordId))
             .thenReturn(expectedResponse)
 
         val response = controller.getCiphertext(userId, passwordId, vaultId)
 
         assertEquals(200, response.get().statusCode.value())
         assertEquals(expectedResponse.get(), response.get().body)
-        verify(vaultManagementService, times(1)).getPasswordCipherText(userId, vaultId, passwordId)
+        verify(passwordManagementService, times(1)).getPasswordCipherText(userId, vaultId, passwordId)
     }
 }

@@ -1,4 +1,8 @@
 package messaging.request.type
 
-class AssignTagRequestType {
-}
+import java.util.UUID
+
+data class AssignTagRequestType(
+    val passwordId: UUID,
+    val tagId: UUID
+) : AbstractVaultRequestType()

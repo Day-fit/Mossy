@@ -22,6 +22,7 @@ import PasswordListCard from './PasswordListCard.tsx';
 import { useVault } from '../../hooks/useVault.ts';
 import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
 import KeySyncModal from './KeySyncModal.tsx';
+import { useVaultStore } from '../../store/vaultStore.ts';
 
 const INITIAL_FORM_STATE: PasswordFormState = {
 	identifier: '',
@@ -43,9 +44,9 @@ export default function PasswordHero() {
 	const [editedPasswordId, setEditedPasswordId] = useState<string | null>(
 		null
 	);
+	const { selectedVaultId, setSelectedVaultId } = useVaultStore();
 
 	const { vaults, refreshVaults } = useVault();
-	const [selectedVaultId, setSelectedVaultId] = useState('');
 
 	const [isLoadingPasswords, setIsLoadingPasswords] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);

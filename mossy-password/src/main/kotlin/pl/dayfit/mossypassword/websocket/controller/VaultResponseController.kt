@@ -35,4 +35,19 @@ class VaultResponseController(
     fun handleDeleteResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<DeletePasswordResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
+
+    @MessageMapping("/vault/tag-assigned")
+    fun handleTagAssignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/tag-saved")
+    fun handleTagSavedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/tags-retrieved")
+    fun handleTagsRetrievedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
 }

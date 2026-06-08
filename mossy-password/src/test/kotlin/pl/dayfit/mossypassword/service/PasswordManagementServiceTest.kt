@@ -11,12 +11,12 @@ import pl.dayfit.mossypassword.helper.VaultHelper
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
-class VaultManagementServiceTest {
+class PasswordManagementServiceTest {
 
     private val vaultCommunicationService: VaultCommunicationService = mock()
     private val vaultHelper: VaultHelper = mock()
 
-    private val service = VaultManagementService(vaultCommunicationService, vaultHelper)
+    private val service = PasswordManagementService(vaultCommunicationService, vaultHelper)
 
     @Test
     @Suppress("UNCHECKED_CAST")

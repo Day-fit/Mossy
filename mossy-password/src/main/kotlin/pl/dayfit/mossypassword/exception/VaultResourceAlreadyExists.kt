@@ -1,4 +1,3 @@
 package pl.dayfit.mossypassword.exception
 
-class VaultResouceAlreadyExists {
-}
+class VaultResourceAlreadyExists(message: String) : RuntimeException(message)

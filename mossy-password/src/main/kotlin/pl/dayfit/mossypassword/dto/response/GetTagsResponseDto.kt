@@ -1,3 +1,9 @@
 package pl.dayfit.mossypassword.dto.response
 
-data class GetTagsResponseDto()
+import java.util.UUID
+
+data class GetTagsResponseDto(
+    val tagId: UUID,
+    val tagName: String,
+    val color: String
+)

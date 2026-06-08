@@ -1,4 +1,3 @@
 package messaging.response.type
 
-class AssignTagResponseType {
-}
+class AssignTagResponseType : AbstractVaultResponseType()

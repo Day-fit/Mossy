@@ -1,6 +1,7 @@
 import type { PasswordMetadataDto } from '../../api/password.api.ts';
 import type { CiphertextPhase } from './index.ts';
 import PasswordListItem from './PasswordListItem.tsx';
+import TagsMenu from './TagsMenu.tsx';
 
 type PasswordListCardProps = {
 	passwords: PasswordMetadataDto[];
@@ -25,9 +26,18 @@ function PasswordListCard({
 }: PasswordListCardProps) {
 	return (
 		<section className="rounded-md bg-white p-5 shadow-md">
-			<h2 className="mb-4 text-xl font-semibold text-emerald-900">
-				Passwords
-			</h2>
+			<div
+				className={
+					'flex justify-between items-center w-full h-10 relative'
+				}
+			>
+				<h2 className="mb-4 text-xl font-semibold text-emerald-900">
+					Passwords
+				</h2>
+
+				<TagsMenu />
+			</div>
+
 			{isLoadingPasswords ? (
 				<p className="text-sm text-gray-500">Loading passwords...</p>
 			) : null}

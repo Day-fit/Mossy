@@ -16,6 +16,7 @@
 		"@hookform/resolvers": "^5.2.2",
 		"@tailwindcss/vite": "^4.2.0",
 		"framer-motion": "^12.34.3",
+		"global": "^4.4.0",
 		"idb": "^8.0.3",
 		"input-otp": "^1.4.2",
 		"libsodium": "^0.8.2",

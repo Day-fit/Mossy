@@ -1,4 +1,9 @@
 package pl.dayfit.mossyvault.repository
 
-interface PasswordTagRepository : org.springframework.data.jpa.repository.JpaRepository<pl.dayfit.mossyvault.model.PasswordTag, java.util.UUID> {
-}
+import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.stereotype.Repository
+import pl.dayfit.mossyvault.model.PasswordTag
+import java.util.UUID
+
+@Repository
+interface PasswordTagRepository : JpaRepository<PasswordTag, UUID>

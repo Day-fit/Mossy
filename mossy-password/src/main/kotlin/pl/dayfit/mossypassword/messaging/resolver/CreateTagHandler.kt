@@ -10,7 +10,7 @@ import java.util.concurrent.CompletableFuture
 import kotlin.reflect.KClass
 
 @Component
-class SaveTagHandler(
+class CreateTagHandler(
     private val vaultMessagingService: VaultMessagingService,
 ) : AbstractMessageHandler<CreateTagRequestType, CreateTagResponseType>() {
     companion object {
