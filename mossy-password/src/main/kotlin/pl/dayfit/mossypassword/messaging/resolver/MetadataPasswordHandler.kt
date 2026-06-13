@@ -7,14 +7,15 @@ import messaging.response.type.MetadataResponseType
 import org.springframework.stereotype.Component
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.VaultMessagingService
+import type.MessageType
 import type.VaultResponseStatus
 import java.util.concurrent.CompletableFuture
-import kotlin.reflect.KClass
 
 @Component
 class MetadataPasswordHandler(
     private val vaultMessagingService: VaultMessagingService,
-    private val vaultRepository: VaultRepository
+    private val vaultRepository: VaultRepository,
+    override val supportedType: MessageType = MessageType.METADATA_RETRIEVAL
 ) : AbstractMessageHandler<MetadataRequestType, MetadataResponseType>() {
     companion object {
         private const val TOPIC = "metadata"
@@ -48,9 +49,5 @@ class MetadataPasswordHandler(
         )
 
         return future
-    }
-
-    override fun doSupport(type: KClass<*>): Boolean {
-        return type == MetadataRequestType::class || type == MetadataResponseType::class
     }
 }

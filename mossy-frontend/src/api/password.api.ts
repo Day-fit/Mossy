@@ -21,6 +21,13 @@ export type PasswordMetadataDto = {
 	identifier: string;
 	domain: string;
 	lastModified: string;
+	tags: TagDto[];
+};
+
+export type TagDto = {
+	tagId: string;
+	tagName: string;
+	color: string;
 };
 
 export type CiphertextResponseDto = {

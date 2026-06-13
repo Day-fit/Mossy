@@ -34,13 +34,20 @@ class MetadataHandler(
             return
         }
 
-        val passwords = passwordEntryRepository.findAll()
+        val passwords = passwordEntryRepository.findAllBy()
         val metadata = passwords.map {
             PasswordMetadataDto(
                 passwordId = requireNotNull(it.id) { "Password entry is missing id" },
                 identifier = it.identifier,
                 domain = it.domain,
-                lastModified = it.lastModified
+                lastModified = it.lastModified,
+                tags = it.tags.map { tag ->
+                    PasswordMetadataDto.Tag(
+                        tag.id!!,
+                        tag.name,
+                        tag.color
+                    )
+                }
             )
         }
 

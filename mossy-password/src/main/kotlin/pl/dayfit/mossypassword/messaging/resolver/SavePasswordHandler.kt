@@ -11,16 +11,17 @@ import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.VaultMessagingService
 import type.ActionType
+import type.MessageType
 import type.PasswordSaveType
 import type.VaultResponseStatus
 import java.util.concurrent.CompletableFuture
-import kotlin.reflect.KClass
 
 @Component
 class SavePasswordHandler(
     private val vaultMessagingService: VaultMessagingService,
     private val kafkaTemplate: KafkaTemplate<String, PasswordStatisticEvent>,
-    private val vaultRepository: VaultRepository
+    private val vaultRepository: VaultRepository,
+    override val supportedType: MessageType = MessageType.SAVE_PASSWORD
 ) : AbstractMessageHandler<SavePasswordRequestType, SavePasswordResponseType>() {
     @Value($$"${mossy.password.statistics.topic}")
     private lateinit var statisticTopic: String
@@ -66,9 +67,5 @@ class SavePasswordHandler(
         )
 
         return future
-    }
-
-    override fun doSupport(type: KClass<*>): Boolean {
-        return type == SavePasswordRequestType::class || type == SavePasswordResponseType::class
     }
 }

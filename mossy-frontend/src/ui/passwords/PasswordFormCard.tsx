@@ -46,7 +46,7 @@ function PasswordFormCard({
 				onChange('domain', normalizeDomain(formState.domain));
 				onSubmit();
 			}}
-			className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-md"
+			className="flex flex-col gap-4 rounded-md bg-white p-5 shadow-md xl:w-1/2 w-full"
 		>
 			<h2 className="text-xl font-semibold text-emerald-900">
 				{isEditing ? 'Update password' : 'Add password'}

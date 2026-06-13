@@ -1,13 +1,10 @@
 package pl.dayfit.mossypassword.service
 
-import messaging.request.VaultRequestMessageDto
-import messaging.request.type.AbstractVaultRequestType
 import messaging.request.type.CiphertextRequestType
 import messaging.response.type.CiphertextResponseType
 import messaging.request.type.DeletePasswordRequestType
 import messaging.request.type.MetadataRequestType
 import messaging.request.type.SavePasswordRequestType
-import messaging.response.type.AbstractVaultResponseType
 import messaging.response.type.DeletePasswordResponseType
 import messaging.response.type.MetadataResponseType
 import messaging.response.type.SavePasswordResponseType
@@ -15,17 +12,16 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import pl.dayfit.mossypassword.exception.VaultFailedException
-import pl.dayfit.mossypassword.helper.VaultHelper
 import type.PasswordSaveType
-import type.VaultResponseStatus
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
+/**
+ * Service responsible for handling password management requests (CRUD).
+ */
 @Service
-class VaultManagementService(
+class PasswordManagementService(
     private val vaultCommunicationService: VaultCommunicationService,
-    private val vaultHelper: VaultHelper,
 ) {
     fun savePassword(userId: UUID, request: SavePasswordRequestDto) {
         val vaultId = request.vaultId
@@ -36,7 +32,7 @@ class VaultManagementService(
             PasswordSaveType.SAVE
         )
 
-        handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
+        vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
     }
 
     fun updatePassword(userId: UUID, request: UpdatePasswordRequestDto) {
@@ -48,16 +44,16 @@ class VaultManagementService(
             PasswordSaveType.UPDATE
         )
 
-        handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
+        vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
     }
 
     fun deletePassword(userId: UUID, request: DeletePasswordRequestDto) {
         val vaultId = request.vaultId
-        handleProcessing<DeletePasswordResponseType>(userId, vaultId, DeletePasswordRequestType(request.passwordId))
+        vaultCommunicationService.handleProcessing<DeletePasswordResponseType>(userId, vaultId, DeletePasswordRequestType(request.passwordId))
     }
 
     fun getPasswordsMetadata(userId: UUID, vaultId: UUID): CompletableFuture<MetadataResponseType> {
-        return handleProcessing(userId, vaultId, MetadataRequestType())
+        return vaultCommunicationService.handleProcessing(userId, vaultId, MetadataRequestType())
     }
 
     fun getPasswordCipherText(
@@ -65,30 +61,6 @@ class VaultManagementService(
         vaultId: UUID,
         passwordId: UUID
     ): CompletableFuture<CiphertextResponseType> {
-        return handleProcessing(userId, vaultId, CiphertextRequestType(passwordId))
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun <Res : AbstractVaultResponseType> handleProcessing(
-        userId: UUID,
-        vaultId: UUID,
-        payload: AbstractVaultRequestType
-    ): CompletableFuture<Res> {
-        vaultHelper.requireOwnedConnectedVault(userId, vaultId)
-
-        return vaultCommunicationService.sendToVault(
-            vaultId,
-            VaultRequestMessageDto(
-                UUID.randomUUID(),
-                vaultId,
-                payload
-            )
-        ).thenApply {
-            when (it.status) {
-                VaultResponseStatus.OK -> it.payload
-                VaultResponseStatus.ERROR -> throw VaultFailedException("Vault failed when processing request")
-                VaultResponseStatus.NOT_FOUND -> throw NoSuchElementException("Vault couldn't find requested resource")
-            }
-        } as CompletableFuture<Res>
+        return vaultCommunicationService.handleProcessing(userId, vaultId, CiphertextRequestType(passwordId))
     }
 }
