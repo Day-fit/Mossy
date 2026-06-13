@@ -29,7 +29,7 @@ class MetadataHandlerTest {
         val passwordId = UUID.randomUUID()
         val lastModified = Instant.now()
         
-        whenever(passwordEntryRepository.findAll()).thenReturn(
+        whenever(passwordEntryRepository.findAllBy()).thenReturn(
             listOf(
                 PasswordEntry(
                     id = passwordId,
@@ -71,7 +71,7 @@ class MetadataHandlerTest {
     fun `ignores invalid payload type`() {
         handler.handleFrame(StompHeaders(), "invalid")
 
-        verify(passwordEntryRepository, never()).findAll()
+        verify(passwordEntryRepository, never()).findAllBy()
         verify(stompSessionRegistry, never()).send(any<String>(), any<Any>())
     }
 }
