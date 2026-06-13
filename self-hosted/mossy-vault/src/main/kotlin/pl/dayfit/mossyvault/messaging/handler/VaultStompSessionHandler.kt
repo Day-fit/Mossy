@@ -12,9 +12,12 @@ import pl.dayfit.mossyvault.messaging.consumer.AssignTagHandler
 import pl.dayfit.mossyvault.messaging.consumer.DeletePasswordHandler
 import pl.dayfit.mossyvault.messaging.consumer.CiphertextHandler
 import pl.dayfit.mossyvault.messaging.consumer.CreateTagHandler
+import pl.dayfit.mossyvault.messaging.consumer.DeleteTagHandler
 import pl.dayfit.mossyvault.messaging.consumer.GetTagsHandler
 import pl.dayfit.mossyvault.messaging.consumer.MetadataHandler
 import pl.dayfit.mossyvault.messaging.consumer.SavePasswordHandler
+import pl.dayfit.mossyvault.messaging.consumer.UnassignTagHandler
+import pl.dayfit.mossyvault.messaging.consumer.UpdateTagHandler
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import java.lang.reflect.Type
 
@@ -27,7 +30,10 @@ class VaultStompSessionHandler(
     private val stompSessionRegistry: StompSessionRegistry,
     private val createTagHandler: CreateTagHandler,
     private val assignTagHandler: AssignTagHandler,
+    private val unassignTagHandler: UnassignTagHandler,
     private val getTagsHandler: GetTagsHandler,
+    private val updateTagHandler: UpdateTagHandler,
+    private val deleteTagHandler: DeleteTagHandler,
 ) : StompSessionHandler {
     private val logger = LoggerFactory.getLogger(VaultStompSessionHandler::class.java)
 
@@ -68,8 +74,23 @@ class VaultStompSessionHandler(
         )
 
         session.subscribe(
+            StompEndpoints.SUBSCRIBE_UNASSIGN_TAG,
+            unassignTagHandler
+        )
+
+        session.subscribe(
             StompEndpoints.SUBSCRIBE_GET_TAGS,
             getTagsHandler
+        )
+
+        session.subscribe(
+            StompEndpoints.SUBSCRIBE_UPDATE_TAG,
+            updateTagHandler
+        )
+
+        session.subscribe(
+            StompEndpoints.SUBSCRIBE_DELETE_TAG,
+            deleteTagHandler
         )
     }
 

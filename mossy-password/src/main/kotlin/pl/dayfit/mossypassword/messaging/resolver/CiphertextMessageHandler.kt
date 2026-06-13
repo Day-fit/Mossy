@@ -6,12 +6,13 @@ import messaging.response.VaultResponseMessageDto
 import messaging.response.type.CiphertextResponseType
 import org.springframework.stereotype.Component
 import pl.dayfit.mossypassword.service.VaultMessagingService
+import type.MessageType
 import java.util.concurrent.CompletableFuture
-import kotlin.reflect.KClass
 
 @Component
 class CiphertextMessageHandler(
     private val vaultMessagingService: VaultMessagingService,
+    override val supportedType: MessageType = MessageType.CIPHERTEXT_RETRIEVAL
 ) : AbstractMessageHandler<CiphertextRequestType, CiphertextResponseType>() {
     companion object {
         private const val TOPIC = "ciphertext"
@@ -28,9 +29,5 @@ class CiphertextMessageHandler(
         )
 
         return future
-    }
-
-    override fun doSupport(type: KClass<*>): Boolean {
-        return type == CiphertextRequestType::class || type == CiphertextResponseType::class
     }
 }

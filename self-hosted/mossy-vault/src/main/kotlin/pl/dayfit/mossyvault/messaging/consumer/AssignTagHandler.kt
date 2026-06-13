@@ -1,5 +1,6 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
+import jakarta.transaction.Transactional
 import messaging.request.VaultRequestMessageDto
 import messaging.request.type.AssignTagRequestType
 import messaging.response.VaultResponseMessageDto
@@ -24,9 +25,10 @@ class AssignTagHandler(
     private val logger = org.slf4j.LoggerFactory.getLogger(AssignTagHandler::class.java)
 
     override fun getPayloadType(headers: StompHeaders): Type {
-        return AssignTagRequestType::class.java
+        return VaultRequestMessageDto::class.java
     }
 
+    @Transactional
     @Suppress("UNCHECKED_CAST")
     override fun handleFrame(headers: StompHeaders, payload: Any?) {
         val requestDto = payload as? VaultRequestMessageDto<AssignTagRequestType> ?: run {
@@ -65,5 +67,14 @@ class AssignTagHandler(
             .add(tag)
 
         passwordEntryRepository.save(passwordEntry)
+
+        stompSessionRegistry.send(
+            StompEndpoints.USER_TAG_ASSIGNED,
+            VaultResponseMessageDto(
+                requestDto.messageId,
+                AssignTagResponseType(),
+                VaultResponseStatus.OK
+            )
+        )
     }
 }

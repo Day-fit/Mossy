@@ -372,7 +372,7 @@ export default function PasswordHero() {
 			) : null}
 
 			{canManagePasswords ? (
-				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+				<div className="flex flex-col xl:flex-row gap-6">
 					<PasswordFormCard
 						formState={formState}
 						isEditing={isEditing}

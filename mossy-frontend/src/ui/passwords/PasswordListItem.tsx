@@ -1,6 +1,12 @@
-import { type PasswordMetadataDto } from '../../api/password.api.ts';
+import { useEffect, useState } from 'react';
+import {
+	type PasswordMetadataDto,
+	type TagDto,
+} from '../../api/password.api.ts';
 import type { CiphertextPhase } from './index.ts';
 import RippleButton from '../layout/RippleButton.tsx';
+import Tag from './tag/Tag.tsx';
+import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
 
 type PasswordListItemProps = {
 	passwordDto: PasswordMetadataDto;
@@ -21,6 +27,14 @@ function PasswordListItem({
 	onDelete,
 	onRevealToggle,
 }: PasswordListItemProps) {
+	const [assignedTags, setAssignedTags] = useState<TagDto[]>(
+		passwordDto.tags
+	);
+
+	useEffect(() => {
+		setAssignedTags(passwordDto.tags);
+	}, [passwordDto.tags]);
+
 	return (
 		<article className="flex flex-col gap-3 rounded-md border border-gray-200 p-3">
 			<div className="flex items-start justify-between gap-3">
@@ -28,13 +42,36 @@ function PasswordListItem({
 					<p className="font-medium text-gray-900">
 						{passwordDto.identifier}
 					</p>
+
 					<p className="text-sm text-gray-600">
 						{passwordDto.domain}
 					</p>
+
 					<p className="text-xs text-gray-500">
 						Updated{' '}
 						{new Date(passwordDto.lastModified).toLocaleString()}
 					</p>
+
+					<div className="flex flex-wrap gap-1 mt-2">
+						{assignedTags.length > 0 ? (
+							assignedTags.map((tag) => (
+								<Tag
+									key={tag.tagId}
+									tagId={tag.tagId}
+									name={tag.tagName}
+									color={tag.color}
+								/>
+							))
+						) : (
+							<Tag name="unlabeled" color="#373737" />
+						)}
+
+						<AssignTagDropdown
+							assignedTags={assignedTags}
+							setAssignedTags={setAssignedTags}
+							passwordId={passwordDto.passwordId}
+						/>
+					</div>
 				</div>
 
 				<div className="flex gap-2">

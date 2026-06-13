@@ -1,43 +1,49 @@
 package pl.dayfit.mossypassword.service
 
-import messaging.response.VaultResponseMessageDto
-import messaging.response.type.AbstractVaultResponseType
+import messaging.request.type.SavePasswordRequestType
 import messaging.response.type.SavePasswordResponseType
-import type.VaultResponseStatus
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
-import pl.dayfit.mossypassword.helper.VaultHelper
+import type.PasswordSaveType
 import java.util.*
 import java.util.concurrent.CompletableFuture
+import kotlin.test.assertEquals
 
 class PasswordManagementServiceTest {
 
     private val vaultCommunicationService: VaultCommunicationService = mock()
-    private val vaultHelper: VaultHelper = mock()
-
-    private val service = PasswordManagementService(vaultCommunicationService, vaultHelper)
+    private val service = PasswordManagementService(vaultCommunicationService)
 
     @Test
-    @Suppress("UNCHECKED_CAST")
     fun `savePassword completes successfully`() {
         val userId = UUID.randomUUID()
         val vaultId = UUID.randomUUID()
         val request = SavePasswordRequestDto("john", "example.com", "cipher", vaultId)
-        
-        doNothing().whenever(vaultHelper).requireOwnedConnectedVault(userId, vaultId)
-        
-        val responseFuture = CompletableFuture.completedFuture(
-            VaultResponseMessageDto(
-                messageId = UUID.randomUUID(),
-                status = VaultResponseStatus.OK,
-                payload = SavePasswordResponseType()
+
+        whenever(
+            vaultCommunicationService.handleProcessing<SavePasswordResponseType>(
+                eq(userId),
+                eq(vaultId),
+                any()
             )
+        ).thenReturn(
+            CompletableFuture.completedFuture(SavePasswordResponseType())
         )
-        whenever(vaultCommunicationService.sendToVault(eq(vaultId), any())).thenReturn(responseFuture as CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>>)
 
         service.savePassword(userId, request)
 
-        verify(vaultCommunicationService).sendToVault(eq(vaultId), any())
+        val payloadCaptor = argumentCaptor<SavePasswordRequestType>()
+        verify(vaultCommunicationService).handleProcessing<SavePasswordResponseType>(
+            eq(userId),
+            eq(vaultId),
+            payloadCaptor.capture()
+        )
+
+        val payload = payloadCaptor.firstValue
+        assertEquals("john", payload.identifier)
+        assertEquals("example.com", payload.domain)
+        assertEquals("cipher", payload.cipherText)
+        assertEquals(PasswordSaveType.SAVE, payload.saveType)
     }
 }

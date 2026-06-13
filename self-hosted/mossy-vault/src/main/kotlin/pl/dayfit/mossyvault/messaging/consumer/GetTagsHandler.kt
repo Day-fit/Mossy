@@ -1,7 +1,6 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
 import messaging.request.VaultRequestMessageDto
-import messaging.request.type.GetTagsRequestType
 import messaging.response.VaultResponseMessageDto
 import messaging.response.type.GetTagsResponseType
 import org.springframework.messaging.simp.stomp.StompFrameHandler
@@ -19,7 +18,7 @@ class GetTagsHandler(
     private val stompSessionRegistry: StompSessionRegistry
 ) : StompFrameHandler {
     override fun getPayloadType(headers: StompHeaders): Type {
-        return GetTagsRequestType::class.java
+        return VaultRequestMessageDto::class.java
     }
 
     override fun handleFrame(headers: StompHeaders, payload: Any?) {

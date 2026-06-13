@@ -1,10 +1,16 @@
 package pl.dayfit.mossypassword.websocket.controller
 
 import messaging.response.VaultResponseMessageDto
+import messaging.response.type.AssignTagResponseType
 import messaging.response.type.CiphertextResponseType
+import messaging.response.type.CreateTagResponseType
 import messaging.response.type.DeletePasswordResponseType
+import messaging.response.type.DeleteTagResponseType
+import messaging.response.type.GetTagsResponseType
 import messaging.response.type.MetadataResponseType
 import messaging.response.type.SavePasswordResponseType
+import messaging.response.type.UnassignTagResponseType
+import messaging.response.type.UpdateTagResponseType
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Controller
@@ -37,17 +43,32 @@ class VaultResponseController(
     }
 
     @MessageMapping("/vault/tag-assigned")
-    fun handleTagAssignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+    fun handleTagAssignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<AssignTagResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/tag-unassigned")
+    fun handleTagUnassignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<UnassignTagResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 
     @MessageMapping("/vault/tag-saved")
-    fun handleTagSavedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+    fun handleTagSavedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<CreateTagResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 
     @MessageMapping("/vault/tags-retrieved")
-    fun handleTagsRetrievedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+    fun handleTagsRetrievedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<GetTagsResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/tag-deleted")
+    fun handleTagsDeletedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<DeleteTagResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/tag-updated")
+    fun handleTagsAssignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<UpdateTagResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 }

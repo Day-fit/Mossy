@@ -2,8 +2,8 @@ package pl.dayfit.mossypassword.service
 
 import messaging.request.VaultRequestMessageDto
 import messaging.response.VaultResponseMessageDto
-import messaging.request.type.AbstractVaultRequestType
-import messaging.response.type.AbstractVaultResponseType
+import messaging.request.type.VaultRequestType
+import messaging.response.type.VaultResponseType
 import org.springframework.amqp.core.AmqpReplyTimeoutException
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate
 import org.springframework.amqp.rabbit.annotation.RabbitListener
@@ -28,10 +28,10 @@ class VaultCommunicationService(
     private val vaultHelper: VaultHelper,
 ) {
     @Suppress("UNCHECKED_CAST")
-    fun <Res : AbstractVaultResponseType> handleProcessing(
+    fun <Res : VaultResponseType> handleProcessing(
         userId: UUID,
         vaultId: UUID,
-        payload: AbstractVaultRequestType
+        payload: VaultRequestType
     ): CompletableFuture<Res> {
         vaultHelper.requireOwnedConnectedVault(userId, vaultId)
 
@@ -54,8 +54,8 @@ class VaultCommunicationService(
 
     fun sendToVault(
         vaultId: UUID,
-        message: VaultRequestMessageDto<AbstractVaultRequestType>
-    ): CompletableFuture<VaultResponseMessageDto<AbstractVaultResponseType>> {
+        message: VaultRequestMessageDto<VaultRequestType>
+    ): CompletableFuture<VaultResponseMessageDto<VaultResponseType>> {
         val replicaId = redisTemplate.opsForValue()
             .get("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
 
@@ -63,21 +63,20 @@ class VaultCommunicationService(
             throw VaultNotConnectedException(vaultId)
         }
 
-        try {
-            val future = asyncRabbitTemplate.convertSendAndReceive<VaultResponseMessageDto<AbstractVaultResponseType>>(
-                "password.replica.exchange",
-                replicaId,
-                message
-            ) { msg ->
-                msg.messageProperties.correlationId = message.correlationId.toString()
-                msg
-            }
+        val future = asyncRabbitTemplate.convertSendAndReceive<VaultResponseMessageDto<VaultResponseType>>(
+            "password.replica.exchange",
+            replicaId,
+            message
+        ) { msg ->
+            msg.messageProperties.correlationId = message.correlationId.toString()
+            msg
+        }
 
-            return future
-        } catch (_: AmqpReplyTimeoutException) {
-            throw VaultNotRespondedException("Vault $vaultId didn't respond in time.")
-        } catch (e: Exception) {
-            throw e
+        return future.exceptionally { ex ->
+            when (val cause = ex.cause ?: ex) {
+                is AmqpReplyTimeoutException -> throw VaultNotRespondedException("Vault $vaultId didn't respond in time.")
+                else -> throw cause
+            }
         }
     }
 
@@ -85,8 +84,8 @@ class VaultCommunicationService(
         queues = ["#{@replicaQueue.name}"]
     )
     fun resolveMessage(
-        message: VaultRequestMessageDto<AbstractVaultRequestType>
-    ): VaultResponseMessageDto<AbstractVaultResponseType> {
+        message: VaultRequestMessageDto<VaultRequestType>
+    ): VaultResponseMessageDto<VaultResponseType> {
         return vaultMessageResolver.resolve(message)
             .get()
     }

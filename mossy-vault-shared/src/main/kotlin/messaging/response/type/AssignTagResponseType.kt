@@ -1,3 +1,7 @@
 package messaging.response.type
 
-class AssignTagResponseType : AbstractVaultResponseType()
+import type.MessageType
+
+data class AssignTagResponseType(
+    override val type: MessageType = MessageType.ASSIGN_TAG
+) : VaultResponseType()

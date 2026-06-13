@@ -6,12 +6,13 @@ import messaging.response.VaultResponseMessageDto
 import messaging.response.type.CreateTagResponseType
 import org.springframework.stereotype.Component
 import pl.dayfit.mossypassword.service.VaultMessagingService
+import type.MessageType
 import java.util.concurrent.CompletableFuture
-import kotlin.reflect.KClass
 
 @Component
 class CreateTagHandler(
     private val vaultMessagingService: VaultMessagingService,
+    override val supportedType: MessageType = MessageType.CREATE_TAG
 ) : AbstractMessageHandler<CreateTagRequestType, CreateTagResponseType>() {
     companion object {
         private const val TOPIC = "save-tag"
@@ -27,9 +28,5 @@ class CreateTagHandler(
         pending["${message.vaultId}:${message.messageId}"] = future
 
         return future
-    }
-
-    override fun doSupport(type: KClass<*>): Boolean {
-        return type == CreateTagRequestType::class || type == CreateTagResponseType::class
     }
 }

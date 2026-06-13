@@ -23,7 +23,7 @@ class CreateTagHandler(
     private val logger = org.slf4j.LoggerFactory.getLogger(CreateTagHandler::class.java)
 
     override fun getPayloadType(headers: StompHeaders): Type {
-        return CreateTagRequestType::class.java
+        return VaultRequestMessageDto::class.java
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -47,7 +47,9 @@ class CreateTagHandler(
                 StompEndpoints.USER_TAG_SAVED,
                 VaultResponseMessageDto(
                     requestDto.messageId,
-                    CreateTagResponseType(),
+                    CreateTagResponseType(
+                        tag.id,
+                    ),
                     VaultResponseStatus.OK
                 )
             )

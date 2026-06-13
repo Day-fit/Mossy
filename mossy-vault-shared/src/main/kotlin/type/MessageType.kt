@@ -1,0 +1,14 @@
+package type
+
+enum class MessageType {
+    ASSIGN_TAG,
+    UNASSIGN_TAG,
+    CIPHERTEXT_RETRIEVAL,
+    CREATE_TAG,
+    DELETE_TAG,
+    UPDATE_TAG,
+    DELETE_PASSWORD,
+    GET_TAGS,
+    METADATA_RETRIEVAL,
+    SAVE_PASSWORD,
+}
