@@ -8,6 +8,7 @@ import RippleButton from '../layout/RippleButton.tsx';
 import Tag from './tag/Tag.tsx';
 import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
 import * as React from 'react';
+import { CiStickyNote } from 'react-icons/ci';
 
 type PasswordListItemProps = {
 	passwordDto: PasswordMetadataDto;
@@ -90,24 +91,28 @@ function PasswordListItem({
 					</div>
 				</div>
 
-				<div className="flex gap-2">
-					<button
-						type="button"
-						className="rounded-sm border px-2 py-1 text-sm"
-						disabled={isSubmitting}
-						onClick={() => onEdit(passwordDto)}
-					>
-						Edit
-					</button>
+				<div className={'flex flex-col items-end gap-2'}>
+					<div className="flex gap-2">
+						<button
+							type="button"
+							className="rounded-sm border px-2 py-1 text-sm"
+							disabled={isSubmitting}
+							onClick={() => onEdit(passwordDto)}
+						>
+							Edit
+						</button>
 
-					<button
-						type="button"
-						className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
-						disabled={isSubmitting}
-						onClick={() => onDelete(passwordDto.passwordId)}
-					>
-						Delete
-					</button>
+						<button
+							type="button"
+							className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
+							disabled={isSubmitting}
+							onClick={() => onDelete(passwordDto.passwordId)}
+						>
+							Delete
+						</button>
+					</div>
+
+					<CiStickyNote size={32} className={'cursor-pointer'} />
 				</div>
 			</div>
 

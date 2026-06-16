@@ -4,6 +4,7 @@ import messaging.request.VaultRequestMessageDto
 import messaging.response.VaultResponseMessageDto
 import messaging.request.type.MetadataRequestType
 import messaging.response.type.MetadataResponseType
+import messaging.response.type.VaultResponseType
 import type.VaultResponseStatus
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -51,7 +52,7 @@ class MetadataHandlerTest {
 
         val responseCaptor = argumentCaptor<VaultResponseMessageDto<MetadataResponseType>>()
         verify(stompSessionRegistry, times(1)).send(
-            eq(StompEndpoints.USER_PASSWORDS_QUERIED),
+            eq(StompEndpoints.USER_METADATA_RETRIEVED),
             responseCaptor.capture()
         )
 
@@ -72,6 +73,8 @@ class MetadataHandlerTest {
         handler.handleFrame(StompHeaders(), "invalid")
 
         verify(passwordEntryRepository, never()).findAllBy()
-        verify(stompSessionRegistry, never()).send(any<String>(), any<Any>())
+        verify(stompSessionRegistry, never()).send(any<String>(),
+            any<VaultResponseMessageDto<VaultResponseType>>()
+        )
     }
 }

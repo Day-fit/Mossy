@@ -4,50 +4,38 @@ import messaging.request.VaultRequestMessageDto
 import messaging.request.type.UpdateTagRequestType
 import messaging.response.VaultResponseMessageDto
 import messaging.response.type.UpdateTagResponseType
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.repository.PasswordTagRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 import kotlin.jvm.optionals.getOrNull
 
 @Component
 class UpdateTagHandler(
     private val stompSessionRegistry: StompSessionRegistry,
     private val passwordTagRepository: PasswordTagRepository
-) : StompFrameHandler {
-    private val log = org.slf4j.LoggerFactory.getLogger(UpdateTagHandler::class.java)
+) : AbstractVaultRequestHandler<UpdateTagRequestType>(UpdateTagRequestType::class) {
+    private val logger = org.slf4j.LoggerFactory.getLogger(UpdateTagHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
+    override fun handle(message: VaultRequestMessageDto<UpdateTagRequestType>, headers: StompHeaders) {
+        val payload = message.payload
 
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<UpdateTagRequestType>
-
-        if (requestDto == null) {
-            log.warn("Received invalid payload, ignoring it")
-            return
-        }
-
-        val tagEntry = passwordTagRepository.findById(requestDto.payload.tagId)
+        val tagEntry = passwordTagRepository.findById(payload.tagId)
             .getOrNull()
 
         if (tagEntry == null) {
-            log.warn("Tag entry not found, id={}", requestDto.payload.tagId)
+            logger.warn("Tag entry not found, id={}", payload.tagId)
             return
         }
 
-        val newColor = requestDto.payload.color
+        val newColor = payload.color
         if (newColor != null) {
             tagEntry.color = newColor
         }
 
-        val newName = requestDto.payload.name
+        val newName = payload.name
         if (newName != null) {
             tagEntry.name = newName
         }
@@ -57,10 +45,14 @@ class UpdateTagHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_TAG_UPDATED,
             VaultResponseMessageDto(
-                requestDto.messageId,
+                message.messageId,
                 UpdateTagResponseType(),
                 VaultResponseStatus.OK
             )
         )
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_UPDATE_TAG
     }
 }

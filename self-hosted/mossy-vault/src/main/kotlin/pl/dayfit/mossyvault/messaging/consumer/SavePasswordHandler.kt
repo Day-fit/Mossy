@@ -5,59 +5,54 @@ import messaging.response.VaultResponseMessageDto
 import messaging.request.type.SavePasswordRequestType
 import messaging.response.type.SavePasswordResponseType
 import org.slf4j.LoggerFactory
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 import kotlin.io.encoding.Base64
 
 @Component
 class SavePasswordHandler(
     private val persistenceService: PasswordEntryService,
     private val stompSessionRegistry: StompSessionRegistry
-) : StompFrameHandler {
+) : AbstractVaultRequestHandler<SavePasswordRequestType>(SavePasswordRequestType::class) {
     private val logger = LoggerFactory.getLogger(SavePasswordHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders): Type = VaultRequestMessageDto::class.java
-
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<SavePasswordRequestType> ?: run {
-            logger.warn("Received invalid payload, ignoring it")
-            return
-        }
-
-        val requestPayload = requestDto.payload
+    override fun handle(message: VaultRequestMessageDto<SavePasswordRequestType>, headers: StompHeaders) {
+        val payload = message.payload
+        val messageId = message.messageId
 
         try {
-            val passwordId = persistenceService.saveOrUpdate(requestPayload, Base64.decode(requestPayload.cipherText))
+            val passwordId = persistenceService.saveOrUpdate(payload, Base64.decode(payload.cipherText))
 
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_SAVED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     SavePasswordResponseType(
                         passwordId,
-                        requestDto.payload.domain
+                        payload.domain
                     ),
                     VaultResponseStatus.OK
                 )
             )
         } catch (e: Exception){
-            logger.error("Failed to save password entry: ${requestPayload.domain}", e)
+            logger.error("Failed to save password entry: ${payload.domain}", e)
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_SAVED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     SavePasswordResponseType(),
                     VaultResponseStatus.ERROR
                 )
             )
             return
         }
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_SAVE_PASSWORD
     }
 }

@@ -5,7 +5,6 @@ import messaging.request.type.CreateTagRequestType
 import messaging.response.VaultResponseMessageDto
 import messaging.response.type.CreateTagResponseType
 import org.springframework.dao.DataIntegrityViolationException
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
@@ -13,32 +12,24 @@ import pl.dayfit.mossyvault.model.PasswordTag
 import pl.dayfit.mossyvault.repository.PasswordTagRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 
 @Component
 class CreateTagHandler(
     private val passwordTagRepository: PasswordTagRepository,
     private val stompSessionRegistry: StompSessionRegistry
-) : StompFrameHandler {
+) : AbstractVaultRequestHandler<CreateTagRequestType>(CreateTagRequestType::class) {
     private val logger = org.slf4j.LoggerFactory.getLogger(CreateTagHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<CreateTagRequestType> ?: run {
-            logger.warn("Received invalid payload, ignoring it")
-            return
-        }
-
-        val requestPayload = requestDto.payload
+    override fun handle(message: VaultRequestMessageDto<CreateTagRequestType>, headers: StompHeaders) {
+        val payload = message.payload
+        val name = payload.name
 
         val tag = PasswordTag(
-            name = requestPayload.name,
-            color = requestPayload.color
+            name = name,
+            color = payload.color
         )
+
+        val messageId = message.messageId
 
         try {
             passwordTagRepository.save(tag)
@@ -46,7 +37,7 @@ class CreateTagHandler(
             stompSessionRegistry.send(
                 StompEndpoints.USER_TAG_SAVED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     CreateTagResponseType(
                         tag.id,
                     ),
@@ -54,15 +45,19 @@ class CreateTagHandler(
                 )
             )
         } catch (_: DataIntegrityViolationException) {
-            logger.warn("Tag with name {} already exists, skipping", requestPayload.name)
+            logger.warn("Tag with name {} already exists, skipping", name)
             stompSessionRegistry.send(
                 StompEndpoints.USER_TAG_SAVED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     CreateTagResponseType(),
                     VaultResponseStatus.ALREADY_EXISTS
                 )
             )
         }
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_CREATE_TAG
     }
 }

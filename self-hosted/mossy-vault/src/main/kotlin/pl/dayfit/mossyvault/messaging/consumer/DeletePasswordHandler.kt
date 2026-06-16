@@ -4,7 +4,6 @@ import messaging.request.VaultRequestMessageDto
 import messaging.response.VaultResponseMessageDto
 import messaging.request.type.DeletePasswordRequestType
 import messaging.response.type.DeletePasswordResponseType
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
@@ -12,7 +11,6 @@ import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 import kotlin.jvm.optionals.getOrNull
 
 @Component
@@ -20,22 +18,12 @@ class DeletePasswordHandler(
     private val passwordEntryService: PasswordEntryService,
     private val stompSessionRegistry: StompSessionRegistry,
     private val passwordEntryRepository: PasswordEntryRepository
-) : StompFrameHandler {
+) : AbstractVaultRequestHandler<DeletePasswordRequestType>(DeletePasswordRequestType::class) {
     private val logger = org.slf4j.LoggerFactory.getLogger(DeletePasswordHandler::class.java)
 
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<DeletePasswordRequestType>
-
-        if (requestDto == null) {
-            logger.warn("Received invalid payload, ignoring it")
-            return
-        }
-        val passwordId = requestDto.payload.passwordId
+    override fun handle(message: VaultRequestMessageDto<DeletePasswordRequestType>, headers: StompHeaders) {
+        val payload = message.payload
+        val passwordId = payload.passwordId
 
         val passwordEntry = passwordEntryRepository.findById(passwordId)
             .getOrNull()
@@ -45,13 +33,15 @@ class DeletePasswordHandler(
             return
         }
 
+        val messageId = message.messageId
+
         try {
             passwordEntryService.delete(passwordId)
 
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_DELETED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     DeletePasswordResponseType(
                         passwordEntry.domain,
                         passwordId
@@ -64,7 +54,7 @@ class DeletePasswordHandler(
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_DELETED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     DeletePasswordResponseType(),
                     VaultResponseStatus.NOT_FOUND
                 )
@@ -74,11 +64,15 @@ class DeletePasswordHandler(
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_DELETED,
                 VaultResponseMessageDto(
-                    requestDto.messageId,
+                    messageId,
                     DeletePasswordResponseType(),
                     VaultResponseStatus.ERROR
                 )
             )
         }
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_DELETE_PASSWORD
     }
 }

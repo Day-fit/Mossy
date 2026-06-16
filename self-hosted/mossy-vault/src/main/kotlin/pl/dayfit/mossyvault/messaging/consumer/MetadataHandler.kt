@@ -5,35 +5,20 @@ import messaging.response.VaultResponseMessageDto
 import messaging.request.PasswordMetadataDto
 import messaging.request.type.MetadataRequestType
 import messaging.response.type.MetadataResponseType
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 
 @Component
 class MetadataHandler(
     private val passwordEntryRepository: PasswordEntryRepository,
     private val stompSessionRegistry: StompSessionRegistry
-) : StompFrameHandler {
-    private val logger = org.slf4j.LoggerFactory.getLogger(MetadataHandler::class.java)
+) : AbstractVaultRequestHandler<MetadataRequestType>(MetadataRequestType::class) {
 
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<MetadataRequestType>
-
-        if (requestDto == null) {
-            logger.warn("Received invalid payload for password query, ignoring it")
-            return
-        }
-
+    override fun handle(message: VaultRequestMessageDto<MetadataRequestType>, headers: StompHeaders) {
         val passwords = passwordEntryRepository.findAllBy()
         val metadata = passwords.map {
             PasswordMetadataDto(
@@ -52,14 +37,18 @@ class MetadataHandler(
         }
 
         val response = VaultResponseMessageDto(
-            requestDto.messageId,
+            message.messageId,
             MetadataResponseType(metadata),
             VaultResponseStatus.OK
         )
 
         stompSessionRegistry.send(
-            StompEndpoints.USER_PASSWORDS_QUERIED,
+            StompEndpoints.USER_METADATA_RETRIEVED,
             response
         )
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_METADATA
     }
 }
