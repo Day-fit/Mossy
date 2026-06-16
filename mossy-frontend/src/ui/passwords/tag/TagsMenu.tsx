@@ -64,7 +64,6 @@ export default function TagsMenu() {
 						<>
 							{tags.map((tag) => (
 								<TagListItem
-									key={tag.tagId}
 									tagId={tag.tagId}
 									color={tag.color}
 									name={tag.tagName}

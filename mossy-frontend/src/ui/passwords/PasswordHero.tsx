@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
 	executeDeletePasswordRequest,
 	executePasswordCiphertextRequest,
-	executePasswordMetadataRequest,
 	executeSavePasswordRequest,
 	executeUpdatePasswordRequest,
 	type PasswordMetadataDto,
@@ -35,7 +34,6 @@ export default function PasswordHero() {
 
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
 	const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
-	const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
 	const [revealedPasswords, setRevealedPasswords] = useState<
 		Record<string, string>
 	>({});
@@ -48,7 +46,6 @@ export default function PasswordHero() {
 
 	const { vaults, refreshVaults } = useVault();
 
-	const [isLoadingPasswords, setIsLoadingPasswords] = useState(false);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [loadingCiphertextPhase, setLoadingCiphertextPhase] = useState<
 		Record<string, CiphertextPhase>
@@ -73,37 +70,8 @@ export default function PasswordHero() {
 	};
 
 	const resetPasswordView = () => {
-		setPasswords([]);
 		setRevealedPasswords({});
 		setLoadingCiphertextPhase({});
-	};
-
-	const loadPasswords = async (vaultId: string) => {
-		if (!vaultId) {
-			resetPasswordView();
-			return;
-		}
-
-		setIsLoadingPasswords(true);
-
-		try {
-			const next = await executePasswordMetadataRequest(vaultId);
-
-			setPasswords(
-				next.sort((a, b) => {
-					const timeA = new Date(a.lastModified).getTime();
-					const timeB = new Date(b.lastModified).getTime();
-					return timeB - timeA;
-				})
-			);
-
-			setRevealedPasswords({});
-		} catch {
-			setPasswords([]);
-			setStatus({ type: 'error', message: 'Failed to load passwords' });
-		} finally {
-			setIsLoadingPasswords(false);
-		}
 	};
 
 	useEffect(() => {
@@ -113,12 +81,6 @@ export default function PasswordHero() {
 		if (!initial) return;
 
 		setSelectedVaultId(initial.vaultId);
-
-		if (initial.isOnline) {
-			void loadPasswords(initial.vaultId);
-			return;
-		}
-
 		resetPasswordView();
 	}, [vaults, selectedVaultId]);
 
@@ -130,8 +92,6 @@ export default function PasswordHero() {
 
 			const vault = vaults.find((v) => v.vaultId === selectedVaultId);
 			if (!vault?.isOnline) return;
-
-			void loadPasswords(selectedVaultId);
 		};
 
 		return () => bc.close();
@@ -327,8 +287,6 @@ export default function PasswordHero() {
 		resetPasswordView();
 
 		if (!vault.isOnline) return;
-
-		await loadPasswords(vault.vaultId);
 	};
 
 	return (
@@ -385,10 +343,9 @@ export default function PasswordHero() {
 					/>
 
 					<PasswordListCard
-						passwords={passwords}
+						vaultId={selectedVaultId}
 						revealedPasswords={revealedPasswords}
 						loadingCiphertextPhase={loadingCiphertextPhase}
-						isLoadingPasswords={isLoadingPasswords}
 						isSubmitting={isSubmitting}
 						onEdit={handleEdit}
 						onDelete={(id) => void handleDelete(id)}

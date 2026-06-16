@@ -10,8 +10,8 @@
         <module name="mossy-vault-shared" />
         <module name="mossy-auth-starter" />
         <module name="mossy-device" />
-        <module name="mossy-vault" />
         <module name="mossy-auth" />
+        <module name="mossy-vault" />
         <module name="mossy-statistics" />
         <module name="mossy-password" />
         <module name="mossy-jwks-events" />

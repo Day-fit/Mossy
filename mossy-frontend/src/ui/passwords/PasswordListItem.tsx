@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import {
 	type PasswordMetadataDto,
 	type TagDto,
@@ -7,9 +7,11 @@ import type { CiphertextPhase } from './index.ts';
 import RippleButton from '../layout/RippleButton.tsx';
 import Tag from './tag/Tag.tsx';
 import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
+import * as React from 'react';
 
 type PasswordListItemProps = {
 	passwordDto: PasswordMetadataDto;
+	setPasswordDto: React.Dispatch<React.SetStateAction<PasswordMetadataDto[]>>;
 	revealedPassword?: string;
 	phase?: CiphertextPhase;
 	isSubmitting: boolean;
@@ -20,6 +22,7 @@ type PasswordListItemProps = {
 
 function PasswordListItem({
 	passwordDto,
+	setPasswordDto,
 	revealedPassword,
 	phase,
 	isSubmitting,
@@ -27,14 +30,27 @@ function PasswordListItem({
 	onDelete,
 	onRevealToggle,
 }: PasswordListItemProps) {
-	const [assignedTags, setAssignedTags] = useState<TagDto[]>(
-		passwordDto.tags
-	);
+	const assignedTags = useMemo(() => passwordDto.tags, [passwordDto.tags]);
 
-	useEffect(() => {
-		setAssignedTags(passwordDto.tags);
-	}, [passwordDto.tags]);
+	const setAssignedTags: React.Dispatch<React.SetStateAction<TagDto[]>> = (
+		value
+	) => {
+		setPasswordDto((prev) =>
+			prev.map((password) => {
+				if (password.passwordId !== passwordDto.passwordId) {
+					return password;
+				}
 
+				const tags =
+					typeof value === 'function' ? value(password.tags) : value;
+
+				return {
+					...password,
+					tags,
+				};
+			})
+		);
+	};
 	return (
 		<article className="flex flex-col gap-3 rounded-md border border-gray-200 p-3">
 			<div className="flex items-start justify-between gap-3">
