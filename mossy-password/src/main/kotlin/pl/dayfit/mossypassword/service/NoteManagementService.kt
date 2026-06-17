@@ -22,10 +22,10 @@ class NoteManagementService(
         )
     }
 
-    fun saveNote(vaultId: UUID, passwordId: UUID, userId: UUID, note: String) {
+    fun saveNote(vaultId: UUID, passwordId: UUID, userId: UUID, note: String): CompletableFuture<SaveNoteResponseType> {
         val request = SaveNoteRequestType(passwordId, note)
 
-        vaultCommunicationService.handleProcessing<SaveNoteResponseType>(
+        return vaultCommunicationService.handleProcessing(
             userId,
             vaultId,
             request

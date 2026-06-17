@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	type PasswordMetadataDto,
 	type TagDto,
@@ -8,7 +8,8 @@ import RippleButton from '../layout/RippleButton.tsx';
 import Tag from './tag/Tag.tsx';
 import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
 import * as React from 'react';
-import { CiStickyNote } from 'react-icons/ci';
+import NoteCard from './note/NoteCard.tsx';
+import { MdOutlineStickyNote2, MdStickyNote2 } from 'react-icons/md';
 
 type PasswordListItemProps = {
 	passwordDto: PasswordMetadataDto;
@@ -32,6 +33,7 @@ function PasswordListItem({
 	onRevealToggle,
 }: PasswordListItemProps) {
 	const assignedTags = useMemo(() => passwordDto.tags, [passwordDto.tags]);
+	const [isNoteShown, setIsNoteShown] = useState(false);
 
 	const setAssignedTags: React.Dispatch<React.SetStateAction<TagDto[]>> = (
 		value
@@ -52,6 +54,7 @@ function PasswordListItem({
 			})
 		);
 	};
+
 	return (
 		<article className="flex flex-col gap-3 rounded-md border border-gray-200 p-3">
 			<div className="flex items-start justify-between gap-3">
@@ -112,9 +115,26 @@ function PasswordListItem({
 						</button>
 					</div>
 
-					<CiStickyNote size={32} className={'cursor-pointer'} />
+					{passwordDto.hasNote ? (
+						<MdStickyNote2
+							size={32}
+							className={`cursor-pointer`}
+							onClick={() => setIsNoteShown(!isNoteShown)}
+						/>
+					) : (
+						<MdOutlineStickyNote2
+							size={32}
+							className={`cursor-pointer`}
+							onClick={() => setIsNoteShown(!isNoteShown)}
+						/>
+					)}
 				</div>
 			</div>
+
+			<NoteCard
+				isOpen={isNoteShown}
+				passwordId={passwordDto.passwordId}
+			/>
 
 			<div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
 				<p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">

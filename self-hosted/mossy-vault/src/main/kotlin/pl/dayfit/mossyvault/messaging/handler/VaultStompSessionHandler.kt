@@ -1,6 +1,5 @@
 package pl.dayfit.mossyvault.messaging.handler
 
-import messaging.request.type.VaultRequestType
 import org.slf4j.LoggerFactory
 
 import org.springframework.messaging.simp.stomp.StompCommand
@@ -14,7 +13,7 @@ import java.lang.reflect.Type
 
 @Component
 class VaultStompSessionHandler(
-    private val vaultRequestHandlers: List<AbstractVaultRequestHandler<VaultRequestType>>,
+    private val vaultRequestHandlers: List<AbstractVaultRequestHandler<*>>,
     private val stompSessionRegistry: StompSessionRegistry,
 ) : StompSessionHandler {
     private val logger = LoggerFactory.getLogger(VaultStompSessionHandler::class.java)

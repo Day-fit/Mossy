@@ -9,6 +9,7 @@ data class PasswordMetadataDto(
     val domain: String,
     val lastModified: Instant,
     val tags: List<Tag>,
+    val hasNote: Boolean,
 ) {
     data class Tag(val tagId: UUID, val tagName: String, val color: String)
 }

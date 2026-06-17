@@ -6,8 +6,10 @@ import messaging.response.type.CiphertextResponseType
 import messaging.response.type.CreateTagResponseType
 import messaging.response.type.DeletePasswordResponseType
 import messaging.response.type.DeleteTagResponseType
+import messaging.response.type.GetNoteResponseType
 import messaging.response.type.GetTagsResponseType
 import messaging.response.type.MetadataResponseType
+import messaging.response.type.SaveNoteResponseType
 import messaging.response.type.SavePasswordResponseType
 import messaging.response.type.UnassignTagResponseType
 import messaging.response.type.UpdateTagResponseType
@@ -69,6 +71,16 @@ class VaultResponseController(
 
     @MessageMapping("/vault/tag-updated")
     fun handleTagsAssignedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<UpdateTagResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/note-saved")
+    fun handleNoteSavedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SaveNoteResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/note-retrieved")
+    fun handleNoteRetrievedResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<GetNoteResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 }

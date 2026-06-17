@@ -32,7 +32,8 @@ class MetadataHandler(
                         tag.name,
                         tag.color
                     )
-                }
+                },
+                hasNote = it.note != null
             )
         }
 
