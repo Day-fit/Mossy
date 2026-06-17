@@ -133,6 +133,7 @@ function PasswordListItem({
 
 			<NoteCard
 				isOpen={isNoteShown}
+				setIsOpen={setIsNoteShown}
 				passwordId={passwordDto.passwordId}
 			/>
 

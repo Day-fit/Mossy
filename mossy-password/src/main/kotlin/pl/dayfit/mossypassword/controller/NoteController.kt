@@ -1,11 +1,11 @@
 package pl.dayfit.mossypassword.controller
 
 import jakarta.validation.Valid
-import messaging.response.type.GetNoteResponseType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
 import pl.dayfit.mossypassword.dto.request.SaveNoteRequestDto
+import pl.dayfit.mossypassword.dto.response.GetNoteResponseDto
 import pl.dayfit.mossypassword.service.NoteManagementService
 import java.util.*
 import java.util.concurrent.CompletableFuture
@@ -15,9 +15,9 @@ class NoteController(
     private val noteManagementService: NoteManagementService
 ) {
     @GetMapping("/vault/{vaultId}/password/{passwordId}/note")
-    fun getNote(@PathVariable vaultId: UUID, @PathVariable passwordId: UUID, @AuthenticationPrincipal userId: UUID): CompletableFuture<ResponseEntity<GetNoteResponseType>> {
+    fun getNote(@PathVariable vaultId: UUID, @PathVariable passwordId: UUID, @AuthenticationPrincipal userId: UUID): CompletableFuture<ResponseEntity<GetNoteResponseDto>> {
         return noteManagementService.getNoteContent(vaultId, passwordId, userId).thenApply {
-            return@thenApply ResponseEntity.ok(it)
+            return@thenApply ResponseEntity.ok(GetNoteResponseDto(it.note ?: ""))
         }
     }
 

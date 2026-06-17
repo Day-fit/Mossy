@@ -6,6 +6,7 @@ import messaging.response.VaultResponseMessageDto
 import messaging.response.type.SaveNoteResponseType
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.model.PasswordNote
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
@@ -20,6 +21,7 @@ class SaveNoteHandler(
 ) : AbstractVaultRequestHandler<SaveNoteRequestType>(SaveNoteRequestType::class) {
     private val logger = org.slf4j.LoggerFactory.getLogger(SaveNoteHandler::class.java)
 
+    @Transactional
     override fun handle(message: VaultRequestMessageDto<SaveNoteRequestType>, headers: StompHeaders) {
         val payload = message.payload
 
@@ -36,9 +38,8 @@ class SaveNoteHandler(
         if (noteEntity == null) {
             logger.debug("Note entity is null, creating new one")
 
-            val newNoteEntity = PasswordNote(
-                content = Base64.decode(payload.note)
-            )
+            val newNoteEntity = PasswordNote()
+            newNoteEntity.content = Base64.decode(payload.note)
 
             passwordEntry.note = newNoteEntity
         } else {
@@ -49,7 +50,7 @@ class SaveNoteHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_NOTE_SAVED,
             VaultResponseMessageDto(
-                message.correlationId,
+                message.messageId,
                 SaveNoteResponseType(),
                 VaultResponseStatus.OK
             )

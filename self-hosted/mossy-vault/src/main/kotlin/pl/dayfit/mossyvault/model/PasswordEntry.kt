@@ -1,5 +1,6 @@
 package pl.dayfit.mossyvault.model
 
+import jakarta.persistence.CascadeType
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -19,7 +20,7 @@ class PasswordEntry (
     @ManyToMany
     @BatchSize(size = 10)
     var tags: MutableList<PasswordTag> = mutableListOf(),
-    @OneToOne
+    @OneToOne(cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     var note: PasswordNote? = null,
     var encryptedBlob: ByteArray,
     var domain: String,

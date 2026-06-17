@@ -14,7 +14,7 @@ object StompEndpoints {
     const val SUBSCRIBE_DELETE_TAG = "/user/vault/delete-tag"
     const val SUBSCRIBE_UNASSIGN_TAG = "/user/vault/unassign-tag"
     const val SUBSCRIBE_SAVE_NOTE = "/user/vault/save-note"
-    const val SUBSCRIBE_GET_NOTE = "/user/vault/get-notes"
+    const val SUBSCRIBE_GET_NOTE = "/user/vault/get-note"
 
     const val USER_METADATA_RETRIEVED = "/app/vault/metadata-retrieved"
     const val USER_CIPHERTEXT_RETRIEVED = "/app/vault/ciphertext-retrieved"
@@ -27,5 +27,5 @@ object StompEndpoints {
     const val USER_TAG_DELETED = "/app/vault/tag-deleted"
     const val USER_TAG_UNASSIGNED = "/app/vault/tag-unassigned"
     const val USER_NOTE_SAVED = "/app/vault/note-saved"
-    const val USER_NOTE_RETRIEVED = "/app/vault/notes-retrieved"
+    const val USER_NOTE_RETRIEVED = "/app/vault/note-retrieved"
 }
