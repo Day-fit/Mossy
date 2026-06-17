@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
 import org.springframework.messaging.simp.stomp.StompHeaders
 import pl.dayfit.mossyvault.configuration.StompEndpoints
+import pl.dayfit.mossyvault.exception.VaultRequestValidationFailedException
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import pl.dayfit.mossyvault.model.PasswordEntry
 
 class MetadataHandlerTest {
@@ -70,7 +72,9 @@ class MetadataHandlerTest {
 
     @Test
     fun `ignores invalid payload type`() {
-        handler.handleFrame(StompHeaders(), "invalid")
+        assertFailsWith<VaultRequestValidationFailedException> {
+            handler.handleFrame(StompHeaders(), "invalid")
+        }
 
         verify(passwordEntryRepository, never()).findAllBy()
         verify(stompSessionRegistry, never()).send(any<String>(),

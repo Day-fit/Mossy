@@ -105,14 +105,16 @@ class PasswordControllerMvcTest {
             identifier = "john@example.com",
             domain = "example.com",
             lastModified = Instant.now(),
-            tags = listOf()
+            tags = listOf(),
+            hasNote = false
         )
         val second = PasswordMetadataDto(
             passwordId = UUID.randomUUID(),
             identifier = "anna@example.com",
             domain = "example.com",
             lastModified = Instant.now(),
-            tags = listOf()
+            tags = listOf(),
+            hasNote = true
         )
 
         whenever(passwordManagementService.getPasswordsMetadata(userId, vaultId))

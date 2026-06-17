@@ -3,6 +3,7 @@ package pl.dayfit.mossyvault.messaging.consumer
 import messaging.request.VaultRequestMessageDto
 import messaging.response.VaultResponseMessageDto
 import messaging.request.type.SavePasswordRequestType
+import messaging.response.type.VaultResponseType
 import type.VaultResponseStatus
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -10,8 +11,10 @@ import org.springframework.messaging.simp.stomp.StompHeaders
 import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
+import pl.dayfit.mossyvault.exception.VaultRequestValidationFailedException
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
@@ -86,9 +89,11 @@ class SavePasswordHandlerTest {
 
     @Test
     fun `ignores invalid payload type`() {
-        handler.handleFrame(StompHeaders(), "invalid")
+        assertFailsWith<VaultRequestValidationFailedException> {
+            handler.handleFrame(StompHeaders(), "invalid")
+        }
 
         verify(passwordEntryService, never()).saveOrUpdate(any(), any())
-        verify(stompSessionRegistry, never()).send(any<String>(), any<Any>())
+        verify(stompSessionRegistry, never()).send(any<String>(), any<VaultResponseMessageDto<VaultResponseType>>())
     }
 }
