@@ -12,6 +12,7 @@ import SearchBar from './SearchBar.tsx';
 
 type PasswordListCardProps = {
 	vaultId: string;
+	refreshToken: number;
 	revealedPasswords: Record<string, string>;
 	loadingCiphertextPhase: Record<string, CiphertextPhase>;
 	isSubmitting: boolean;
@@ -22,6 +23,7 @@ type PasswordListCardProps = {
 
 function PasswordListCard({
 	vaultId,
+	refreshToken,
 	revealedPasswords,
 	loadingCiphertextPhase,
 	isSubmitting,
@@ -40,7 +42,7 @@ function PasswordListCard({
 			return;
 		}
 		void loadPasswords(vaultId);
-	}, [vaultId]);
+	}, [vaultId, refreshToken]);
 
 	const loadPasswords = async (id: string) => {
 		setIsLoadingPasswords(true);

@@ -5,7 +5,6 @@ import messaging.request.VaultRequestMessageDto
 import messaging.request.type.UnassignTagRequestType
 import messaging.response.VaultResponseMessageDto
 import messaging.response.type.UnassignTagResponseType
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
@@ -13,7 +12,6 @@ import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.repository.PasswordTagRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 import kotlin.jvm.optionals.getOrElse
 
 @Component
@@ -21,29 +19,19 @@ class UnassignTagHandler(
     private val passwordTagRepository: PasswordTagRepository,
     private val passwordEntryRepository: PasswordEntryRepository,
     private val stompSessionRegistry: StompSessionRegistry
-) : StompFrameHandler {
-    private val logger = org.slf4j.LoggerFactory.getLogger(UnassignTagHandler::class.java)
-
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
+) : AbstractVaultRequestHandler<UnassignTagRequestType>(UnassignTagRequestType::class) {
 
     @Transactional
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<UnassignTagRequestType> ?: run {
-            logger.warn("Received invalid payload, ignoring it")
-            return
-        }
+    override fun handle(message: VaultRequestMessageDto<UnassignTagRequestType>, headers: StompHeaders) {
+        val payload = message.payload
+        val messageId = message.messageId
 
-        val requestPayload = requestDto.payload
-
-        val tag = passwordTagRepository.findById(requestPayload.tagId)
+        val tag = passwordTagRepository.findById(payload.tagId)
             .getOrElse {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_UNASSIGNED,
                     VaultResponseMessageDto(
-                        requestDto.messageId,
+                        messageId,
                         UnassignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
                     )
@@ -51,12 +39,12 @@ class UnassignTagHandler(
                 return
             }
 
-        val passwordEntry = passwordEntryRepository.findById(requestPayload.passwordId)
+        val passwordEntry = passwordEntryRepository.findById(payload.passwordId)
             .getOrElse {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_UNASSIGNED,
                     VaultResponseMessageDto(
-                        requestDto.messageId,
+                        messageId,
                         UnassignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
                     ))
@@ -71,11 +59,15 @@ class UnassignTagHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_TAG_UNASSIGNED,
             VaultResponseMessageDto(
-                requestDto.messageId,
+                messageId,
                 UnassignTagResponseType(),
                 VaultResponseStatus.OK
             )
         )
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_UNASSIGN_TAG
     }
 }
 

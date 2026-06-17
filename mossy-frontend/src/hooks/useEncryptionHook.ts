@@ -78,7 +78,7 @@ export function useEncryptionHook(): UseEncryptionResult {
 	);
 
 	const encrypt = useCallback(
-		async (password: string, vaultId: string) => {
+		async (rawData: string, vaultId: string) => {
 			const pin = useEncryptionStore.getState().pins[vaultId];
 
 			if (!pin) {
@@ -89,7 +89,7 @@ export function useEncryptionHook(): UseEncryptionResult {
 
 			const loadedKey = await loadKey(vaultId, pin);
 			const encoder = new TextEncoder();
-			const plaintext = encoder.encode(password);
+			const plaintext = encoder.encode(rawData);
 
 			const ciphertext = new Uint8Array(
 				await crypto.subtle.encrypt(

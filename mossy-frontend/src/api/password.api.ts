@@ -21,6 +21,7 @@ export type PasswordMetadataDto = {
 	identifier: string;
 	domain: string;
 	lastModified: string;
+	hasNote: boolean;
 	tags: TagDto[];
 };
 

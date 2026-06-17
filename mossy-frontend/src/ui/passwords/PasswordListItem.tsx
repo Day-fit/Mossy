@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	type PasswordMetadataDto,
 	type TagDto,
@@ -8,6 +8,8 @@ import RippleButton from '../layout/RippleButton.tsx';
 import Tag from './tag/Tag.tsx';
 import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
 import * as React from 'react';
+import NoteCard from './note/NoteCard.tsx';
+import { MdOutlineStickyNote2, MdStickyNote2 } from 'react-icons/md';
 
 type PasswordListItemProps = {
 	passwordDto: PasswordMetadataDto;
@@ -31,6 +33,7 @@ function PasswordListItem({
 	onRevealToggle,
 }: PasswordListItemProps) {
 	const assignedTags = useMemo(() => passwordDto.tags, [passwordDto.tags]);
+	const [isNoteShown, setIsNoteShown] = useState(false);
 
 	const setAssignedTags: React.Dispatch<React.SetStateAction<TagDto[]>> = (
 		value
@@ -51,6 +54,7 @@ function PasswordListItem({
 			})
 		);
 	};
+
 	return (
 		<article className="flex flex-col gap-3 rounded-md border border-gray-200 p-3">
 			<div className="flex items-start justify-between gap-3">
@@ -90,26 +94,48 @@ function PasswordListItem({
 					</div>
 				</div>
 
-				<div className="flex gap-2">
-					<button
-						type="button"
-						className="rounded-sm border px-2 py-1 text-sm"
-						disabled={isSubmitting}
-						onClick={() => onEdit(passwordDto)}
-					>
-						Edit
-					</button>
+				<div className={'flex flex-col items-end gap-2'}>
+					<div className="flex gap-2">
+						<button
+							type="button"
+							className="rounded-sm border px-2 py-1 text-sm"
+							disabled={isSubmitting}
+							onClick={() => onEdit(passwordDto)}
+						>
+							Edit
+						</button>
 
-					<button
-						type="button"
-						className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
-						disabled={isSubmitting}
-						onClick={() => onDelete(passwordDto.passwordId)}
-					>
-						Delete
-					</button>
+						<button
+							type="button"
+							className="rounded-sm border border-red-300 px-2 py-1 text-sm text-red-600"
+							disabled={isSubmitting}
+							onClick={() => onDelete(passwordDto.passwordId)}
+						>
+							Delete
+						</button>
+					</div>
+
+					{passwordDto.hasNote ? (
+						<MdStickyNote2
+							size={32}
+							className={`cursor-pointer`}
+							onClick={() => setIsNoteShown(!isNoteShown)}
+						/>
+					) : (
+						<MdOutlineStickyNote2
+							size={32}
+							className={`cursor-pointer`}
+							onClick={() => setIsNoteShown(!isNoteShown)}
+						/>
+					)}
 				</div>
 			</div>
+
+			<NoteCard
+				isOpen={isNoteShown}
+				setIsOpen={setIsNoteShown}
+				passwordId={passwordDto.passwordId}
+			/>
 
 			<div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
 				<p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">

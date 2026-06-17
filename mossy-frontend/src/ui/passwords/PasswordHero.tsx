@@ -55,6 +55,7 @@ export default function PasswordHero() {
 	>();
 
 	const [status, setStatus] = useState<StatusMessage>(null);
+	const [passwordListRefreshToken, setPasswordListRefreshToken] = useState(0);
 
 	const selectedVault =
 		vaults.find((v) => v.vaultId === selectedVaultId) ?? null;
@@ -92,6 +93,7 @@ export default function PasswordHero() {
 
 			const vault = vaults.find((v) => v.vaultId === selectedVaultId);
 			if (!vault?.isOnline) return;
+			setPasswordListRefreshToken((prev) => prev + 1);
 		};
 
 		return () => bc.close();
@@ -145,6 +147,7 @@ export default function PasswordHero() {
 			setStatus({ type: 'success', message: response.message });
 			resetForm();
 			await refreshVaults();
+			setPasswordListRefreshToken((prev) => prev + 1);
 		} catch (error) {
 			setStatus({
 				type: 'error',
@@ -241,6 +244,7 @@ export default function PasswordHero() {
 			if (editedPasswordId === passwordId) resetForm();
 
 			await refreshVaults();
+			setPasswordListRefreshToken((prev) => prev + 1);
 		} catch (error) {
 			setStatus({
 				type: 'error',
@@ -344,6 +348,7 @@ export default function PasswordHero() {
 
 					<PasswordListCard
 						vaultId={selectedVaultId}
+						refreshToken={passwordListRefreshToken}
 						revealedPasswords={revealedPasswords}
 						loadingCiphertextPhase={loadingCiphertextPhase}
 						isSubmitting={isSubmitting}

@@ -36,13 +36,12 @@ class VaultStatusService(
     @Transactional
     fun markOnline(vaultId: UUID) {
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return
-        if (vault.isOnline) {
-            return
-        }
 
         redisTemplate.opsForValue()
             .set("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId", replicaQueue.name)
-        vault.isOnline = true
+        if (!vault.isOnline) {
+            vault.isOnline = true
+        }
         vault.lastSeenAt = Instant.now()
         vaultRepository.save(vault)
     }
@@ -50,13 +49,14 @@ class VaultStatusService(
     @Transactional
     fun markOffline(vaultId: UUID) {
         val vault = vaultRepository.findById(vaultId).orElse(null) ?: return
+        redisTemplate.delete("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
+
         if (!vault.isOnline) {
             return
         }
 
         vault.isOnline = false
         vaultRepository.save(vault)
-        redisTemplate.delete("${RedisPrefix.VAULT_LOCATION_PREFIX}:$vaultId")
     }
 
     @Transactional

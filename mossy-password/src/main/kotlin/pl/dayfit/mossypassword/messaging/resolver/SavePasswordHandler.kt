@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component
 import pl.dayfit.mossypassword.messaging.dto.PasswordStatisticEvent
 import pl.dayfit.mossypassword.repository.VaultRepository
 import pl.dayfit.mossypassword.service.VaultMessagingService
-import type.ActionType
+import pl.dayfit.mossypassword.type.ActionType
 import type.MessageType
 import type.PasswordSaveType
 import type.VaultResponseStatus

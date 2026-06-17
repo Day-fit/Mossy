@@ -5,7 +5,6 @@ import messaging.request.VaultRequestMessageDto
 import messaging.request.type.AssignTagRequestType
 import messaging.response.VaultResponseMessageDto
 import messaging.response.type.AssignTagResponseType
-import org.springframework.messaging.simp.stomp.StompFrameHandler
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
 import pl.dayfit.mossyvault.configuration.StompEndpoints
@@ -13,7 +12,6 @@ import pl.dayfit.mossyvault.repository.PasswordEntryRepository
 import pl.dayfit.mossyvault.repository.PasswordTagRepository
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import type.VaultResponseStatus
-import java.lang.reflect.Type
 import kotlin.jvm.optionals.getOrElse
 
 @Component
@@ -21,29 +19,17 @@ class AssignTagHandler(
     private val passwordTagRepository: PasswordTagRepository,
     private val passwordEntryRepository: PasswordEntryRepository,
     private val stompSessionRegistry: StompSessionRegistry
-) : StompFrameHandler {
-    private val logger = org.slf4j.LoggerFactory.getLogger(AssignTagHandler::class.java)
-
-    override fun getPayloadType(headers: StompHeaders): Type {
-        return VaultRequestMessageDto::class.java
-    }
+) : AbstractVaultRequestHandler<AssignTagRequestType>(AssignTagRequestType::class) {
 
     @Transactional
-    @Suppress("UNCHECKED_CAST")
-    override fun handleFrame(headers: StompHeaders, payload: Any?) {
-        val requestDto = payload as? VaultRequestMessageDto<AssignTagRequestType> ?: run {
-            logger.warn("Received invalid payload, ignoring it")
-            return
-        }
-
-        val requestPayload = requestDto.payload
-
-        val tag =  passwordTagRepository.findById(requestPayload.tagId)
+    override fun handle(message: VaultRequestMessageDto<AssignTagRequestType>, headers: StompHeaders) {
+        val payload = message.payload
+        val tag =  passwordTagRepository.findById(payload.tagId)
             .getOrElse {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_ASSIGNED,
                     VaultResponseMessageDto(
-                        requestDto.messageId,
+                        message.messageId,
                         AssignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
                     )
@@ -51,12 +37,12 @@ class AssignTagHandler(
                 return
             }
 
-        val passwordEntry = passwordEntryRepository.findById(requestPayload.passwordId)
+        val passwordEntry = passwordEntryRepository.findById(payload.passwordId)
             .getOrElse {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_ASSIGNED,
                     VaultResponseMessageDto(
-                        requestDto.messageId,
+                        message.messageId,
                         AssignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
                     ))
@@ -71,10 +57,14 @@ class AssignTagHandler(
         stompSessionRegistry.send(
             StompEndpoints.USER_TAG_ASSIGNED,
             VaultResponseMessageDto(
-                requestDto.messageId,
+                message.messageId,
                 AssignTagResponseType(),
                 VaultResponseStatus.OK
             )
         )
+    }
+
+    override fun getDestination(): String {
+        return StompEndpoints.SUBSCRIBE_TAG_ASSIGN
     }
 }

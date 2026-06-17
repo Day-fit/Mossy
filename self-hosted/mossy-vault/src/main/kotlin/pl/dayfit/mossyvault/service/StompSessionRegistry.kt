@@ -1,5 +1,7 @@
 package pl.dayfit.mossyvault.service
 
+import messaging.response.VaultResponseMessageDto
+import messaging.response.type.VaultResponseType
 import org.springframework.messaging.simp.stomp.StompSession
 import org.springframework.stereotype.Component
 import java.util.concurrent.atomic.AtomicReference
@@ -19,7 +21,7 @@ class StompSessionRegistry {
         }
     }
 
-    fun send(destination: String, payload: Any): Boolean {
+    fun send(destination: String, payload: VaultResponseMessageDto<VaultResponseType>): Boolean {
         val session = sessionRef.get()
         if (session == null || !session.isConnected) {
             return false
