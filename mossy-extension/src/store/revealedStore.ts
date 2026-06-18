@@ -1,4 +1,12 @@
-import { create } from "zustand";
+import {
+  createContext,
+  createElement,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 type RevealedStoreState = {
   revealed: Record<string, string>;
@@ -6,14 +14,40 @@ type RevealedStoreState = {
   hidePassword: (passwordId: string) => void;
 };
 
-export const useRevealedStore = create<RevealedStoreState>((set) => ({
-  revealed: {},
-  setRevealedPassword: (passwordId, value) =>
-    set((state) => ({ revealed: { ...state.revealed, [passwordId]: value } })),
-  hidePassword: (passwordId) =>
-    set((state) => {
-      const next = { ...state.revealed };
+const RevealedStoreContext = createContext<RevealedStoreState | null>(null);
+
+export function RevealedStoreProvider({ children }: { children: ReactNode }) {
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+
+  const setRevealedPassword = useCallback(
+    (passwordId: string, value: string) => {
+      setRevealed((current) => ({ ...current, [passwordId]: value }));
+    },
+    [],
+  );
+
+  const hidePassword = useCallback((passwordId: string) => {
+    setRevealed((current) => {
+      const next = { ...current };
       delete next[passwordId];
-      return { revealed: next };
-    }),
-}));
+      return next;
+    });
+  }, []);
+
+  const value = useMemo<RevealedStoreState>(
+    () => ({ revealed, setRevealedPassword, hidePassword }),
+    [hidePassword, revealed, setRevealedPassword],
+  );
+
+  return createElement(RevealedStoreContext.Provider, { value }, children);
+}
+
+export function useRevealedStore<T = RevealedStoreState>(
+  selector?: (state: RevealedStoreState) => T,
+): T {
+  const state = useContext(RevealedStoreContext);
+  if (!state) {
+    throw new Error("useRevealedStore must be used within RevealedStoreProvider");
+  }
+  return selector ? selector(state) : (state as T);
+}

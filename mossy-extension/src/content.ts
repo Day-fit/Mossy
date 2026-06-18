@@ -1,8 +1,11 @@
 import { normalizeDomain } from "./utils/domain";
-import { usePasswordsStore } from "./store/passwordsStore.ts";
+import {
+  getCachedPasswords,
+  initializePasswordMetadataCache,
+} from "./utils/passwordMetadataCache";
 import { loadSelectedVaultId } from "./utils/chromeStorage.ts";
 
-const getPasswords = usePasswordsStore.getState().getPasswords;
+initializePasswordMetadataCache();
 let suggestionElement: HTMLElement | null = null;
 
 type CapturePayload = {
@@ -93,30 +96,32 @@ function showInPagePinModal(): Promise<string | null> {
           position: fixed;
           inset: 0;
           z-index: 2147483647;
-          background: rgba(0, 0, 0, 0.45);
+          background: rgba(0, 0, 0, 0.30);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-family: Syne, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
         .card {
           background: #fff;
-          border-radius: 14px;
-          padding: 28px 24px 22px;
-          width: 300px;
-          box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+          border: 1px solid #e4e7ec;
+          border-radius: 8px;
+          padding: 22px;
+          width: 320px;
+          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 16px;
         }
-        h3 { margin: 0; font-size: 17px; font-weight: 600; color: #111; }
-        p  { margin: 0; font-size: 13px; color: #666; }
+        h3 { margin: 0; font-size: 22px; line-height: 1.1; font-weight: 700; color: #052e1a; }
+        p  { margin: 0; font-size: 13px; line-height: 1.4; color: #667085; }
         input {
-          border: 1.5px solid #ddd;
-          border-radius: 8px;
-          padding: 9px 12px;
+          border: 0;
+          border-bottom: 2px solid #e4e7ec;
+          border-radius: 0;
+          padding: 10px 2px;
           font-size: 22px;
-          letter-spacing: 10px;
+          letter-spacing: 0.32em;
           text-align: center;
           outline: none;
           width: 100%;
@@ -128,27 +133,27 @@ function showInPagePinModal(): Promise<string | null> {
         .btn-primary {
           flex: 1;
           padding: 9px;
-          background: #007735;
+          background: #111827;
           color: #fff;
           border: none;
-          border-radius: 8px;
+          border-radius: 6px;
           cursor: pointer;
           font-size: 14px;
-          font-weight: 600;
+          font-weight: 700;
         }
-        .btn-primary:hover { background: #006029; }
+        .btn-primary:hover { background: #005a28; }
         .btn-secondary {
           flex: 1;
           padding: 9px;
-          background: transparent;
-          color: #555;
-          border: 1.5px solid #ddd;
-          border-radius: 8px;
+          background: #fff;
+          color: #1f2933;
+          border: 1px solid #e4e7ec;
+          border-radius: 6px;
           cursor: pointer;
           font-size: 14px;
+          font-weight: 700;
         }
-        .btn-secondary:hover { background: #f5f5f5; }
-        .error { font-size: 12px; color: #c0392b; text-align: center; }
+        .btn-secondary:hover { background: #f8fafc; }
       </style>
       <div class="overlay">
         <div class="card">
@@ -293,7 +298,7 @@ function suggestFill(target: EventTarget) {
     suggestionElement = null;
   }
 
-  const suggestions = getPasswords();
+  const suggestions = getCachedPasswords();
   if (!(target instanceof HTMLElement)) return;
 
   const hostname = window.location.hostname;
@@ -312,13 +317,13 @@ function suggestFill(target: EventTarget) {
     top: `${target.getBoundingClientRect().bottom + window.scrollY}px`,
     left: `${target.getBoundingClientRect().left + window.scrollX}px`,
     width: `${target.getBoundingClientRect().width}px`,
-    background: "#1e1e1e",
-    border: "1px solid #333",
+    background: "#ffffff",
+    border: "1px solid #e4e7ec",
     borderRadius: "8px",
     overflow: "hidden",
     zIndex: "9999",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-    fontFamily: "sans-serif",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.14)",
+    fontFamily: "Syne, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   });
 
   filtered.forEach((s) => {
@@ -330,13 +335,14 @@ function suggestFill(target: EventTarget) {
     Object.assign(item.style, {
       padding: "10px 12px",
       cursor: "pointer",
-      color: "#e5e5e5",
-      fontSize: "14px",
+      color: "#1f2933",
+      fontSize: "13px",
+      fontWeight: "700",
       transition: "background 120ms ease",
     });
 
     item.addEventListener("mouseenter", () => {
-      item.style.background = "#2a2a2a";
+      item.style.background = "#effdf4";
     });
 
     item.addEventListener("mouseleave", () => {

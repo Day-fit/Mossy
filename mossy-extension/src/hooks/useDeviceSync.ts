@@ -75,8 +75,7 @@ export function useDeviceSync() {
   };
 
   const buildAuthFrame = async (wsUrl: string, syncCode: string) => {
-    const currentDeviceId = useDeviceStore.getState().deviceId;
-    if (!currentDeviceId)
+    if (!deviceId)
       throw new Error("Device ID not found. Please register device first.");
     if (!idKey?.private) throw new Error("Missing id key");
     if (!syncCode) throw new Error("Sync code not found");
@@ -113,7 +112,7 @@ export function useDeviceSync() {
 
     return {
       wsUrlWithCode,
-      deviceId: currentDeviceId,
+      deviceId,
       signature: signatureB64,
       userDhPair: dhKey,
     };

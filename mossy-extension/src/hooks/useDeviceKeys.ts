@@ -52,8 +52,7 @@ export function useDeviceKeys(userId?: string) {
     if (!userId) throw new Error('No userId was provided');
 
     const db = await getOrCreateDatabase();
-    const existingStoreKey = useDeviceStore.getState().idKey;
-    if (existingStoreKey) return existingStoreKey;
+    if (deviceKeys) return deviceKeys;
 
     const existingStoredKey = (await db.get('keys', userId)) as CryptoPair | null | undefined;
     if (existingStoredKey) {

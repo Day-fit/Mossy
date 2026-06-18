@@ -8,8 +8,7 @@ export function useEncryptionHook() {
   const deviceKeysHook = useDeviceKeys();
   const dbRef = deviceKeysHook.dbRef;
   const getDatabase = deviceKeysHook.getDatabase;
-  const setPin = useEncryptionStore((state) => state.setPin);
-  const clearPin = useEncryptionStore((state) => state.clearPin);
+  const { pins, setPin, clearPin } = useEncryptionStore();
 
   const resolveDb = useCallback(async () => dbRef.current ?? (await getDatabase()), [dbRef, getDatabase]);
 
@@ -97,7 +96,7 @@ export function useEncryptionHook() {
 
   const encrypt = useCallback(
     async (password: string, vaultId: string) => {
-      const pin = useEncryptionStore.getState().pins[vaultId];
+      const pin = pins[vaultId];
       if (!pin) throw new Error('Pin not found');
 
       const iv = new Uint8Array(sodium.randombytes_buf(12));
@@ -111,12 +110,12 @@ export function useEncryptionHook() {
 
       return btoa(String.fromCharCode(...blob));
     },
-    [loadKey]
+    [loadKey, pins]
   );
 
   const decrypt = useCallback(
     async (ciphertext: string, vaultId: string) => {
-      const pin = useEncryptionStore.getState().pins[vaultId];
+      const pin = pins[vaultId];
       if (!pin) throw new Error('Pin not found');
 
       const loadedKey = await loadKey(vaultId, pin);
@@ -127,7 +126,7 @@ export function useEncryptionHook() {
 
       return new TextDecoder().decode(decryptedBytes);
     },
-    [loadKey]
+    [loadKey, pins]
   );
 
   const isPinPresent = useCallback(
@@ -139,9 +138,9 @@ export function useEncryptionHook() {
         throw new KeyNotFoundException('Key not found');
       }
 
-      return useEncryptionStore.getState().pins[id] !== undefined;
+      return pins[id] !== undefined;
     },
-    [resolveDb]
+    [pins, resolveDb]
   );
 
   return { encrypt, decrypt, isPinPresent, saveRawKey, loadKey, setPin };

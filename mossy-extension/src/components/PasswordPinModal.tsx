@@ -1,6 +1,13 @@
 import ReactDOM from "react-dom";
 import { Controller, useForm } from "react-hook-form";
 import { OTPInput } from "input-otp";
+import { motion } from "framer-motion";
+import {
+  primaryButton,
+  secondaryButton,
+  sectionHeader,
+  subtitle,
+} from "./popupStyles";
 
 type PasswordPinModalProps = {
   vaultId: string;
@@ -20,20 +27,28 @@ export default function PasswordPinModal({
   };
 
   return ReactDOM.createPortal(
-    <div
-      className="modal-backdrop"
+    <motion.div
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30 p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <form
+      <motion.form
         onSubmit={handleSubmit(onSubmit)}
-        className="modal-card"
+        className="flex w-full max-w-[360px] flex-col gap-4 rounded-lg bg-white p-5 shadow-xl"
+        initial={{ opacity: 0, y: 14, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="section-header">
-          <h1 className="modal-title">Enter your vault PIN</h1>
-          <p className="section-subtitle">
+        <div className={sectionHeader}>
+          <h1 className="text-[22px] font-semibold leading-tight text-gray-900">
+            Enter your vault PIN
+          </h1>
+          <p className={subtitle}>
             This vault is protected by a PIN. Enter it to proceed.
           </p>
         </div>
@@ -50,14 +65,19 @@ export default function PasswordPinModal({
                 if (val.length === 4) handleSubmit(onSubmit)();
               }}
               render={({ slots }) => (
-                <div className="otp-container">
+                <div className="flex justify-center gap-2.5">
                   {slots.map((slot, i) => (
                     <div
                       key={i}
-                      className={`otp-slot ${slot.isActive ? "active" : ""}`}
+                      className={[
+                        "flex h-[52px] w-[52px] items-center justify-center rounded-lg border-2 text-[22px] font-semibold transition",
+                        slot.isActive
+                          ? "border-[#007735] bg-emerald-50 shadow-sm shadow-emerald-100"
+                          : "border-gray-200 bg-white text-gray-900",
+                      ].join(" ")}
                     >
                       {slot.char ?? (
-                        <span className="otp-placeholder">•</span>
+                        <span className="text-lg text-gray-300">•</span>
                       )}
                     </div>
                   ))}
@@ -67,14 +87,16 @@ export default function PasswordPinModal({
           )}
         />
 
-        <div className="row">
-          <button type="submit">Continue</button>
-          <button type="button" className="secondary" onClick={onClose}>
+        <div className="flex gap-2">
+          <button className={primaryButton} type="submit">
+            Continue
+          </button>
+          <button type="button" className={secondaryButton} onClick={onClose}>
             Close
           </button>
         </div>
-      </form>
-    </div>,
+      </motion.form>
+    </motion.div>,
     document.body,
   );
 }
