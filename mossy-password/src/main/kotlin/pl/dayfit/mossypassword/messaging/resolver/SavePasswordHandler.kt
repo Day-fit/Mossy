@@ -53,7 +53,7 @@ class SavePasswordHandler(
                     id,
                     vault.get().ownerId,
                     response.payload.passwordId!!,
-                    response.payload.domain!!,
+                    response.payload.address!!,
                     actionType
                 )
             )

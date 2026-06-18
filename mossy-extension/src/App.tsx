@@ -169,9 +169,10 @@ export default function App() {
     const cipherText = await encrypt(values.password, id);
     const result = await executeSavePasswordRequest({
       identifier: values.identifier,
-      domain: normalizeDomain(values.domain),
+      address: normalizeDomain(values.domain),
       cipherText,
       vaultId: id,
+      passwordType: "PASSWORD",
     });
 
     setStatus(result.message);

@@ -33,13 +33,13 @@ class SavePasswordHandler(
                     messageId,
                     SavePasswordResponseType(
                         passwordId,
-                        payload.domain
+                        payload.address
                     ),
                     VaultResponseStatus.OK
                 )
             )
         } catch (e: Exception){
-            logger.error("Failed to save password entry: ${payload.domain}", e)
+            logger.error("Failed to save password entry: ${payload.address}", e)
             stompSessionRegistry.send(
                 StompEndpoints.USER_PASSWORD_SAVED,
                 VaultResponseMessageDto(

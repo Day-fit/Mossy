@@ -15,6 +15,7 @@ import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
 import pl.dayfit.mossypassword.service.PasswordManagementService
 import pl.dayfit.mossypassword.exception.VaultNotFoundException
+import type.PasswordType
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
@@ -32,9 +33,10 @@ class PasswordControllerMvcTest {
         val vaultId = UUID.randomUUID()
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             cipherText = "QmFzZTY0Q2lwaGVy",
-            vaultId = vaultId
+            vaultId = vaultId,
+            passwordType = PasswordType.PASSWORD
         )
 
         val response = controller.savePassword(userId, request)
@@ -52,9 +54,10 @@ class PasswordControllerMvcTest {
         val vaultId = UUID.randomUUID()
         val request = SavePasswordRequestDto(
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             cipherText = "QmFzZTY0Q2lwaGVy",
-            vaultId = vaultId
+            vaultId = vaultId,
+            passwordType = PasswordType.PASSWORD
         )
 
         whenever(passwordManagementService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
@@ -70,7 +73,7 @@ class PasswordControllerMvcTest {
         val request = UpdatePasswordRequestDto(
             passwordId = UUID.randomUUID(),
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             cipherText = "QmFzZTY0Q2lwaGVy",
             vaultId = UUID.randomUUID()
         )
@@ -103,18 +106,20 @@ class PasswordControllerMvcTest {
         val first = PasswordMetadataDto(
             passwordId = UUID.randomUUID(),
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             lastModified = Instant.now(),
             tags = listOf(),
-            hasNote = false
+            hasNote = false,
+            passwordType = PasswordType.PASSWORD
         )
         val second = PasswordMetadataDto(
             passwordId = UUID.randomUUID(),
             identifier = "anna@example.com",
-            domain = "example.com",
+            address = "example.com",
             lastModified = Instant.now(),
             tags = listOf(),
-            hasNote = true
+            hasNote = true,
+            passwordType = PasswordType.PASSWORD
         )
 
         whenever(passwordManagementService.getPasswordsMetadata(userId, vaultId))

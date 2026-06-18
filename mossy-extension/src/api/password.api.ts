@@ -4,9 +4,10 @@ import type { PasswordMetadataDto } from '../types';
 
 export type SavePasswordRequestDto = {
   identifier: string;
-  domain: string;
+  address: string;
   cipherText: string;
   vaultId: string;
+  passwordType: 'PASSWORD' | 'SSH_KEY';
 };
 
 export type CiphertextResponseDto = {

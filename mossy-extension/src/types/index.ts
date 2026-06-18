@@ -16,7 +16,7 @@ export type UserVaultDto = {
 export type PasswordMetadataDto = {
   passwordId: string;
   identifier: string;
-  domain: string;
+  address: string;
   lastModified: string;
 };
 

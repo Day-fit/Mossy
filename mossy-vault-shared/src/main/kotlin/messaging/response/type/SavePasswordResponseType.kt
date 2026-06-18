@@ -5,6 +5,6 @@ import java.util.UUID
 
 class SavePasswordResponseType(
     val passwordId: UUID? = null,
-    val domain: String? = null,
+    val address: String? = null,
     override val type: MessageType = MessageType.SAVE_PASSWORD
 ) : VaultResponseType()

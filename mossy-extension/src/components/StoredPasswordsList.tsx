@@ -31,7 +31,7 @@ export default function StoredPasswordsList({ onReveal }: Props) {
       {passwords.map((item) => (
         <div key={item.passwordId} className="password-item">
           <p style={{ fontSize: 13 }}>
-            {item.identifier} @ {item.domain}
+            {item.identifier} @ {item.address}
           </p>
           <p className="small">{revealed[item.passwordId] ?? "••••••••••"}</p>
           <button
