@@ -12,6 +12,7 @@ import pl.dayfit.mossyvault.configuration.StompEndpoints
 import pl.dayfit.mossyvault.service.PasswordEntryService
 import pl.dayfit.mossyvault.service.StompSessionRegistry
 import pl.dayfit.mossyvault.exception.VaultRequestValidationFailedException
+import type.PasswordType
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -36,9 +37,10 @@ class SavePasswordHandlerTest {
 
         val requestType = SavePasswordRequestType(
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            saveType = type.PasswordSaveType.SAVE
+            saveType = type.PasswordSaveType.SAVE,
+            passwordType = PasswordType.PASSWORD,
         )
         val request = VaultRequestMessageDto(
             correlationId = correlationId,
@@ -67,9 +69,10 @@ class SavePasswordHandlerTest {
 
         val requestType = SavePasswordRequestType(
             identifier = "john@example.com",
-            domain = "example.com",
+            address = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            saveType = type.PasswordSaveType.SAVE
+            saveType = type.PasswordSaveType.SAVE,
+            passwordType = PasswordType.PASSWORD
         )
         val request = VaultRequestMessageDto(
             correlationId = correlationId,

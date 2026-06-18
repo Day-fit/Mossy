@@ -45,7 +45,7 @@ class DeletePasswordHandler(
                 id,
                 vault.ownerId,
                 message.payload.passwordId,
-                response.payload.domain!!,
+                response.payload.address!!,
                 ActionType.REMOVED,
             ))
         }

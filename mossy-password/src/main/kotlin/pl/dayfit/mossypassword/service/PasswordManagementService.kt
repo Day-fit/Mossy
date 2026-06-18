@@ -27,9 +27,10 @@ class PasswordManagementService(
         val vaultId = request.vaultId
         val payload = SavePasswordRequestType(
             request.identifier,
-            request.domain,
+            request.address,
             request.cipherText,
-            PasswordSaveType.SAVE
+            PasswordSaveType.SAVE,
+            request.passwordType
         )
 
         vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
@@ -39,9 +40,10 @@ class PasswordManagementService(
         val vaultId = request.vaultId
         val payload = SavePasswordRequestType(
             request.identifier,
-            request.domain,
+            request.address,
             request.cipherText,
-            PasswordSaveType.UPDATE
+            PasswordSaveType.UPDATE,
+            null
         )
 
         vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)

@@ -297,7 +297,7 @@ function suggestFill(target: EventTarget) {
   if (!(target instanceof HTMLElement)) return;
 
   const hostname = window.location.hostname;
-  const filtered = suggestions.filter((s) => s.domain === hostname);
+  const filtered = suggestions.filter((s) => s.address === hostname);
   if (!filtered.length) return;
 
   const root = document.createElement("div");

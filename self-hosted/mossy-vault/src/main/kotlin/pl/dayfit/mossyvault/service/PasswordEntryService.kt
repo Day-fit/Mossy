@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import pl.dayfit.mossyvault.model.PasswordEntry
 import pl.dayfit.mossyvault.repository.PasswordEntryRepository
+import type.PasswordSaveType
 import java.time.Instant
 import java.util.UUID
 
@@ -17,22 +18,27 @@ class PasswordEntryService(
     @Transactional
     fun saveOrUpdate(payload: SavePasswordRequestType, decodedBlob: ByteArray): UUID {
         val targetIdentifier = payload.identifier
-        val targetDomain = payload.domain
+        val targetAddress = payload.address
 
-        logger.info("Saving or updating password entry for domain={}, identifier={}", targetDomain, targetIdentifier)
-        val existing = passwordEntryRepository.findFirstByDomainAndIdentifier(targetDomain, targetIdentifier)
+        logger.info("Saving or updating password entry for address={}, identifier={}", targetAddress, targetIdentifier)
+        val existing = passwordEntryRepository.findFirstByAddressAndIdentifier(targetAddress, targetIdentifier)
 
         val entry = (existing ?: PasswordEntry(
-            domain = targetDomain,
+            address = targetAddress,
             identifier = targetIdentifier,
             encryptedBlob = decodedBlob,
             lastModified = Instant.now()
         )).apply {
             identifier = targetIdentifier
-            domain = targetDomain
+            address = targetAddress
             encryptedBlob = decodedBlob
             lastModified = Instant.now()
         }
+
+        if (payload.saveType == PasswordSaveType.SAVE && payload.passwordType != null) {
+            entry.passwordType = payload.passwordType!!
+        }
+
         val savedEntry = passwordEntryRepository.save(entry)
         return requireNotNull(savedEntry.id) { "Saved password entry is missing id" }
     }

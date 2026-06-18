@@ -38,7 +38,7 @@ class MetadataHandlerTest {
                     id = passwordId,
                     identifier = "john@example.com",
                     encryptedBlob = byteArrayOf(1, 2, 3),
-                    domain = "example.com",
+                    address = "example.com",
                     lastModified = lastModified
                 )
             )
@@ -66,7 +66,7 @@ class MetadataHandlerTest {
         assertEquals(1, payload.metadata.size)
         assertEquals(passwordId, payload.metadata.first().passwordId)
         assertEquals("john@example.com", payload.metadata.first().identifier)
-        assertEquals("example.com", payload.metadata.first().domain)
+        assertEquals("example.com", payload.metadata.first().address)
         assertEquals(lastModified, payload.metadata.first().lastModified)
     }
 

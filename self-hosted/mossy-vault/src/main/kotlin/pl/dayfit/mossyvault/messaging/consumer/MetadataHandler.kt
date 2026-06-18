@@ -24,7 +24,7 @@ class MetadataHandler(
             PasswordMetadataDto(
                 passwordId = requireNotNull(it.id) { "Password entry is missing id" },
                 identifier = it.identifier,
-                domain = it.domain,
+                address = it.address,
                 lastModified = it.lastModified,
                 tags = it.tags.map { tag ->
                     PasswordMetadataDto.Tag(
@@ -33,7 +33,8 @@ class MetadataHandler(
                         tag.color
                     )
                 },
-                hasNote = it.note != null
+                hasNote = it.note != null,
+                passwordType = it.passwordType,
             )
         }
 

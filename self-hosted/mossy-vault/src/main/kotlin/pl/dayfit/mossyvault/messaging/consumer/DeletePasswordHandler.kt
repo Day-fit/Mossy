@@ -43,7 +43,7 @@ class DeletePasswordHandler(
                 VaultResponseMessageDto(
                     messageId,
                     DeletePasswordResponseType(
-                        passwordEntry.domain,
+                        passwordEntry.address,
                         passwordId
                     ),
                     VaultResponseStatus.OK
