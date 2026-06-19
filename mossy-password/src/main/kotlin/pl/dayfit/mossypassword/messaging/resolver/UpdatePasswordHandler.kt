@@ -1,9 +1,9 @@
 package pl.dayfit.mossypassword.messaging.resolver
 
 import messaging.request.VaultRequestMessageDto
+import messaging.request.type.UpdatePasswordRequestType
 import messaging.response.VaultResponseMessageDto
-import messaging.request.type.SavePasswordRequestType
-import messaging.response.type.SavePasswordResponseType
+import messaging.response.type.UpdatePasswordResponseType
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.stereotype.Component
@@ -16,21 +16,21 @@ import type.VaultResponseStatus
 import java.util.concurrent.CompletableFuture
 
 @Component
-class SavePasswordHandler(
+class UpdatePasswordHandler(
     private val vaultMessagingService: VaultMessagingService,
     private val kafkaTemplate: KafkaTemplate<String, PasswordStatisticEvent>,
     private val vaultRepository: VaultRepository,
-    override val supportedType: MessageType = MessageType.SAVE_PASSWORD
-) : AbstractMessageHandler<SavePasswordRequestType, SavePasswordResponseType>() {
+    override val supportedType: MessageType = MessageType.UPDATE_PASSWORD
+) : AbstractMessageHandler<UpdatePasswordRequestType, UpdatePasswordResponseType>() {
     @Value($$"${mossy.password.statistics.topic}")
     private lateinit var statisticTopic: String
 
     companion object {
-        private const val TOPIC = "save"
+        private const val TOPIC = "update"
     }
 
-    override fun handleMessage(message: VaultRequestMessageDto<SavePasswordRequestType>): CompletableFuture<VaultResponseMessageDto<SavePasswordResponseType>> {
-        val future = CompletableFuture<VaultResponseMessageDto<SavePasswordResponseType>>()
+    override fun handleMessage(message: VaultRequestMessageDto<UpdatePasswordRequestType>): CompletableFuture<VaultResponseMessageDto<UpdatePasswordResponseType>> {
+        val future = CompletableFuture<VaultResponseMessageDto<UpdatePasswordResponseType>>()
         future.thenAccept { response ->
             val id = message.vaultId
             val vault = vaultRepository.findVaultById(id)
@@ -50,7 +50,7 @@ class SavePasswordHandler(
                     vault.get().ownerId,
                     response.payload.passwordId!!,
                     response.payload.address!!,
-                    ActionType.ADDED
+                    ActionType.UPDATED
                 )
             )
         }

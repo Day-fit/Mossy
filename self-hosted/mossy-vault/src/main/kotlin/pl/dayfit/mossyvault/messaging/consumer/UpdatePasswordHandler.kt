@@ -1,9 +1,9 @@
 package pl.dayfit.mossyvault.messaging.consumer
 
 import messaging.request.VaultRequestMessageDto
+import messaging.request.type.UpdatePasswordRequestType
 import messaging.response.VaultResponseMessageDto
-import messaging.request.type.SavePasswordRequestType
-import messaging.response.type.SavePasswordResponseType
+import messaging.response.type.UpdatePasswordResponseType
 import org.slf4j.LoggerFactory
 import org.springframework.messaging.simp.stomp.StompHeaders
 import org.springframework.stereotype.Component
@@ -14,37 +14,37 @@ import type.VaultResponseStatus
 import kotlin.io.encoding.Base64
 
 @Component
-class SavePasswordHandler(
+class UpdatePasswordHandler(
     private val persistenceService: PasswordEntryService,
     private val stompSessionRegistry: StompSessionRegistry
-) : AbstractVaultRequestHandler<SavePasswordRequestType>(SavePasswordRequestType::class) {
-    private val logger = LoggerFactory.getLogger(SavePasswordHandler::class.java)
+) : AbstractVaultRequestHandler<UpdatePasswordRequestType>(UpdatePasswordRequestType::class) {
+    private val logger = LoggerFactory.getLogger(UpdatePasswordHandler::class.java)
 
-    override fun handle(message: VaultRequestMessageDto<SavePasswordRequestType>, headers: StompHeaders) {
+    override fun handle(message: VaultRequestMessageDto<UpdatePasswordRequestType>, headers: StompHeaders) {
         val payload = message.payload
         val messageId = message.messageId
 
         try {
-            val passwordId = persistenceService.save(payload, Base64.decode(payload.cipherText))
+            val passwordId = persistenceService.update(payload, Base64.decode(payload.cipherText))
 
             stompSessionRegistry.send(
-                StompEndpoints.USER_PASSWORD_SAVED,
+                StompEndpoints.USER_PASSWORD_UPDATED,
                 VaultResponseMessageDto(
                     messageId,
-                    SavePasswordResponseType(
+                    UpdatePasswordResponseType(
                         passwordId,
                         payload.address
                     ),
                     VaultResponseStatus.OK
                 )
             )
-        } catch (e: Exception){
-            logger.error("Failed to save password entry: ${payload.address}", e)
+        } catch (e: Exception) {
+            logger.error("Failed to update password entry: ${payload.passwordId}", e)
             stompSessionRegistry.send(
-                StompEndpoints.USER_PASSWORD_SAVED,
+                StompEndpoints.USER_PASSWORD_UPDATED,
                 VaultResponseMessageDto(
                     messageId,
-                    SavePasswordResponseType(),
+                    UpdatePasswordResponseType(),
                     VaultResponseStatus.ERROR
                 )
             )
@@ -53,6 +53,6 @@ class SavePasswordHandler(
     }
 
     override fun getDestination(): String {
-        return StompEndpoints.SUBSCRIBE_SAVE_PASSWORD
+        return StompEndpoints.SUBSCRIBE_UPDATE_PASSWORD
     }
 }

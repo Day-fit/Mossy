@@ -12,11 +12,12 @@ export type SavePasswordRequestDto = {
 	passwordType: PasswordType;
 };
 
-export type UpdatePasswordRequestDto = Omit<
-	SavePasswordRequestDto,
-	'passwordType'
-> & {
+export type UpdatePasswordRequestDto = {
 	passwordId: string;
+	identifier: string;
+	address: string;
+	cipherText: string;
+	vaultId: string;
 };
 
 export type DeletePasswordRequestDto = {

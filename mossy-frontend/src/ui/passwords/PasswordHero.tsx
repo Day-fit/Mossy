@@ -122,7 +122,7 @@ export default function PasswordHero() {
 		setStatus(null);
 
 		try {
-			const payload = {
+			const basePayload = {
 				identifier: formState.identifier,
 				address: formState.address,
 				cipherText: await encrypt(formState.password, selectedVaultId),
@@ -131,11 +131,11 @@ export default function PasswordHero() {
 
 			const response: ServerResponseDto = passwordId
 				? await executeUpdatePasswordRequest({
-						...payload,
+						...basePayload,
 						passwordId,
 					})
 				: await executeSavePasswordRequest({
-						...payload,
+						...basePayload,
 						passwordType: formState.passwordType,
 					});
 
