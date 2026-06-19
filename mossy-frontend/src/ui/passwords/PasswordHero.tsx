@@ -22,6 +22,10 @@ import { useVault } from '../../hooks/useVault.ts';
 import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
 import KeySyncModal from './KeySyncModal.tsx';
 import { useVaultStore } from '../../store/vaultStore.ts';
+import {
+	parseSecretPayload,
+	serializeSecretPayload,
+} from './secretPayload.ts';
 
 export default function PasswordHero() {
 	const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
@@ -125,7 +129,10 @@ export default function PasswordHero() {
 			const basePayload = {
 				identifier: formState.identifier,
 				address: formState.address,
-				cipherText: await encrypt(formState.password, selectedVaultId),
+				cipherText: await encrypt(
+					serializeSecretPayload(formState),
+					selectedVaultId
+				),
 				vaultId: selectedVaultId,
 			};
 
@@ -157,7 +164,10 @@ export default function PasswordHero() {
 		}
 	};
 
-	const getSshKeyFilename = (password: PasswordMetadataDto) => {
+	const getSshKeyFilename = (
+		password: PasswordMetadataDto,
+		keyType: 'private' | 'public'
+	) => {
 		const fallback = password.passwordId;
 		const rawName = password.identifier || password.address || fallback;
 		const safeName =
@@ -165,6 +175,10 @@ export default function PasswordHero() {
 				.trim()
 				.replace(/[^a-zA-Z0-9._-]+/g, '-')
 				.replace(/^-+|-+$/g, '') || fallback;
+
+		if (keyType === 'public') {
+			return safeName.endsWith('.pub') ? safeName : `${safeName}.pub`;
+		}
 
 		return safeName.endsWith('.key') || safeName.endsWith('.pem')
 			? safeName
@@ -218,10 +232,15 @@ export default function PasswordHero() {
 				response.ciphertext,
 				selectedVaultId
 			);
+			const secretPayload = parseSecretPayload(decrypted);
+
+			if (secretPayload.kind !== 'PASSWORD') {
+				throw new Error('Selected entry does not contain a password.');
+			}
 
 			setRevealedPasswords((prev) => ({
 				...prev,
-				[passwordId]: decrypted,
+				[passwordId]: secretPayload.password,
 			}));
 		} catch (error) {
 			setStatus({
@@ -263,8 +282,20 @@ export default function PasswordHero() {
 				response.ciphertext,
 				selectedVaultId
 			);
+			const secretPayload = parseSecretPayload(decrypted);
 
-			downloadTextFile(getSshKeyFilename(password), decrypted);
+			if (secretPayload.kind !== 'SSH') {
+				throw new Error('Selected entry does not contain SSH keys.');
+			}
+
+			downloadTextFile(
+				getSshKeyFilename(password, 'private'),
+				secretPayload.privateKey
+			);
+			downloadTextFile(
+				getSshKeyFilename(password, 'public'),
+				secretPayload.publicKey
+			);
 		} catch (error) {
 			setStatus({
 				type: 'error',

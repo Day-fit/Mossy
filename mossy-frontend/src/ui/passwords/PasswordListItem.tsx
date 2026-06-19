@@ -74,14 +74,25 @@ function PasswordListItem({
 	};
 
 	if (isEditing) {
+		const initialState: PasswordFormState =
+			passwordDto.passwordType === 'SSH_KEY'
+				? {
+						identifier: passwordDto.identifier,
+						address: passwordDto.address,
+						privateKey: '',
+						publicKey: '',
+						passwordType: 'SSH_KEY',
+					}
+				: {
+						identifier: passwordDto.identifier,
+						address: passwordDto.address,
+						password: '',
+						passwordType: 'PASSWORD',
+					};
+
 		return (
 			<PasswordEntryInput
-				initialState={{
-					identifier: passwordDto.identifier,
-					address: passwordDto.address,
-					password: '',
-					passwordType: passwordDto.passwordType,
-				}}
+				initialState={initialState}
 				isEditing
 				isSubmitting={isSubmitting}
 				isVaultOnline={isVaultOnline}
@@ -218,7 +229,7 @@ function PasswordListItem({
 						onClick={() => onDownloadSshKey(passwordDto)}
 					>
 						<MdDownload size={16} />
-						{phase !== undefined ? `${phase}...` : 'Download'}
+						{phase !== undefined ? `${phase}...` : 'Download keys'}
 					</RippleButton>
 				) : (
 					<RippleButton
