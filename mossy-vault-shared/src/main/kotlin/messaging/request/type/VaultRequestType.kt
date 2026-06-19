@@ -7,6 +7,7 @@ import type.MessageType
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
     JsonSubTypes.Type(value = SavePasswordRequestType::class, name = "SAVE_PASSWORD"),
+    JsonSubTypes.Type(value = UpdatePasswordRequestType::class, name = "UPDATE_PASSWORD"),
     JsonSubTypes.Type(value = DeletePasswordRequestType::class, name = "DELETE_PASSWORD"),
     JsonSubTypes.Type(value = MetadataRequestType::class, name = "METADATA_RETRIEVAL"),
     JsonSubTypes.Type(value = CiphertextRequestType::class, name = "CIPHERTEXT"),

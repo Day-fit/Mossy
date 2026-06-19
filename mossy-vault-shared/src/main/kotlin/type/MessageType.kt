@@ -11,6 +11,7 @@ enum class MessageType {
     GET_TAGS,
     METADATA_RETRIEVAL,
     SAVE_PASSWORD,
+    UPDATE_PASSWORD,
     SAVE_NOTE,
     GET_NOTE,
 }

@@ -33,13 +33,12 @@ class SavePasswordHandlerTest {
         val correlationId = UUID.randomUUID()
         val savedPasswordId = UUID.randomUUID()
         
-        whenever(passwordEntryService.saveOrUpdate(any(), any())).thenReturn(savedPasswordId)
+        whenever(passwordEntryService.save(any(), any())).thenReturn(savedPasswordId)
 
         val requestType = SavePasswordRequestType(
             identifier = "john@example.com",
             address = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            saveType = type.PasswordSaveType.SAVE,
             passwordType = PasswordType.PASSWORD,
         )
         val request = VaultRequestMessageDto(
@@ -50,7 +49,7 @@ class SavePasswordHandlerTest {
 
         handler.handleFrame(StompHeaders(), request)
 
-        verify(passwordEntryService, times(1)).saveOrUpdate(eq(requestType), any())
+        verify(passwordEntryService, times(1)).save(eq(requestType), any())
 
         val ackCaptor = argumentCaptor<VaultResponseMessageDto<*>>()
         verify(stompSessionRegistry, times(1)).send(eq(StompEndpoints.USER_PASSWORD_SAVED), ackCaptor.capture())
@@ -62,7 +61,7 @@ class SavePasswordHandlerTest {
 
     @Test
     fun `sends ERROR when repository save fails`() {
-        whenever(passwordEntryService.saveOrUpdate(any(), any())).thenThrow(RuntimeException("db down"))
+        whenever(passwordEntryService.save(any(), any())).thenThrow(RuntimeException("db down"))
 
         val vaultId = UUID.randomUUID()
         val correlationId = UUID.randomUUID()
@@ -71,7 +70,6 @@ class SavePasswordHandlerTest {
             identifier = "john@example.com",
             address = "example.com",
             cipherText = Base64.encode("cipher".toByteArray()),
-            saveType = type.PasswordSaveType.SAVE,
             passwordType = PasswordType.PASSWORD
         )
         val request = VaultRequestMessageDto(
@@ -96,7 +94,7 @@ class SavePasswordHandlerTest {
             handler.handleFrame(StompHeaders(), "invalid")
         }
 
-        verify(passwordEntryService, never()).saveOrUpdate(any(), any())
+        verify(passwordEntryService, never()).save(any(), any())
         verify(stompSessionRegistry, never()).send(any<String>(), any<VaultResponseMessageDto<VaultResponseType>>())
     }
 }

@@ -12,6 +12,7 @@ import messaging.response.type.MetadataResponseType
 import messaging.response.type.SaveNoteResponseType
 import messaging.response.type.SavePasswordResponseType
 import messaging.response.type.UnassignTagResponseType
+import messaging.response.type.UpdatePasswordResponseType
 import messaging.response.type.UpdateTagResponseType
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -36,6 +37,11 @@ class VaultResponseController(
 
     @MessageMapping("/vault/password-saved")
     fun handleSaveResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<SavePasswordResponseType>) {
+        vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
+    }
+
+    @MessageMapping("/vault/password-updated")
+    fun handleUpdateResponse(@AuthenticationPrincipal vault: VaultPrincipal, response: VaultResponseMessageDto<UpdatePasswordResponseType>) {
         vaultMessageResolver.handleResponse(UUID.fromString(vault.name), response)
     }
 

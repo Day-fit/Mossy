@@ -1,12 +1,12 @@
 package messaging.request.type
 
 import type.MessageType
-import type.PasswordType
+import java.util.UUID
 
-data class SavePasswordRequestType(
+data class UpdatePasswordRequestType(
+    val passwordId: UUID,
     val identifier: String,
     val address: String,
     val cipherText: String,
-    val passwordType: PasswordType,
-    override val type: MessageType = MessageType.SAVE_PASSWORD
+    override val type: MessageType = MessageType.UPDATE_PASSWORD
 ) : VaultRequestType()

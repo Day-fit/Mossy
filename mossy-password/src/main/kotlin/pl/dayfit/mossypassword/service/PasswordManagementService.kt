@@ -5,14 +5,15 @@ import messaging.response.type.CiphertextResponseType
 import messaging.request.type.DeletePasswordRequestType
 import messaging.request.type.MetadataRequestType
 import messaging.request.type.SavePasswordRequestType
+import messaging.request.type.UpdatePasswordRequestType
 import messaging.response.type.DeletePasswordResponseType
 import messaging.response.type.MetadataResponseType
 import messaging.response.type.SavePasswordResponseType
+import messaging.response.type.UpdatePasswordResponseType
 import org.springframework.stereotype.Service
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
-import type.PasswordSaveType
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 
@@ -26,11 +27,10 @@ class PasswordManagementService(
     fun savePassword(userId: UUID, request: SavePasswordRequestDto) {
         val vaultId = request.vaultId
         val payload = SavePasswordRequestType(
-            request.identifier,
-            request.address,
-            request.cipherText,
-            PasswordSaveType.SAVE,
-            request.passwordType
+            identifier = request.identifier,
+            address = request.address,
+            cipherText = request.cipherText,
+            passwordType = request.passwordType
         )
 
         vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
@@ -38,15 +38,14 @@ class PasswordManagementService(
 
     fun updatePassword(userId: UUID, request: UpdatePasswordRequestDto) {
         val vaultId = request.vaultId
-        val payload = SavePasswordRequestType(
-            request.identifier,
-            request.address,
-            request.cipherText,
-            PasswordSaveType.UPDATE,
-            null
+        val payload = UpdatePasswordRequestType(
+            passwordId = request.passwordId,
+            identifier = request.identifier,
+            address = request.address,
+            cipherText = request.cipherText
         )
 
-        vaultCommunicationService.handleProcessing<SavePasswordResponseType>(userId, vaultId, payload)
+        vaultCommunicationService.handleProcessing<UpdatePasswordResponseType>(userId, vaultId, payload)
     }
 
     fun deletePassword(userId: UUID, request: DeletePasswordRequestDto) {

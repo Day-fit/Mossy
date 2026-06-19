@@ -4,6 +4,7 @@ object StompEndpoints {
     const val WEBSOCKET_ENDPOINT = "/ws/vault-communication"
 
     const val SUBSCRIBE_SAVE_PASSWORD = "/user/vault/save"
+    const val SUBSCRIBE_UPDATE_PASSWORD = "/user/vault/update"
     const val SUBSCRIBE_CREATE_TAG = "/user/vault/save-tag"
     const val SUBSCRIBE_DELETE_PASSWORD = "/user/vault/delete"
     const val SUBSCRIBE_METADATA = "/user/vault/metadata"
@@ -19,6 +20,7 @@ object StompEndpoints {
     const val USER_METADATA_RETRIEVED = "/app/vault/metadata-retrieved"
     const val USER_CIPHERTEXT_RETRIEVED = "/app/vault/ciphertext-retrieved"
     const val USER_PASSWORD_SAVED = "/app/vault/password-saved"
+    const val USER_PASSWORD_UPDATED = "/app/vault/password-updated"
     const val USER_PASSWORD_DELETED = "/app/vault/password-deleted"
     const val USER_TAG_SAVED = "/app/vault/tag-saved"
     const val USER_TAG_ASSIGNED = "/app/vault/tag-assigned"
