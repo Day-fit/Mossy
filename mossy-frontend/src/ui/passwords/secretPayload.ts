@@ -8,7 +8,7 @@ export type PasswordSecretPayload = {
 export type SshSecretPayload = {
 	kind: 'SSH';
 	privateKey: string;
-	publicKey: string;
+	publicKey?: string;
 };
 
 export type SecretPayload = PasswordSecretPayload | SshSecretPayload;
@@ -23,9 +23,9 @@ function asObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null;
 }
 
-export function validateSshKeyPair(privateKey: string, publicKey: string) {
+export function validateSshKeyPair(privateKey: string, publicKey?: string) {
 	const trimmedPrivateKey = privateKey.trim();
-	const trimmedPublicKey = publicKey.trim();
+	const trimmedPublicKey = publicKey?.trim();
 
 	if (!trimmedPrivateKey) {
 		return 'Private SSH key is required.';
@@ -35,11 +35,7 @@ export function validateSshKeyPair(privateKey: string, publicKey: string) {
 		return 'Private SSH key must be an OpenSSH or PEM private key.';
 	}
 
-	if (!trimmedPublicKey) {
-		return 'Public SSH key is required.';
-	}
-
-	if (!PUBLIC_KEY_PATTERN.test(trimmedPublicKey)) {
+	if (trimmedPublicKey && !PUBLIC_KEY_PATTERN.test(trimmedPublicKey)) {
 		return 'Public SSH key must be an OpenSSH public key.';
 	}
 
@@ -60,7 +56,7 @@ export function toSecretPayload(formState: PasswordFormState): SecretPayload {
 		return {
 			kind: 'SSH',
 			privateKey: formState.privateKey.trim(),
-			publicKey: formState.publicKey.trim(),
+			publicKey: formState.publicKey?.trim(),
 		};
 	}
 
@@ -74,9 +70,7 @@ export function serializeSecretPayload(formState: PasswordFormState) {
 	return JSON.stringify(toSecretPayload(formState));
 }
 
-export function parseSecretPayload(
-	decrypted: string
-): SecretPayload {
+export function parseSecretPayload(decrypted: string): SecretPayload {
 	const parsed: unknown = JSON.parse(decrypted);
 
 	if (

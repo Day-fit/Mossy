@@ -37,20 +37,22 @@ class AssignTagHandler(
                 return
             }
 
-        val passwordEntry = passwordEntryRepository.findById(payload.passwordId)
-            .getOrElse {
+        val passwordEntry = passwordEntryRepository.findWithTagsById(payload.passwordId)
+            ?: run {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_ASSIGNED,
                     VaultResponseMessageDto(
                         message.messageId,
                         AssignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
-                    ))
+                    )
+                )
                 return
             }
 
-        passwordEntry.tags
-            .add(tag)
+        if (passwordEntry.tags.none { it.id == tag.id }) {
+            passwordEntry.tags.add(tag)
+        }
 
         passwordEntryRepository.save(passwordEntry)
 

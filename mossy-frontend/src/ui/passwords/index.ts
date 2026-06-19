@@ -14,7 +14,7 @@ export type PasswordFormState =
 	| (PasswordBaseFormState & {
 			passwordType: 'SSH_KEY';
 			privateKey: string;
-			publicKey: string;
+			publicKey?: string;
 	  });
 export type SavePasswordResult = 'saved' | 'deferred' | 'failed';
 export type StatusMessage =

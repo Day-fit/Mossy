@@ -2,8 +2,8 @@ import {
 	executePasswordMetadataRequest,
 	type PasswordMetadataDto,
 } from '../../api/password.api.ts';
-import type { CiphertextPhase } from './index.ts';
 import PasswordListItem from './PasswordListItem.tsx';
+import SshKeyListItem from './SshKeyListItem.tsx';
 import TagsMenu from './tag/TagsMenu.tsx';
 import { useSearchStore } from '../../store/searchStore.ts';
 import { useEffect, useMemo, useState } from 'react';
@@ -11,43 +11,36 @@ import Fuse from 'fuse.js';
 import SearchBar from './SearchBar.tsx';
 import { MdAdd } from 'react-icons/md';
 import PasswordEntryInput from './PasswordEntryInput.tsx';
-import type {
-	PasswordFormState,
-	SavePasswordResult,
-	StatusMessage,
-} from './index.ts';
+import { usePasswordListActions } from './usePasswordListActions.tsx';
 
 type PasswordListCardProps = {
 	vaultId: string;
-	refreshToken: number;
-	revealedPasswords: Record<string, string>;
-	loadingCiphertextPhase: Record<string, CiphertextPhase>;
-	isSubmitting: boolean;
 	isVaultOnline: boolean;
-	status: StatusMessage;
-	onSave: (
-		formState: PasswordFormState,
-		passwordId?: string
-	) => Promise<SavePasswordResult>;
-	onDelete: (passwordId: string) => void;
-	onRevealToggle: (passwordId: string) => void;
-	onDownloadSshKey: (password: PasswordMetadataDto) => void;
+	refreshVaults: () => Promise<void>;
 };
 
 function PasswordListCard({
 	vaultId,
-	refreshToken,
-	revealedPasswords,
-	loadingCiphertextPhase,
-	isSubmitting,
 	isVaultOnline,
-	status,
-	onSave,
-	onDelete,
-	onRevealToggle,
-	onDownloadSshKey,
+	refreshVaults,
 }: PasswordListCardProps) {
 	const { query, selectedTagsId } = useSearchStore();
+	const {
+		isSubmitting,
+		status,
+		refreshToken,
+		revealedPasswords,
+		loadingCiphertextPhase,
+		handleSavePassword,
+		handleDelete,
+		handleRevealToggle,
+		handleDownloadSshKey,
+		actionModals,
+	} = usePasswordListActions({
+		vaultId,
+		isVaultOnline,
+		refreshVaults,
+	});
 
 	const [passwords, setPasswords] = useState<PasswordMetadataDto[]>([]);
 	const [isLoadingPasswords, setIsLoadingPasswords] = useState(false);
@@ -60,6 +53,10 @@ function PasswordListCard({
 		}
 		void loadPasswords(vaultId);
 	}, [vaultId, refreshToken]);
+
+	useEffect(() => {
+		setIsAddingPassword(false);
+	}, [vaultId]);
 
 	const loadPasswords = async (id: string) => {
 		setIsLoadingPasswords(true);
@@ -105,6 +102,8 @@ function PasswordListCard({
 
 	return (
 		<section className="rounded-md bg-white p-5 shadow-md w-full">
+			{actionModals}
+
 			<div
 				className={
 					'flex flex-wrap justify-between items-center w-full gap-3 relative mb-4'
@@ -152,7 +151,11 @@ function PasswordListCard({
 					<PasswordEntryInput
 						isSubmitting={isSubmitting}
 						isVaultOnline={isVaultOnline}
-						onSubmit={onSave}
+						onSubmit={(formState) =>
+							handleSavePassword(formState, undefined, {
+								onSaved: () => setIsAddingPassword(false),
+							})
+						}
 						onCancel={() => setIsAddingPassword(false)}
 					/>
 				</div>
@@ -161,27 +164,48 @@ function PasswordListCard({
 			<div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto pr-1 mt-5">
 				{!isLoadingPasswords ? (
 					results.length > 0 ? (
-						results.map((result) => (
-							<PasswordListItem
-								key={result.item.passwordId}
-								passwordDto={result.item}
-								setPasswordDto={setPasswords}
-								revealedPassword={
-									revealedPasswords[result.item.passwordId]
-								}
-								phase={
-									loadingCiphertextPhase[
-										result.item.passwordId
-									]
-								}
-								isSubmitting={isSubmitting}
-								isVaultOnline={isVaultOnline}
-								onSave={onSave}
-								onDelete={onDelete}
-								onRevealToggle={onRevealToggle}
-								onDownloadSshKey={onDownloadSshKey}
-							/>
-						))
+						results.map((result) => {
+							const password = result.item;
+							const phase =
+								loadingCiphertextPhase[password.passwordId];
+
+							if (password.passwordType === 'SSH_KEY') {
+								return (
+									<SshKeyListItem
+										key={password.passwordId}
+										passwordDto={password}
+										setPasswordDto={setPasswords}
+										phase={phase}
+										isSubmitting={isSubmitting}
+										isVaultOnline={isVaultOnline}
+										onSave={handleSavePassword}
+										onDelete={(id) => void handleDelete(id)}
+										onDownloadSshKey={(password) =>
+											void handleDownloadSshKey(password)
+										}
+									/>
+								);
+							}
+
+							return (
+								<PasswordListItem
+									key={password.passwordId}
+									passwordDto={password}
+									setPasswordDto={setPasswords}
+									revealedPassword={
+										revealedPasswords[password.passwordId]
+									}
+									phase={phase}
+									isSubmitting={isSubmitting}
+									isVaultOnline={isVaultOnline}
+									onSave={handleSavePassword}
+									onDelete={(id) => void handleDelete(id)}
+									onRevealToggle={(id) =>
+										void handleRevealToggle(id)
+									}
+								/>
+							);
+						})
 					) : (
 						<p className={'text-sm text-gray-500'}>
 							{query || selectedTagsId.length > 0

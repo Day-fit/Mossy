@@ -40,10 +40,7 @@ export default function SshKeyEntryInput({
 		[formState.privateKey, formState.publicKey]
 	);
 
-	const updateField = (
-		field: 'privateKey' | 'publicKey',
-		value: string
-	) => {
+	const updateField = (field: 'privateKey' | 'publicKey', value: string) => {
 		setSubmitError(null);
 		setFormState((prev) =>
 			prev.passwordType === 'SSH_KEY'
@@ -75,7 +72,7 @@ export default function SshKeyEntryInput({
 		<div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 			<label className="flex min-h-56 flex-col gap-2 rounded-sm border border-gray-200 p-3">
 				<span className="text-sm font-medium text-gray-700">
-					Private key
+					Private key <span className="text-red-500">*</span>
 				</span>
 				<textarea
 					name="privateKey"
@@ -92,7 +89,9 @@ export default function SshKeyEntryInput({
 					<input
 						type="file"
 						accept=".pem,.ppk,.key,text/plain"
-						onChange={(event) => void handleFile('privateKey', event)}
+						onChange={(event) =>
+							void handleFile('privateKey', event)
+						}
 						className="text-sm"
 					/>
 				</span>
@@ -109,7 +108,6 @@ export default function SshKeyEntryInput({
 						updateField('publicKey', event.target.value)
 					}
 					className="min-h-40 flex-1 resize-y border-0 bg-gray-50 p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-700"
-					required
 					spellCheck={false}
 				/>
 				<span className="inline-flex items-center gap-2 text-sm text-gray-600">
@@ -117,7 +115,9 @@ export default function SshKeyEntryInput({
 					<input
 						type="file"
 						accept=".pub,text/plain"
-						onChange={(event) => void handleFile('publicKey', event)}
+						onChange={(event) =>
+							void handleFile('publicKey', event)
+						}
 						className="text-sm"
 					/>
 				</span>
