@@ -1,9 +1,11 @@
-import { useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { MdCheck, MdClose, MdPassword, MdVpnKey } from 'react-icons/md';
 import type { PasswordFormState, SavePasswordResult } from './index.ts';
 import StrengthMeter from './StrengthMeter.tsx';
 import RippleButton from '../layout/RippleButton.tsx';
 import type { PasswordType } from '../../api/password.api.ts';
+import SshKeyEntryInput from './SshKeyEntryInput.tsx';
+import { validateSshKeyPair } from './secretPayload.ts';
 
 type PasswordEntryInputProps = {
 	initialState?: PasswordFormState;
@@ -48,45 +50,46 @@ export default function PasswordEntryInput({
 	const [formState, setFormState] = useState<PasswordFormState>(() => ({
 		...initialState,
 	}));
-	const [selectedFileName, setSelectedFileName] = useState('');
-	const [fileReadError, setFileReadError] = useState<string | null>(null);
+	const [submitError, setSubmitError] = useState<string | null>(null);
 	const [isSubmitPending, setIsSubmitPending] = useState(false);
 	const isBusy = isSubmitting || isSubmitPending;
 
-	const handleChange = (field: keyof PasswordFormState, value: string) => {
+	const handleBaseChange = (
+		field: 'identifier' | 'address',
+		value: string
+	) => {
 		setFormState((prev) => ({ ...prev, [field]: value }));
 	};
 
 	const handlePasswordTypeChange = (passwordType: PasswordType) => {
-		setSelectedFileName('');
-		setFileReadError(null);
-		setFormState((prev) => ({
-			...prev,
-			password: '',
-			passwordType,
-		}));
+		setSubmitError(null);
+		setFormState((prev) =>
+			passwordType === 'SSH_KEY'
+				? {
+						identifier: prev.identifier,
+						address: prev.address,
+						privateKey: '',
+						publicKey: '',
+						passwordType,
+					}
+				: {
+						identifier: prev.identifier,
+						address: prev.address,
+						password: '',
+						passwordType,
+					}
+		);
 	};
 
-	const handleSshKeyFileChange = async (
-		event: ChangeEvent<HTMLInputElement>
-	) => {
-		const file = event.target.files?.[0];
-		setFileReadError(null);
-
-		if (!file) {
-			setSelectedFileName('');
-			handleChange('password', '');
-			return;
-		}
-
-		setSelectedFileName(file.name);
-
-		try {
-			handleChange('password', await file.text());
-		} catch {
-			handleChange('password', '');
-			setFileReadError('Could not read selected file.');
-		}
+	const handlePasswordChange = (password: string) => {
+		setFormState((prev) =>
+			prev.passwordType === 'PASSWORD'
+				? {
+						...prev,
+						password,
+					}
+				: prev
+		);
 	};
 
 	return (
@@ -97,14 +100,19 @@ export default function PasswordEntryInput({
 				void (async () => {
 					if (isBusy) return;
 
-					if (
-						formState.passwordType === 'SSH_KEY' &&
-						!formState.password
-					) {
-						setFileReadError('Select an SSH key file first.');
-						return;
+					if (formState.passwordType === 'SSH_KEY') {
+						const validationMessage = validateSshKeyPair(
+							formState.privateKey,
+							formState.publicKey
+						);
+
+						if (validationMessage) {
+							setSubmitError(validationMessage);
+							return;
+						}
 					}
 
+					setSubmitError(null);
 					setIsSubmitPending(true);
 					let shouldClose = false;
 
@@ -187,7 +195,7 @@ export default function PasswordEntryInput({
 					name="identifier"
 					value={formState.identifier}
 					onChange={(event) =>
-						handleChange('identifier', event.target.value)
+						handleBaseChange('identifier', event.target.value)
 					}
 					placeholder="Enter identifier (email/username)"
 					className="border-b-2 p-2"
@@ -200,59 +208,42 @@ export default function PasswordEntryInput({
 					name="address"
 					value={formState.address}
 					onChange={(event) =>
-						handleChange('address', event.target.value)
+						handleBaseChange('address', event.target.value)
 					}
 					placeholder="Enter address"
 					className="border-b-2 p-2"
 					required
 				/>
-
-				<div className="flex flex-col gap-2 lg:col-span-2">
-					{formState.passwordType === 'SSH_KEY' ? (
-						<>
-							<input
-								type="file"
-								name="sshKey"
-								onChange={(event) => {
-									void handleSshKeyFileChange(event);
-								}}
-								className="border-b-2 p-2"
-								required={!formState.password}
-								accept=".pub,.pem,.ppk,.key,text/plain"
-							/>
-							{selectedFileName ? (
-								<p className="text-xs text-gray-500">
-									Selected {selectedFileName}
-								</p>
-							) : null}
-							{fileReadError ? (
-								<p className="text-xs text-red-600">
-									{fileReadError}
-								</p>
-							) : null}
-						</>
-					) : (
-						<>
-							<input
-								type="password"
-								name="password"
-								value={formState.password}
-								onChange={(event) =>
-									handleChange('password', event.target.value)
-								}
-								placeholder={
-									isEditing
-										? 'Enter new password'
-										: 'Enter password'
-								}
-								className="border-b-2 p-2"
-								required
-							/>
-							<StrengthMeter password={formState.password} />
-						</>
-					)}
-				</div>
 			</div>
+
+			{formState.passwordType === 'SSH_KEY' ? (
+				<SshKeyEntryInput
+					formState={formState}
+					setFormState={setFormState}
+					setSubmitError={setSubmitError}
+				/>
+			) : (
+				<div className="flex flex-col gap-2">
+					<input
+						type="password"
+						name="password"
+						value={formState.password}
+						onChange={(event) =>
+							handlePasswordChange(event.target.value)
+						}
+						placeholder={
+							isEditing ? 'Enter new password' : 'Enter password'
+						}
+						className="border-b-2 p-2"
+						required
+					/>
+					<StrengthMeter password={formState.password} />
+				</div>
+			)}
+
+			{submitError ? (
+				<p className="text-sm text-red-600">{submitError}</p>
+			) : null}
 
 			<div className="flex items-center gap-2">
 				<RippleButton

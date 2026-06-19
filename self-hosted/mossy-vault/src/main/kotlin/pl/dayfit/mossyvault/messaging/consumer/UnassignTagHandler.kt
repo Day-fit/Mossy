@@ -39,20 +39,20 @@ class UnassignTagHandler(
                 return
             }
 
-        val passwordEntry = passwordEntryRepository.findById(payload.passwordId)
-            .getOrElse {
+        val passwordEntry = passwordEntryRepository.findWithTagsById(payload.passwordId)
+            ?: run {
                 stompSessionRegistry.send(
                     StompEndpoints.USER_TAG_UNASSIGNED,
                     VaultResponseMessageDto(
                         messageId,
                         UnassignTagResponseType(),
                         VaultResponseStatus.NOT_FOUND
-                    ))
+                    )
+                )
                 return
             }
 
-        passwordEntry.tags
-            .remove(tag)
+        passwordEntry.tags.removeIf { it.id == tag.id }
 
         passwordEntryRepository.save(passwordEntry)
 
@@ -70,4 +70,3 @@ class UnassignTagHandler(
         return StompEndpoints.SUBSCRIBE_UNASSIGN_TAG
     }
 }
-

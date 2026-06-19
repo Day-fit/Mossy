@@ -1,12 +1,21 @@
 import type { PasswordType } from '../../api/password.api.ts';
 
 export type CiphertextPhase = 'Fetching' | 'Decrypting';
-export type PasswordFormState = {
+type PasswordBaseFormState = {
 	identifier: string;
 	address: string;
-	password: string;
 	passwordType: PasswordType;
 };
+export type PasswordFormState =
+	| (PasswordBaseFormState & {
+			passwordType: 'PASSWORD';
+			password: string;
+	  })
+	| (PasswordBaseFormState & {
+			passwordType: 'SSH_KEY';
+			privateKey: string;
+			publicKey?: string;
+	  });
 export type SavePasswordResult = 'saved' | 'deferred' | 'failed';
 export type StatusMessage =
 	| { type: 'success'; message: string }

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { MdPassword } from 'react-icons/md';
+import { MdDownload, MdVpnKey } from 'react-icons/md';
 import type { PasswordMetadataDto } from '../../api/password.api.ts';
 import type {
 	CiphertextPhase,
@@ -9,10 +9,9 @@ import type {
 import RippleButton from '../layout/RippleButton.tsx';
 import PasswordListItemFrame from './PasswordListItemFrame.tsx';
 
-type PasswordListItemProps = {
+type SshKeyListItemProps = {
 	passwordDto: PasswordMetadataDto;
 	setPasswordDto: React.Dispatch<React.SetStateAction<PasswordMetadataDto[]>>;
-	revealedPassword?: string;
 	phase?: CiphertextPhase;
 	isSubmitting: boolean;
 	isVaultOnline: boolean;
@@ -21,20 +20,19 @@ type PasswordListItemProps = {
 		passwordId?: string
 	) => Promise<SavePasswordResult>;
 	onDelete: (passwordId: string) => void;
-	onRevealToggle: (passwordId: string) => void;
+	onDownloadSshKey: (password: PasswordMetadataDto) => void;
 };
 
-function PasswordListItem({
+function SshKeyListItem({
 	passwordDto,
 	setPasswordDto,
-	revealedPassword,
 	phase,
 	isSubmitting,
 	isVaultOnline,
 	onSave,
 	onDelete,
-	onRevealToggle,
-}: PasswordListItemProps) {
+	onDownloadSshKey,
+}: SshKeyListItemProps) {
 	return (
 		<PasswordListItemFrame
 			passwordDto={passwordDto}
@@ -43,37 +41,35 @@ function PasswordListItem({
 			isVaultOnline={isVaultOnline}
 			onSave={onSave}
 			onDelete={onDelete}
-			icon={<MdPassword size={14} />}
-			iconLabel="Password"
+			icon={<MdVpnKey size={14} />}
+			iconLabel="SSH key"
 			editInitialState={{
 				identifier: passwordDto.identifier,
 				address: passwordDto.address,
-				password: '',
-				passwordType: 'PASSWORD',
+				privateKey: '',
+				publicKey: '',
+				passwordType: 'SSH_KEY',
 			}}
 		>
 			<div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
 				<p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
-					{revealedPassword ?? '••••••••••••'}
+					SSH key file
 				</p>
 
 				<RippleButton
 					type="button"
 					variant="outline"
-					className="rounded-sm border px-2 py-1 text-sm"
+					className="inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm"
 					disabled={phase !== undefined}
 					rippleColor="rgb(0, 0, 0, 0.7)"
-					onClick={() => onRevealToggle(passwordDto.passwordId)}
+					onClick={() => onDownloadSshKey(passwordDto)}
 				>
-					{phase !== undefined
-						? `${phase}...`
-						: revealedPassword
-							? 'Hide'
-							: 'Reveal'}
+					<MdDownload size={16} />
+					{phase !== undefined ? `${phase}...` : 'Download keys'}
 				</RippleButton>
 			</div>
 		</PasswordListItemFrame>
 	);
 }
 
-export default PasswordListItem;
+export default SshKeyListItem;

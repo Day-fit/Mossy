@@ -10,5 +10,6 @@ import java.util.UUID
 interface PasswordEntryRepository : JpaRepository<PasswordEntry, UUID> {
     @EntityGraph(attributePaths = ["tags"])
     fun findAllBy(): List<PasswordEntry>
-    fun findFirstByAddressAndIdentifier(address: String, identifier: String): PasswordEntry?
+    @EntityGraph(attributePaths = ["tags"])
+    fun findWithTagsById(id: UUID): PasswordEntry?
 }
