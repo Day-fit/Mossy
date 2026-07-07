@@ -10,6 +10,7 @@
         <module name="mossy-vault-shared" />
         <module name="mossy-auth-starter" />
         <module name="mossy-device" />
+        <module name="mossy-device-trust" />
         <module name="mossy-auth" />
         <module name="mossy-vault" />
         <module name="mossy-statistics" />
@@ -18,7 +19,9 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="device-manager" target="1.5" />
       <module name="mossy-core" target="21" />
+      <module name="mossy-device-manager" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
@@ -26,6 +29,8 @@
       <module name="mossy-auth" options="-parameters" />
       <module name="mossy-auth-starter" options="-parameters" />
       <module name="mossy-device" options="-parameters" />
+      <module name="mossy-device-manager" options="-parameters" />
+      <module name="mossy-device-trust" options="-parameters" />
       <module name="mossy-jwks" options="-parameters" />
       <module name="mossy-password" options="-parameters" />
       <module name="mossy-statistics" options="-parameters" />
