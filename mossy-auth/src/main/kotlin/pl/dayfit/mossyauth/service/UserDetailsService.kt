@@ -32,6 +32,7 @@ class UserDetailsService(
             username,
             user.password,
             user.id!!,
+            user.email,
             authorities
             )
     }
@@ -46,6 +47,7 @@ class UserDetailsService(
             user.username,
             user.password,
             user.id!!,
+            user.email,
             authorities
         )
     }

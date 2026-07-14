@@ -5,6 +5,7 @@ import messaging.response.type.CiphertextResponseType
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
@@ -33,9 +34,10 @@ class PasswordController(
      */
     @PostMapping("/save")
     fun savePassword(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         passwordManagementService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
@@ -45,9 +47,10 @@ class PasswordController(
 
     @PatchMapping("/update")
     fun updatePassword(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         passwordManagementService.updatePassword(userId, requestDto)
 
         return ResponseEntity
@@ -64,9 +67,11 @@ class PasswordController(
      */
     @DeleteMapping("/delete")
     fun deletePassword(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
+
         passwordManagementService.deletePassword(
             userId,
             deletePasswordRequestDto
@@ -85,9 +90,10 @@ class PasswordController(
      */
     @GetMapping("/metadata")
     fun getPasswordsMetadata(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<List<PasswordMetadataDto>>> {
+        val userId = UUID.fromString(jwt.subject)
         return passwordManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
             ResponseEntity.ok(it.metadata)
         }
@@ -102,10 +108,11 @@ class PasswordController(
      */
     @GetMapping("/ciphertext/{passwordId}")
     fun getCiphertext(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @PathVariable passwordId: UUID,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<CiphertextResponseType>> {
+        val userId = UUID.fromString(jwt.subject)
         return passwordManagementService.getPasswordCipherText(userId, vaultId, passwordId)
             .thenApply { ResponseEntity.ok(it) }
     }

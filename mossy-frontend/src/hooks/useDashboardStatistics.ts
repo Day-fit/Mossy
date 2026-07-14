@@ -30,7 +30,6 @@ export function useDashboardStatistics(
 			setStatistics(nextStatistics);
 			setError(null);
 		} catch {
-			setStatistics(EMPTY_STATISTICS);
 			setError('Failed to load dashboard statistics');
 		} finally {
 			setIsLoading(false);

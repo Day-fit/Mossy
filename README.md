@@ -46,6 +46,8 @@ Mossy is build in hybrid architecture, it uses backend (hosted by us) that makes
 
 ### Backend
 Mossy's backend is build in microservice architecture thanks to that if something goes wrong with statistics related code, password access is still possible, in future we will use k8s instead of docker-compose, to achieve zero-down-time. [Precise break down](https://deepwiki.com/Day-fit/Mossy)
+
+Authentication, token claims, JWKS rotation, and resource-server configuration are described in the [authentication guide](docs/authentication.md).
 #### Optimization
 Some of microservices use redis as cache layer to speed up database queries
 

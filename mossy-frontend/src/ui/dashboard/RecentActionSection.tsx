@@ -11,6 +11,9 @@ type RecentAction = {
 
 type RecentActionSectionProps = {
 	actions: RecentAction[];
+	isLoading?: boolean;
+	error?: string | null;
+	onRetry?: () => void;
 	emptyAction?: {
 		label: string;
 		onClick: () => void;
@@ -19,6 +22,9 @@ type RecentActionSectionProps = {
 
 export default function RecentActionSection({
 	actions,
+	isLoading = false,
+	error = null,
+	onRetry,
 	emptyAction,
 }: RecentActionSectionProps) {
 	return (
@@ -33,7 +39,24 @@ export default function RecentActionSection({
 			</h2>
 
 			<div className="flex flex-col lg:flex-1 lg:min-h-0 gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
-				{actions.length === 0 ? (
+				{isLoading ? (
+					<div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+						Loading recent actions...
+					</div>
+				) : error && actions.length === 0 ? (
+					<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
+						<p>Recent actions could not be loaded.</p>
+						{onRetry ? (
+							<RippleButton
+								type="button"
+								className="px-4 py-2 text-sm"
+								onClick={onRetry}
+							>
+								Retry
+							</RippleButton>
+						) : null}
+					</div>
+				) : actions.length === 0 ? (
 					<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 						<p>No actions yet.</p>
 						{emptyAction ? (
