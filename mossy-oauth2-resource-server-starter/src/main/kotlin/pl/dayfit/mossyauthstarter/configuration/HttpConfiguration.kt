@@ -14,9 +14,18 @@ import kotlin.collections.ifEmpty
 
 @Configuration
 @EnableConfigurationProperties(SecurityConfigurationProperties::class)
+/**
+ * Shared HTTP security beans for Mossy resource services.
+ *
+ * Services import this configuration and provide their own security filter chain
+ * and JWT decoder URI.
+ */
 class HttpConfiguration {
     private val logger = LoggerFactory.getLogger(HttpConfiguration::class.java)
 
+    /**
+     * Converts the `roles` JWT claim into Spring authorities prefixed with `ROLE_`.
+     */
     @Bean
     fun jwtAuthenticationConverter(): JwtAuthenticationConverter {
         val converter = JwtGrantedAuthoritiesConverter().apply {
@@ -29,6 +38,10 @@ class HttpConfiguration {
         }
     }
 
+    /**
+     * Applies the configured origins to every endpoint. An empty origin list is an
+     * explicit development-friendly fallback that permits all origins.
+     */
     @Bean
     fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
     {

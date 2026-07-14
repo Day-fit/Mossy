@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.oauth2.jwt.Jwt
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
@@ -71,6 +72,7 @@ class UserServiceTests {
             username,
             passwordEncoder.encode(password),
             UUID.randomUUID(),
+            null,
             listOf(SimpleGrantedAuthority("USER"))
         )
 
@@ -95,6 +97,31 @@ class UserServiceTests {
         val userId = UUID.randomUUID()
         userService.deleteUser(userId)
         verify(userCacheService).delete(userId)
+    }
+
+    @Test
+    fun `test getting details from JWT claims`() {
+        val userId = UUID.randomUUID()
+        val jwt: Jwt = mock()
+        val authentication = UsernamePasswordAuthenticationToken(
+            "principal",
+            null,
+            listOf(SimpleGrantedAuthority("ROLE_USER"))
+        )
+        whenever(jwt.subject).thenReturn(userId.toString())
+        whenever(jwt.claims).thenReturn(
+            mapOf(
+                "preferred_username" to "test",
+                "email" to "test@test.test"
+            )
+        )
+
+        val details = userService.getDetails(jwt, authentication)
+
+        assert(details.userId == userId)
+        assert(details.username == "test")
+        assert(details.email == "test@test.test")
+        assertContentEquals(listOf("ROLE_USER"), details.grantedAuthorities)
     }
 
     @Test

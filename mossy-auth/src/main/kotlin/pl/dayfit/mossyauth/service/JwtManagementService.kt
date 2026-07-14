@@ -10,12 +10,22 @@ import java.time.Instant
 import java.util.UUID
 
 @Service
+/**
+ * Manages refresh-token revocation and renewal.
+ *
+ * Refresh tokens are validated by Spring's [JwtDecoder]; the decoded `sub` is the
+ * authoritative user identifier for the replacement token pair.
+ */
 class JwtManagementService(
     private val revokedJwtRepository: RevokedJwtRepository,
     private val jwtGenerationService: JwtGenerationService,
     private val userDetailsService: UserDetailsService,
     private val jwtDecoder: JwtDecoder
 ) {
+    /**
+     * Records a non-blank refresh token as revoked. Blank values are ignored so
+     * logout remains idempotent when a client no longer has the cookie.
+     */
     fun revokeToken(jwtToken: String)
     {
         if (jwtToken.isBlank()) return

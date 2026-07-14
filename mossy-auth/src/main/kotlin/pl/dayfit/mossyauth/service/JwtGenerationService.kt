@@ -19,6 +19,12 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @Service
 @OptIn(ExperimentalAtomicApi::class)
+/**
+ * Issues RS256 JWTs for authenticated users using the currently rotated RSA key.
+ *
+ * The active signing key is supplied asynchronously by [SecretRotatedEvent]; token
+ * generation is intentionally unavailable until the first key rotation completes.
+ */
 class JwtGenerationService(
     private val jwtConfigurationProperties: JwtConfigurationProperties
 ) {
@@ -46,6 +52,10 @@ class JwtGenerationService(
         )
     }
 
+    /**
+     * Builds a signed token with the user UUID in `sub` and the claims consumed by
+     * Mossy resource servers (`roles`, `preferred_username`, and `email`).
+     */
     private fun generate(
         user: UserDetailsImpl,
         duration: Duration
@@ -79,6 +89,7 @@ class JwtGenerationService(
         return signedJwt.serialize()
     }
 
+    /** Atomically swaps the private key used for all subsequently issued tokens. */
     @EventListener(SecretRotatedEvent::class)
     private fun updateSecretKey(event: SecretRotatedEvent)
     {

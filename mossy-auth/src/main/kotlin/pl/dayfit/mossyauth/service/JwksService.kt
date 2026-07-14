@@ -1,7 +1,6 @@
 package pl.dayfit.mossyauth.service
 
 import com.nimbusds.jose.jwk.JWK
-import com.nimbusds.jose.jwk.JWKMatcher
 import com.nimbusds.jose.jwk.JWKSet
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
@@ -12,6 +11,12 @@ import java.text.ParseException
 import java.util.Date
 
 @Service
+/**
+ * Persists the public half of active RSA signing keys and exposes them as a JWKS.
+ *
+ * The private key never reaches this service: callers must pass `toPublicJWK()`.
+ * The configured file must therefore be durable and writable by the auth service.
+ */
 class JwksService(
     private val jsonMapper: JsonMapper,
     @Value($$"${mossy.jwks.path:/app/data/jwks.json}")
@@ -31,6 +36,7 @@ class JwksService(
         if (jwksFile.exists().not()) {
             jwksFile.createNewFile()
             saveJwksToFile(JWKSet(jwk))
+            return
         }
 
         jwksFile.bufferedReader().use { reader ->
@@ -58,6 +64,12 @@ class JwksService(
         }
     }
 
+    /**
+     * Returns the stored key set in the JSON object shape required by a JWKS endpoint.
+     *
+     * An absent file is initialised as an empty set so the public endpoint remains
+     * available before the first scheduled key rotation.
+     */
     fun getJwks(): Map<String, Any> {
         if (jwksFile.exists().not()) {
             jwksFile.createNewFile()
@@ -75,6 +87,7 @@ class JwksService(
             ?: emptyMap()
     }
 
+    /** Serialises the supplied public key set to the configured JWKS file. */
     private fun saveJwksToFile(jwks: JWKSet) {
         val json = jsonMapper.writeValueAsString(jwks.toJSONObject())
 

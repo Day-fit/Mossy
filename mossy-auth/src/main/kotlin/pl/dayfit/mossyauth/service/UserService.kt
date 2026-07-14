@@ -71,6 +71,10 @@ class UserService(
         userCacheService.delete(userId)
     }
 
+    /**
+     * Produces the current-user response from the validated JWT and its converted
+     * Spring authorities, avoiding a cache lookup for data already carried by the token.
+     */
     fun getDetails(jwt: Jwt, authentication: Authentication): UserDetailsResponseDto {
         return UserDetailsResponseDto(
             UUID.fromString(jwt.subject),

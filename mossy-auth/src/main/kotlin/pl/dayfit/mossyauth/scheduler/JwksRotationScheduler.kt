@@ -20,6 +20,12 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @Service
 @OptIn(ExperimentalAtomicApi::class)
+/**
+ * Rotates the RSA signing key and publishes its public half for resource servers.
+ *
+ * Public keys outlive refresh tokens by one day, allowing resource servers to
+ * validate tokens issued immediately before a rotation.
+ */
 class JwksRotationScheduler(
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val jwtConfigurationProperties: JwtConfigurationProperties,
@@ -29,6 +35,11 @@ class JwksRotationScheduler(
     private val oneDayInMillis = 1000 * 60 * 60 * 24
     private val logger = LoggerFactory.getLogger(this::class.java)
 
+    /**
+     * Generates a new 2048-bit RSA key, stores the public JWK, and broadcasts the
+     * private key to in-process token signers. A failed rotation is retried once
+     * after 30 seconds and then surfaces as [JwksRotationFailedException].
+     */
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
     fun rotateJwks()
     {
@@ -59,6 +70,7 @@ class JwksRotationScheduler(
         }
     }
 
+    /** Schedules a short retry without blocking the scheduled-task thread. */
     private fun scheduleRetry()
     {
         taskScheduler.schedule(
