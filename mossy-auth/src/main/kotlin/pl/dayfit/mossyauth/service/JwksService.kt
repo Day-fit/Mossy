@@ -77,10 +77,17 @@ class JwksService(
         }
 
         var jwks: JWKSet? = null
-        jwksFile.bufferedReader().use { reader ->
-            jwks = JWKSet.parse(
-                reader.readText()
-            )
+
+        //This method should NOT modify file with JWKS
+        //If file is broken / empty, we should return empty set and log warning
+        runCatching {
+            jwksFile.bufferedReader().use { reader ->
+                jwks = JWKSet.parse(
+                    reader.readText()
+                )
+            }
+        }.onFailure {
+            logger.warn("Failed to read jwks.json, falling back to empty map", it)
         }
 
         return jwks?.toJSONObject()

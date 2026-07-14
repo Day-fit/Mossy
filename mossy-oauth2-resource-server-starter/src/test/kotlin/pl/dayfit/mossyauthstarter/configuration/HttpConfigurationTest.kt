@@ -41,7 +41,7 @@ class HttpConfigurationTest {
         assertNotNull(corsConfiguration)
         assertEquals(properties.allowedOrigins, corsConfiguration.allowedOriginPatterns)
         assertEquals(
-            listOf("GET", "POST", "PUT", "DELETE", "OPTIONS"),
+            listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
             corsConfiguration.allowedMethods
         )
         assertEquals(true, corsConfiguration.allowCredentials)
