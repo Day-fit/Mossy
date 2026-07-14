@@ -2,7 +2,9 @@ package pl.dayfit.mossyauth.service
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
+import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
@@ -69,14 +71,14 @@ class UserService(
         userCacheService.delete(userId)
     }
 
-    fun getDetails(id: UUID): UserDetailsResponseDto? {
-        val user = userCacheService.get(id)
-
-        return (UserDetailsResponseDto(
-            id,
-            user.username,
-            user.email,
-            user.authorities
-        ))
+    fun getDetails(jwt: Jwt, authentication: Authentication): UserDetailsResponseDto {
+        return UserDetailsResponseDto(
+            UUID.fromString(jwt.subject),
+            jwt.claims["preferred_username"] as String,
+            jwt.claims["email"] as String,
+            authentication.authorities.mapNotNull {
+                it.authority
+            }
+        )
     }
 }

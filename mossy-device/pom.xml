@@ -65,7 +65,7 @@
         </dependency>
         <dependency>
             <groupId>pl.dayfit</groupId>
-            <artifactId>mossy-auth-starter</artifactId>
+            <artifactId>mossy-oauth2-resource-server-starter</artifactId>
             <version>0.0.4-SNAPSHOT</version>
         </dependency>
 

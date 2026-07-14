@@ -2,8 +2,8 @@ package pl.dayfit.mossyauth.service
 
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
-import com.nimbusds.jose.crypto.Ed25519Signer
-import com.nimbusds.jose.jwk.OctetKeyPair
+import com.nimbusds.jose.crypto.RSASSASigner
+import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
 import org.springframework.context.event.EventListener
@@ -22,7 +22,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 class JwtGenerationService(
     private val jwtConfigurationProperties: JwtConfigurationProperties
 ) {
-    private val secretKey = AtomicReference<OctetKeyPair?>(null)
+    private val secretKey = AtomicReference<RSAKey?>(null)
 
     /**
      * Generates a pair of JWT tokens for the given user details. The first token has a shorter expiration
@@ -54,23 +54,26 @@ class JwtGenerationService(
         val secret = secretKey.load()
             ?: throw SigningKeyNotInitializedException("Secret key is not initialized yet.")
 
-        val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.Ed25519)
+        val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.RS256)
             .keyID(secret.keyID)
             .build()
 
         val claimSet: JWTClaimsSet = JWTClaimsSet.Builder()
             .subject(user.userId.toString())
             .issuer("mossy-auth")
+            .audience("mossy-user-api")
             .issueTime(Date())
             .expirationTime(Date(Date().time + duration.toMillis()))
             .claim("roles", user.authorities.map { it.authority })
+            .claim("preferred_username", user.username)
+            .claim("email", user.email)
             .build()
 
         val signedJwt = SignedJWT(
             header, claimSet
         )
 
-        val signer = Ed25519Signer(secret)
+        val signer = RSASSASigner(secret)
         signedJwt.sign(signer)
 
         return signedJwt.serialize()

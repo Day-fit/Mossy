@@ -5,6 +5,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -113,11 +114,11 @@ class AuthController(
     }
 
     @GetMapping("/status")
-    fun checkAuthStatus(@AuthenticationPrincipal userId: UUID?): ResponseEntity<AuthStatusDto>
+    fun checkAuthStatus(@AuthenticationPrincipal jwt: Jwt?): ResponseEntity<AuthStatusDto>
     {
         return ResponseEntity.ok(
             AuthStatusDto(
-                userId != null
+                jwt != null
             ))
     }
 }

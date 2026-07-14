@@ -1,21 +1,16 @@
 package pl.dayfit.mossyauth.scheduler
 
-import com.nimbusds.jose.jwk.Curve
-import com.nimbusds.jose.jwk.JWK
-import com.nimbusds.jose.jwk.OctetKeyPair
-import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
+import com.nimbusds.jose.jwk.RSAKey
+import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
+import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import org.springframework.scheduling.TaskScheduler
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
-import org.springframework.web.client.RestTemplate
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
-import pl.dayfit.mossyauth.configuration.properties.MossyAuthConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
-import pl.dayfit.mossyauth.exception.JwksServiceUnreachableException
+import pl.dayfit.mossyauth.exception.JwksRotationFailedException
+import pl.dayfit.mossyauth.service.JwksService
 import java.time.Duration
 import java.time.Instant
 import java.util.Date
@@ -26,13 +21,13 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 @Service
 @OptIn(ExperimentalAtomicApi::class)
 class JwksRotationScheduler(
-    private val starterJwksTemplate: RestTemplate,
-    private val mossyAuthConfigurationProperties: MossyAuthConfigurationProperties,
     private val applicationEventPublisher: ApplicationEventPublisher,
     private val jwtConfigurationProperties: JwtConfigurationProperties,
+    private val jwksService: JwksService,
     private val taskScheduler: TaskScheduler
 ) {
     private val oneDayInMillis = 1000 * 60 * 60 * 24
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
     @Scheduled(fixedRate = 1, timeUnit = TimeUnit.DAYS)
     fun rotateJwks()
@@ -40,33 +35,27 @@ class JwksRotationScheduler(
         val now = Date()
         val refreshTokenLifetime = jwtConfigurationProperties.refreshTokenExpirationTime.toMillis()
 
-        val octetKey: OctetKeyPair = OctetKeyPairGenerator(Curve.Ed25519)
-            .keyID(UUID.randomUUID().toString())
+        val kid = UUID.randomUUID().toString()
+        val rsaKey: RSAKey = RSAKeyGenerator(2048)
+            .keyID(kid)
             .issueTime(now)
             .expirationTime(Date(now.time + refreshTokenLifetime + oneDayInMillis))
             .generate()
 
-        val jwk: JWK = octetKey.toPublicJWK()
-
-        val headers = HttpHeaders()
-        headers.contentType = MediaType.APPLICATION_JSON
-
-        val entity = HttpEntity(jwk.toJSONString(), headers)
-
-        //Synchronous call, RabbitMQ could lead to SPOF
         runCatching {
-            starterJwksTemplate.put(
-                mossyAuthConfigurationProperties.jwkUploadUrl,
-                entity,
+            jwksService.addJwkToSet(
+                rsaKey.toPublicJWK()
             )
+
+            logger.info("Jwks successfully added to jwks file. Key id {}", kid)
 
             //loose coupling
             applicationEventPublisher.publishEvent(
-                SecretRotatedEvent(octetKey)
+                SecretRotatedEvent(rsaKey)
             )
         }.onFailure {
             scheduleRetry()
-            throw JwksServiceUnreachableException("Failed to rotate JWKS: ${it.message}")
+            throw JwksRotationFailedException("Failed to rotate JWKS: ${it.message}", it)
         }
     }
 
