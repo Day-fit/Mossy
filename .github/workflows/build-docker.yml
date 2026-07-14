@@ -18,7 +18,6 @@ jobs:
       matrix:
         service:
           - device
-          - jwks
           - password
           - statistics
           - auth
