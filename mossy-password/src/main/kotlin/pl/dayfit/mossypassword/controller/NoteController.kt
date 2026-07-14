@@ -17,7 +17,7 @@ class NoteController(
 ) {
     @GetMapping("/vault/{vaultId}/password/{passwordId}/note")
     fun getNote(@PathVariable vaultId: UUID, @PathVariable passwordId: UUID, @AuthenticationPrincipal jwt: Jwt): CompletableFuture<ResponseEntity<GetNoteResponseDto>> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
         return noteManagementService.getNoteContent(vaultId, passwordId, userId).thenApply {
             return@thenApply ResponseEntity.ok(GetNoteResponseDto(it.note ?: ""))
         }
@@ -30,7 +30,7 @@ class NoteController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestBody @Valid note: SaveNoteRequestDto
     ): CompletableFuture<ResponseEntity<Nothing>> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
 
         return noteManagementService.saveNote(vaultId, passwordId, userId, note.content).thenApply {
             return@thenApply ResponseEntity.noContent().build()

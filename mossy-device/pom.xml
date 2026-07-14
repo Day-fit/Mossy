@@ -66,18 +66,12 @@
         <dependency>
             <groupId>pl.dayfit</groupId>
             <artifactId>mossy-oauth2-resource-server-starter</artifactId>
-            <version>0.0.4-SNAPSHOT</version>
+            <version>0.0.5</version>
         </dependency>
 
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.83</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -143,6 +137,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-resource-server</artifactId>
         </dependency>
     </dependencies>
 

@@ -2,6 +2,7 @@ package pl.dayfit.mossypassword.controller
 
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -36,9 +37,10 @@ class VaultController(
      */
     @PostMapping("/register")
     fun register(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestBody vaultRegistrationRequestDto: VaultRegistrationRequestDto
     ): ResponseEntity<VaultRegistrationResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         return ResponseEntity.ok(
             vaultAuthService.register(userId, vaultRegistrationRequestDto)
         )
@@ -50,9 +52,10 @@ class VaultController(
      */
     @PostMapping
     fun createVault(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @RequestBody vaultRegistrationRequestDto: VaultRegistrationRequestDto
     ): ResponseEntity<CreateVaultResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         val registrationResponse = vaultAuthService.register(userId, vaultRegistrationRequestDto)
         return ResponseEntity.ok(
             CreateVaultResponseDto(
@@ -65,8 +68,9 @@ class VaultController(
 
     @GetMapping("/vaults")
     fun getVaults(
-        @AuthenticationPrincipal userId: UUID
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<List<VaultStatusResponseDto>> {
+        val userId = UUID.fromString(jwt.subject)
         return ResponseEntity.ok(
             vaultStatusService.getVaultsStatuses(userId)
         )
@@ -74,8 +78,9 @@ class VaultController(
 
     @GetMapping("/statuses")
     fun statuses(
-        @AuthenticationPrincipal userId: UUID
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<List<VaultStatusResponseDto>> {
+        val userId = UUID.fromString(jwt.subject)
         return ResponseEntity.ok(
             vaultStatusService.getVaultsStatuses(userId)
         )
@@ -83,18 +88,20 @@ class VaultController(
 
     @DeleteMapping("/{vaultId}")
     fun deleteVault(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @PathVariable vaultId: UUID
     ): ResponseEntity<ServerResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         return ResponseEntity.ok(vaultAuthService.delete(userId, vaultId))
     }
 
     @PutMapping("/{vaultId}")
     fun updateVault(
-        @AuthenticationPrincipal userId: UUID,
+        @AuthenticationPrincipal jwt: Jwt,
         @PathVariable vaultId: UUID,
         @RequestBody requestDto: VaultUpdateRequestDto
     ): ResponseEntity<ServerResponseDto> {
+        val userId = UUID.fromString(jwt.subject)
         return ResponseEntity.ok(vaultAuthService.update(userId, vaultId, requestDto))
     }
 }

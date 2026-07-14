@@ -37,7 +37,7 @@ class PasswordController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestBody requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
         passwordManagementService.savePassword(userId, requestDto)
 
         return ResponseEntity.ok(
@@ -50,7 +50,7 @@ class PasswordController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestBody requestDto: UpdatePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
         passwordManagementService.updatePassword(userId, requestDto)
 
         return ResponseEntity
@@ -70,7 +70,7 @@ class PasswordController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestBody deletePasswordRequestDto: DeletePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
 
         passwordManagementService.deletePassword(
             userId,
@@ -93,7 +93,7 @@ class PasswordController(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<List<PasswordMetadataDto>>> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
         return passwordManagementService.getPasswordsMetadata(userId, vaultId).thenApply {
             ResponseEntity.ok(it.metadata)
         }
@@ -112,7 +112,7 @@ class PasswordController(
         @PathVariable passwordId: UUID,
         @RequestParam vaultId: UUID
     ): CompletableFuture<ResponseEntity<CiphertextResponseType>> {
-        val userId = UUID.fromString(jwt.getClaimAsString("userId"))
+        val userId = UUID.fromString(jwt.subject)
         return passwordManagementService.getPasswordCipherText(userId, vaultId, passwordId)
             .thenApply { ResponseEntity.ok(it) }
     }

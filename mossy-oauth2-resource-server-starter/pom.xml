@@ -10,9 +10,9 @@
     </parent>
     <groupId>pl.dayfit</groupId>
     <artifactId>mossy-oauth2-resource-server-starter</artifactId>
-    <version>0.0.4-SNAPSHOT</version>
-    <name>mossy-auth-starter</name>
-    <description>mossy-auth-starter</description>
+    <version>0.0.5</version>
+    <name>mossy-oauth2-resource-server-starter</name>
+    <description>mossy-oauth2-resource-server-starter</description>
     <repositories>
         <repository>
             <id>github</id>
@@ -24,7 +24,7 @@
     <distributionManagement>
         <repository>
             <id>github</id>
-            <name>Mossy authentication starter</name>
+            <name>Mossy OAuth2 Resource Server Starter</name>
             <url>https://maven.pkg.github.com/day-fit/Mossy</url>
         </repository>
     </distributionManagement>
@@ -72,11 +72,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.module</groupId>
             <artifactId>jackson-module-kotlin</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>pl.dayfit</groupId>
-            <artifactId>mossy-jwks-events</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>

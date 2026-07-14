@@ -19,6 +19,7 @@
         <option value="$PROJECT_DIR$/mossy-jwks-events/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-statistics/pom.xml" />
         <option value="$PROJECT_DIR$/mossy-vault-shared/pom.xml" />
+        <option value="$PROJECT_DIR$/mossy-oauth2-resource-server-starter/pom.xml" />
       </list>
     </option>
     <option name="ignoredFiles">
