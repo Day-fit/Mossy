@@ -10,7 +10,12 @@ import { useMemo } from 'react';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
-	const { vaults } = useVault();
+	const {
+		vaults,
+		isLoading: areVaultsLoading,
+		errorOccurred: vaultsErrorOccurred,
+		refreshVaults,
+	} = useVault();
 	const navigate = useNavigate();
 	const addPasswordAction = useMemo(
 		() => ({
@@ -57,6 +62,18 @@ export default function DashboardHero() {
 								<div className="w-full h-full flex items-center justify-center text-gray-500">
 									Loading statistics...
 								</div>
+							) : error &&
+							  statistics.passwordChart.length === 0 ? (
+								<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
+									<p>Password history could not be loaded.</p>
+									<RippleButton
+										type="button"
+										className="px-4 py-2 text-sm"
+										onClick={() => void reload()}
+									>
+										Retry
+									</RippleButton>
+								</div>
 							) : (
 								<PasswordChart
 									data={statistics.passwordChart}
@@ -69,7 +86,22 @@ export default function DashboardHero() {
 
 				<motion.div className="flex-1 min-h-0" variants={childVariants}>
 					<div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
-						{!isLoading && !error && vaults.length === 0 ? (
+						{areVaultsLoading ? (
+							<div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+								Loading vaults...
+							</div>
+						) : vaultsErrorOccurred && vaults.length === 0 ? (
+							<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
+								<p>Vaults could not be loaded.</p>
+								<RippleButton
+									type="button"
+									className="px-4 py-2 text-sm"
+									onClick={() => void refreshVaults()}
+								>
+									Retry
+								</RippleButton>
+							</div>
+						) : vaults.length === 0 ? (
 							<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 								<p>No vaults yet.</p>
 								<RippleButton
@@ -80,44 +112,33 @@ export default function DashboardHero() {
 									Create a vault
 								</RippleButton>
 							</div>
-						) : null}
-
-						{vaults.map((vault) => {
-							const vaultName = vault.vaultName ?? vault.vaultId;
-							return (
-								<VaultDashboardView
-									key={vault.vaultId}
-									passwordsCount={vault.passwordCount}
-									name={vaultName}
-									isOnline={vault.isOnline}
-									lastSeenAt={vault.lastSeenAt}
-								/>
-							);
-						})}
+						) : (
+							vaults.map((vault) => {
+								const vaultName =
+									vault.vaultName ?? vault.vaultId;
+								return (
+									<VaultDashboardView
+										key={vault.vaultId}
+										passwordsCount={vault.passwordCount}
+										name={vaultName}
+										isOnline={vault.isOnline}
+										lastSeenAt={vault.lastSeenAt}
+									/>
+								);
+							})
+						)}
 					</div>
 				</motion.div>
 			</motion.section>
 
 			<div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
-				{!isLoading && error ? (
-					<div className="w-full h-full flex flex-col items-center justify-center gap-4">
-						<p className="text-sm text-gray-500">{error}</p>
-						<button
-							type="button"
-							className="px-4 py-2 rounded-md bg-gray-200 text-gray-800"
-							onClick={() => void reload()}
-						>
-							Retry
-						</button>
-					</div>
-				) : null}
-
-				{!error && (
-					<RecentActionSection
-						actions={statistics.recentActions}
-						emptyAction={addPasswordAction}
-					/>
-				)}
+				<RecentActionSection
+					actions={statistics.recentActions}
+					isLoading={isLoading}
+					error={error}
+					onRetry={() => void reload()}
+					emptyAction={addPasswordAction}
+				/>
 			</div>
 		</section>
 	);

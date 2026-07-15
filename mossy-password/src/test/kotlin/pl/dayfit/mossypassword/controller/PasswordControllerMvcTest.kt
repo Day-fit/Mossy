@@ -9,6 +9,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.security.oauth2.jwt.Jwt
 import pl.dayfit.mossypassword.dto.request.DeletePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.SavePasswordRequestDto
 import pl.dayfit.mossypassword.dto.request.UpdatePasswordRequestDto
@@ -27,6 +28,10 @@ class PasswordControllerMvcTest {
     private val passwordManagementService: PasswordManagementService = mock()
     private val controller = PasswordController(passwordManagementService)
 
+    private fun jwtFor(userId: UUID): Jwt = mock<Jwt>().also {
+        whenever(it.subject).thenReturn(userId.toString())
+    }
+
     @Test
     fun `save endpoint forwards payload and returns accepted response`() {
         val userId = UUID.randomUUID()
@@ -39,7 +44,7 @@ class PasswordControllerMvcTest {
             passwordType = PasswordType.PASSWORD
         )
 
-        val response = controller.savePassword(userId, request)
+        val response = controller.savePassword(jwtFor(userId), request)
         val body = response.body
 
         assertEquals(200, response.statusCode.value())
@@ -63,7 +68,7 @@ class PasswordControllerMvcTest {
         whenever(passwordManagementService.savePassword(userId, request)).thenThrow(VaultNotFoundException(vaultId))
 
         assertThrows<VaultNotFoundException> {
-            controller.savePassword(userId, request)
+            controller.savePassword(jwtFor(userId), request)
         }
     }
 
@@ -78,7 +83,7 @@ class PasswordControllerMvcTest {
             vaultId = UUID.randomUUID()
         )
 
-        val response = controller.updatePassword(userId, request)
+        val response = controller.updatePassword(jwtFor(userId), request)
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password updated successfully", response.body?.message)
@@ -92,7 +97,7 @@ class PasswordControllerMvcTest {
         val passwordId = UUID.randomUUID()
         val request = DeletePasswordRequestDto(passwordId, vaultId)
 
-        val response = controller.deletePassword(userId, request)
+        val response = controller.deletePassword(jwtFor(userId), request)
 
         assertEquals(200, response.statusCode.value())
         assertEquals("Password deleted successfully", response.body?.message)
@@ -127,7 +132,7 @@ class PasswordControllerMvcTest {
                 CompletableFuture.completedFuture(MetadataResponseType(listOf(first, second)))
             )
 
-        val response = controller.getPasswordsMetadata(userId, vaultId)
+        val response = controller.getPasswordsMetadata(jwtFor(userId), vaultId)
 
         assertEquals(200, response.get().statusCode.value())
         assertEquals(listOf(first, second), response.get().body)
@@ -145,7 +150,7 @@ class PasswordControllerMvcTest {
         whenever(passwordManagementService.getPasswordCipherText(userId, vaultId, passwordId))
             .thenReturn(expectedResponse)
 
-        val response = controller.getCiphertext(userId, passwordId, vaultId)
+        val response = controller.getCiphertext(jwtFor(userId), passwordId, vaultId)
 
         assertEquals(200, response.get().statusCode.value())
         assertEquals(expectedResponse.get(), response.get().body)

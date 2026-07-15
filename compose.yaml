@@ -66,6 +66,8 @@ services:
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
     profiles:
       - 'prod'
+    volumes:
+      - jwks-data:/app/data:rw
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-auth.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/auth`)'
@@ -287,3 +289,4 @@ volumes:
   postgres:
   rabbitmq:
   rabbitmq_dev:
+  jwks-data:

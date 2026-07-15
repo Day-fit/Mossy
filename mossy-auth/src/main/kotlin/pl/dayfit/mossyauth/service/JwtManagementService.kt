@@ -1,20 +1,31 @@
 package pl.dayfit.mossyauth.service
 
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.RevokedJwtModel
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
-import pl.dayfit.mossyauthstarter.service.JwtClaimsService
 import java.time.Instant
+import java.util.UUID
 
 @Service
+/**
+ * Manages refresh-token revocation and renewal.
+ *
+ * Refresh tokens are validated by Spring's [JwtDecoder]; the decoded `sub` is the
+ * authoritative user identifier for the replacement token pair.
+ */
 class JwtManagementService(
     private val revokedJwtRepository: RevokedJwtRepository,
-    private val jwtClaimsService: JwtClaimsService,
     private val jwtGenerationService: JwtGenerationService,
-    private val userDetailsService: UserDetailsService
+    private val userDetailsService: UserDetailsService,
+    private val jwtDecoder: JwtDecoder
 ) {
+    /**
+     * Records a non-blank refresh token as revoked. Blank values are ignored so
+     * logout remains idempotent when a client no longer has the cookie.
+     */
     fun revokeToken(jwtToken: String)
     {
         if (jwtToken.isBlank()) return
@@ -41,7 +52,9 @@ class JwtManagementService(
             throw BadCredentialsException("Refresh token is revoked")
         }
 
-        val userId = jwtClaimsService.getId(refreshToken)
+        val jwt = jwtDecoder.decode(refreshToken)
+        val userId = UUID.fromString(jwt.subject)
+
         val userDetails = userDetailsService.loadUserById(userId)
         val newPair = jwtGenerationService.generatePairOfTokens(userDetails as UserDetailsImpl)
 

@@ -12,9 +12,9 @@ import java.util.UUID
 data class RevokedJwtModel(
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    val id: UUID? = null,
+    var id: UUID? = null,
 
-    @Column(length = 512)
-    val token: String,
-    val validUntil: Instant
+    @Column(length = 1024)
+    var token: String,
+    var validUntil: Instant
 )

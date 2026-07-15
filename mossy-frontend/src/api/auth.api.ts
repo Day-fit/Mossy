@@ -51,7 +51,7 @@ export async function executeCheckAuthState(data: { token: string }) {
 
 export async function executeUserDetailsRequest() {
 	try {
-		return (await apiFetch('/api/v1/auth/user/details', {
+		return (await apiFetch('/api/v1/auth/user/me', {
 			method: 'GET',
 		}).then((res) => res.json())) as UserDetailsResponse;
 	} catch (e) {

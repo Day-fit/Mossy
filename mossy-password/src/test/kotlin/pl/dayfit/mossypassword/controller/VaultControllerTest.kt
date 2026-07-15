@@ -5,6 +5,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.security.oauth2.jwt.Jwt
 import pl.dayfit.mossypassword.dto.request.VaultRegistrationRequestDto
 import pl.dayfit.mossypassword.dto.request.VaultUpdateRequestDto
 import pl.dayfit.mossypassword.dto.response.ServerResponseDto
@@ -21,6 +22,10 @@ class VaultControllerTest {
     private val vaultStatusService: VaultStatusService = mock()
     private val controller = VaultController(vaultAuthService, vaultStatusService)
 
+    private fun jwtFor(userId: UUID): Jwt = mock<Jwt>().also {
+        whenever(it.subject).thenReturn(userId.toString())
+    }
+
     @Test
     fun `register forwards request and returns payload`() {
         val userId = UUID.randomUUID()
@@ -29,7 +34,7 @@ class VaultControllerTest {
         val responseDto = VaultRegistrationResponseDto(vaultId, "api-key")
         whenever(vaultAuthService.register(userId, request)).thenReturn(responseDto)
 
-        val response = controller.register(userId, request)
+        val response = controller.register(jwtFor(userId), request)
 
         assertEquals(200, response.statusCode.value())
         assertEquals(responseDto, response.body)
@@ -44,7 +49,7 @@ class VaultControllerTest {
         )
         whenever(vaultStatusService.getVaultsStatuses(userId)).thenReturn(statuses)
 
-        val response = controller.getVaults(userId)
+        val response = controller.getVaults(jwtFor(userId))
 
         assertEquals(200, response.statusCode.value())
         assertEquals(statuses, response.body)
@@ -57,7 +62,7 @@ class VaultControllerTest {
         val responseDto = ServerResponseDto("Vault deleted successfully")
         whenever(vaultAuthService.delete(userId, vaultId)).thenReturn(responseDto)
 
-        val response = controller.deleteVault(userId, vaultId)
+        val response = controller.deleteVault(jwtFor(userId), vaultId)
 
         assertEquals(200, response.statusCode.value())
         assertEquals(responseDto, response.body)
@@ -72,7 +77,7 @@ class VaultControllerTest {
         val responseDto = ServerResponseDto("Vault updated successfully")
         whenever(vaultAuthService.update(userId, vaultId, request)).thenReturn(responseDto)
 
-        val response = controller.updateVault(userId, vaultId, request)
+        val response = controller.updateVault(jwtFor(userId), vaultId, request)
 
         assertEquals(200, response.statusCode.value())
         assertEquals(responseDto, response.body)

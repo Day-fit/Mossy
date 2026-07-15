@@ -2,7 +2,9 @@ package pl.dayfit.mossyauth.service
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
+import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
@@ -13,7 +15,7 @@ import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
-import java.util.UUID
+import java.util.*
 
 @Service
 class UserService(
@@ -23,16 +25,14 @@ class UserService(
     private val jwtGenerationService: JwtGenerationService,
     private val daoAuthenticationProvider: DaoAuthenticationProvider
 ) {
-    fun register(requestDto: RegisterUserRequestDto)
-    {
+    fun register(requestDto: RegisterUserRequestDto) {
         //Passwords cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
 
         val email = requestDto.email
         val username = requestDto.username
 
-        if (userRepository.existsByUsernameAndEmail(username, email))
-        {
+        if (userRepository.existsByUsernameAndEmail(username, email)) {
             throw UserAlreadyExistsException("User with given username or email already exists")
         }
 
@@ -50,8 +50,7 @@ class UserService(
         userCacheService.save(user)
     }
 
-    fun login(loginDto: LoginRequestDto): Pair<String, String>
-    {
+    fun login(loginDto: LoginRequestDto): Pair<String, String> {
         val candidate = UsernamePasswordAuthenticationToken(
             loginDto.identifier,
             loginDto.password
@@ -69,14 +68,19 @@ class UserService(
         userCacheService.delete(userId)
     }
 
-    fun getDetails(id: UUID): UserDetailsResponseDto? {
-        val user = userCacheService.get(id)
-
-        return (UserDetailsResponseDto(
-            id,
-            user.username,
-            user.email,
-            user.authorities
-        ))
+    /**
+     * Produces the current-user response from the validated JWT and its converted
+     * Spring authorities, avoiding a cache lookup for data already carried by the token.
+     */
+    fun getDetails(jwt: Jwt, authentication: Authentication): UserDetailsResponseDto {
+        return UserDetailsResponseDto(
+            UUID.fromString(jwt.subject),
+            jwt.claims["preferred_username"] as String,
+            //TODO: when adding support for external oauth2 providers, please update it to handle the case when email is not present in the claims
+            jwt.claims["email"] as String,
+            authentication.authorities.mapNotNull {
+                it.authority
+            }
+        )
     }
 }
