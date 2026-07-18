@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.dto.response.UserDetailsResponseDto
@@ -23,9 +24,11 @@ class UserService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
-    private val daoAuthenticationProvider: DaoAuthenticationProvider
+    private val daoAuthenticationProvider: DaoAuthenticationProvider,
+    private val deviceIntegrationService: DeviceIntegrationService
 ) {
-    fun register(requestDto: RegisterUserRequestDto) {
+    @Transactional
+    fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String) {
         //Passwords cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
 
@@ -42,12 +45,22 @@ class UserService(
             password = encodedPassword,
             authProvider = AuthProvider.LOCAL,
             authorities = listOf("USER"),
-            enabled = true,
+            enabled = false,
             blocked = false
         )
 
         //TODO: create a email confirmation for account registration
-        userCacheService.save(user)
+        val savedUser = userCacheService.save(user)
+
+        deviceIntegrationService.registerDevice(
+            savedUser.id!!,
+            requestDto.publicIdentityKey,
+            userAgent,
+            remoteAddr,
+        )
+
+        savedUser.enabled = true
+        userCacheService.save(savedUser)
     }
 
     fun login(loginDto: LoginRequestDto): Pair<String, String> {

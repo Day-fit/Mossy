@@ -1,11 +1,14 @@
-package pl.dayfit.mossyauth
+package pl.dayfit.mossyauth.service
 
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.times
 import org.mockito.kotlin.whenever
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -18,8 +21,6 @@ import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
-import pl.dayfit.mossyauth.service.JwtGenerationService
-import pl.dayfit.mossyauth.service.UserService
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
@@ -30,12 +31,33 @@ import kotlin.test.assertFailsWith
 
 @ExtendWith(MockitoExtension::class)
 class UserServiceTests {
+
     private val passwordEncoder = BCryptPasswordEncoder(7)
-    private val daoAuthenticationProvider: DaoAuthenticationProvider = mock()
-    private val userCacheService: UserCacheService = mock()
-    private val jwtGenerationService: JwtGenerationService = mock()
-    private val userRepository: UserRepository = mock()
-    private val userService = UserService(userCacheService, userRepository, passwordEncoder, jwtGenerationService, daoAuthenticationProvider)
+
+    @Mock
+    private lateinit var daoAuthenticationProvider: DaoAuthenticationProvider
+    @Mock
+    private lateinit var userCacheService: UserCacheService
+    @Mock
+    private lateinit var jwtGenerationService: JwtGenerationService
+    @Mock
+    private lateinit var userRepository: UserRepository
+    @Mock
+    private lateinit var deviceIntegrationService: DeviceIntegrationService
+
+    private lateinit var userService: UserService
+
+    @BeforeEach
+    fun setUp() {
+        userService = UserService(
+            passwordEncoder = passwordEncoder,
+            daoAuthenticationProvider = daoAuthenticationProvider,
+            userCacheService = userCacheService,
+            jwtGenerationService = jwtGenerationService,
+            userRepository = userRepository,
+            deviceIntegrationService = deviceIntegrationService
+        )
+    }
 
     @Test
     fun `test register user`() {
@@ -44,7 +66,9 @@ class UserServiceTests {
         val email = "test@test.test"
 
         userService.register(
-            RegisterUserRequestDto(username, email, password)
+            RegisterUserRequestDto(username, email, password, mapOf()),
+            "Windows",
+            "163.84.244.143"
         )
 
         val captor = argumentCaptor<UserModel>()
@@ -143,8 +167,64 @@ class UserServiceTests {
             RegisterUserRequestDto(
                 "test",
                 "test@test.test",
-                "test123"
-            )
+                "test123",
+                mapOf()
+            ),
+            "Linux",
+            "163.84.244.143"
         ) }
+    }
+
+    @Test
+    fun `account is not enabled until device trust service responds`() {
+        val request = RegisterUserRequestDto(
+            "test",
+            "test@test.com",
+            "test123",
+            mapOf()
+        )
+
+        val userId = UUID.randomUUID()
+        val userModel = UserModel(
+            userId,
+            "test",
+            "test",
+            "test123",
+            AuthProvider.LOCAL,
+            listOf("USER"),
+            enabled = false,
+            blocked = false
+        )
+
+        val captor = argumentCaptor<UserModel>()
+
+        whenever {
+            userRepository.existsByUsernameAndEmail(any(), any())
+        }.thenReturn(false)
+
+        whenever {
+            userCacheService.save(any())
+        }.thenReturn(userModel)
+
+        userService.register(
+            request,
+            "Android",
+            "163.84.244.143"
+        )
+
+        verify(deviceIntegrationService)
+            .registerDevice(
+                any(),
+                any(),
+                any(),
+                any()
+            )
+
+        verify(
+            userCacheService, times(2)
+        ).save(captor.capture())
+
+        assert(!captor.firstValue.enabled)
+        assert(captor.secondValue.enabled)
     }
 }

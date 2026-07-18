@@ -1,4 +1,4 @@
-package pl.dayfit.mossyauth
+package pl.dayfit.mossyauth.service
 
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
@@ -8,9 +8,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
-import pl.dayfit.mossyauth.service.JwtGenerationService
-import pl.dayfit.mossyauth.service.JwtManagementService
-import pl.dayfit.mossyauth.service.UserDetailsService
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.util.UUID
 import kotlin.test.assertEquals

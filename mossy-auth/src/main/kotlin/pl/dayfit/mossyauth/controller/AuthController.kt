@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.controller
 
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpHeaders
 import org.springframework.http.ResponseCookie
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.CookieValue
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperties
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
@@ -21,7 +23,6 @@ import pl.dayfit.mossyauth.dto.response.LoginResponseDto
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.UserService
 import java.time.Duration
-import java.util.UUID
 
 @RestController
 class AuthController(
@@ -31,9 +32,18 @@ class AuthController(
     private val jwtManagementService: JwtManagementService
 ) {
     @PostMapping("/register")
-    fun handleRegister(@RequestBody @Valid requestDto: RegisterUserRequestDto): ResponseEntity<GenericServerResponseDto>
+    fun handleRegister(
+        @RequestBody @Valid requestDto: RegisterUserRequestDto,
+        @RequestHeader("User-Agent") userAgent: String,
+        httpServletRequest: HttpServletRequest
+    ): ResponseEntity<GenericServerResponseDto>
     {
-        userService.register(requestDto)
+
+        userService.register(
+            requestDto,
+            userAgent,
+            httpServletRequest.remoteAddr
+        )
 
         return ResponseEntity.ok(
             GenericServerResponseDto("User registered successfully")

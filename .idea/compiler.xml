@@ -15,6 +15,7 @@
         <module name="mossy-auth" />
         <module name="mossy-vault" />
         <module name="mossy-statistics" />
+        <module name="mossy-device-trust-shared" />
         <module name="mossy-password" />
         <module name="mossy-jwks-events" />
       </profile>

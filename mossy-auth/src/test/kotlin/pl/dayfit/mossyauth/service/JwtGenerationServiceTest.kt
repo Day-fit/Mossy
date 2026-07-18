@@ -1,4 +1,4 @@
-package pl.dayfit.mossyauth
+package pl.dayfit.mossyauth.service
 
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.crypto.RSASSAVerifier
@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
-import pl.dayfit.mossyauth.service.JwtGenerationService
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.time.Duration
 import java.util.UUID

@@ -1,10 +1,9 @@
-package pl.dayfit.mossyauth
+package pl.dayfit.mossyauth.service
 
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
-import pl.dayfit.mossyauth.service.JwksService
 import tools.jackson.databind.json.JsonMapper
 import java.nio.file.Path
 import kotlin.io.path.readText

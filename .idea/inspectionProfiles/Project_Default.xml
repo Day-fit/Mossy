@@ -9,6 +9,7 @@
           <option value="x-vault-id" />
           <option value="x-vault-secret" />
           <option value="X-Device-ID" />
+          <option value="X-Device-Id" />
         </set>
       </option>
     </inspection_tool>

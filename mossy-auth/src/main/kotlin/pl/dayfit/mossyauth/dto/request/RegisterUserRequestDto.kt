@@ -11,4 +11,6 @@ data class RegisterUserRequestDto (
     val email: String,
     @NotBlank(message = "Passwords cannot be blank")
     val password: String,
+
+    val publicIdentityKey: Map<String, Any>
 )
