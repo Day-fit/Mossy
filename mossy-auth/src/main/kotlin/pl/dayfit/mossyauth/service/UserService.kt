@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.Authentication
@@ -25,7 +26,7 @@ class UserService(
     private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
     private val daoAuthenticationProvider: DaoAuthenticationProvider,
-    private val deviceIntegrationService: DeviceIntegrationService
+    private val deviceTrustIntegrationService: DeviceTrustIntegrationService
 ) {
     @Transactional
     fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String) {
@@ -52,7 +53,7 @@ class UserService(
         //TODO: create a email confirmation for account registration
         val savedUser = userCacheService.save(user)
 
-        deviceIntegrationService.registerDevice(
+        deviceTrustIntegrationService.registerDevice(
             savedUser.id!!,
             requestDto.publicIdentityKey,
             userAgent,
@@ -63,7 +64,7 @@ class UserService(
         userCacheService.save(savedUser)
     }
 
-    fun login(loginDto: LoginRequestDto): Pair<String, String> {
+    fun login(loginDto: LoginRequestDto, userAgent: String, remoteAddr: String, deviceId: UUID): Pair<String, String> {
         val candidate = UsernamePasswordAuthenticationToken(
             loginDto.identifier,
             loginDto.password
@@ -71,6 +72,18 @@ class UserService(
 
         val authToken = daoAuthenticationProvider
             .authenticate(candidate) as UsernamePasswordAuthenticationToken
+
+        val deviceTrustResponse = deviceTrustIntegrationService.checkChallenge(
+            loginDto.challengeId,
+            loginDto.signature,
+            userAgent,
+            remoteAddr,
+            deviceId
+        )
+
+        if (!deviceTrustResponse.success) {
+            throw BadCredentialsException("Nonce challenge failed")
+        }
 
         return jwtGenerationService.generatePairOfTokens(
             authToken.principal as UserDetailsImpl,

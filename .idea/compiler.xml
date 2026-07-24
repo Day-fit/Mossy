@@ -6,7 +6,6 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="mossy-jwks" />
         <module name="mossy-vault-shared" />
         <module name="mossy-auth-starter" />
         <module name="mossy-device" />
@@ -17,7 +16,6 @@
         <module name="mossy-statistics" />
         <module name="mossy-device-trust-shared" />
         <module name="mossy-password" />
-        <module name="mossy-jwks-events" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>

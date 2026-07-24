@@ -23,6 +23,7 @@ import pl.dayfit.mossyauth.dto.response.LoginResponseDto
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.UserService
 import java.time.Duration
+import java.util.UUID
 
 @RestController
 class AuthController(
@@ -56,9 +57,17 @@ class AuthController(
     @PostMapping("/login")
     fun handleLogin(
         @RequestBody @Valid loginDto: LoginRequestDto,
+        @RequestHeader("User-Agent") userAgent: String,
+        @RequestHeader("X-Device-Id") deviceId: UUID,
+        httpServletRequest: HttpServletRequest
     ): ResponseEntity<LoginResponseDto>
     {
-        val tokens: Pair<String, String> = userService.login(loginDto)
+        val tokens: Pair<String, String> = userService.login(
+            loginDto,
+            userAgent,
+            httpServletRequest.remoteAddr,
+            deviceId
+        )
 
         val refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.second)
             .path("/")

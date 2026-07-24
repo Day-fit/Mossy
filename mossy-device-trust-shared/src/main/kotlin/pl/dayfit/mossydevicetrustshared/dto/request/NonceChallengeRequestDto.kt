@@ -6,4 +6,6 @@ data class NonceChallengeRequestDto(
     val challengeId: UUID,
     val signature: String,
     val os: String,
+    val remoteAddr: String,
+    val deviceId: UUID
 )

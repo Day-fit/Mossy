@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.http.converter.HttpMessageNotReadableException
 import pl.dayfit.mossydevicetrust.helper.KeygenHelper.generateKeyPair
 import pl.dayfit.mossydevicetrust.service.DeviceInfoService
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
@@ -63,38 +63,26 @@ class DeviceControllerTest(
     }
 
     @Test
-    fun `register fails when mac address format is invalid`() {
+    fun `register fails when user id is invalid`() {
         val publicIdKey = generateKeyPair()
             .toPublicJWK()
             .toJSONObject()
 
-        val invalidMacAddresses = arrayOf(
-            "AA4:05:fb:e3:2a:63",
-            "A4:05:Zb:e3:2a:63",
-            "A4:05:Zb:e3:2a63",
-            "IN:VA:LI:DM:AC:00",
-            "A4:05:Zb:e3:2a",
+        val payload = """
+            {
+                "userId": "INVALID-UUID",
+                "osName": "Windows",
+                "remoteAddr": "127.0.0.1",
+                "publicIdentityKey": ${jsonMapper.writeValueAsString(publicIdKey)}
+            }
+        """.trimIndent()
+
+        mockMvc.perform(
+            post("/device")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload)
         )
-
-        for (invalidMacAddress in invalidMacAddresses) {
-            val content = jsonMapper.writeValueAsString(
-                RegisterDeviceRequestDto(
-                    UUID.randomUUID(),
-                    "Windows",
-                    invalidMacAddress,
-                    publicIdKey,
-                )
-            )
-
-            mockMvc.perform(
-                post("/device")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(content)
-            )
-                .andExpect {
-                    result -> assert(result.resolvedException is MethodArgumentNotValidException)
-                }
-                .andExpect(status().isBadRequest)
-        }
+            .andExpect { result -> assert(result.resolvedException is HttpMessageNotReadableException) }
+            .andExpect(status().isBadRequest)
     }
 }

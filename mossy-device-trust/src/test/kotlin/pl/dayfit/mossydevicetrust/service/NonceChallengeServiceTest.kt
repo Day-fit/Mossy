@@ -109,7 +109,9 @@ class NonceChallengeServiceTest {
         val request = NonceChallengeRequestDto(
             challengeId,
             signature,
-            "IOs"
+            "IOs",
+            "127.0.0.1",
+            deviceId
         )
 
         whenever { repo.findById(deviceId) }
@@ -137,7 +139,6 @@ class NonceChallengeServiceTest {
 
         val response = nonceChallengeService.isChallengeValid(
             request,
-            deviceId,
         )
 
         assert(response.success)
@@ -173,7 +174,9 @@ class NonceChallengeServiceTest {
         val request = NonceChallengeRequestDto(
             challengeId,
             signature,
-            "Windows"
+            "Windows",
+            "127.0.0.1",
+            deviceId
         )
 
         whenever { repo.findById(deviceId) }
@@ -201,7 +204,6 @@ class NonceChallengeServiceTest {
 
         val response = nonceChallengeService.isChallengeValid(
             request,
-            deviceId,
         )
 
         assert(!response.success)
@@ -217,7 +219,9 @@ class NonceChallengeServiceTest {
         val request = NonceChallengeRequestDto(
             challengeId,
             "Signature won't be checked in this case!",
-            "Linux"
+            "Linux",
+            "127.0.0.1",
+            deviceId
         )
 
         whenever { repo.findById(deviceId) }
@@ -225,7 +229,6 @@ class NonceChallengeServiceTest {
 
         assertThrows<NoSuchElementException> { nonceChallengeService.isChallengeValid(
             request,
-            deviceId,
         )}
     }
 
@@ -239,7 +242,9 @@ class NonceChallengeServiceTest {
         val request = NonceChallengeRequestDto(
             challengeId,
             "Signature won't be checked in this case!",
-            "Android"
+            "Android",
+            "127.0.0.1",
+            deviceId
         )
 
         whenever { repo.findById(deviceId) }
@@ -257,7 +262,6 @@ class NonceChallengeServiceTest {
 
         assertThrows<NoSuchElementException> { nonceChallengeService.isChallengeValid(
             request,
-            deviceId,
         )}
     }
 
@@ -270,7 +274,9 @@ class NonceChallengeServiceTest {
         val requestDto = NonceChallengeRequestDto(
             challengeId,
             "Signature won't be checked in this case!",
-            "Linux"
+            "Linux",
+            "127.0.0.1",
+            issuerDeviceId
         )
 
         whenever { repo.findById(issuerDeviceId) }
@@ -300,7 +306,6 @@ class NonceChallengeServiceTest {
 
         val response = nonceChallengeService.isChallengeValid(
             requestDto,
-            issuerDeviceId,
         )
 
         assertFalse { response.success }

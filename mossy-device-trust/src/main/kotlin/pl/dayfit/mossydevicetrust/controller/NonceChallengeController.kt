@@ -32,13 +32,11 @@ class NonceChallengeController(
 
     @PostMapping("/challenge")
     fun checkChallenge(
-        @RequestHeader("X-Device-Id") deviceId: UUID,
         @RequestBody requestDto: NonceChallengeRequestDto
     ): ResponseEntity<NonceChallengeResponseDto> {
         return ResponseEntity.ok(
             nonceChallengeService.isChallengeValid(
                 requestDto,
-                deviceId
             )
         )
     }

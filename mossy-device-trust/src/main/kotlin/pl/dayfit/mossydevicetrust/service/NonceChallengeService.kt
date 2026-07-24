@@ -56,9 +56,10 @@ class NonceChallengeService(
     }
 
     fun isChallengeValid(
-        request: NonceChallengeRequestDto,
-        deviceId: UUID
+        request: NonceChallengeRequestDto
     ): NonceChallengeResponseDto {
+        val deviceId = request.deviceId
+
         val deviceInfo = repository.findById(deviceId)
             .orElseThrow { NoSuchElementException("Device $deviceId doesn't exist") }
 

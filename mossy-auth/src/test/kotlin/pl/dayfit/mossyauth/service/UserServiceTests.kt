@@ -1,6 +1,7 @@
 package pl.dayfit.mossyauth.service
 
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
 import org.mockito.Mockito.mock
@@ -24,6 +25,7 @@ import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -43,7 +45,7 @@ class UserServiceTests {
     @Mock
     private lateinit var userRepository: UserRepository
     @Mock
-    private lateinit var deviceIntegrationService: DeviceIntegrationService
+    private lateinit var deviceTrustIntegrationService: DeviceTrustIntegrationService
 
     private lateinit var userService: UserService
 
@@ -55,7 +57,7 @@ class UserServiceTests {
             userCacheService = userCacheService,
             jwtGenerationService = jwtGenerationService,
             userRepository = userRepository,
-            deviceIntegrationService = deviceIntegrationService
+            deviceTrustIntegrationService = deviceTrustIntegrationService
         )
     }
 
@@ -65,6 +67,12 @@ class UserServiceTests {
         val username = "test"
         val email = "test@test.test"
 
+        whenever(userCacheService.save(any())).thenAnswer { invocation ->
+            invocation.getArgument<UserModel>(0).apply {
+                id = id ?: UUID.randomUUID()
+            }
+        }
+
         userService.register(
             RegisterUserRequestDto(username, email, password, mapOf()),
             "Windows",
@@ -72,7 +80,7 @@ class UserServiceTests {
         )
 
         val captor = argumentCaptor<UserModel>()
-        verify(userCacheService).save(
+        verify(userCacheService, times(2)).save(
             captor.capture()
         )
 
@@ -92,6 +100,9 @@ class UserServiceTests {
     {
         val username = "test"
         val password = "test123"
+        val challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86")
+        val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+        val signature = "Signature won't be checked in this case"
         val principal = UserDetailsImpl(
             username,
             passwordEncoder.encode(password),
@@ -107,12 +118,86 @@ class UserServiceTests {
                 )
             )
 
+        whenever {
+            deviceTrustIntegrationService.checkChallenge(
+                challengeId,
+                signature,
+                "Linux",
+                "93.63.58.190",
+                deviceId
+            )
+        }.thenReturn(
+            NonceChallengeResponseDto(
+                success = true,
+                alertSent = false
+            )
+        )
+
         userService.login(
-            LoginRequestDto(username, password)
+            LoginRequestDto(username, password, challengeId, signature),
+            "Linux",
+            "93.63.58.190",
+            deviceId
         )
 
         verify(jwtGenerationService)
             .generatePairOfTokens(principal)
+        verify(deviceTrustIntegrationService)
+            .checkChallenge(
+                challengeId,
+                signature,
+                "Linux",
+                "93.63.58.190",
+                deviceId
+            )
+    }
+
+    @Test
+    fun `logging in fails if nonce challenge fails`()
+    {
+        val challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86")
+        val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+        val signature = "Signature won't be checked in this case"
+        val username = "test"
+        val password = "test123"
+        val principal = UserDetailsImpl(
+            username,
+            passwordEncoder.encode(password),
+            UUID.randomUUID(),
+            null,
+            listOf(SimpleGrantedAuthority("USER"))
+        )
+
+        whenever { daoAuthenticationProvider.authenticate(any()) }
+            .thenReturn(
+                UsernamePasswordAuthenticationToken(
+                    principal, password,
+                )
+            )
+
+        whenever {
+            deviceTrustIntegrationService.checkChallenge(
+                challengeId,
+                signature,
+                "Linux",
+                "93.63.58.190",
+                deviceId
+            )
+        }.thenReturn(
+            NonceChallengeResponseDto(
+                success = false,
+                alertSent = true
+            )
+        )
+
+        assertThrows<BadCredentialsException> {
+            userService.login(
+                LoginRequestDto(username, password, challengeId, signature),
+                "Linux",
+                "93.63.58.190",
+                deviceId
+            )
+        }
     }
 
     @Test
@@ -154,7 +239,19 @@ class UserServiceTests {
         whenever { daoAuthenticationProvider.authenticate(any()) }
             .thenThrow(BadCredentialsException("Bad credentials") )
 
-        assertFailsWith<BadCredentialsException> { userService.login(LoginRequestDto("test", "test123")) }
+        assertFailsWith<BadCredentialsException> {
+            userService.login(
+                LoginRequestDto(
+                    "test",
+                    "test123",
+                    UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
+                    "Signature won't be checked in this case"
+                ),
+                "Linux",
+                "93.63.58.190",
+                UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+            )
+        }
     }
 
     @Test
@@ -212,7 +309,7 @@ class UserServiceTests {
             "163.84.244.143"
         )
 
-        verify(deviceIntegrationService)
+        verify(deviceTrustIntegrationService)
             .registerDevice(
                 any(),
                 any(),

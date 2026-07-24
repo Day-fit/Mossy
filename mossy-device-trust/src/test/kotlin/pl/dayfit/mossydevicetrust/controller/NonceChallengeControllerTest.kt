@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import pl.dayfit.mossydevicetrust.service.NonceChallengeService
@@ -86,10 +87,12 @@ class NonceChallengeControllerTest(
         val requestDto = NonceChallengeRequestDto(
             UUID.randomUUID(),
             "Signature is validated in service layer",
-            "Windows"
+            "Windows",
+            "96.3.61.11",
+            UUID.randomUUID()
         )
 
-        whenever(nonceChallengeService.isChallengeValid(any(),any()))
+        whenever(nonceChallengeService.isChallengeValid(any()))
             .thenReturn(
                 NonceChallengeResponseDto(
                     success = true,
@@ -99,7 +102,6 @@ class NonceChallengeControllerTest(
 
         mockMvc.perform(
             post("/nonce/challenge")
-                .header("X-Device-Id", UUID.randomUUID().toString())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(requestDto))
         ).andExpect(status().isOk)
@@ -108,35 +110,49 @@ class NonceChallengeControllerTest(
     }
 
     @Test
-    fun `Challenge fails when X-Device-Id header is missing`() {
+    fun `Challenge returns challenge response when X-Device-Id header is missing`() {
         val requestDto = NonceChallengeRequestDto(
             UUID.randomUUID(),
             "Signature is validated in service layer",
-            "MacOS"
+            "MacOS",
+            "96.3.61.11",
+            UUID.randomUUID()
         )
+
+        whenever(nonceChallengeService.isChallengeValid(any()))
+            .thenReturn(
+                NonceChallengeResponseDto(
+                    success = false,
+                    alertSent = false
+                )
+            )
 
         mockMvc.perform(
             post("/nonce/challenge")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(requestDto))
-        ).andExpect(status().isBadRequest)
-            .andExpect { assertIs<MissingRequestHeaderException>(it.resolvedException) }
+        ).andExpect(status().isOk)
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.alertSent").value(false))
     }
 
     @Test
-    fun `Challenge fails when X-Device-Id header is invalid`() {
-        val requestDto = NonceChallengeRequestDto(
-            UUID.randomUUID(),
-            "Signature is validated in service layer",
-            "Linux"
-        )
+    fun `Challenge fails when device ID in body is invalid`() {
+        val payload = """
+            {
+                "challengeId": "${UUID.randomUUID()}",
+                "signature": "Signature is validated in service layer",
+                "os": "Linux",
+                "remoteAddr": "96.3.61.11",
+                "deviceId": "Invalid-device-id"
+            }
+        """.trimIndent()
 
         mockMvc.perform(
             post("/nonce/challenge")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(jsonMapper.writeValueAsString(requestDto))
-                .header("X-Device-Id", "Invalid-device-id")
+                .content(payload)
         ).andExpect(status().isBadRequest)
-            .andExpect { assertIs<MethodArgumentTypeMismatchException>(it.resolvedException) }
+            .andExpect { assertIs<HttpMessageNotReadableException>(it.resolvedException) }
     }
 }
