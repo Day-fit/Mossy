@@ -87,6 +87,7 @@ class UserService(
 
         return jwtGenerationService.generatePairOfTokens(
             authToken.principal as UserDetailsImpl,
+            deviceId
         )
     }
 

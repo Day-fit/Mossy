@@ -15,8 +15,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.http.converter.HttpMessageNotReadableException
-import org.springframework.web.bind.MissingRequestHeaderException
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
+import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
+import org.springframework.security.core.context.SecurityContextHolder
 import pl.dayfit.mossydevicetrust.service.NonceChallengeService
 import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GenerateNonceResponseDto
@@ -26,6 +27,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.*
 import kotlin.test.assertIs
+import org.springframework.test.web.servlet.request.RequestPostProcessor
 
 @WebMvcTest(NonceChallengeController::class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -54,32 +56,13 @@ class NonceChallengeControllerTest(
         mockMvc.perform(
             get("/nonce")
                 .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Device-Id", deviceId.toString())
+                .with(jwtPrincipal(deviceId))
         )
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.nonce").value(nonce))
             .andExpect(jsonPath("$.challengeId")
                 .value(challengeId.toString())
             )
-    }
-
-    @Test
-    fun `Challenge creation fails when X-Device-Id header is missing`() {
-        mockMvc.perform(
-            get("/nonce")
-                .contentType(MediaType.APPLICATION_JSON)
-        ).andExpect(status().isBadRequest)
-            .andExpect { assertIs<MissingRequestHeaderException>(it.resolvedException) }
-    }
-
-    @Test
-    fun `Challenge creation fails when X-Device-Id header is invalid`() {
-        mockMvc.perform(
-            get("/nonce")
-                .contentType(MediaType.APPLICATION_JSON)
-                .header("X-Device-Id", "Invalid-device-id")
-        ).andExpect(status().isBadRequest)
-            .andExpect { assertIs<MethodArgumentTypeMismatchException>(it.resolvedException) }
     }
 
     @Test
@@ -154,5 +137,16 @@ class NonceChallengeControllerTest(
                 .content(payload)
         ).andExpect(status().isBadRequest)
             .andExpect { assertIs<HttpMessageNotReadableException>(it.resolvedException) }
+    }
+
+    private fun jwtPrincipal(deviceId: UUID): RequestPostProcessor = RequestPostProcessor { request ->
+        val jwt = Jwt.withTokenValue("token")
+            .header("alg", "none")
+            .subject(UUID.randomUUID().toString())
+            .claim("device_id", deviceId.toString())
+            .build()
+
+        SecurityContextHolder.getContext().authentication = JwtAuthenticationToken(jwt)
+        request
     }
 }

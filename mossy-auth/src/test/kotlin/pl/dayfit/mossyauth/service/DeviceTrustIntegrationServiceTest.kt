@@ -2,6 +2,8 @@ package pl.dayfit.mossyauth.service
 
 import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -17,6 +19,7 @@ import org.springframework.web.client.RestTemplate
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
 import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
+import pl.dayfit.mossydevicetrustshared.dto.response.GetIsBlockedResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.RegisterDeviceResponseDto
 import java.util.UUID
@@ -40,6 +43,7 @@ class DeviceTrustIntegrationServiceTest {
         const val VALID_TRUST_SERVICE_HOST = "https://mossy.dayfit.pl"
         const val VALID_REGISTER_DEVICE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/device"
         const val VALID_CHECK_CHALLENGE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/nonce/challenge"
+        const val VALID_CHECK_DEVICE_BLOCK_STATUS_URL = "https://mossy.dayfit.pl/api/v1/device-trust/device/{deviceId}/block"
     }
     
     @Test
@@ -173,6 +177,78 @@ class DeviceTrustIntegrationServiceTest {
                 "Linux",
                 "93.63.58.190",
                 deviceId
+            )
+        }
+    }
+
+    @Test
+    fun `block status is true for blocked device`() {
+        val deviceId = UUID.randomUUID()
+
+        whenever (
+            restTemplate.getForEntity(
+                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
+                GetIsBlockedResponseDto::class.java,
+                deviceId
+            )
+            ).thenReturn(
+            ResponseEntity.ok(
+                GetIsBlockedResponseDto(
+                    isBlocked = true,
+                )
+            )
+        )
+
+        val result = deviceTrustIntegrationService.getDeviceBlockStatus(
+            deviceId,
+        )
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `block status is false for not blocked device`() {
+        val deviceId = UUID.randomUUID()
+
+        whenever (
+            restTemplate.getForEntity(
+                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
+                GetIsBlockedResponseDto::class.java,
+                deviceId
+            )
+        ).thenReturn(
+            ResponseEntity.ok(
+                GetIsBlockedResponseDto(
+                    isBlocked = false,
+                )
+            )
+        )
+
+        val result = deviceTrustIntegrationService.getDeviceBlockStatus(
+            deviceId,
+        )
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `block status throws exception for non existing device`() {
+        val deviceId = UUID.randomUUID()
+
+        whenever (
+            restTemplate.getForEntity(
+                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
+                GetIsBlockedResponseDto::class.java,
+                deviceId
+            )
+        ).thenReturn(
+            ResponseEntity.notFound()
+                .build()
+        )
+
+        assertThrows<NoSuchElementException> {
+            deviceTrustIntegrationService.getDeviceBlockStatus(
+                deviceId,
             )
         }
     }

@@ -6,7 +6,6 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossydevice.dto.request.InitKeySyncRequestDto
@@ -25,10 +24,10 @@ class KeySyncController(
     @PostMapping("/init")
     fun initKeySync(
         @AuthenticationPrincipal jwt: Jwt,
-        @RequestHeader("X-Device-ID") deviceId: UUID,
         @RequestBody dto: InitKeySyncRequestDto
     ): ResponseEntity<InitKeySyncResponseDto> {
         val userId = UUID.fromString(jwt.subject)
+        val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
         return ResponseEntity.ok(
             keySyncService.initKeySync(userId, deviceId, dto.vaultId)
         )
@@ -36,10 +35,10 @@ class KeySyncController(
 
     @GetMapping("/nonce")
     fun getNonce(
-        @AuthenticationPrincipal jwt: Jwt,
-        @RequestHeader("X-Device-ID") deviceId: UUID
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<NonceResponseDto> {
         val userId = UUID.fromString(jwt.subject)
+        val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
 
         val nonce = nonceService.generateNonce(deviceId, userId)
 

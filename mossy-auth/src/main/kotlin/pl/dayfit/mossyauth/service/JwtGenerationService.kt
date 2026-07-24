@@ -14,6 +14,7 @@ import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.time.Duration
 import java.util.Date
+import java.util.UUID
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
@@ -38,16 +39,18 @@ class JwtGenerationService(
      * @param userDetails The details of the user for whom the tokens are generated.
      * @return A pair of strings where the first element is the access token and the second element is the refresh token.
      */
-    fun generatePairOfTokens(userDetails: UserDetailsImpl): Pair<String, String>
+    fun generatePairOfTokens(userDetails: UserDetailsImpl, deviceId: UUID): Pair<String, String>
     {
         return Pair(
             generate(
                 userDetails,
-                jwtConfigurationProperties.accessTokenExpirationTime
+                jwtConfigurationProperties.accessTokenExpirationTime,
+                deviceId
             ),
             generate(
                 userDetails,
-                jwtConfigurationProperties.refreshTokenExpirationTime
+                jwtConfigurationProperties.refreshTokenExpirationTime,
+                deviceId
             )
         )
     }
@@ -58,7 +61,8 @@ class JwtGenerationService(
      */
     private fun generate(
         user: UserDetailsImpl,
-        duration: Duration
+        duration: Duration,
+        deviceId: UUID
     ): String
     {
         val secret = secretKey.load()
@@ -77,6 +81,7 @@ class JwtGenerationService(
             .claim("roles", user.authorities.map { it.authority })
             .claim("preferred_username", user.username)
             .claim("email", user.email)
+            .claim("device_id", deviceId)
             .build()
 
         val signedJwt = SignedJWT(

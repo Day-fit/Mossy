@@ -71,4 +71,11 @@ class DeviceInfoService(
             targetDeviceInfo
         )
     }
+
+    fun getIsBlocked(deviceId: UUID): Boolean {
+        val deviceInfo = deviceInfoRepository.findById(deviceId)
+            .orElseThrow { NoSuchElementException("No device found with id $deviceId") }
+
+        return deviceInfo.blocked
+    }
 }

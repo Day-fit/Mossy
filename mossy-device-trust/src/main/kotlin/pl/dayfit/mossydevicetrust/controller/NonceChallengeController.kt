@@ -1,10 +1,11 @@
 package pl.dayfit.mossydevicetrust.controller
 
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossydevicetrust.service.NonceChallengeService
@@ -23,10 +24,10 @@ class NonceChallengeController(
      */
     @GetMapping
     fun generateChallenge(
-        @RequestHeader("X-Device-Id") deviceId: UUID
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<GenerateNonceResponseDto> {
         return ResponseEntity.ok(nonceChallengeService.generateNonce(
-            deviceId
+            UUID.fromString(jwt.getClaimAsString("device_id"))
         ))
     }
 

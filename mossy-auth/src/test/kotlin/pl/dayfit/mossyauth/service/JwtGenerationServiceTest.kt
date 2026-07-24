@@ -31,11 +31,12 @@ class JwtGenerationServiceTest {
             "alice@example.com",
             listOf(SimpleGrantedAuthority("USER"))
         )
+        val deviceId = UUID.randomUUID()
         service.javaClass.getDeclaredMethod("updateSecretKey", SecretRotatedEvent::class.java)
             .apply { isAccessible = true }
             .invoke(service, SecretRotatedEvent(signingKey))
 
-        val accessToken = SignedJWT.parse(service.generatePairOfTokens(user).first)
+        val accessToken = SignedJWT.parse(service.generatePairOfTokens(user, deviceId).first)
 
         assertEquals(JWSAlgorithm.RS256, accessToken.header.algorithm)
         assertEquals("key-id", accessToken.header.keyID)
@@ -43,6 +44,7 @@ class JwtGenerationServiceTest {
         assertEquals(userId.toString(), accessToken.jwtClaimsSet.subject)
         assertEquals("alice", accessToken.jwtClaimsSet.getStringClaim("preferred_username"))
         assertEquals("alice@example.com", accessToken.jwtClaimsSet.getStringClaim("email"))
+        assertEquals(deviceId.toString(), accessToken.jwtClaimsSet.getStringClaim("device_id"))
         assertEquals(listOf("USER"), accessToken.jwtClaimsSet.getStringListClaim("roles"))
     }
 }

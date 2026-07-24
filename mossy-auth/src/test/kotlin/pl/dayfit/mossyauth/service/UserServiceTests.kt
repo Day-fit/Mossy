@@ -141,7 +141,8 @@ class UserServiceTests {
         )
 
         verify(jwtGenerationService)
-            .generatePairOfTokens(principal)
+            .generatePairOfTokens(principal, deviceId)
+
         verify(deviceTrustIntegrationService)
             .checkChallenge(
                 challengeId,

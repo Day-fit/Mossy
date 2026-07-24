@@ -217,4 +217,52 @@ class DeviceInfoServiceTest {
             deviceInfoService.blockDevice(deviceId, anotherDeviceId)
         }
     }
+
+    @Test
+    fun `get is blocked returns true for blocked device`() {
+        val deviceId = UUID.fromString("a9d3015a-27c9-4259-89e7-84142a939631")
+        val deviceInfo = DeviceInfo(
+            deviceId,
+            UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
+            generateKeyPair().toPublicJWK(),
+            "Windows",
+            Instant.now(),
+            true,
+        )
+
+        whenever(deviceInfoRepository.findById(deviceId))
+            .thenReturn(Optional.of(deviceInfo))
+
+        assert(deviceInfoService.getIsBlocked(deviceId))
+    }
+
+    @Test
+    fun `get is blocked returns false for unblocked device`() {
+        val deviceId = UUID.fromString("9756dc28-c399-40f5-9145-ee40833404aa")
+        val deviceInfo = DeviceInfo(
+            deviceId,
+            UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
+            generateKeyPair().toPublicJWK(),
+            "Linux",
+            Instant.now(),
+            false,
+        )
+
+        whenever(deviceInfoRepository.findById(deviceId))
+            .thenReturn(Optional.of(deviceInfo))
+
+        assert(!deviceInfoService.getIsBlocked(deviceId))
+    }
+
+    @Test
+    fun `get is blocked fails when device does not exist`() {
+        val deviceId = UUID.fromString("9756dc28-c399-40f5-9145-ee40833404aa")
+
+        whenever(deviceInfoRepository.findById(deviceId))
+            .thenReturn(Optional.empty())
+
+        assertThrows<NoSuchElementException> {
+            deviceInfoService.getIsBlocked(deviceId)
+        }
+    }
 }

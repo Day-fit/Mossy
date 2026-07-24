@@ -25,7 +25,7 @@ class KeySyncControllerTest {
         val serviceResponse = InitKeySyncResponseDto("123456")
         whenever(keySyncService.initKeySync(userId, deviceId, request.vaultId)).thenReturn(serviceResponse)
 
-        val response = controller.initKeySync(jwtFor(userId), deviceId, request)
+        val response = controller.initKeySync(jwtFor(userId, deviceId), request)
 
         assertEquals(serviceResponse, response.body)
         verify(keySyncService).initKeySync(userId, deviceId, request.vaultId)
@@ -37,13 +37,14 @@ class KeySyncControllerTest {
         val deviceId = UUID.randomUUID()
         whenever(nonceService.generateNonce(deviceId, userId)).thenReturn("nonce")
 
-        val response = controller.getNonce(jwtFor(userId), deviceId)
+        val response = controller.getNonce(jwtFor(userId, deviceId))
 
         assertEquals("nonce", response.body?.nonce)
         verify(nonceService).generateNonce(deviceId, userId)
     }
 
-    private fun jwtFor(userId: UUID): Jwt = mock<Jwt>().also {
+    private fun jwtFor(userId: UUID, deviceId: UUID): Jwt = mock<Jwt>().also {
         whenever(it.subject).thenReturn(userId.toString())
+        whenever(it.getClaimAsString("device_id")).thenReturn(deviceId.toString())
     }
 }
