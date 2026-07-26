@@ -10,11 +10,12 @@ import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
 import pl.dayfit.mossydevice.service.KeySyncService
 import pl.dayfit.mossydevice.service.WebSocketSessionService
+import pl.dayfit.mossydevice.type.MessageType
 import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
 import tools.jackson.databind.DatabindException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
-import java.util.UUID
 
 @Component
 class KeySyncHandler(
@@ -40,14 +41,33 @@ class KeySyncHandler(
         }
 
         try {
-            val dto = jsonMapper.readValue<WebSocketMessageDto.KeySync>(textMessage.payload)
-            keySyncService.handleSync(dto, session)
-        } catch (_: DatabindException){
+            val json = jsonMapper.readTree(textMessage.payload)
+            when (MessageType.valueOf(json.get("type").asString())) {
+                MessageType.SIGNATURE_STATUS -> keySyncService.handleSignatureStatus(
+                    jsonMapper.readValue<WebSocketMessageDto.SignatureStatus>(textMessage.payload),
+                    session
+                )
+                MessageType.KEY_SYNC -> keySyncService.handleSync(
+                    jsonMapper.readValue<WebSocketMessageDto.KeySync>(textMessage.payload),
+                    session
+                )
+                MessageType.AUTH_FRAME -> throw IllegalArgumentException("Session is already authenticated")
+            }
+        } catch (_: DatabindException) {
             logger.debug("Received invalid payload, ignoring it")
             session.sendMessage(
                 TextMessage(
                     jsonMapper.writeValueAsString(
                         GenericServerResponseDto("Invalid payload")
+                    )
+                )
+            )
+        } catch (_: IllegalArgumentException) {
+            logger.debug("Received unsupported message type")
+            session.sendMessage(
+                TextMessage(
+                    jsonMapper.writeValueAsString(
+                        GenericServerResponseDto("Invalid message type")
                     )
                 )
             )
@@ -78,16 +98,15 @@ class KeySyncHandler(
         closeStatus: CloseStatus
     ) {
         logger.debug("WebSocket session closed: {}", session.id)
-        val deviceId = runCatching { UUID.fromString(session.attributes["deviceId"] as String)}
-            .getOrNull()
+        val principal = session.attributes["principal"] as? DevicePrincipal
 
-        if (deviceId == null) {
-            logger.debug("No deviceId found in session, ignoring it")
+        if (principal == null) {
+            logger.debug("No principal found in session, ignoring it")
             return
         }
 
         keySyncService.handlePeerDisconnected(session)
-        webSocketSessionService.removeSession(deviceId)
+        webSocketSessionService.removeSession(principal.deviceId)
     }
 
     override fun supportsPartialMessages(): Boolean {

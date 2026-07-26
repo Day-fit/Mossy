@@ -1,148 +1,152 @@
 package pl.dayfit.mossydevice.service
 
-import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
-import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossydevice.dto.response.InitKeySyncResponseDto
 import pl.dayfit.mossydevice.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossydevice.model.redis.KeySyncRoom
-import pl.dayfit.mossydevice.repository.UserDeviceRepository
 import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossydevice.type.KeySyncRole
 import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
 import pl.dayfit.mossydevice.ws.dto.WebSocketServerMessageDto
 import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
-import tools.jackson.databind.json.JsonMapper
 import java.security.SecureRandom
 import java.util.UUID
 
 @Service
-class KeySyncService (
-    private val deviceRepository: UserDeviceRepository,
+class KeySyncService(
     private val keySyncRoomRepository: KeySyncRoomRepository,
     private val sessionService: WebSocketSessionService,
-    private val jsonMapper: JsonMapper,
-    private val secureRandom: SecureRandom,
+    private val notifier: WebSocketPeerNotifier,
+    private val secureRandom: SecureRandom
 ) {
-    private val logger = org.slf4j.LoggerFactory.getLogger(KeySyncService::class.java)
-
     @Throws(RoleAlreadyInRoomException::class)
-    fun handleDeviceJoinedSync(syncCode: String, webSocketSession: WebSocketSession)
-    {
-        val principal = webSocketSession.attributes["principal"] as DevicePrincipal
+    @Synchronized
+    fun handleDeviceJoinedSync(
+        syncCode: String,
+        principal: DevicePrincipal,
+        signature: String,
+        webSocketSession: WebSocketSession
+    ) {
         val deviceId = principal.deviceId
-        val userId = principal.userId
+        val room = findRoom(principal.userId, syncCode)
 
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
-            .filter { it.code == syncCode }
-            .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
+        val role = if (room.receiverId == deviceId) KeySyncRole.RECEIVER else KeySyncRole.SENDER
 
-        val role: KeySyncRole = if (room.receiverId == deviceId) KeySyncRole.RECEIVER
-            else KeySyncRole.SENDER
-
-        val device = deviceRepository.findById(deviceId)
-            .orElseThrow { NoSuchElementException("No device with given id") }
-
-        if (role == KeySyncRole.SENDER) {
-            if (room.senderPresent) throw RoleAlreadyInRoomException("Sender already in room")
-            room.senderId = deviceId
-            room.senderPresent = true
-            room.senderDh = principal.publicDhKey["x"] as String
-            room.senderIdKey = device.publicKeyId.x.toString()
-        }
-
-        if (role == KeySyncRole.RECEIVER) {
-            if (room.receiverPresent) throw RoleAlreadyInRoomException("Receiver already in room")
-            room.receiverPresent = true
-            room.receiverDh = principal.publicDhKey["x"] as String
-        }
-
-        if (room.senderPresent && room.receiverPresent)
-        {
-            handleBothPeerPresent(room.receiverId, room.senderId!!, room)
+        when (role) {
+            KeySyncRole.SENDER -> {
+                if (room.senderPresent) throw RoleAlreadyInRoomException("Sender already in room")
+                room.senderId = deviceId
+                room.senderPresent = true
+                room.senderDh = principal.publicDhKey.x()
+                room.senderSignature = signature
+                room.senderSignatureAccepted = null
+            }
+            KeySyncRole.RECEIVER -> {
+                if (room.receiverPresent) throw RoleAlreadyInRoomException("Receiver already in room")
+                room.receiverPresent = true
+                room.receiverDh = principal.publicDhKey.x()
+                room.receiverSignature = signature
+                room.receiverSignatureAccepted = null
+            }
         }
 
         webSocketSession.attributes["role"] = role
         keySyncRoomRepository.save(room)
+
+        if (room.senderPresent && room.receiverPresent) notifyPeerDetails(room)
     }
 
-    fun handleBothPeerPresent(receiverId: UUID, senderId: UUID, room: KeySyncRoom)
-    {
-        val receiverSession = sessionService.getSession(receiverId)
+    private fun notifyPeerDetails(room: KeySyncRoom) {
+        val senderId = requireNotNull(room.senderId)
+        val receiverSession = sessionService.getSession(room.receiverId)
         val senderSession = sessionService.getSession(senderId)
-
         if (receiverSession == null || senderSession == null) return
 
         val receiverMessage = WebSocketServerMessageDto.PeerDetails(
-            room.senderIdKey!!,
-            room.senderDh!!,
-            room.vaultId,
+            peerDeviceId = senderId,
+            peerDhKey = requireNotNull(room.senderDh),
+            signature = requireNotNull(room.senderSignature),
+            vaultId = room.vaultId
         )
 
         val senderMessage = WebSocketServerMessageDto.PeerDetails(
-            room.receiverIdKey,
-            room.receiverDh!!,
-            room.vaultId,
+            peerDeviceId = room.receiverId,
+            peerDhKey = requireNotNull(room.receiverDh),
+            signature = requireNotNull(room.receiverSignature),
+            vaultId = room.vaultId
         )
 
-        receiverSession.sendMessage(
-            TextMessage(
-                jsonMapper.writeValueAsString(receiverMessage)
-            )
-        )
-
-        senderSession.sendMessage(
-            TextMessage(
-                jsonMapper.writeValueAsString(senderMessage)
-            )
-        )
+        notifier.send(receiverSession, receiverMessage)
+        notifier.send(senderSession, senderMessage)
     }
 
-    @Throws(IllegalStateException::class, NoSuchElementException::class)
-    fun handleSync(message: WebSocketMessageDto.KeySync, session: WebSocketSession)
-    {
-        val code = session.attributes["syncCode"] as String
-        val principal = session.attributes["principal"] as DevicePrincipal
+    @Synchronized
+    fun handleSignatureStatus(
+        message: WebSocketMessageDto.SignatureStatus,
+        session: WebSocketSession
+    ) {
+        val room = roomFor(session)
 
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(principal.userId)
-            .filter { it.code == code }
-            .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
-
-        val receiverId = room.receiverId
-
-        if (!room.receiverPresent) {
-            logger.debug("Receiver not present in room, ignoring message")
+        if (!message.signatureAccepted) {
+            keySyncRoomRepository.delete(room)
+            notifySignatureStatus(room, false)
             return
         }
 
-        val receiverSession = sessionService.getSession(receiverId)
-            ?: throw IllegalStateException("No session for receiver, but room says that receiver is present")
+        when (session.attributes["role"] as KeySyncRole) {
+            KeySyncRole.RECEIVER -> room.receiverSignatureAccepted = true
+            KeySyncRole.SENDER -> room.senderSignatureAccepted = true
+        }
+        keySyncRoomRepository.save(room)
 
-        receiverSession.sendMessage(
-            TextMessage(
-                jsonMapper.writeValueAsString(message)
-            )
-        )
+        if (room.receiverSignatureAccepted == true && room.senderSignatureAccepted == true) {
+            notifySignatureStatus(room, true)
+        }
     }
 
-    fun handlePeerDisconnected(webSocketSession: WebSocketSession)
-    {
-        val role = webSocketSession.attributes["role"] as KeySyncRole
-        val syncCode = webSocketSession.attributes["syncCode"] as String
-        val devicePrincipal = webSocketSession.attributes["principal"] as DevicePrincipal
+    private fun notifySignatureStatus(room: KeySyncRoom, accepted: Boolean) {
+        val message = WebSocketServerMessageDto.SignatureStatus(accepted)
+        sessionService.getSession(room.receiverId)?.let { notifier.send(it, message) }
+        room.senderId?.let(sessionService::getSession)?.let { notifier.send(it, message) }
+    }
 
-        val room = keySyncRoomRepository.getKeySyncRoomsByUserId(
-            devicePrincipal.userId
-        )
-            .filter { it.code == syncCode }
-            .getOrNull(0) ?: throw NoSuchElementException("No room with given code")
+    @Throws(IllegalStateException::class, NoSuchElementException::class)
+    fun handleSync(message: WebSocketMessageDto.KeySync, session: WebSocketSession) {
+        val room = roomFor(session)
+
+        check(session.attributes["role"] == KeySyncRole.SENDER) {
+            "Only the sender can send key sync data"
+        }
+        check(room.receiverSignatureAccepted == true && room.senderSignatureAccepted == true) {
+            "Both peer signatures must be accepted before key sync"
+        }
+        check(message.vaultId == room.vaultId) {
+            "Key sync message does not belong to this room's vault"
+        }
+
+        val receiverSession = sessionService.getSession(room.receiverId)
+            ?: throw IllegalStateException("No session for receiver, but room says that receiver is present")
+
+        notifier.send(receiverSession, message)
+    }
+
+    @Synchronized
+    fun handlePeerDisconnected(webSocketSession: WebSocketSession) {
+        val role = webSocketSession.attributes["role"] as? KeySyncRole ?: return
+        val room = runCatching { roomFor(webSocketSession) }.getOrNull() ?: return
 
         if (role == KeySyncRole.SENDER) {
             room.senderPresent = false
             room.senderId = null
+            room.senderDh = null
+            room.senderSignature = null
+            room.senderSignatureAccepted = null
         } else {
             room.receiverPresent = false
+            room.receiverDh = null
+            room.receiverSignature = null
+            room.receiverSignatureAccepted = null
         }
 
         keySyncRoomRepository.save(room)
@@ -153,19 +157,13 @@ class KeySyncService (
         deviceId: UUID,
         vaultId: UUID
     ): InitKeySyncResponseDto {
-        val device = deviceRepository.findById(deviceId)
-            .orElseThrow { NoSuchElementException("No device with given id") }
-
-        if (device.userId != userId) throw AccessDeniedException("Device does not belong to user")
-
         val code = generateSyncCode()
         val room = KeySyncRoom(
             roomId = null,
-            code,
-            vaultId,
-            userId,
-            deviceId,
-            receiverIdKey = device.publicKeyId.x.toString(),
+            code = code,
+            vaultId = vaultId,
+            userId = userId,
+            receiverId = deviceId
         )
 
         keySyncRoomRepository.save(room)
@@ -183,4 +181,18 @@ class KeySyncService (
         val randomInt = secureRandom.nextInt(1, 1_000_000)
         return String.format("%06d", randomInt)
     }
+
+    private fun roomFor(session: WebSocketSession): KeySyncRoom {
+        val principal = session.attributes["principal"] as DevicePrincipal
+        val syncCode = session.attributes["syncCode"] as String
+        return findRoom(principal.userId, syncCode)
+    }
+
+    private fun findRoom(userId: UUID, syncCode: String): KeySyncRoom =
+        keySyncRoomRepository.getKeySyncRoomsByUserId(userId)
+            .firstOrNull { it.code == syncCode }
+            ?: throw NoSuchElementException("No room with given code")
+
+    private fun Map<String, Any>.x(): String =
+        this["x"] as? String ?: throw IllegalArgumentException("DH public key is missing x")
 }

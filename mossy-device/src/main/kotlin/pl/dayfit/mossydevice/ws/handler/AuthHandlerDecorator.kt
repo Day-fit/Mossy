@@ -1,80 +1,74 @@
 package pl.dayfit.mossydevice.ws.handler
 
-import com.nimbusds.jose.jwk.OctetKeyPair
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
-import org.bouncycastle.crypto.signers.Ed25519Signer
-import org.springframework.security.authentication.BadCredentialsException
-import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.WebSocketHandlerDecorator
-import pl.dayfit.mossydevice.repository.UserDeviceRepository
 import pl.dayfit.mossydevice.service.KeySyncService
-import pl.dayfit.mossydevice.service.NonceService
+import pl.dayfit.mossydevice.service.WebSocketAuthenticationService
 import pl.dayfit.mossydevice.service.WebSocketSessionService
 import pl.dayfit.mossydevice.type.AuthFrameStatus
 import pl.dayfit.mossydevice.type.MessageType
 import pl.dayfit.mossydevice.ws.dto.AuthFrameResponseDto
 import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
-import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import kotlin.io.encoding.Base64
 
 @Component
 class AuthHandlerDecorator(
     private val jsonMapper: JsonMapper,
     private val webSocketSessionService: WebSocketSessionService,
-    private val userDeviceRepository: UserDeviceRepository,
-    private val nonceService: NonceService,
     private val keySyncService: KeySyncService,
-    private val jwtDecoder: JwtDecoder,
+    private val authenticationService: WebSocketAuthenticationService,
     keySyncHandler: KeySyncHandler
 ) : WebSocketHandlerDecorator(keySyncHandler) {
-    private val pendingSessions = ConcurrentHashMap<String, CompletableFuture<DevicePrincipal>>()
+    private val pendingSessions = ConcurrentHashMap<String, CompletableFuture<WebSocketAuthenticationService.AuthenticatedPeer>>()
     private val logger = org.slf4j.LoggerFactory.getLogger(AuthHandlerDecorator::class.java)
 
-
     override fun afterConnectionEstablished(session: WebSocketSession) {
-        val future = CompletableFuture<DevicePrincipal>()
+        val future = CompletableFuture<WebSocketAuthenticationService.AuthenticatedPeer>()
         pendingSessions[session.id] = future
 
-        future.thenApply {
-            webSocketSessionService.addSession(it.deviceId, session)
-            session.attributes["principal"] = it
+        future.thenAccept { peer ->
+            session.attributes["principal"] = peer.principal
+            webSocketSessionService.addSession(peer.principal.deviceId, session)
+            try {
+                keySyncService.handleDeviceJoinedSync(
+                    syncCode = session.attributes["syncCode"] as String,
+                    principal = peer.principal,
+                    signature = peer.signature,
+                    webSocketSession = session
+                )
+            } catch (_: NoSuchElementException) {
+                webSocketSessionService.removeSession(peer.principal.deviceId)
+                notFound(session, "No room with such join code")
+                return@thenAccept
+            } catch (ex: Exception) {
+                logger.error("Failed to admit authenticated peer to key sync room", ex)
+                webSocketSessionService.removeSession(peer.principal.deviceId)
+                unauthorized(session, "Unable to join key sync room")
+                return@thenAccept
+            }
+
             session.sendMessage(
                 TextMessage(
                     jsonMapper.writeValueAsString(AuthFrameResponseDto(AuthFrameStatus.SUCCEEDED))
                 )
             )
-
-            try {
-                keySyncService.handleDeviceJoinedSync(session.attributes["syncCode"] as String, session)
-                webSocketSessionService.addSession(session.attributes["deviceId"] as UUID, session)
-            } catch (_: NoSuchElementException) {
-                notFound(session, "No room with such join code")
-                session.close()
-                return@thenApply it
-            }
-
             super.afterConnectionEstablished(session)
-            it
         }
             .orTimeout(5, TimeUnit.SECONDS)
-            .whenComplete { _: DevicePrincipal?, _: Throwable? ->
+            .whenComplete { _: Any?, _: Any? ->
                 pendingSessions.remove(session.id)
             }
             .exceptionally { ex ->
-                if (ex.cause is TimeoutException) {
+                if (ex is TimeoutException || ex.cause is TimeoutException) {
                     unauthorized(session, "Authentication timed out")
-                    session.close()
                 }
                 null
             }
@@ -91,40 +85,27 @@ class AuthHandlerDecorator(
             return
         }
 
-        val json = jsonMapper.readTree(text)
-        val type = runCatching { MessageType.valueOf(json.get("type").asString()) }
-            .getOrNull()
-
-        if (type != MessageType.AUTH_FRAME) {
+        val dto = runCatching {
+            val json = jsonMapper.readTree(text)
+            check(MessageType.valueOf(json.get("type").asString()) == MessageType.AUTH_FRAME)
+            jsonMapper.readValue<WebSocketMessageDto.AuthFrame>(text)
+        }.getOrElse {
             unauthorized(session)
             return
         }
 
-        handleAuthFrame(session, jsonMapper.readValue<WebSocketMessageDto.AuthFrame>(text))
+        handleAuthFrame(session, dto)
     }
 
     private fun handleAuthFrame(session: WebSocketSession, dto: WebSocketMessageDto.AuthFrame) {
         runCatching {
-            val jwt = jwtDecoder.decode(dto.accessToken)
-
-            DevicePrincipal(
-                UUID.fromString(jwt.getClaimAsString("device_id")),
-                UUID.fromString(jwt.subject),
-                dto.jwkPublicDh
-            )
-        }.onSuccess { principal ->
-            pendingSessions[session.id]?.complete(principal)
+            authenticationService.authenticate(dto)
+        }.onSuccess { peer ->
+            pendingSessions[session.id]?.complete(peer)
         }.onFailure { ex ->
-            when (ex) {
-                is BadCredentialsException -> invalidSignature(session)
-                is NoSuchElementException -> notFound(session, ex.message)
-
-                else -> {
-                    logger.error("Unexpected exception during authentication", ex)
-                    unauthorized(session)
-                    pendingSessions.remove(session.id)
-                }
-            }
+            logger.debug("WebSocket authentication failed", ex)
+            pendingSessions.remove(session.id)?.cancel(false)
+            unauthorized(session)
         }
     }
 
@@ -156,21 +137,9 @@ class AuthHandlerDecorator(
         session.close()
     }
 
-    private fun invalidSignature(session: WebSocketSession) {
-        session.sendMessage(
-            TextMessage(
-                jsonMapper.writeValueAsString(
-                    AuthFrameResponseDto(
-                        status = AuthFrameStatus.INVALID_SIGNATURE,
-                        message = "Invalid signature"
-                    )
-                )
-            )
-        )
-    }
-
     override fun afterConnectionClosed(session: WebSocketSession, status: org.springframework.web.socket.CloseStatus) {
         if (!isAuthenticated(session)) {
+            pendingSessions.remove(session.id)
             return
         }
 
@@ -179,31 +148,4 @@ class AuthHandlerDecorator(
 
     private fun isAuthenticated(session: WebSocketSession) =
         session.attributes["principal"] != null
-
-    private fun verifySignatureAndPayload(authFrame: WebSocketMessageDto.AuthFrame) {
-        val deviceId = authFrame.deviceId
-
-        val expectedNonce = nonceService.getAndConsumeNonce(deviceId)
-        val device = userDeviceRepository.findById(deviceId)
-            .orElseThrow { NoSuchElementException("No device with id: $deviceId") }
-
-        val dh = OctetKeyPair.parse(authFrame.jwkPublicDh)
-        val expectedPayload = dh.x.decode() + expectedNonce
-
-        val signatureBytes =
-            runCatching { Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL).decode(authFrame.signature) }
-                .getOrElse { throw BadCredentialsException("Invalid signature") }
-
-        val publicKeyBytes = device.publicKeyId.toPublicJWK().x.decode()
-        val params = Ed25519PublicKeyParameters(publicKeyBytes, 0)
-
-        val signer = Ed25519Signer().apply {
-            init(false, params)
-            update(expectedPayload, 0, expectedPayload.size)
-        }
-
-        if (!signer.verifySignature(signatureBytes)) {
-            throw BadCredentialsException("Invalid token")
-        }
-    }
 }
