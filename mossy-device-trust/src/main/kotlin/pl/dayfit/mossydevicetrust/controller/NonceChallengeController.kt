@@ -33,11 +33,13 @@ class NonceChallengeController(
 
     @PostMapping("/challenge")
     fun checkChallenge(
-        @RequestBody requestDto: NonceChallengeRequestDto
+        @RequestBody requestDto: NonceChallengeRequestDto,
+        @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<NonceChallengeResponseDto> {
         return ResponseEntity.ok(
             nonceChallengeService.isChallengeValid(
                 requestDto,
+                UUID.fromString(jwt.subject)
             )
         )
     }

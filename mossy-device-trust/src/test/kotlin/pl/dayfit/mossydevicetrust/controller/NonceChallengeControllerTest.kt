@@ -67,15 +67,16 @@ class NonceChallengeControllerTest(
 
     @Test
     fun `Challenge returns challenge response`() {
+        val deviceId = UUID.randomUUID()
         val requestDto = NonceChallengeRequestDto(
             UUID.randomUUID(),
             "Signature is validated in service layer",
             "Windows",
             "96.3.61.11",
-            UUID.randomUUID()
+            deviceId
         )
 
-        whenever(nonceChallengeService.isChallengeValid(any()))
+        whenever(nonceChallengeService.isChallengeValid(any(), any()))
             .thenReturn(
                 NonceChallengeResponseDto(
                     success = true,
@@ -85,6 +86,7 @@ class NonceChallengeControllerTest(
 
         mockMvc.perform(
             post("/nonce/challenge")
+                .with(jwtPrincipal(deviceId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(requestDto))
         ).andExpect(status().isOk)
@@ -94,15 +96,16 @@ class NonceChallengeControllerTest(
 
     @Test
     fun `Challenge returns challenge response when X-Device-Id header is missing`() {
+        val deviceId = UUID.randomUUID()
         val requestDto = NonceChallengeRequestDto(
             UUID.randomUUID(),
             "Signature is validated in service layer",
             "MacOS",
             "96.3.61.11",
-            UUID.randomUUID()
+            deviceId
         )
 
-        whenever(nonceChallengeService.isChallengeValid(any()))
+        whenever(nonceChallengeService.isChallengeValid(any(), any()))
             .thenReturn(
                 NonceChallengeResponseDto(
                     success = false,
@@ -112,6 +115,7 @@ class NonceChallengeControllerTest(
 
         mockMvc.perform(
             post("/nonce/challenge")
+                .with (jwtPrincipal(deviceId))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(jsonMapper.writeValueAsString(requestDto))
         ).andExpect(status().isOk)

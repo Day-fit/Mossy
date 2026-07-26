@@ -56,7 +56,8 @@ class NonceChallengeService(
     }
 
     fun isChallengeValid(
-        request: NonceChallengeRequestDto
+        request: NonceChallengeRequestDto,
+        userId: UUID
     ): NonceChallengeResponseDto {
         val deviceId = request.deviceId
 
@@ -75,7 +76,8 @@ class NonceChallengeService(
             throw NoSuchElementException("Challenge $challengeId for device $deviceId doesn't exist")
         }
 
-        if (challengeNonce.issuerDeviceId != deviceId) {
+        val issuerMismatch = userId != deviceInfo.userId || challengeNonce.issuerDeviceId != deviceId
+        if (issuerMismatch) {
             return NonceChallengeResponseDto(
                 success = false,
                 alertSent = false,
