@@ -59,4 +59,19 @@ class DeviceController(
             )
         )
     }
+
+    @GetMapping("/device/{deviceId}/identity-key")
+    fun getIdentityKey(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable deviceId: UUID
+    ): ResponseEntity<Map<String, Any>> {
+        val key = deviceInfoService.getIdentityKey(
+            UUID.fromString(jwt.subject),
+            deviceId
+        )
+
+        return ResponseEntity.ok(
+            key.toJSONObject()
+        )
+    }
 }

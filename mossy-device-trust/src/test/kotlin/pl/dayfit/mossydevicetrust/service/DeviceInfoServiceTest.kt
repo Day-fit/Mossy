@@ -265,4 +265,72 @@ class DeviceInfoServiceTest {
             deviceInfoService.getIsBlocked(deviceId)
         }
     }
+
+    @Test
+    fun `get identity key returns correct identity key`() {
+        val userId = UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b")
+        val deviceId = UUID.fromString("9756dc28-c399-40f5-9145-ee40833404aa")
+        val deviceInfo = DeviceInfo(
+            deviceId,
+            userId,
+            generateKeyPair().toPublicJWK(),
+            "Linux",
+            Instant.now(),
+            false,
+        )
+
+        whenever {
+            deviceInfoRepository.findById(deviceId)
+        }.thenReturn(
+            Optional.of(deviceInfo)
+        )
+
+        val result = deviceInfoService.getIdentityKey(userId, deviceId)
+
+        assert(result == deviceInfo.publicIdentityKey)
+        assert(!result.isPrivate)
+    }
+
+    @Test
+    fun `get identity key fails when device does not exist`() {
+        whenever {
+            deviceInfoRepository.findById(any())
+        }.thenReturn(
+            Optional.empty()
+        )
+
+        assertThrows <NoSuchElementException> {
+            deviceInfoService.getIdentityKey(
+                userId = UUID.randomUUID(),
+                targetDeviceId = UUID.randomUUID()
+            )
+        }
+    }
+
+    @Test
+    fun `get identity key fails when device does not belong to user`() {
+        val userId = UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b")
+        val otherUserId = UUID.fromString("2acc1ac6-a803-4c50-8645-39fa583aab88")
+
+        val deviceId = UUID.fromString("9756dc28-c399-40f5-9145-ee40833404aa")
+
+        val deviceInfo = DeviceInfo(
+            otherUserId,
+            userId,
+            generateKeyPair().toPublicJWK(),
+            "Linux",
+            Instant.now(),
+            false,
+        )
+
+        whenever {
+            deviceInfoRepository.findById(deviceId)
+        }.thenReturn(
+            Optional.of(deviceInfo)
+        )
+
+        assertThrows<AccessDeniedException> {
+            deviceInfoService.getIdentityKey(otherUserId, deviceId)
+        }
+    }
 }

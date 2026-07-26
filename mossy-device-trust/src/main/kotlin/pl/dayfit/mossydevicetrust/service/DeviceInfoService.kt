@@ -78,4 +78,16 @@ class DeviceInfoService(
 
         return deviceInfo.blocked
     }
+
+    fun getIdentityKey(userId: UUID, targetDeviceId: UUID): OctetKeyPair {
+        val deviceInfo = deviceInfoRepository.findById(targetDeviceId)
+            .orElseThrow { NoSuchElementException("No device found with id $targetDeviceId") }
+
+        if (deviceInfo.userId != userId) {
+            throw AccessDeniedException("You are not owner of this device")
+        }
+
+        return deviceInfo.publicIdentityKey
+            .toPublicJWK()
+    }
 }

@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.OctetKeyPair
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketMessage
@@ -34,6 +35,7 @@ class AuthHandlerDecorator(
     private val userDeviceRepository: UserDeviceRepository,
     private val nonceService: NonceService,
     private val keySyncService: KeySyncService,
+    private val jwtDecoder: JwtDecoder,
     keySyncHandler: KeySyncHandler
 ) : WebSocketHandlerDecorator(keySyncHandler) {
     private val pendingSessions = ConcurrentHashMap<String, CompletableFuture<DevicePrincipal>>()
@@ -99,19 +101,15 @@ class AuthHandlerDecorator(
         }
 
         handleAuthFrame(session, jsonMapper.readValue<WebSocketMessageDto.AuthFrame>(text))
-
     }
 
     private fun handleAuthFrame(session: WebSocketSession, dto: WebSocketMessageDto.AuthFrame) {
         runCatching {
-            verifySignatureAndPayload(dto)
-
-            val device = userDeviceRepository.findById(dto.deviceId)
-                .orElseThrow()
+            val jwt = jwtDecoder.decode(dto.accessToken)
 
             DevicePrincipal(
-                dto.deviceId,
-                device.userId,
+                UUID.fromString(jwt.getClaimAsString("device_id")),
+                UUID.fromString(jwt.subject),
                 dto.jwkPublicDh
             )
         }.onSuccess { principal ->

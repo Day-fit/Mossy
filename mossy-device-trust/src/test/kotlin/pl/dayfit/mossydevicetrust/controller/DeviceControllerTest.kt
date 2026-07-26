@@ -1,5 +1,7 @@
 package pl.dayfit.mossydevicetrust.controller
 
+import com.nimbusds.jose.jwk.Curve
+import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
@@ -246,10 +248,68 @@ class DeviceControllerTest(
             .andExpect(jsonPath("$.message").value("No device found with id $deviceId"))
     }
 
-    private fun jwtPrincipal(deviceId: UUID): RequestPostProcessor = RequestPostProcessor { request ->
+    @Test
+    fun `get identity key returns identity key`() {
+        val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+        val userId = UUID.fromString("2acc1ac6-a803-4c50-8645-39fa583aab88")
+
+        val expectedKey = OctetKeyPairGenerator(Curve.Ed25519)
+            .generate()
+            .toPublicJWK()
+
+        whenever {
+            deviceInfoService.getIdentityKey(userId, deviceId)
+        }.thenReturn(
+            expectedKey
+        )
+
+        mockMvc.perform(
+            get("/device/$deviceId/identity-key")
+                .with(jwtPrincipal(deviceId, userId))
+        ).andExpect(status().isOk)
+            .andExpect { jsonPath("$").value(
+                expectedKey.toJSONObject()
+            ) }
+    }
+
+    @Test
+    fun `get identity key returns not found when device does not exist`() {
+        val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+        val userId = UUID.fromString("2acc1ac6-a803-4c50-8645-39fa583aab88")
+
+        whenever {
+            deviceInfoService.getIdentityKey(userId, deviceId)
+        }.thenThrow(
+            NoSuchElementException("No device found with id $deviceId")
+        )
+
+        mockMvc.perform(
+            get("/device/$deviceId/identity-key")
+                .with(jwtPrincipal(deviceId, userId))
+        ).andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `get identity key returns not found when device does not belong to user`() {
+        val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
+        val userId = UUID.fromString("2acc1ac6-a803-4c50-8645-39fa583aab88")
+
+        whenever {
+            deviceInfoService.getIdentityKey(userId, deviceId)
+        }.thenThrow(
+            AccessDeniedException("You are not owner of this device")
+        )
+
+        mockMvc.perform(
+            get("/device/$deviceId/identity-key")
+                .with(jwtPrincipal(deviceId, userId))
+        ).andExpect(status().isForbidden)
+    }
+
+    private fun jwtPrincipal(deviceId: UUID, userId: UUID = UUID.randomUUID()): RequestPostProcessor = RequestPostProcessor { request ->
         val jwt = Jwt.withTokenValue("token")
             .header("alg", "none")
-            .subject(UUID.randomUUID().toString())
+            .subject(userId.toString())
             .claim("device_id", deviceId.toString())
             .build()
 
