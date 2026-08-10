@@ -11,6 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
+import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.time.Instant
 import java.util.UUID
@@ -38,7 +39,11 @@ class JwtManagementServiceTest {
         val deviceId = UUID.randomUUID()
         val jwt: Jwt = mock()
         val user = UserDetailsImpl("alice", "password", userId, "alice@example.com", listOf(SimpleGrantedAuthority("USER")))
-        val expectedTokens = "access-token" to "new-refresh-token"
+        val expectedTokens = JwtGenerationService.TokenPairDto(
+            accessToken = "access-token",
+            accessTokenType = AccessTokenType.ACCESS_TOKEN,
+            refreshToken = "new-refresh-token",
+        )
 
         whenever(deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)).thenReturn(false)
         whenever(revokedJwtRepository.existsByToken(refreshToken)).thenReturn(false)

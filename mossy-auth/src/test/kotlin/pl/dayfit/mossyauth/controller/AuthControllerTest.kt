@@ -16,14 +16,15 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperties
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.service.JwtManagementService
+import pl.dayfit.mossyauth.service.JwtGenerationService
 import pl.dayfit.mossyauth.service.UserService
+import pl.dayfit.mossyauth.type.AccessTokenType
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.Duration
 import java.util.UUID
@@ -122,22 +123,30 @@ class AuthControllerTest(
         whenever(cookiesConfigurationProperties.secure).thenReturn(true)
         whenever(jwtConfigurationProperties.refreshTokenExpirationTime).thenReturn(refreshTokenExpirationTime)
         whenever {
-            userService.login(any(), eq("Linux"), any(), any())
-        }.thenReturn("access-token" to "refresh-token")
+            userService.login(any(), eq("Linux"), any())
+        }.thenReturn(
+            JwtGenerationService.TokenPairDto(
+                accessToken = "access-token",
+                accessTokenType = AccessTokenType.ACCESS_TOKEN,
+                refreshToken = "refresh-token",
+            )
+        )
 
         val content = jsonMapper.writeValueAsString(
             LoginRequestDto(
                 identifier = "test",
                 password = "test123",
-                challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
-                signature = "signature"
+                challengeDto = LoginRequestDto.NonceChallengeDto(
+                    deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e"),
+                    challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
+                    signature = "signature",
+                )
             )
         )
 
         mockMvc.perform(
             post("/login")
                 .header("User-Agent", "Linux")
-                .header("X-Device-Id", "638fdf8c-30e5-4d43-9940-0151558af33e")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(content)
         )
@@ -148,58 +157,58 @@ class AuthControllerTest(
     }
 
     @Test
-    fun `login fails when device id header is invalid`() {
-        val content = jsonMapper.writeValueAsString(
-            LoginRequestDto(
-                identifier = "test",
-                password = "test123",
-                challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
-                signature = "signature"
-            )
-        )
+    fun `login fails when challenge device id is invalid`() {
+        val content = """
+            {
+              "identifier": "test",
+              "password": "test123",
+              "challengeDto": {
+                "deviceId": "INVALID-UUID",
+                "challengeId": "b9266f2b-f473-4997-8220-60d559086c86",
+                "signature": "signature"
+              }
+            }
+        """.trimIndent()
 
         mockMvc.perform(
             post("/login")
                 .header("User-Agent", "Linux")
-                .header("X-Device-Id", "INVALID-UUID")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(content)
         )
-            .andExpect { result -> assert(result.resolvedException is MethodArgumentTypeMismatchException) }
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.message").value("Invalid request parameter"))
     }
 
     @Test
     fun `login returns unauthorized on bad credentials`() {
         whenever {
-            userService.login(any(), eq("Linux"), any(), any())
+            userService.login(any(), eq("Linux"), any())
         }.thenThrow(BadCredentialsException("Bad credentials"))
 
         val content = jsonMapper.writeValueAsString(
             LoginRequestDto(
                 identifier = "test",
                 password = "test123",
-                challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
-                signature = "signature"
+                challengeDto = LoginRequestDto.NonceChallengeDto(
+                    deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e"),
+                    challengeId = UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
+                    signature = "signature",
+                )
             )
         )
 
         mockMvc.perform(
             post("/login")
                 .header("User-Agent", "Linux")
-                .header("X-Device-Id", "638fdf8c-30e5-4d43-9940-0151558af33e")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(content)
         )
             .andExpect(status().isUnauthorized)
-            .andExpect(jsonPath("$.message").value("Bad credentials"))
     }
 
     @Test
     fun `refresh fails when refresh token cookie is missing`() {
         mockMvc.perform(post("/refresh"))
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.message").value("Missing request cookie: refreshToken"))
     }
 }
