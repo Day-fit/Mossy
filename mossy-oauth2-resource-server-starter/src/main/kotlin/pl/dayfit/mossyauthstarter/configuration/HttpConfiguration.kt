@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
 import org.springframework.web.cors.CorsConfiguration
@@ -28,13 +29,20 @@ class HttpConfiguration {
      */
     @Bean
     fun jwtAuthenticationConverter(): JwtAuthenticationConverter {
-        val converter = JwtGrantedAuthoritiesConverter().apply {
+        val scopesConverter = JwtGrantedAuthoritiesConverter()
+
+        val rolesConverter = JwtGrantedAuthoritiesConverter().apply {
             setAuthoritiesClaimName("roles")
             setAuthorityPrefix("ROLE_")
         }
 
         return JwtAuthenticationConverter().apply {
-            setJwtGrantedAuthoritiesConverter(converter)
+            setJwtGrantedAuthoritiesConverter(
+                DelegatingJwtGrantedAuthoritiesConverter(
+                    scopesConverter,
+                    rolesConverter,
+                )
+            )
         }
     }
 

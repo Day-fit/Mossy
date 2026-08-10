@@ -9,8 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import pl.dayfit.mossydevicetrust.service.NonceChallengeService
+import pl.dayfit.mossydevicetrust.type.NonceChallengeTarget
 import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
-import pl.dayfit.mossydevicetrustshared.dto.response.GenerateNonceResponseDto
+import pl.dayfit.mossydevicetrustshared.dto.response.GenerateChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import java.util.UUID
 
@@ -25,9 +26,10 @@ class NonceChallengeController(
     @GetMapping
     fun generateChallenge(
         @AuthenticationPrincipal jwt: Jwt
-    ): ResponseEntity<GenerateNonceResponseDto> {
+    ): ResponseEntity<GenerateChallengeResponseDto> {
         return ResponseEntity.ok(nonceChallengeService.generateNonce(
-            UUID.fromString(jwt.getClaimAsString("device_id"))
+            jwt.getClaimAsString("device_id") ?: throw IllegalStateException("device_id claim is missing"),
+            NonceChallengeTarget.EXISTING_DEVICE
         ))
     }
 
@@ -37,9 +39,11 @@ class NonceChallengeController(
         @AuthenticationPrincipal jwt: Jwt
     ): ResponseEntity<NonceChallengeResponseDto> {
         return ResponseEntity.ok(
-            nonceChallengeService.isChallengeValid(
-                requestDto,
-                UUID.fromString(jwt.subject)
+            nonceChallengeService.isLoginChallengeValid(
+                requestDto.challengeId,
+                requestDto.signature,
+                requestDto.deviceId,
+                UUID.fromString(jwt.subject),
             )
         )
     }

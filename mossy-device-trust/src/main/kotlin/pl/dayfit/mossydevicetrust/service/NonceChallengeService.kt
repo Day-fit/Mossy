@@ -1,13 +1,14 @@
 package pl.dayfit.mossydevicetrust.service
 
+import com.nimbusds.jose.jwk.OctetKeyPair
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.stereotype.Service
 import pl.dayfit.mossydevicetrust.model.NonceChallenge
 import pl.dayfit.mossydevicetrust.repository.DeviceInfoRepository
-import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
-import pl.dayfit.mossydevicetrustshared.dto.response.GenerateNonceResponseDto
+import pl.dayfit.mossydevicetrust.type.NonceChallengeTarget
+import pl.dayfit.mossydevicetrustshared.dto.response.GenerateChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import java.security.SecureRandom
 import java.time.Duration
@@ -22,12 +23,34 @@ class NonceChallengeService(
     private val redisTemplate: RedisTemplate<UUID, NonceChallenge>
 ) {
     companion object {
-        val EXPIRES_IN: Duration = Duration.ofMinutes(5)
+        val EXPIRES_IN_FOR_EXISTING_DEVICE: Duration = Duration.ofMinutes(5)
+        val EXPIRES_IN_FOR_DEVICE_ENROLLMENT: Duration = Duration.ofSeconds(30)
     }
 
-    fun generateNonce(deviceId: UUID): GenerateNonceResponseDto {
+    /**
+     * Creates a one-time challenge bound to either an existing device or a pending enrollment.
+     *
+     * [targetId] is deliberately a [String] because the two target types use different identifier
+     * representations: pass an existing device's UUID in its canonical string form for
+     * [NonceChallengeTarget.EXISTING_DEVICE], or pass the enrollment ID directly for
+     * [NonceChallengeTarget.DEVICE_ENROLLMENT]. [targetType] records how the identifier must be
+     * interpreted when the signed challenge is later validated.
+     *
+     * The generated 16-byte nonce and its target binding are stored in Redis under a separate,
+     * random challenge ID. Existing-device challenges expire after five minutes, while enrollment
+     * challenges expire after thirty seconds. The returned nonce is URL-safe Base64 without
+     * padding and is accompanied by the challenge ID and its expiration timestamp.
+     *
+     * @param targetId identifier of the device or enrollment that is allowed to answer the challenge
+     * @param targetType identifies the kind of [targetId] and selects the challenge lifetime
+     * @return the encoded nonce, its expiration time, and the ID used to submit the response
+     */
+    fun generateNonce(targetId: String, targetType: NonceChallengeTarget): GenerateChallengeResponseDto {
         val nonce = ByteArray(16)
         secureRandom.nextBytes(nonce)
+
+        val expiresIn = if(targetType == NonceChallengeTarget.EXISTING_DEVICE) EXPIRES_IN_FOR_EXISTING_DEVICE
+        else EXPIRES_IN_FOR_DEVICE_ENROLLMENT
 
         val challengeId = UUID.randomUUID()
         redisTemplate.opsForValue()
@@ -35,9 +58,11 @@ class NonceChallengeService(
                 challengeId,
                 NonceChallenge(
                     nonce,
-                    deviceId
+                    targetId,
+                    targetType,
                 ),
-                EXPIRES_IN
+
+                expiresIn,
             )
 
         val encodedNonce = Base64.UrlSafe.withPadding(
@@ -47,41 +72,82 @@ class NonceChallengeService(
             nonce
         )
 
-        return GenerateNonceResponseDto(
+        return GenerateChallengeResponseDto(
             encodedNonce,
             Instant.now()
-                .plus(EXPIRES_IN),
+                .plus(expiresIn),
             challengeId
         )
     }
 
-    fun isChallengeValid(
-        request: NonceChallengeRequestDto,
-        userId: UUID
+    fun isEnrollmentChallengeValid(
+        challengeId: UUID,
+        signature: String,
+        enrollmentId: String,
+        publicIdentityKey: OctetKeyPair,
+    ): Boolean {
+        return isChallengeValid(
+            challengeId,
+            signature,
+            publicIdentityKey,
+            enrollmentId,
+            NonceChallengeTarget.DEVICE_ENROLLMENT
+        )
+    }
+
+    fun isLoginChallengeValid(
+        challengeId: UUID,
+        signature: String,
+        deviceId: UUID,
+        userId: UUID,
     ): NonceChallengeResponseDto {
-        val deviceId = request.deviceId
 
         val deviceInfo = repository.findById(deviceId)
             .orElseThrow { NoSuchElementException("Device $deviceId doesn't exist") }
 
-        val params = Ed25519PublicKeyParameters(
-            deviceInfo.publicIdentityKey.decodedX
-        )
-
-        val challengeId = request.challengeId
-        val challengeNonce = redisTemplate.opsForValue()
-            .get(challengeId)
-
-        if (challengeNonce == null) {
-            throw NoSuchElementException("Challenge $challengeId for device $deviceId doesn't exist")
-        }
-
-        val issuerMismatch = userId != deviceInfo.userId || challengeNonce.issuerDeviceId != deviceId
-        if (issuerMismatch) {
+        if (deviceInfo.userId != userId) {
             return NonceChallengeResponseDto(
                 success = false,
                 alertSent = false,
             )
+        }
+
+        //TODO: Implement risk engine!
+        return NonceChallengeResponseDto(
+            success = isChallengeValid(
+                challengeId,
+                signature,
+                deviceInfo.publicIdentityKey,
+                deviceId.toString(),
+                NonceChallengeTarget.EXISTING_DEVICE,
+            ),
+            alertSent = false,
+        )
+    }
+
+    private fun isChallengeValid(
+        challengeId: UUID,
+        signature: String,
+        publicIdentityKey: OctetKeyPair,
+        targetId: String,
+        expectedTargetType: NonceChallengeTarget
+    ): Boolean {
+
+        val params = Ed25519PublicKeyParameters(
+            publicIdentityKey.decodedX
+        )
+
+        val challengeNonce = redisTemplate.opsForValue()
+            .getAndDelete(challengeId)
+
+        if (challengeNonce == null) {
+            throw NoSuchElementException("Challenge $challengeId for target $targetId doesn't exist")
+        }
+
+        val issuerMismatch = challengeNonce.targetId != targetId
+
+        if (issuerMismatch || challengeNonce.target != expectedTargetType) {
+            return false
         }
 
         val expectedNonce = challengeNonce.nonce
@@ -95,13 +161,9 @@ class NonceChallengeService(
             Base64.PaddingOption
                 .ABSENT_OPTIONAL
         ).decode(
-            request.signature
+            signature
         )
 
-        //TODO: Implement risk engine!
-        return NonceChallengeResponseDto(
-            success = signer.verifySignature(decodedNonce),
-            alertSent = false,
-        )
+        return signer.verifySignature(decodedNonce)
     }
 }

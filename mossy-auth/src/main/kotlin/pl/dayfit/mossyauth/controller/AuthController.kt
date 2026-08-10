@@ -22,8 +22,8 @@ import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
 import pl.dayfit.mossyauth.dto.response.LoginResponseDto
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.UserService
+import pl.dayfit.mossyauth.type.AccessTokenType
 import java.time.Duration
-import java.util.UUID
 
 @RestController
 class AuthController(
@@ -32,6 +32,10 @@ class AuthController(
     private val jwtConfigurationProperties: JwtConfigurationProperties,
     private val jwtManagementService: JwtManagementService
 ) {
+    companion object {
+        private const val REFRESH_TOKEN_NAME = "refreshToken"
+    }
+
     @PostMapping("/register")
     fun handleRegister(
         @RequestBody @Valid requestDto: RegisterUserRequestDto,
@@ -58,18 +62,29 @@ class AuthController(
     fun handleLogin(
         @RequestBody @Valid loginDto: LoginRequestDto,
         @RequestHeader("User-Agent") userAgent: String,
-        @RequestHeader("X-Device-Id") deviceId: UUID,
         httpServletRequest: HttpServletRequest
     ): ResponseEntity<LoginResponseDto>
     {
-        val tokens: Pair<String, String> = userService.login(
+        val tokens = userService.login(
             loginDto,
             userAgent,
             httpServletRequest.remoteAddr,
-            deviceId
         )
 
-        val refreshTokenCookie = ResponseCookie.from("refreshToken", tokens.second)
+        check(
+            (tokens.refreshToken == null && tokens.accessTokenType == AccessTokenType.DEVICE_ENROLLMENT_TOKEN)
+                    ||
+            (tokens.refreshToken != null && tokens.accessTokenType == AccessTokenType.ACCESS_TOKEN)
+        )
+
+        val response = LoginResponseDto(
+            tokens.accessToken,
+            tokens.accessTokenType
+        )
+
+        tokens.refreshToken ?: return ResponseEntity.ok(response)
+
+        val refreshTokenCookie = ResponseCookie.from(REFRESH_TOKEN_NAME, tokens.refreshToken)
             .path("/")
             .sameSite("Lax")
             .secure(cookiesConfigurationProperties.secure)
@@ -82,9 +97,7 @@ class AuthController(
             .headers {
                 it.set(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
             }
-            .body(
-                LoginResponseDto(tokens.first),
-            )
+            .body(response)
     }
 
     /**
@@ -95,7 +108,7 @@ class AuthController(
         @CookieValue("refreshToken") refreshToken: String,
     ): ResponseEntity<GenericServerResponseDto>
     {
-        val refreshTokenCookie = ResponseCookie.from("refreshToken", "")
+        val refreshTokenCookie = ResponseCookie.from(REFRESH_TOKEN_NAME, "")
             .path("/")
             .sameSite("Lax")
             .secure(cookiesConfigurationProperties.secure)
@@ -115,10 +128,10 @@ class AuthController(
         @CookieValue("refreshToken") refreshToken: String,
     ): ResponseEntity<LoginResponseDto>
     {
-        val pairOfTokens = jwtManagementService.handleTokenRefreshment(refreshToken)
+        val tokens = jwtManagementService.handleTokenRefreshment(refreshToken)
         jwtManagementService.revokeToken(refreshToken) //Revoke after refreshment
 
-        val refreshTokenCookie = ResponseCookie.from("refreshToken", pairOfTokens.second)
+        val refreshTokenCookie = ResponseCookie.from(REFRESH_TOKEN_NAME, tokens.refreshToken)
             .path("/")
             .sameSite("Lax")
             .secure(cookiesConfigurationProperties.secure)
@@ -129,7 +142,9 @@ class AuthController(
         return ResponseEntity.ok()
             .headers {
                 it.set(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
-            }.body(LoginResponseDto(pairOfTokens.first))
+            }.body(
+                LoginResponseDto(tokens.accessToken, tokens.accessTokenType)
+            )
     }
 
     @GetMapping("/status")

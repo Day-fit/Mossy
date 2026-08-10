@@ -3,6 +3,8 @@ package pl.dayfit.mossydevicetrust.controller
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.mock
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
@@ -20,7 +22,7 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.core.context.SecurityContextHolder
 import pl.dayfit.mossydevicetrust.service.NonceChallengeService
 import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
-import pl.dayfit.mossydevicetrustshared.dto.response.GenerateNonceResponseDto
+import pl.dayfit.mossydevicetrustshared.dto.response.GenerateChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.Duration
@@ -28,6 +30,7 @@ import java.time.Instant
 import java.util.*
 import kotlin.test.assertIs
 import org.springframework.test.web.servlet.request.RequestPostProcessor
+import pl.dayfit.mossydevicetrust.type.NonceChallengeTarget
 
 @WebMvcTest(NonceChallengeController::class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -41,12 +44,13 @@ class NonceChallengeControllerTest(
     @Test
     fun `Generation of nonce returns correct response`() {
         val deviceId = UUID.randomUUID()
+        val deviceIdString = deviceId.toString()
         val challengeId = UUID.randomUUID()
         val nonce = "26OGBGX2FbwLjCEqjVudqg"
 
-        whenever { nonceChallengeService.generateNonce(deviceId) }
+        whenever { nonceChallengeService.generateNonce(deviceIdString, NonceChallengeTarget.EXISTING_DEVICE) }
             .thenReturn(
-                GenerateNonceResponseDto(
+                GenerateChallengeResponseDto(
                     nonce,
                     Instant.now().plus(Duration.ofMinutes(5)),
                     challengeId
@@ -76,7 +80,7 @@ class NonceChallengeControllerTest(
             deviceId
         )
 
-        whenever(nonceChallengeService.isChallengeValid(any(), any()))
+        whenever(nonceChallengeService.isLoginChallengeValid(any(), any(), any(), any()))
             .thenReturn(
                 NonceChallengeResponseDto(
                     success = true,
@@ -92,6 +96,13 @@ class NonceChallengeControllerTest(
         ).andExpect(status().isOk)
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.alertSent").value(false))
+
+        verify(nonceChallengeService).isLoginChallengeValid(
+            eq(requestDto.challengeId),
+            eq(requestDto.signature),
+            eq(requestDto.deviceId),
+            any(),
+        )
     }
 
     @Test
@@ -105,7 +116,7 @@ class NonceChallengeControllerTest(
             deviceId
         )
 
-        whenever(nonceChallengeService.isChallengeValid(any(), any()))
+        whenever(nonceChallengeService.isLoginChallengeValid(any(), any(), any(), any()))
             .thenReturn(
                 NonceChallengeResponseDto(
                     success = false,

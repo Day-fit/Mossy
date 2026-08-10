@@ -17,8 +17,8 @@ import org.mockito.kotlin.whenever
 import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestTemplate
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
-import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
+import pl.dayfit.mossydevicetrustshared.dto.request.VerifyNonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GetIsBlockedResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.RegisterDeviceResponseDto
@@ -41,9 +41,9 @@ class DeviceTrustIntegrationServiceTest {
             .toPublicJWK()
             .toJSONObject()
         const val VALID_TRUST_SERVICE_HOST = "https://mossy.dayfit.pl"
-        const val VALID_REGISTER_DEVICE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/device"
-        const val VALID_CHECK_CHALLENGE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/nonce/challenge"
-        const val VALID_CHECK_DEVICE_BLOCK_STATUS_URL = "https://mossy.dayfit.pl/api/v1/device-trust/device/{deviceId}/block"
+        const val VALID_REGISTER_DEVICE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/device"
+        const val VALID_CHECK_CHALLENGE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/nonce/challenge"
+        const val VALID_CHECK_DEVICE_BLOCK_STATUS_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/device/{deviceId}/block"
     }
     
     @Test
@@ -89,7 +89,7 @@ class DeviceTrustIntegrationServiceTest {
     fun `register device throws exception on non-200 response`() {
         whenever(
             restTemplate.postForEntity(
-                eq("https://mossy.dayfit.pl/api/v1/device-trust/device"),
+                eq(VALID_REGISTER_DEVICE_URL),
                 any<RegisterDeviceRequestDto>(),
                 eq(RegisterDeviceResponseDto::class.java)
             )
@@ -117,7 +117,7 @@ class DeviceTrustIntegrationServiceTest {
         whenever(
             restTemplate.postForEntity(
                 eq(VALID_CHECK_CHALLENGE_URL),
-                any<NonceChallengeRequestDto>(),
+                any<VerifyNonceChallengeRequestDto>(),
                 eq(NonceChallengeResponseDto::class.java)
             )
         ).thenReturn(
@@ -130,6 +130,7 @@ class DeviceTrustIntegrationServiceTest {
         )
 
         val response = deviceTrustIntegrationService.checkChallenge(
+            validUserId,
             challengeId,
             signature,
             "Linux",
@@ -137,7 +138,7 @@ class DeviceTrustIntegrationServiceTest {
             deviceId
         )
 
-        val requestCaptor = argumentCaptor<NonceChallengeRequestDto>()
+        val requestCaptor = argumentCaptor<VerifyNonceChallengeRequestDto>()
         verify(restTemplate).postForEntity(
             eq(VALID_CHECK_CHALLENGE_URL),
             requestCaptor.capture(),
@@ -146,6 +147,7 @@ class DeviceTrustIntegrationServiceTest {
 
         assertEquals(true, response.success)
         assertEquals(false, response.alertSent)
+        assertEquals(validUserId, requestCaptor.firstValue.userId)
         assertEquals(challengeId, requestCaptor.firstValue.challengeId)
         assertEquals(signature, requestCaptor.firstValue.signature)
         assertEquals("Linux", requestCaptor.firstValue.os)
@@ -162,7 +164,7 @@ class DeviceTrustIntegrationServiceTest {
         whenever(
             restTemplate.postForEntity(
                 eq(VALID_CHECK_CHALLENGE_URL),
-                any<NonceChallengeRequestDto>(),
+                any<VerifyNonceChallengeRequestDto>(),
                 eq(NonceChallengeResponseDto::class.java)
             )
         ).thenReturn(
@@ -172,6 +174,7 @@ class DeviceTrustIntegrationServiceTest {
 
         assertThrows<DownstreamServiceUnavailableException> {
             deviceTrustIntegrationService.checkChallenge(
+                validUserId,
                 challengeId,
                 signature,
                 "Linux",

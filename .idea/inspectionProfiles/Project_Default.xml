@@ -10,6 +10,7 @@
           <option value="x-vault-secret" />
           <option value="X-Device-ID" />
           <option value="X-Device-Id" />
+          <option value="Idempotency-Key" />
         </set>
       </option>
     </inspection_tool>

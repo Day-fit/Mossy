@@ -120,6 +120,7 @@ class UserServiceTests {
 
         whenever {
             deviceTrustIntegrationService.checkChallenge(
+                principal.userId,
                 challengeId,
                 signature,
                 "Linux",
@@ -134,10 +135,13 @@ class UserServiceTests {
         )
 
         userService.login(
-            LoginRequestDto(username, password, challengeId, signature),
+            LoginRequestDto(
+                username,
+                password,
+                LoginRequestDto.NonceChallengeDto(deviceId, challengeId, signature),
+            ),
             "Linux",
             "93.63.58.190",
-            deviceId
         )
 
         verify(jwtGenerationService)
@@ -145,6 +149,7 @@ class UserServiceTests {
 
         verify(deviceTrustIntegrationService)
             .checkChallenge(
+                principal.userId,
                 challengeId,
                 signature,
                 "Linux",
@@ -178,6 +183,7 @@ class UserServiceTests {
 
         whenever {
             deviceTrustIntegrationService.checkChallenge(
+                principal.userId,
                 challengeId,
                 signature,
                 "Linux",
@@ -193,10 +199,13 @@ class UserServiceTests {
 
         assertThrows<BadCredentialsException> {
             userService.login(
-                LoginRequestDto(username, password, challengeId, signature),
+                LoginRequestDto(
+                    username,
+                    password,
+                    LoginRequestDto.NonceChallengeDto(deviceId, challengeId, signature),
+                ),
                 "Linux",
                 "93.63.58.190",
-                deviceId
             )
         }
     }
@@ -245,12 +254,10 @@ class UserServiceTests {
                 LoginRequestDto(
                     "test",
                     "test123",
-                    UUID.fromString("b9266f2b-f473-4997-8220-60d559086c86"),
-                    "Signature won't be checked in this case"
+                    null,
                 ),
                 "Linux",
                 "93.63.58.190",
-                UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
             )
         }
     }

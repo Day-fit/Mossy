@@ -6,6 +6,12 @@ data class LoginRequestDto(
     val identifier: String,
     val password: String,
 
-    val challengeId: UUID,
-    val signature: String,
-)
+    //If null, generated access token will be for device enrollment only
+    val challengeDto: NonceChallengeDto?,
+) {
+    data class NonceChallengeDto (
+        val deviceId: UUID,
+        val challengeId: UUID,
+        val signature: String,
+    )
+}

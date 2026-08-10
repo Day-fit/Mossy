@@ -133,4 +133,9 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ matrix.service }}
-        run: mvn -B -ntp test -s /tmp/settings.xml
+        run: |
+          if [[ "${{ matrix.service }}" != "./mossy-device-trust-shared" ]]; then
+            mvn -B -ntp install -DskipTests -f ../mossy-device-trust-shared/pom.xml -s /tmp/settings.xml
+          fi
+
+          mvn -B -ntp test -s /tmp/settings.xml

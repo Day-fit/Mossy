@@ -12,7 +12,6 @@ import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.whenever
 import pl.dayfit.mossydevicetrust.helper.KeygenHelper.generateKeyPair
 import pl.dayfit.mossydevicetrust.repository.DeviceInfoRepository
-import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
 import java.security.SecureRandom
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.junit.jupiter.api.assertThrows
@@ -20,10 +19,12 @@ import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.core.ValueOperations
 import pl.dayfit.mossydevicetrust.model.DeviceInfo
 import pl.dayfit.mossydevicetrust.model.NonceChallenge
+import pl.dayfit.mossydevicetrust.type.NonceChallengeTarget
 import java.util.Optional
 import java.util.UUID
 import kotlin.io.encoding.Base64
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
 class NonceChallengeServiceTest {
@@ -46,7 +47,7 @@ class NonceChallengeServiceTest {
 
     @Test
     fun `Generator returns valid and secure nonce`() {
-        val deviceId = UUID.randomUUID()
+        val deviceId = UUID.randomUUID().toString()
         val nonce = ByteArray(16)
         realSecureRandom.nextBytes(nonce)
 
@@ -58,7 +59,7 @@ class NonceChallengeServiceTest {
         whenever { redisTemplate.opsForValue() }
             .thenReturn(opsForValue)
 
-        val result = nonceChallengeService.generateNonce(deviceId)
+        val result = nonceChallengeService.generateNonce(deviceId, NonceChallengeTarget.EXISTING_DEVICE)
             .nonce
 
         assertDoesNotThrow {
@@ -107,18 +108,10 @@ class NonceChallengeServiceTest {
             signer.generateSignature()
         )
 
-        val request = NonceChallengeRequestDto(
-            challengeId,
-            signature,
-            "IOs",
-            "127.0.0.1",
-            deviceId
-        )
-
         whenever { repo.findById(deviceId) }
             .thenReturn(Optional.of(
                 DeviceInfo(
-                    id = deviceId,
+                    deviceId = deviceId,
                     userId = userId,
                     keyPair.toPublicJWK(),
                     "IOs"
@@ -130,16 +123,19 @@ class NonceChallengeServiceTest {
 
         whenever {
             opsForValue
-                .get(challengeId)
+                .getAndDelete(challengeId)
         }.thenReturn(
             NonceChallenge(
                 nonce,
-                deviceId,
+                deviceId.toString(),
+                NonceChallengeTarget.EXISTING_DEVICE,
             )
         )
 
-        val response = nonceChallengeService.isChallengeValid(
-            request,
+        val response = nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            signature,
+            deviceId,
             userId,
         )
 
@@ -151,6 +147,7 @@ class NonceChallengeServiceTest {
     fun `Challenge fails for invalid signature`() {
         val deviceId = UUID.randomUUID()
         val challengeId = UUID.randomUUID()
+        val userId = UUID.randomUUID()
 
         val keyPair = generateKeyPair()
         val nonce = ByteArray(16)
@@ -173,19 +170,11 @@ class NonceChallengeServiceTest {
             signer.generateSignature()
         )
 
-        val request = NonceChallengeRequestDto(
-            challengeId,
-            signature,
-            "Windows",
-            "127.0.0.1",
-            deviceId
-        )
-
         whenever { repo.findById(deviceId) }
             .thenReturn(Optional.of(
                 DeviceInfo(
-                    id = deviceId,
-                    userId = UUID.randomUUID(),
+                    deviceId = deviceId,
+                    userId = userId,
                     keyPair.toPublicJWK(),
                     "Windows"
                 )
@@ -196,17 +185,20 @@ class NonceChallengeServiceTest {
 
         whenever {
             opsForValue
-                .get(challengeId)
+                .getAndDelete(challengeId)
         }.thenReturn(
             NonceChallenge(
                 nonce,
-                deviceId
+                deviceId.toString(),
+                NonceChallengeTarget.EXISTING_DEVICE,
             )
         )
 
-        val response = nonceChallengeService.isChallengeValid(
-            request,
-            userId = UUID.randomUUID()
+        val response = nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            signature,
+            deviceId,
+            userId,
         )
 
         assert(!response.success)
@@ -219,19 +211,13 @@ class NonceChallengeServiceTest {
         val challengeId = UUID.randomUUID()
 
         //Before checking nonce etc., first step should be to check if device exists
-        val request = NonceChallengeRequestDto(
-            challengeId,
-            "Signature won't be checked in this case!",
-            "Linux",
-            "127.0.0.1",
-            deviceId
-        )
-
         whenever { repo.findById(deviceId) }
             .thenReturn(Optional.empty())
 
-        assertThrows<NoSuchElementException> { nonceChallengeService.isChallengeValid(
-            request,
+        assertThrows<NoSuchElementException> { nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            "Signature won't be checked in this case!",
+            deviceId,
             userId = UUID.randomUUID()
         )}
     }
@@ -244,18 +230,10 @@ class NonceChallengeServiceTest {
         val userId = UUID.randomUUID()
 
         //Before checking nonce etc., nonce should be retrieved
-        val request = NonceChallengeRequestDto(
-            challengeId,
-            "Signature won't be checked in this case!",
-            "Android",
-            "127.0.0.1",
-            deviceId
-        )
-
         whenever { repo.findById(deviceId) }
             .thenReturn(Optional.of(
                 DeviceInfo(
-                    id = deviceId,
+                    deviceId = deviceId,
                     userId = userId,
                     keyPair.toPublicJWK(),
                     "Android"
@@ -265,8 +243,10 @@ class NonceChallengeServiceTest {
         whenever { redisTemplate.opsForValue() }
             .thenReturn(opsForValue)
 
-        assertThrows<NoSuchElementException> { nonceChallengeService.isChallengeValid(
-            request,
+        assertThrows<NoSuchElementException> { nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            "Signature won't be checked in this case!",
+            deviceId,
             userId
         )}
     }
@@ -278,19 +258,11 @@ class NonceChallengeServiceTest {
         val userId = UUID.randomUUID()
 
         //Issuer should be checked before checking if signature is valid
-        val requestDto = NonceChallengeRequestDto(
-            challengeId,
-            "Signature won't be checked in this case!",
-            "Linux",
-            "127.0.0.1",
-            issuerDeviceId
-        )
-
         whenever { repo.findById(issuerDeviceId) }
             .thenReturn(
                 Optional.of(
                     DeviceInfo(
-                        id = issuerDeviceId,
+                        deviceId = issuerDeviceId,
                         userId = userId,
                         generateKeyPair(),
                         "Linux"
@@ -303,16 +275,19 @@ class NonceChallengeServiceTest {
 
         whenever {
             opsForValue
-                .get(challengeId)
+                .getAndDelete(challengeId)
         }.thenReturn(
             NonceChallenge(
                 "Signature won't be checked in this case!".toByteArray(),
-                UUID.randomUUID()
+                UUID.randomUUID().toString(),
+                NonceChallengeTarget.EXISTING_DEVICE,
             )
         )
 
-        val response = nonceChallengeService.isChallengeValid(
-            requestDto,
+        val response = nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            "Signature won't be checked in this case!",
+            issuerDeviceId,
             userId
         )
 
@@ -329,19 +304,11 @@ class NonceChallengeServiceTest {
         val otherUserId = UUID.fromString("df7a7ed4-2691-4bb9-baf7-2d404f24b14d")
 
         //Issuer should be checked before checking if signature is valid
-        val requestDto = NonceChallengeRequestDto(
-            challengeId,
-            "Signature won't be checked in this case!",
-            "Linux",
-            "127.0.0.1",
-            issuerDeviceId
-        )
-
         whenever { repo.findById(issuerDeviceId) }
             .thenReturn(
                 Optional.of(
                     DeviceInfo(
-                        id = issuerDeviceId,
+                        deviceId = issuerDeviceId,
                         userId = otherUserId,
                         generateKeyPair(),
                         "Linux"
@@ -349,25 +316,153 @@ class NonceChallengeServiceTest {
                 )
             )
 
-        whenever { redisTemplate.opsForValue() }
-            .thenReturn(opsForValue)
-
-        whenever {
-            opsForValue
-                .get(challengeId)
-        }.thenReturn(
-            NonceChallenge(
-                "Signature won't be checked in this case!".toByteArray(),
-                issuerDeviceId,
-            )
-        )
-
-        val response = nonceChallengeService.isChallengeValid(
-            requestDto,
+        val response = nonceChallengeService.isLoginChallengeValid(
+            challengeId,
+            "Signature won't be checked in this case!",
+            issuerDeviceId,
             userId
         )
 
         assertFalse { response.success }
         assertFalse { response.alertSent }
+    }
+
+    @Test
+    fun `enrollment challenge passes for a valid signature`() {
+        val enrollmentId = "enrollment-id"
+        val challengeId = UUID.randomUUID()
+        val keyPair = generateKeyPair()
+        val nonce = randomNonce()
+
+        givenChallenge(
+            challengeId,
+            NonceChallenge(
+                nonce,
+                enrollmentId,
+                NonceChallengeTarget.DEVICE_ENROLLMENT,
+            )
+        )
+
+        val result = nonceChallengeService.isEnrollmentChallengeValid(
+            challengeId,
+            sign(nonce, keyPair.decodedD),
+            enrollmentId,
+            keyPair.toPublicJWK(),
+        )
+
+        assertTrue(result)
+    }
+
+    @Test
+    fun `enrollment challenge fails for a signature made by another key`() {
+        val enrollmentId = "enrollment-id"
+        val challengeId = UUID.randomUUID()
+        val enrolledKeyPair = generateKeyPair()
+        val otherKeyPair = generateKeyPair()
+        val nonce = randomNonce()
+
+        givenChallenge(
+            challengeId,
+            NonceChallenge(
+                nonce,
+                enrollmentId,
+                NonceChallengeTarget.DEVICE_ENROLLMENT,
+            )
+        )
+
+        val result = nonceChallengeService.isEnrollmentChallengeValid(
+            challengeId,
+            sign(nonce, otherKeyPair.decodedD),
+            enrollmentId,
+            enrolledKeyPair.toPublicJWK(),
+        )
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `enrollment challenge validation fails when challenge does not exist`() {
+        val challengeId = UUID.randomUUID()
+
+        whenever(redisTemplate.opsForValue()).thenReturn(opsForValue)
+        whenever(opsForValue.getAndDelete(challengeId)).thenReturn(null)
+
+        assertThrows<NoSuchElementException> {
+            nonceChallengeService.isEnrollmentChallengeValid(
+                challengeId,
+                "signature-will-not-be-checked",
+                "enrollment-id",
+                generateKeyPair().toPublicJWK(),
+            )
+        }
+    }
+
+    @Test
+    fun `enrollment challenge fails when it belongs to another enrollment`() {
+        val challengeId = UUID.randomUUID()
+        val keyPair = generateKeyPair()
+        val nonce = randomNonce()
+
+        givenChallenge(
+            challengeId,
+            NonceChallenge(
+                nonce,
+                "another-enrollment-id",
+                NonceChallengeTarget.DEVICE_ENROLLMENT,
+            )
+        )
+
+        val result = nonceChallengeService.isEnrollmentChallengeValid(
+            challengeId,
+            sign(nonce, keyPair.decodedD),
+            "enrollment-id",
+            keyPair.toPublicJWK(),
+        )
+
+        assertFalse(result)
+    }
+
+    @Test
+    fun `enrollment challenge fails when challenge targets an existing device`() {
+        val enrollmentId = UUID.randomUUID().toString()
+        val challengeId = UUID.randomUUID()
+        val keyPair = generateKeyPair()
+        val nonce = randomNonce()
+
+        givenChallenge(
+            challengeId,
+            NonceChallenge(
+                nonce,
+                enrollmentId,
+                NonceChallengeTarget.EXISTING_DEVICE,
+            )
+        )
+
+        val result = nonceChallengeService.isEnrollmentChallengeValid(
+            challengeId,
+            sign(nonce, keyPair.decodedD),
+            enrollmentId,
+            keyPair.toPublicJWK(),
+        )
+
+        assertFalse(result)
+    }
+
+    private fun givenChallenge(challengeId: UUID, challenge: NonceChallenge) {
+        whenever(redisTemplate.opsForValue()).thenReturn(opsForValue)
+        whenever(opsForValue.getAndDelete(challengeId)).thenReturn(challenge)
+    }
+
+    private fun randomNonce(): ByteArray = ByteArray(16).also(realSecureRandom::nextBytes)
+
+    private fun sign(nonce: ByteArray, privateKey: ByteArray): String {
+        val signer = Ed25519Signer().apply {
+            init(true, Ed25519PrivateKeyParameters(privateKey))
+            update(nonce, 0, nonce.size)
+        }
+
+        return Base64.UrlSafe.withPadding(
+            Base64.PaddingOption.ABSENT_OPTIONAL
+        ).encode(signer.generateSignature())
     }
 }

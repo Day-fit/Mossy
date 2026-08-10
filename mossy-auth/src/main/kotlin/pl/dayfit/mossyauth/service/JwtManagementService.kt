@@ -47,8 +47,7 @@ class JwtManagementService(
      * @param refreshToken the current refresh token used to identify and authenticate the user
      * @return a pair of strings where the first element is the new access token and the second element is the new refresh token
      */
-    fun handleTokenRefreshment(refreshToken: String): Pair<String, String>
-    {
+    fun handleTokenRefreshment(refreshToken: String): JwtGenerationService.TokenPairDto {
         if (revokedJwtRepository.existsByToken(refreshToken))
         {
             throw BadCredentialsException("Refresh token is revoked")

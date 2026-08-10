@@ -7,8 +7,8 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.client.getForEntity
 import org.springframework.web.client.postForEntity
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
-import pl.dayfit.mossydevicetrustshared.dto.request.NonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
+import pl.dayfit.mossydevicetrustshared.dto.request.VerifyNonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GetIsBlockedResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.RegisterDeviceResponseDto
@@ -22,9 +22,9 @@ class DeviceTrustIntegrationService(
     private val deviceTrustServiceHost: String
 ) {
     companion object {
-        private const val REGISTER_DEVICE_ENDPOINT = "/api/v1/device-trust/device"
-        private const val CHECK_CHALLENGE_ENDPOINT = "/api/v1/device-trust/nonce/challenge"
-        private const val DEVICE_BLOCK_STATUS_ENDPOINT = "/api/v1/device-trust/device/{deviceId}/block"
+        private const val REGISTER_DEVICE_ENDPOINT = "/api/v1/device-trust/internal/device"
+        private const val CHECK_CHALLENGE_ENDPOINT = "/api/v1/device-trust/internal/nonce/challenge"
+        private const val DEVICE_BLOCK_STATUS_ENDPOINT = "/api/v1/device-trust/internal/device/{deviceId}/block"
     }
 
     fun registerDevice(
@@ -52,6 +52,7 @@ class DeviceTrustIntegrationService(
     }
 
     fun checkChallenge(
+        userId: UUID,
         challengeId: UUID,
         signature: String,
         os: String,
@@ -60,12 +61,13 @@ class DeviceTrustIntegrationService(
     ): NonceChallengeResponseDto {
         val response = restTemplate.postForEntity<NonceChallengeResponseDto>(
             deviceTrustServiceHost + CHECK_CHALLENGE_ENDPOINT,
-            NonceChallengeRequestDto(
-                challengeId,
-                signature,
-                os,
-                remoteAddr,
-                deviceId
+            VerifyNonceChallengeRequestDto(
+                userId = userId,
+                deviceId = deviceId,
+                challengeId = challengeId,
+                signature = signature,
+                os = os,
+                remoteAddr = remoteAddr,
             )
         )
 
