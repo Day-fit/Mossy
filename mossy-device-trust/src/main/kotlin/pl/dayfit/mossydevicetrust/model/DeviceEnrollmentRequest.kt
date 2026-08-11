@@ -1,6 +1,5 @@
 package pl.dayfit.mossydevicetrust.model
 
-import com.nimbusds.jose.jwk.OctetKeyPair
 import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
@@ -16,8 +15,8 @@ class DeviceEnrollmentRequest (
 
     var userId: UUID,
     var remoteAddr: String,
-    var osName: String,
-    var publicIdentityKey: OctetKeyPair,
+    var userAgent: String,
+    var publicIdentityKey: ByteArray,
 
     var createdAt: Instant
 )

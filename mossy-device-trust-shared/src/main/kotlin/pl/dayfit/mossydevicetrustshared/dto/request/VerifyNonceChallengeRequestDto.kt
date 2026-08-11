@@ -10,6 +10,6 @@ data class VerifyNonceChallengeRequestDto(
     val deviceId: UUID,
     val challengeId: UUID,
     val signature: String,
-    val os: String,
+    val userAgent: String,
     val remoteAddr: String,
 )

@@ -1,9 +1,6 @@
 package pl.dayfit.mossydevicetrust.model
 
-import com.nimbusds.jose.jwk.OctetKeyPair
 import jakarta.persistence.Entity
-import jakarta.persistence.GeneratedValue
-import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.PostLoad
 import jakarta.persistence.PostPersist
@@ -15,18 +12,17 @@ import java.util.UUID
 @Entity
 class DeviceInfo(
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    var deviceId: UUID? = null,
+    var deviceId: UUID = UUID.randomUUID(),
     var userId: UUID,
-    var publicIdentityKey: OctetKeyPair,
-    var lastOs: String,
+    var publicIdentityKey: ByteArray,
+    var lastUserAgent: String,
     var lastSeen: Instant? = null,
     var blocked: Boolean = false,
 
     @Transient
-    private var isNew: Boolean = false
+    private var isNew: Boolean = true
 ): Persistable<UUID> {
-    override fun getId(): UUID? {
+    override fun getId(): UUID {
         return deviceId
     }
 

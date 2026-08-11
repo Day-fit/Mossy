@@ -58,6 +58,8 @@ class NonceChallengeServiceTest {
 
         whenever { redisTemplate.opsForValue() }
             .thenReturn(opsForValue)
+        whenever { repo.existsById(UUID.fromString(deviceId)) }
+            .thenReturn(true)
 
         val result = nonceChallengeService.generateNonce(deviceId, NonceChallengeTarget.EXISTING_DEVICE)
             .nonce
@@ -113,7 +115,7 @@ class NonceChallengeServiceTest {
                 DeviceInfo(
                     deviceId = deviceId,
                     userId = userId,
-                    keyPair.toPublicJWK(),
+                    keyPair.toPublicJWK().decodedX,
                     "IOs"
                 )
             ))
@@ -175,7 +177,7 @@ class NonceChallengeServiceTest {
                 DeviceInfo(
                     deviceId = deviceId,
                     userId = userId,
-                    keyPair.toPublicJWK(),
+                    keyPair.toPublicJWK().decodedX,
                     "Windows"
                 )
             ))
@@ -235,7 +237,7 @@ class NonceChallengeServiceTest {
                 DeviceInfo(
                     deviceId = deviceId,
                     userId = userId,
-                    keyPair.toPublicJWK(),
+                    keyPair.toPublicJWK().decodedX,
                     "Android"
                 )
             ))
@@ -264,7 +266,7 @@ class NonceChallengeServiceTest {
                     DeviceInfo(
                         deviceId = issuerDeviceId,
                         userId = userId,
-                        generateKeyPair(),
+                        generateKeyPair().toPublicJWK().decodedX,
                         "Linux"
                     )
                 )
@@ -310,7 +312,7 @@ class NonceChallengeServiceTest {
                     DeviceInfo(
                         deviceId = issuerDeviceId,
                         userId = otherUserId,
-                        generateKeyPair(),
+                        generateKeyPair().toPublicJWK().decodedX,
                         "Linux"
                     )
                 )
@@ -347,7 +349,7 @@ class NonceChallengeServiceTest {
             challengeId,
             sign(nonce, keyPair.decodedD),
             enrollmentId,
-            keyPair.toPublicJWK(),
+            keyPair.toPublicJWK().decodedX,
         )
 
         assertTrue(result)
@@ -374,7 +376,7 @@ class NonceChallengeServiceTest {
             challengeId,
             sign(nonce, otherKeyPair.decodedD),
             enrollmentId,
-            enrolledKeyPair.toPublicJWK(),
+            enrolledKeyPair.toPublicJWK().decodedX,
         )
 
         assertFalse(result)
@@ -392,7 +394,7 @@ class NonceChallengeServiceTest {
                 challengeId,
                 "signature-will-not-be-checked",
                 "enrollment-id",
-                generateKeyPair().toPublicJWK(),
+                generateKeyPair().toPublicJWK().decodedX,
             )
         }
     }
@@ -416,7 +418,7 @@ class NonceChallengeServiceTest {
             challengeId,
             sign(nonce, keyPair.decodedD),
             "enrollment-id",
-            keyPair.toPublicJWK(),
+            keyPair.toPublicJWK().decodedX,
         )
 
         assertFalse(result)
@@ -442,7 +444,7 @@ class NonceChallengeServiceTest {
             challengeId,
             sign(nonce, keyPair.decodedD),
             enrollmentId,
-            keyPair.toPublicJWK(),
+            keyPair.toPublicJWK().decodedX,
         )
 
         assertFalse(result)

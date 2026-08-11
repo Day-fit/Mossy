@@ -171,7 +171,7 @@ class DeviceControllerSecurityTest(
 
     private fun createEnrollmentPayload(): String = """
         {
-            "osName": "Linux",
+            "userAgent": "Linux",
             "publicIdentityKey": {}
         }
     """.trimIndent()

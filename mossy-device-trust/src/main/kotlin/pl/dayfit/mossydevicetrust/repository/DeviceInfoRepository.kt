@@ -7,4 +7,5 @@ import java.util.UUID
 
 @Repository
 interface DeviceInfoRepository : JpaRepository<DeviceInfo, UUID> {
+    fun findAllByUserId(userId: UUID): List<DeviceInfo>
 }

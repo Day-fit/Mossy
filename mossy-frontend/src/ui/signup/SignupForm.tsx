@@ -8,11 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
 import RippleButton from '../layout/RippleButton.tsx';
 import type { Dispatch, SetStateAction } from 'react';
-import {
-	executeLoginRequest,
-	executeRegisterRequest,
-} from '../../api/auth.api.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { registerAndSignIn } from '../../auth/authFlow.ts';
 
 interface SignupFormProps {
 	setResponseState: Dispatch<
@@ -43,32 +40,19 @@ export default function SignupForm({
 	});
 
 	const onSubmit = async (data: RegisterSchema) => {
-		executeRegisterRequest(data)
-			.then(async (res) => {
-				const json = await res.json();
-				const success = res.status === 200;
-
-				setResponseState({
-					message: json.message,
-					isError: res.status !== 200,
-				});
-
-				if (!success) {
-					return;
-				}
-
-				const loginRequest = await executeLoginRequest({
-					identifier: data.email,
-					password: data.password,
-				}).then(async (res) => await res.json());
-
-				const accessToken: string = loginRequest.accessToken;
-				login(accessToken);
-				onSuccess();
-			})
-			.catch((err) => {
-				console.log(err);
+		try {
+			const accessToken = await registerAndSignIn(data);
+			login(accessToken);
+			onSuccess();
+		} catch (error) {
+			setResponseState({
+				message:
+					error instanceof Error
+						? error.message
+						: 'Something went wrong. Please try again later.',
+				isError: true,
 			});
+		}
 	};
 
 	return (

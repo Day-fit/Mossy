@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import pl.dayfit.mossydevicetrust.dto.response.GenericServerResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.ValidationResponseDto
+import pl.dayfit.mossydevicetrust.exception.EnrollmentNotAcceptedYetException
 import pl.dayfit.mossydevicetrust.exception.SelfLockNotAllowedException
 
 @RestControllerAdvice
@@ -30,6 +31,14 @@ class GlobalControllerAdvice {
     fun handleSelfLockNotAllowedException(exception: SelfLockNotAllowedException): ResponseEntity<GenericServerResponseDto> {
         return ResponseEntity.badRequest()
             .body(GenericServerResponseDto(exception.message ?: "Device cannot be blocked by itself"))
+    }
+
+    @ExceptionHandler(EnrollmentNotAcceptedYetException::class)
+    fun handleEnrollmentNotAcceptedYetException(): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.accepted()
+            .body(
+                GenericServerResponseDto("Enrollment of this device is not accepted yet")
+            )
     }
 
     @ExceptionHandler(AccessDeniedException::class)

@@ -1,11 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-	useState,
-	useRef,
-	type MouseEvent,
-	type ReactNode,
-	type ButtonHTMLAttributes,
-} from 'react';
+import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
+import { useState, useRef, type MouseEvent, type ReactNode } from 'react';
 
 interface Ripple {
 	id: number;
@@ -16,7 +10,7 @@ interface Ripple {
 
 type Variant = 'primary' | 'outline';
 
-type RippleButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type RippleButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> & {
 	children: ReactNode;
 	className?: string;
 	rippleColor?: string;
@@ -32,6 +26,7 @@ export default function RippleButton({
 	rippleColor = variant === 'primary'
 		? 'rgba(255, 255, 255, 0.6)'
 		: 'rgba(0, 0, 0, 0.6)',
+	...buttonProps
 }: RippleButtonProps) {
 	const [ripples, setRipples] = useState<Ripple[]>([]);
 	const ref = useRef<HTMLButtonElement>(null);
@@ -53,7 +48,7 @@ export default function RippleButton({
 			setRipples((prev) => prev.filter((r) => r.id !== ripple.id));
 		}, 600);
 
-		onClick && onClick(e);
+		onClick?.(e);
 	};
 
 	const variantClassNames: Record<Variant, string> = {
@@ -64,6 +59,7 @@ export default function RippleButton({
 
 	return (
 		<motion.button
+			{...buttonProps}
 			ref={ref}
 			type={type}
 			onClick={handleClick}

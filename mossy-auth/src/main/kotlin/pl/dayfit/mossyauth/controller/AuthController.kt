@@ -20,6 +20,7 @@ import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.dto.response.AuthStatusDto
 import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
 import pl.dayfit.mossyauth.dto.response.LoginResponseDto
+import pl.dayfit.mossyauth.dto.response.RegisterUserResponseDto
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.UserService
 import pl.dayfit.mossyauth.type.AccessTokenType
@@ -41,17 +42,16 @@ class AuthController(
         @RequestBody @Valid requestDto: RegisterUserRequestDto,
         @RequestHeader("User-Agent") userAgent: String,
         httpServletRequest: HttpServletRequest
-    ): ResponseEntity<GenericServerResponseDto>
+    ): ResponseEntity<RegisterUserResponseDto>
     {
-
-        userService.register(
-            requestDto,
-            userAgent,
-            httpServletRequest.remoteAddr
-        )
-
         return ResponseEntity.ok(
-            GenericServerResponseDto("User registered successfully")
+            RegisterUserResponseDto(
+                userService.register(
+                    requestDto,
+                    userAgent,
+                    httpServletRequest.remoteAddr
+                )
+            )
         )
     }
 

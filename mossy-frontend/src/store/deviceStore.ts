@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CryptoPair } from '../hooks/useDeviceKeys.ts';
+import type { CryptoPair } from '../auth/deviceIdentity.ts';
 
 type DeviceStoreState = {
 	idKey: CryptoPair | null | undefined;

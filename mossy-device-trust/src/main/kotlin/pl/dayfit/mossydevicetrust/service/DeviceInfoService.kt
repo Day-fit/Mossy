@@ -1,6 +1,10 @@
 package pl.dayfit.mossydevicetrust.service
 
 import com.nimbusds.jose.jwk.OctetKeyPair
+import com.nimbusds.jose.jwk.Curve
+import com.nimbusds.jose.util.Base64URL
+import nl.basjes.parse.useragent.UserAgent
+import nl.basjes.parse.useragent.UserAgentAnalyzer
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.LockedException
@@ -9,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 import pl.dayfit.mossydevicetrust.dto.request.CreateDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.response.CreateDeviceEnrollmentResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DeviceEnrollmentsResponseDto
+import pl.dayfit.mossydevicetrust.dto.response.DevicesResponseDto
 import pl.dayfit.mossydevicetrust.exception.SelfLockNotAllowedException
 import pl.dayfit.mossydevicetrust.model.DeviceEnrollmentRequest
 import pl.dayfit.mossydevicetrust.model.DeviceInfo
@@ -28,49 +33,32 @@ class DeviceInfoService(
     private val nonceChallengeService: NonceChallengeService,
     private val deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository
 ) {
-    fun registerDevice(rawPublicIdentityKey: Map<String, Any>, userId: UUID, osName: String): UUID {
-        var publicIdentityKey: OctetKeyPair? = null
+    companion object {
+        val userAgentAnalyzer: UserAgentAnalyzer = UserAgentAnalyzer.newBuilder()
+            .build()
+    }
 
-        runCatching {
-            publicIdentityKey = OctetKeyPair.parse(
-                rawPublicIdentityKey
-            )
-        }.onFailure {
-            throw InvalidKeyException("Provided public key is invalid")
-        }
-
-        if (publicIdentityKey == null) {
-            //Should never happen as variable is reassigned to non-null value
-            //or exception is thrown
-            throw IllegalStateException("Provided public key is null (bug?)")
-        }
-
-        if (publicIdentityKey.isPrivate) {
-            throw InvalidKeyException("Provided key is not a public key")
-        }
+    fun registerDevice(rawPublicIdentityKey: Map<String, Any>, userId: UUID, userAgent: String): UUID {
+        val publicIdentityKey = parsePublicEd25519Key(rawPublicIdentityKey)
 
         val deviceInfo = DeviceInfo(
             userId = userId,
-            publicIdentityKey = publicIdentityKey,
-            lastOs = osName
+            publicIdentityKey = publicIdentityKey.decodedX,
+            lastUserAgent = userAgent
         )
 
         val result = deviceInfoRepository.save(deviceInfo)
-        return result.deviceId!!
+        return result.deviceId
     }
 
     fun createDeviceEnrollment(request: CreateDeviceEnrollmentRequestDto, remoteAddr: String): CreateDeviceEnrollmentResponseDto {
-        val publicIdentityKey = OctetKeyPair.parse(request.publicIdentityKey)
-
-        if (publicIdentityKey.isPrivate) {
-            throw InvalidKeyException("Provided identity key is private")
-        }
+        val publicIdentityKey = parsePublicEd25519Key(request.publicIdentityKey)
 
         val savedResult = deviceEnrollmentRepository.save(
             DeviceEnrollment(
-                osName = request.osName,
+                userAgent = request.userAgent,
                 remoteAddr = remoteAddr,
-                publicIdentityKey = publicIdentityKey,
+                publicIdentityKey = publicIdentityKey.decodedX,
             )
         )
 
@@ -110,7 +98,7 @@ class DeviceInfoService(
             DeviceEnrollmentRequest(
                 userId = userId,
                 publicIdentityKey = enrollment.publicIdentityKey,
-                osName = enrollment.osName,
+                userAgent = enrollment.userAgent,
                 remoteAddr = enrollment.remoteAddr,
                 createdAt = Instant.now()
             )
@@ -126,11 +114,37 @@ class DeviceInfoService(
     fun getDeviceEnrollments(userId: UUID): DeviceEnrollmentsResponseDto {
         return DeviceEnrollmentsResponseDto(deviceEnrollmentRequestRepository.findByUserId(userId)
             .map {
+                val userAgent = userAgentAnalyzer.parse(it.userAgent)
+
+                val osName = userAgent.getValue(UserAgent.OPERATING_SYSTEM_NAME)
+                val deviceType = userAgent.getValue(UserAgent.DEVICE_CLASS)
+
                 return@map DeviceEnrollmentsResponseDto.DeviceEnrollmentDto(
                     it.id!!,
-                    it.osName,
+                    osName,
+                    deviceType,
                     it.remoteAddr,
                     it.createdAt
+                )
+            }
+        )
+    }
+
+    fun getDevices(userId: UUID, currentDeviceId: UUID): DevicesResponseDto {
+        return DevicesResponseDto(
+            deviceInfoRepository.findAllByUserId(userId).map { device ->
+                val userAgent = userAgentAnalyzer.parse(device.lastUserAgent)
+
+                val osName = userAgent.getValue(UserAgent.OPERATING_SYSTEM_NAME)
+                val deviceType = userAgent.getValue(UserAgent.DEVICE_CLASS)
+
+                DevicesResponseDto.DeviceDto(
+                    id = device.deviceId,
+                    lastOsName = osName,
+                    deviceType = deviceType,
+                    lastSeen = device.lastSeen,
+                    blocked = device.blocked,
+                    current = device.deviceId == currentDeviceId,
                 )
             }
         )
@@ -154,17 +168,18 @@ class DeviceInfoService(
 
         deviceInfoRepository.save(
             DeviceInfo(
-                deviceId = enrollmentRequest.id,
+                deviceId = checkNotNull(enrollmentRequest.id),
                 userId = userId,
                 publicIdentityKey = enrollmentRequest.publicIdentityKey,
-                lastOs = enrollmentRequest.osName,
+                lastUserAgent = enrollmentRequest.userAgent,
             )
         )
     }
 
-    fun blockDevice(deviceId: UUID, targetDeviceId: UUID) {
+    @Transactional
+    fun setDeviceBlocked(deviceId: UUID, targetDeviceId: UUID, blocked: Boolean) {
         if (deviceId == targetDeviceId) {
-            throw SelfLockNotAllowedException("Device cannot be blocked by itself")
+            throw SelfLockNotAllowedException("Device cannot change its own block state")
         }
 
         val deviceInfo = deviceInfoRepository.findById(deviceId)
@@ -173,15 +188,20 @@ class DeviceInfoService(
         val targetDeviceInfo = deviceInfoRepository.findById(targetDeviceId)
             .orElseThrow { NoSuchElementException("No device found with id $targetDeviceId") }
 
+        if (deviceInfo.blocked) {
+            throw AccessDeniedException("Blocked device cannot manage other devices")
+        }
+
         if (deviceInfo.userId != targetDeviceInfo.userId) {
             throw AccessDeniedException("You are not owner of this device")
         }
 
-        if (targetDeviceInfo.blocked) {
+        if (targetDeviceInfo.blocked == blocked) {
+            if (!blocked) return
             throw LockedException("This device is already blocked")
         }
 
-        targetDeviceInfo.blocked = true
+        targetDeviceInfo.blocked = blocked
 
         deviceInfoRepository.save(
             targetDeviceInfo
@@ -203,7 +223,27 @@ class DeviceInfoService(
             throw AccessDeniedException("You are not owner of this device")
         }
 
-        return deviceInfo.publicIdentityKey
-            .toPublicJWK()
+        return OctetKeyPair.Builder(
+            Curve.Ed25519,
+            Base64URL.encode(deviceInfo.publicIdentityKey),
+        ).build()
+    }
+
+    private fun parsePublicEd25519Key(rawPublicIdentityKey: Map<String, Any>): OctetKeyPair {
+        val publicIdentityKey = try {
+            OctetKeyPair.parse(rawPublicIdentityKey)
+        } catch (_: Exception) {
+            throw InvalidKeyException("Provided public key is invalid")
+        }
+
+        if (publicIdentityKey.isPrivate) {
+            throw InvalidKeyException("Provided key is not a public key")
+        }
+
+        if (publicIdentityKey.curve != Curve.Ed25519) {
+            throw InvalidKeyException("Provided key is not an Ed25519 key")
+        }
+
+        return publicIdentityKey
     }
 }

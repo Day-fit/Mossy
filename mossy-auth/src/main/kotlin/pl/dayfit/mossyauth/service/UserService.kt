@@ -30,7 +30,7 @@ class UserService(
     private val deviceTrustIntegrationService: DeviceTrustIntegrationService
 ) {
     @Transactional
-    fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String) {
+    fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String): UUID {
         //Passwords cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
 
@@ -54,7 +54,7 @@ class UserService(
         //TODO: create a email confirmation for account registration
         val savedUser = userCacheService.save(user)
 
-        deviceTrustIntegrationService.registerDevice(
+        val deviceId = deviceTrustIntegrationService.registerDevice(
             savedUser.id!!,
             requestDto.publicIdentityKey,
             userAgent,
@@ -63,6 +63,8 @@ class UserService(
 
         savedUser.enabled = true
         userCacheService.save(savedUser)
+
+        return deviceId
     }
 
     /**

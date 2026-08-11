@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>pl.dayfit</groupId>
-    <artifactId>mossy-device</artifactId>
+    <artifactId>mossy-key-sync</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>mossy-device</name>
-    <description>mossy-device</description>
+    <name>mossy-key-sync</name>
+    <description>mossy-key-sync</description>
     <repositories>
         <repository>
             <id>github</id>

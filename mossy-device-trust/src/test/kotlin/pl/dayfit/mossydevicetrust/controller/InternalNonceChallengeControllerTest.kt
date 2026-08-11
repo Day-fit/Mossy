@@ -35,7 +35,7 @@ class InternalNonceChallengeControllerTest(
             deviceId = UUID.randomUUID(),
             challengeId = UUID.randomUUID(),
             signature = "signed-nonce",
-            os = "Linux",
+            userAgent = "Linux",
             remoteAddr = "192.0.2.1",
         )
 
@@ -54,7 +54,8 @@ class InternalNonceChallengeControllerTest(
                 .content(jsonMapper.writeValueAsString(request))
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.success").value(true))
+            .andExpect(jsonPath("$.result.success").value(true))
+            .andExpect(jsonPath("$.forwardedError").doesNotExist())
 
         verify(nonceChallengeService).isLoginChallengeValid(
             request.challengeId,
@@ -62,5 +63,35 @@ class InternalNonceChallengeControllerTest(
             request.deviceId,
             request.userId,
         )
+    }
+
+    @Test
+    fun `missing challenge target is returned as successful internal response with client status`() {
+        val request = VerifyNonceChallengeRequestDto(
+            userId = UUID.randomUUID(),
+            deviceId = UUID.randomUUID(),
+            challengeId = UUID.randomUUID(),
+            signature = "signed-nonce",
+            userAgent = "Linux",
+            remoteAddr = "192.0.2.1",
+        )
+        whenever(
+            nonceChallengeService.isLoginChallengeValid(
+                request.challengeId,
+                request.signature,
+                request.deviceId,
+                request.userId,
+            )
+        ).thenThrow(NoSuchElementException("Missing challenge target"))
+
+        mockMvc.perform(
+            post("/internal/nonce/challenge")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.writeValueAsString(request))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.result").doesNotExist())
+            .andExpect(jsonPath("$.forwardedError.forwardedMessage").isNotEmpty)
+            .andExpect(jsonPath("$.forwardedError.forwardedStatusCode").value(404))
     }
 }

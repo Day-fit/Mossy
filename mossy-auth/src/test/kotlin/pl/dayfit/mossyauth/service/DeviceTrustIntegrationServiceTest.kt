@@ -14,12 +14,20 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.core.ParameterizedTypeReference
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
+import org.springframework.http.HttpStatus
+import org.springframework.web.client.HttpServerErrorException
 import org.springframework.web.client.RestTemplate
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
+import pl.dayfit.mossyauth.exception.ForwardedClientErrorException
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.request.VerifyNonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GetIsBlockedResponseDto
+import pl.dayfit.mossydevicetrustshared.dto.response.ForwardedErrorResponseDto
+import pl.dayfit.mossydevicetrustshared.dto.response.InternalResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.RegisterDeviceResponseDto
 import java.util.UUID
@@ -80,7 +88,7 @@ class DeviceTrustIntegrationServiceTest {
 
         assertEquals(deviceId, returnedDeviceId)
         assertEquals(validUserId, requestCaptor.firstValue.userId)
-        assertEquals("Windows", requestCaptor.firstValue.osName)
+        assertEquals("Windows", requestCaptor.firstValue.userAgent)
         assertEquals("93.63.58.190", requestCaptor.firstValue.remoteAddr)
         assertEquals(validPublicJWK, requestCaptor.firstValue.publicIdentityKey)
     }
@@ -115,16 +123,19 @@ class DeviceTrustIntegrationServiceTest {
         val signature = "Signature won't be checked in this case"
 
         whenever(
-            restTemplate.postForEntity(
+            restTemplate.exchange(
                 eq(VALID_CHECK_CHALLENGE_URL),
-                any<VerifyNonceChallengeRequestDto>(),
-                eq(NonceChallengeResponseDto::class.java)
+                eq(HttpMethod.POST),
+                any<HttpEntity<VerifyNonceChallengeRequestDto>>(),
+                any<ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>>()
             )
         ).thenReturn(
             ResponseEntity.ok(
-                NonceChallengeResponseDto(
-                    success = true,
-                    alertSent = false
+                InternalResponseDto(
+                    result = NonceChallengeResponseDto(
+                        success = true,
+                        alertSent = false
+                    )
                 )
             )
         )
@@ -138,21 +149,90 @@ class DeviceTrustIntegrationServiceTest {
             deviceId
         )
 
-        val requestCaptor = argumentCaptor<VerifyNonceChallengeRequestDto>()
-        verify(restTemplate).postForEntity(
+        val requestCaptor = argumentCaptor<HttpEntity<VerifyNonceChallengeRequestDto>>()
+        verify(restTemplate).exchange(
             eq(VALID_CHECK_CHALLENGE_URL),
+            eq(HttpMethod.POST),
             requestCaptor.capture(),
-            eq(NonceChallengeResponseDto::class.java)
+            any<ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>>()
         )
 
         assertEquals(true, response.success)
         assertEquals(false, response.alertSent)
-        assertEquals(validUserId, requestCaptor.firstValue.userId)
-        assertEquals(challengeId, requestCaptor.firstValue.challengeId)
-        assertEquals(signature, requestCaptor.firstValue.signature)
-        assertEquals("Linux", requestCaptor.firstValue.os)
-        assertEquals("93.63.58.190", requestCaptor.firstValue.remoteAddr)
-        assertEquals(deviceId, requestCaptor.firstValue.deviceId)
+        val capturedRequest = requireNotNull(requestCaptor.firstValue.body)
+        assertEquals(validUserId, capturedRequest.userId)
+        assertEquals(challengeId, capturedRequest.challengeId)
+        assertEquals(signature, capturedRequest.signature)
+        assertEquals("Linux", capturedRequest.userAgent)
+        assertEquals("93.63.58.190", capturedRequest.remoteAddr)
+        assertEquals(deviceId, capturedRequest.deviceId)
+    }
+
+    @Test
+    fun `signature check exposes validated forwarded client error`() {
+        whenever(
+            restTemplate.exchange(
+                eq(VALID_CHECK_CHALLENGE_URL),
+                eq(HttpMethod.POST),
+                any<HttpEntity<VerifyNonceChallengeRequestDto>>(),
+                any<ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>>()
+            )
+        ).thenReturn(
+            ResponseEntity.ok(
+                InternalResponseDto(
+                    forwardedError = ForwardedErrorResponseDto(
+                        forwardedMessage = "Missing device",
+                        forwardedStatusCode = HttpStatus.NOT_FOUND.value(),
+                    )
+                )
+            )
+        )
+
+        val exception = assertThrows<ForwardedClientErrorException> {
+            deviceTrustIntegrationService.checkChallenge(
+                validUserId,
+                UUID.randomUUID(),
+                "signature",
+                "Linux",
+                "93.63.58.190",
+                UUID.randomUUID(),
+            )
+        }
+
+        assertEquals(HttpStatus.NOT_FOUND.value(), exception.forwardedError.forwardedStatusCode)
+        assertTrue(exception.forwardedError.forwardedMessage.isNotBlank())
+    }
+
+    @Test
+    fun `signature check rejects server status disguised as forwarded client error`() {
+        whenever(
+            restTemplate.exchange(
+                eq(VALID_CHECK_CHALLENGE_URL),
+                eq(HttpMethod.POST),
+                any<HttpEntity<VerifyNonceChallengeRequestDto>>(),
+                any<ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>>()
+            )
+        ).thenReturn(
+            ResponseEntity.ok(
+                InternalResponseDto(
+                    forwardedError = ForwardedErrorResponseDto(
+                        forwardedMessage = "Internal failure",
+                        forwardedStatusCode = HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                    )
+                )
+            )
+        )
+
+        assertThrows<DownstreamServiceUnavailableException> {
+            deviceTrustIntegrationService.checkChallenge(
+                validUserId,
+                UUID.randomUUID(),
+                "signature",
+                "Linux",
+                "93.63.58.190",
+                UUID.randomUUID(),
+            )
+        }
     }
 
     @Test
@@ -162,15 +242,13 @@ class DeviceTrustIntegrationServiceTest {
         val signature = "Signature won't be checked in this case"
 
         whenever(
-            restTemplate.postForEntity(
+            restTemplate.exchange(
                 eq(VALID_CHECK_CHALLENGE_URL),
-                any<VerifyNonceChallengeRequestDto>(),
-                eq(NonceChallengeResponseDto::class.java)
+                eq(HttpMethod.POST),
+                any<HttpEntity<VerifyNonceChallengeRequestDto>>(),
+                any<ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>>()
             )
-        ).thenReturn(
-            ResponseEntity.internalServerError()
-                .build()
-        )
+        ).thenThrow(HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR))
 
         assertThrows<DownstreamServiceUnavailableException> {
             deviceTrustIntegrationService.checkChallenge(

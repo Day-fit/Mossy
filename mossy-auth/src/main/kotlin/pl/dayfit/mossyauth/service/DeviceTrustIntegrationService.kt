@@ -1,15 +1,21 @@
 package pl.dayfit.mossyauth.service
 
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.ParameterizedTypeReference
+import org.springframework.http.HttpEntity
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.client.getForEntity
 import org.springframework.web.client.postForEntity
+import pl.dayfit.mossyauth.exception.ForwardedClientErrorException
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.request.VerifyNonceChallengeRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GetIsBlockedResponseDto
+import pl.dayfit.mossydevicetrustshared.dto.response.InternalResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.NonceChallengeResponseDto
 import pl.dayfit.mossydevicetrustshared.dto.response.RegisterDeviceResponseDto
 import java.util.UUID
@@ -55,28 +61,46 @@ class DeviceTrustIntegrationService(
         userId: UUID,
         challengeId: UUID,
         signature: String,
-        os: String,
+        userAgent: String,
         remoteAddr: String,
         deviceId: UUID
     ): NonceChallengeResponseDto {
-        val response = restTemplate.postForEntity<NonceChallengeResponseDto>(
-            deviceTrustServiceHost + CHECK_CHALLENGE_ENDPOINT,
-            VerifyNonceChallengeRequestDto(
-                userId = userId,
-                deviceId = deviceId,
-                challengeId = challengeId,
-                signature = signature,
-                os = os,
-                remoteAddr = remoteAddr,
-            )
+        val request = VerifyNonceChallengeRequestDto(
+            userId = userId,
+            deviceId = deviceId,
+            challengeId = challengeId,
+            signature = signature,
+            userAgent = userAgent,
+            remoteAddr = remoteAddr,
         )
 
-        val body = response.body
-        if (response.statusCode != HttpStatus.OK || body == null) {
-            throw DownstreamServiceUnavailableException("Unable to check device challenge")
+        val response = try {
+            restTemplate.exchange(
+                deviceTrustServiceHost + CHECK_CHALLENGE_ENDPOINT,
+                HttpMethod.POST,
+                HttpEntity(request),
+                object : ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>() {},
+            )
+        } catch (_: RestClientException) {
+            throw DownstreamServiceUnavailableException("Unable to check challenge")
         }
 
-        return body
+        if (response.statusCode != HttpStatus.OK) {
+            throw DownstreamServiceUnavailableException("Unable to check challenge")
+        }
+
+        val body = response.body
+            ?: throw DownstreamServiceUnavailableException("Unable to check challenge")
+
+        body.forwardedError?.let { forwardedError ->
+            if (forwardedError.forwardedStatusCode !in 400..499) {
+                throw DownstreamServiceUnavailableException("Invalid forwarded status code")
+            }
+            throw ForwardedClientErrorException(forwardedError)
+        }
+
+        return body.result
+            ?: throw DownstreamServiceUnavailableException("Missing challenge result")
     }
 
     fun getDeviceBlockStatus(deviceId: UUID): Boolean {

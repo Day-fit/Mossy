@@ -9,7 +9,9 @@ data class DeviceEnrollmentsResponseDto(
     class DeviceEnrollmentDto(
         val id: UUID,
 
-        val osName: String,
+        val lastOsName: String,
+        val deviceType: String,
+
         val remoteAddr: String,
         val createdAt: Instant,
     )

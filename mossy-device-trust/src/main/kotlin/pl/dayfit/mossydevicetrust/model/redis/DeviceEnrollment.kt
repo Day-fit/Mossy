@@ -1,6 +1,5 @@
 package pl.dayfit.mossydevicetrust.model.redis
 
-import com.nimbusds.jose.jwk.OctetKeyPair
 import org.springframework.data.annotation.Id
 import org.springframework.data.redis.core.RedisHash
 
@@ -8,7 +7,7 @@ import org.springframework.data.redis.core.RedisHash
 class DeviceEnrollment(
     @Id
     val enrollmentId: String? = null,
-    val osName: String,
+    val userAgent: String,
     val remoteAddr: String,
-    val publicIdentityKey: OctetKeyPair
+    val publicIdentityKey: ByteArray
 )

@@ -33,6 +33,7 @@ import pl.dayfit.mossydevicetrust.dto.request.ConfirmDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.request.CreateDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.response.CreateDeviceEnrollmentResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DeviceEnrollmentsResponseDto
+import pl.dayfit.mossydevicetrust.dto.response.DevicesResponseDto
 import pl.dayfit.mossydevicetrust.model.redis.IdempotencyKey
 import pl.dayfit.mossydevicetrust.repository.redis.IdempotencyKeyRepository
 import pl.dayfit.mossydevicetrust.service.DeviceInfoService
@@ -60,12 +61,55 @@ class DeviceControllerTest(
     private val jsonMapper = jsonMapper { }
 
     @Test
+    fun `get devices returns account devices and identifies current device`() {
+        val deviceId = UUID.randomUUID()
+        val userId = UUID.randomUUID()
+        whenever(deviceInfoService.getDevices(userId, deviceId)).thenReturn(
+            DevicesResponseDto(
+                listOf(
+                    DevicesResponseDto.DeviceDto(
+                        id = deviceId,
+                        lastOsName = "Linux",
+                        deviceType = "Desktop",
+                        lastSeen = Instant.parse("2026-08-11T12:00:00Z"),
+                        blocked = false,
+                        current = true,
+                    )
+                )
+            )
+        )
+
+        mockMvc.perform(get("/devices").with(jwtPrincipal(deviceId, userId)))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.devices[0].id").value(deviceId.toString()))
+            .andExpect(jsonPath("$.devices[0].current").value(true))
+
+        verify(deviceInfoService).getDevices(userId, deviceId)
+    }
+
+    @Test
+    fun `unblock device delegates current and target identifiers`() {
+        val deviceId = UUID.randomUUID()
+        val targetDeviceId = UUID.randomUUID()
+
+        mockMvc.perform(
+            post("/device/unblock")
+                .with(jwtPrincipal(deviceId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"targetDeviceId":"$targetDeviceId"}""")
+        ).andExpect(status().isOk)
+
+        verify(deviceInfoService).setDeviceBlocked(deviceId, targetDeviceId, false)
+    }
+
+    @Test
     fun `get enrollments returns pending requests for authenticated user`() {
         val deviceId = UUID.randomUUID()
         val userId = UUID.randomUUID()
         val enrollment = DeviceEnrollmentsResponseDto.DeviceEnrollmentDto(
             id = UUID.randomUUID(),
-            osName = "Linux",
+            lastOsName = "Linux",
+            deviceType = "Desktop",
             remoteAddr = "192.0.2.10",
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
@@ -133,7 +177,7 @@ class DeviceControllerTest(
     @Test
     fun `create enrollment returns enrollment and challenge`() {
         val request = CreateDeviceEnrollmentRequestDto(
-            osName = "Linux",
+            userAgent = "Linux",
             publicIdentityKey = generateKeyPair().toPublicJWK().toJSONObject(),
         )
         val response = CreateDeviceEnrollmentResponseDto(
@@ -165,7 +209,7 @@ class DeviceControllerTest(
 
         val idempotencyKey = UUID.randomUUID()
         val request = CreateDeviceEnrollmentRequestDto(
-            osName = "Linux",
+            userAgent = "Linux",
             publicIdentityKey = generateKeyPair().toPublicJWK().toJSONObject(),
         )
         val response = CreateDeviceEnrollmentResponseDto(
@@ -336,7 +380,7 @@ class DeviceControllerTest(
         val payload = """
             {
                 "userId": "INVALID-UUID",
-                "osName": "Windows",
+                "userAgent": "Windows",
                 "remoteAddr": "127.0.0.1",
                 "publicIdentityKey": ${jsonMapper.writeValueAsString(publicIdKey)}
             }
@@ -366,7 +410,7 @@ class DeviceControllerTest(
             .andExpect(jsonPath("$.message").isNotEmpty)
 
         verify(deviceInfoService)
-            .blockDevice(deviceId, targetDeviceId)
+            .setDeviceBlocked(deviceId, targetDeviceId, true)
     }
 
     @Test
@@ -399,7 +443,7 @@ class DeviceControllerTest(
         val deviceId = UUID.fromString("638fdf8c-30e5-4d43-9940-0151558af33e")
 
         whenever {
-            deviceInfoService.blockDevice(eq(deviceId), eq(deviceId))
+            deviceInfoService.setDeviceBlocked(eq(deviceId), eq(deviceId), eq(true))
         }.thenThrow(SelfLockNotAllowedException("Device cannot be blocked by itself"))
 
         mockMvc.perform(
@@ -418,7 +462,7 @@ class DeviceControllerTest(
         val targetDeviceId = UUID.fromString("a9d3015a-27c9-4259-89e7-84142a939631")
 
         whenever {
-            deviceInfoService.blockDevice(eq(deviceId), eq(targetDeviceId))
+            deviceInfoService.setDeviceBlocked(eq(deviceId), eq(targetDeviceId), eq(true))
         }.thenThrow(AccessDeniedException("You are not owner of this device"))
 
         mockMvc.perform(
@@ -437,7 +481,7 @@ class DeviceControllerTest(
         val targetDeviceId = UUID.fromString("a9d3015a-27c9-4259-89e7-84142a939631")
 
         whenever {
-            deviceInfoService.blockDevice(eq(deviceId), eq(targetDeviceId))
+            deviceInfoService.setDeviceBlocked(eq(deviceId), eq(targetDeviceId), eq(true))
         }.thenThrow(LockedException("This device is already blocked"))
 
         mockMvc.perform(
@@ -456,7 +500,7 @@ class DeviceControllerTest(
         val targetDeviceId = UUID.fromString("a9d3015a-27c9-4259-89e7-84142a939631")
 
         whenever {
-            deviceInfoService.blockDevice(eq(deviceId), eq(targetDeviceId))
+            deviceInfoService.setDeviceBlocked(eq(deviceId), eq(targetDeviceId), eq(true))
         }.thenThrow(NoSuchElementException("No device found with id $targetDeviceId"))
 
         mockMvc.perform(

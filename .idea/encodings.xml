@@ -7,10 +7,10 @@
     <file url="file://$PROJECT_DIR$/mossy-device-trust-shared/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-device-trust-shared/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-device-trust/src/main/kotlin" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/mossy-device/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-jwks-events/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-jwks-events/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-jwks/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/mossy-key-sync/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-oauth2-resource-server-starter/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-password/src/main/kotlin" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/mossy-statistics/src/main/kotlin" charset="UTF-8" />

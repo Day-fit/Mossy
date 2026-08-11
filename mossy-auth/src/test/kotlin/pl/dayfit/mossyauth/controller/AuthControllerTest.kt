@@ -21,10 +21,12 @@ import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
+import pl.dayfit.mossyauth.exception.ForwardedClientErrorException
 import pl.dayfit.mossyauth.service.JwtManagementService
 import pl.dayfit.mossyauth.service.JwtGenerationService
 import pl.dayfit.mossyauth.service.UserService
 import pl.dayfit.mossyauth.type.AccessTokenType
+import pl.dayfit.mossydevicetrustshared.dto.response.ForwardedErrorResponseDto
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.Duration
 import java.util.UUID
@@ -51,6 +53,10 @@ class AuthControllerTest(
 
     @Test
     fun `register returns success with correct request`() {
+        val deviceId = UUID.randomUUID()
+        whenever { userService.register(any(), eq("Linux"), any()) }
+            .thenReturn(deviceId)
+
         val content = jsonMapper.writeValueAsString(
             RegisterUserRequestDto(
                 username = "test",
@@ -67,7 +73,7 @@ class AuthControllerTest(
                 .content(content)
         )
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.message").value("User registered successfully"))
+            .andExpect(jsonPath("$.deviceId").value(deviceId.toString()))
     }
 
     @Test
@@ -204,6 +210,41 @@ class AuthControllerTest(
                 .content(content)
         )
             .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `login applies client status from a validated internal response`() {
+        whenever {
+            userService.login(any(), eq("Linux"), any())
+        }.thenThrow(
+            ForwardedClientErrorException(
+                ForwardedErrorResponseDto(
+                    forwardedMessage = "Missing device",
+                    forwardedStatusCode = 404,
+                )
+            )
+        )
+
+        val content = jsonMapper.writeValueAsString(
+            LoginRequestDto(
+                identifier = "test",
+                password = "test123",
+                challengeDto = LoginRequestDto.NonceChallengeDto(
+                    deviceId = UUID.randomUUID(),
+                    challengeId = UUID.randomUUID(),
+                    signature = "signature",
+                )
+            )
+        )
+
+        mockMvc.perform(
+            post("/login")
+                .header("User-Agent", "Linux")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(content)
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.message").isNotEmpty)
     }
 
     @Test

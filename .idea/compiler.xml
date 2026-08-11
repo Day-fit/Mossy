@@ -8,7 +8,6 @@
         <outputRelativeToContentRoot value="true" />
         <module name="mossy-vault-shared" />
         <module name="mossy-auth-starter" />
-        <module name="mossy-device" />
         <module name="mossy-device-trust" />
         <module name="mossy-oauth2-resource-server-starter" />
         <module name="mossy-auth" />
@@ -21,15 +20,16 @@
     <bytecodeTargetLevel>
       <module name="mossy-core" target="21" />
       <module name="mossy-device-manager" target="21" />
+      <module name="mossy-key-sync" target="21" />
     </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="mossy-auth" options="-parameters" />
-      <module name="mossy-device" options="-parameters" />
       <module name="mossy-device-manager" options="-parameters" />
       <module name="mossy-device-trust" options="-parameters" />
       <module name="mossy-jwks" options="-parameters" />
+      <module name="mossy-key-sync" options="-parameters" />
       <module name="mossy-oauth2-resource-server-starter" options="-parameters" />
       <module name="mossy-password" options="-parameters" />
       <module name="mossy-statistics" options="-parameters" />

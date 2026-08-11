@@ -16,6 +16,7 @@ import pl.dayfit.mossydevicetrust.dto.request.ConfirmDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.request.CreateDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.response.CreateDeviceEnrollmentResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DeviceEnrollmentsResponseDto
+import pl.dayfit.mossydevicetrust.dto.response.DevicesResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.GenericServerResponseDto
 import pl.dayfit.mossydevicetrust.service.DeviceInfoService
 import pl.dayfit.mossydevicetrust.service.IdempotencyService
@@ -34,14 +35,29 @@ class DeviceController(
         @AuthenticationPrincipal jwt: Jwt,
         @Valid @RequestBody blockDeviceRequestDto: BlockDeviceRequestDto
     ): ResponseEntity<GenericServerResponseDto> {
-        deviceInfoService.blockDevice(
+        deviceInfoService.setDeviceBlocked(
             UUID.fromString(jwt.getClaimAsString("device_id")),
-            blockDeviceRequestDto.targetDeviceId!!
+            blockDeviceRequestDto.targetDeviceId!!,
+            true,
         )
 
         return ResponseEntity.ok(
             GenericServerResponseDto("Device blocked successfully")
         )
+    }
+
+    @PostMapping("/device/unblock")
+    fun unblockDevice(
+        @AuthenticationPrincipal jwt: Jwt,
+        @Valid @RequestBody request: BlockDeviceRequestDto
+    ): ResponseEntity<GenericServerResponseDto> {
+        deviceInfoService.setDeviceBlocked(
+            UUID.fromString(jwt.getClaimAsString("device_id")),
+            request.targetDeviceId!!,
+            false,
+        )
+
+        return ResponseEntity.ok(GenericServerResponseDto("Device unblocked successfully"))
     }
 
     @GetMapping("/device/{deviceId}/identity-key")
@@ -102,6 +118,16 @@ class DeviceController(
         )
     }
 
+    @GetMapping("/devices")
+    fun getDevices(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<DevicesResponseDto> {
+        return ResponseEntity.ok(
+            deviceInfoService.getDevices(
+                UUID.fromString(jwt.subject),
+                UUID.fromString(jwt.getClaimAsString("device_id")),
+            )
+        )
+    }
+
     @PostMapping("/device/enrollment/{enrollmentId}/approve")
     fun approveDeviceEnrollment(@AuthenticationPrincipal jwt: Jwt, @PathVariable enrollmentId: UUID): ResponseEntity<GenericServerResponseDto> {
         deviceInfoService.approveDeviceEnrollment(
@@ -118,7 +144,7 @@ class DeviceController(
         val id = deviceInfoService.registerDevice(
             registerDeviceDto.publicIdentityKey,
             registerDeviceDto.userId,
-            registerDeviceDto.osName
+            registerDeviceDto.userAgent
         )
 
         return ResponseEntity.ok(

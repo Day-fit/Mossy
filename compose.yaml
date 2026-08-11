@@ -65,7 +65,7 @@ services:
       - 'JWKS_UPLOAD_URL=http://mossy-jwks:8084/.well-known/jwks.json/add'
       - 'JWKS_PROVIDER_URI=http://mossy-jwks:8084/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
-      - 'MOSSY_DEVICE_TRUST_SERVICE_HOST=http://mossy-device-trust:8085'
+      - 'MOSSY_DEVICE_TRUST_SERVICE_HOST=http://mossy-device-trust:8086'
     profiles:
       - 'prod'
     volumes:
@@ -80,7 +80,7 @@ services:
   mossy-device-trust:
     image: 'ghcr.io/day-fit/mossy-device-trust:latest'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/api/v1/device-trust/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8086/api/v1/device-trust/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s
@@ -90,7 +90,7 @@ services:
       - 'redis'
       - 'mossy-jwks'
     expose:
-      - '8085'
+      - '8086'
     environment:
       - 'SPRING_PROFILES_ACTIVE=prod'
       - 'DB_NAME=${DB_NAME}'
@@ -111,7 +111,16 @@ services:
       - 'traefik.http.routers.mossy-device-trust.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust`) && !PathPrefix(`/api/v1/device-trust/internal`)'
       - 'traefik.http.routers.mossy-device-trust.entrypoints=websecure'
       - 'traefik.http.routers.mossy-device-trust.tls.certresolver=myresolver'
-      - 'traefik.http.services.mossy-device-trust.loadbalancer.server.port=8085'
+      - 'traefik.http.routers.mossy-device-trust-nonce.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust/nonce/`)'
+      - 'traefik.http.routers.mossy-device-trust-nonce.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-device-trust-nonce.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-device-trust-nonce.priority=200'
+      - 'traefik.http.routers.mossy-device-trust-nonce.service=mossy-device-trust'
+      - 'traefik.http.routers.mossy-device-trust-nonce.middlewares=mossy-device-trust-nonce-rate-limit'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.average=10'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.period=1m'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.burst=5'
+      - 'traefik.http.services.mossy-device-trust.loadbalancer.server.port=8086'
 
   mossy-password:
     image: 'ghcr.io/day-fit/mossy-password:latest'

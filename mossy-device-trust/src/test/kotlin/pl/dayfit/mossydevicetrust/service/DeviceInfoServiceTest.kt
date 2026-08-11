@@ -1,5 +1,6 @@
 package pl.dayfit.mossydevicetrust.service
 
+import com.nimbusds.jose.jwk.Curve
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -31,6 +32,7 @@ import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
@@ -64,7 +66,7 @@ class DeviceInfoServiceTest {
                 DeviceInfo(
                     deviceId = UUID.randomUUID(),
                     userId = userId,
-                    publicJwk,
+                    publicJwk.decodedX,
                     "Android"
                 )
             )
@@ -77,7 +79,7 @@ class DeviceInfoServiceTest {
 
         verify(deviceInfoRepository).save(
             argThat { deviceInfo ->
-                deviceInfo.publicIdentityKey == publicJwk
+                deviceInfo.publicIdentityKey.contentEquals(publicJwk.decodedX)
             }
         )
     }
@@ -112,7 +114,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Linux",
             null,
             false
@@ -121,7 +123,7 @@ class DeviceInfoServiceTest {
         val targetDeviceInfo = DeviceInfo(
             targetDeviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Linux",
             null,
             false
@@ -135,15 +137,15 @@ class DeviceInfoServiceTest {
 
         val captor = argumentCaptor<DeviceInfo>()
 
-        deviceInfoService.blockDevice(deviceId, targetDeviceId)
+        deviceInfoService.setDeviceBlocked(deviceId, targetDeviceId, true)
 
         verify(deviceInfoRepository)
             .save(captor.capture())
 
         assert(captor.firstValue.deviceId == targetDeviceId)
         assert(captor.firstValue.userId == targetDeviceInfo.userId)
-        assert(captor.firstValue.publicIdentityKey == targetDeviceInfo.publicIdentityKey)
-        assert(captor.firstValue.lastOs == targetDeviceInfo.lastOs)
+        assert(captor.firstValue.publicIdentityKey.contentEquals(targetDeviceInfo.publicIdentityKey))
+        assert(captor.firstValue.lastUserAgent == targetDeviceInfo.lastUserAgent)
         assert(captor.firstValue.lastSeen == targetDeviceInfo.lastSeen)
 
         assert(captor.firstValue.blocked)
@@ -157,7 +159,7 @@ class DeviceInfoServiceTest {
         val targetDeviceInfo = DeviceInfo(
             targetDeviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Windows",
             Instant.now(),
             true
@@ -167,10 +169,10 @@ class DeviceInfoServiceTest {
         val anotherDeviceInfo = DeviceInfo(
             anotherDeviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Windows",
             Instant.now(),
-            true
+            false
         )
 
 
@@ -181,8 +183,25 @@ class DeviceInfoServiceTest {
             .thenReturn(Optional.of(anotherDeviceInfo))
 
         assertThrows<LockedException> {
-            deviceInfoService.blockDevice(anotherDeviceId, targetDeviceId)
+            deviceInfoService.setDeviceBlocked(anotherDeviceId, targetDeviceId, true)
         }
+    }
+
+    @Test
+    fun `blocked device cannot block another device`() {
+        val userId = UUID.randomUUID()
+        val blockedDevice = deviceInfo(UUID.randomUUID(), userId, blocked = true)
+        val target = deviceInfo(UUID.randomUUID(), userId)
+        whenever(deviceInfoRepository.findById(blockedDevice.deviceId))
+            .thenReturn(Optional.of(blockedDevice))
+        whenever(deviceInfoRepository.findById(target.deviceId))
+            .thenReturn(Optional.of(target))
+
+        assertThrows<AccessDeniedException> {
+            deviceInfoService.setDeviceBlocked(blockedDevice.deviceId, target.deviceId, true)
+        }
+
+        verify(deviceInfoRepository, never()).save(any<DeviceInfo>())
     }
 
     @Test
@@ -190,7 +209,7 @@ class DeviceInfoServiceTest {
         val targetDeviceId = UUID.fromString("a9d3015a-27c9-4259-89e7-84142a939631")
 
         assertThrows<SelfLockNotAllowedException> {
-            deviceInfoService.blockDevice(targetDeviceId, targetDeviceId)
+            deviceInfoService.setDeviceBlocked(targetDeviceId, targetDeviceId, true)
         }
     }
 
@@ -203,7 +222,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Windows",
             Instant.now(),
         )
@@ -217,7 +236,7 @@ class DeviceInfoServiceTest {
         val anotherDeviceInfo = DeviceInfo(
             anotherDeviceId,
             anotherUserId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Windows",
             Instant.now(),
         )
@@ -226,7 +245,7 @@ class DeviceInfoServiceTest {
             .thenReturn(Optional.of(anotherDeviceInfo))
 
         assertThrows <AccessDeniedException> {
-            deviceInfoService.blockDevice(deviceId, anotherDeviceId)
+            deviceInfoService.setDeviceBlocked(deviceId, anotherDeviceId, true)
         }
     }
 
@@ -236,7 +255,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Windows",
             Instant.now(),
             true,
@@ -254,7 +273,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Linux",
             Instant.now(),
             false,
@@ -285,7 +304,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Linux",
             Instant.now(),
             false,
@@ -299,7 +318,8 @@ class DeviceInfoServiceTest {
 
         val result = deviceInfoService.getIdentityKey(userId, deviceId)
 
-        assert(result == deviceInfo.publicIdentityKey)
+        assert(result.decodedX.contentEquals(deviceInfo.publicIdentityKey))
+        assertEquals(Curve.Ed25519, result.curve)
         assert(!result.isPrivate)
     }
 
@@ -329,7 +349,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             otherUserId,
             userId,
-            generateKeyPair().toPublicJWK(),
+            generateKeyPair().toPublicJWK().decodedX,
             "Linux",
             Instant.now(),
             false,
@@ -350,7 +370,7 @@ class DeviceInfoServiceTest {
     fun `creating enrollment persists request and creates challenge for stored id`() {
         val publicIdentityKey = generateKeyPair().toPublicJWK()
         val request = CreateDeviceEnrollmentRequestDto(
-            osName = "Windows",
+            userAgent = "Windows",
             publicIdentityKey = publicIdentityKey.toJSONObject(),
         )
         val enrollmentId = "enrollment-id"
@@ -366,9 +386,9 @@ class DeviceInfoServiceTest {
         }.thenReturn(
             DeviceEnrollment(
                 enrollmentId = enrollmentId,
-                osName = request.osName,
+                userAgent = request.userAgent,
                 remoteAddr = remoteAddr,
-                publicIdentityKey = publicIdentityKey,
+                publicIdentityKey = publicIdentityKey.decodedX,
             )
         )
 
@@ -384,9 +404,9 @@ class DeviceInfoServiceTest {
         verify(deviceEnrollmentRepository).save(
             argThat { enrollment ->
                 enrollment.enrollmentId == null &&
-                    enrollment.osName == request.osName &&
+                    enrollment.userAgent == request.userAgent &&
                     enrollment.remoteAddr == remoteAddr &&
-                    enrollment.publicIdentityKey == publicIdentityKey
+                    enrollment.publicIdentityKey.contentEquals(publicIdentityKey.decodedX)
             }
         )
         verify(nonceChallengeService).generateNonce(
@@ -398,8 +418,23 @@ class DeviceInfoServiceTest {
     @Test
     fun `creating enrollment rejects a private identity key`() {
         val request = CreateDeviceEnrollmentRequestDto(
-            osName = "Linux",
+            userAgent = "Linux",
             publicIdentityKey = generateKeyPair().toJSONObject(),
+        )
+
+        assertThrows<InvalidKeyException> {
+            deviceInfoService.createDeviceEnrollment(request, "192.0.2.1")
+        }
+
+        verify(deviceEnrollmentRepository, never()).save(any<DeviceEnrollment>())
+        verify(nonceChallengeService, never()).generateNonce(any(), any())
+    }
+
+    @Test
+    fun `creating enrollment rejects a valid non Ed25519 identity key`() {
+        val request = CreateDeviceEnrollmentRequestDto(
+            userAgent = "Linux",
+            publicIdentityKey = generateKeyPair(Curve.X25519).toPublicJWK().toJSONObject(),
         )
 
         assertThrows<InvalidKeyException> {
@@ -419,9 +454,9 @@ class DeviceInfoServiceTest {
         val publicIdentityKey = generateKeyPair().toPublicJWK()
         val enrollment = DeviceEnrollment(
             enrollmentId = enrollmentId,
-            osName = "Android",
+            userAgent = "Android",
             remoteAddr = "192.0.2.1",
-            publicIdentityKey = publicIdentityKey,
+            publicIdentityKey = publicIdentityKey.decodedX,
         )
 
         whenever(deviceEnrollmentRepository.findById(enrollmentId))
@@ -431,7 +466,7 @@ class DeviceInfoServiceTest {
                 challengeId,
                 signature,
                 enrollmentId,
-                publicIdentityKey,
+                publicIdentityKey.decodedX,
             )
         ).thenReturn(true)
 
@@ -456,8 +491,8 @@ class DeviceInfoServiceTest {
         with(requestCaptor.firstValue) {
             assertEquals(userId, this.userId)
             assertEquals(enrollment.remoteAddr, remoteAddr)
-            assertEquals(enrollment.osName, osName)
-            assertEquals(publicIdentityKey, this.publicIdentityKey)
+            assertEquals(enrollment.userAgent, userAgent)
+            assertTrue(publicIdentityKey.decodedX.contentEquals(this.publicIdentityKey))
             assertTrue(!createdAt.isBefore(confirmationStartedAt))
             assertTrue(!createdAt.isAfter(confirmationCompletedAt))
         }
@@ -472,8 +507,8 @@ class DeviceInfoServiceTest {
             id = UUID.randomUUID(),
             userId = userId,
             remoteAddr = "192.0.2.10",
-            osName = "Linux",
-            publicIdentityKey = generateKeyPair().toPublicJWK(),
+            userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
+            publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
 
@@ -486,7 +521,8 @@ class DeviceInfoServiceTest {
         assertEquals(1, result.enrollments.size)
         with(result.enrollments.single()) {
             assertEquals(ownRequest.id, id)
-            assertEquals(ownRequest.osName, osName)
+            assertEquals("Linux", lastOsName)
+            assertEquals("Desktop", deviceType)
             assertEquals(ownRequest.remoteAddr, remoteAddr)
             assertEquals(ownRequest.createdAt, createdAt)
         }
@@ -502,8 +538,8 @@ class DeviceInfoServiceTest {
             id = enrollmentRequestId,
             userId = userId,
             remoteAddr = "192.0.2.30",
-            osName = "Windows",
-            publicIdentityKey = publicIdentityKey,
+            userAgent = "Windows",
+            publicIdentityKey = publicIdentityKey.decodedX,
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
 
@@ -513,8 +549,8 @@ class DeviceInfoServiceTest {
                     DeviceInfo(
                         deviceId = approvingDeviceId,
                         userId = userId,
-                        publicIdentityKey = generateKeyPair().toPublicJWK(),
-                        lastOs = "Linux",
+                        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+                        lastUserAgent = "Linux",
                     )
                 )
             )
@@ -531,10 +567,70 @@ class DeviceInfoServiceTest {
         with(deviceCaptor.firstValue) {
             assertEquals(enrollmentRequest.id, deviceId)
             assertEquals(userId, this.userId)
-            assertEquals(publicIdentityKey, this.publicIdentityKey)
-            assertEquals(enrollmentRequest.osName, lastOs)
+            assertTrue(publicIdentityKey.decodedX.contentEquals(this.publicIdentityKey))
+            assertEquals(enrollmentRequest.userAgent, lastUserAgent)
+            assertTrue(isNew, "approved device must be persisted instead of merged")
         }
         verify(deviceEnrollmentRequestRepository).delete(enrollmentRequest)
+    }
+
+    @Test
+    fun `lists only user devices and marks the current device`() {
+        val userId = UUID.randomUUID()
+        val currentDevice = deviceInfo(UUID.randomUUID(), userId)
+        val blockedDevice = deviceInfo(UUID.randomUUID(), userId, blocked = true)
+        whenever(deviceInfoRepository.findAllByUserId(userId))
+            .thenReturn(listOf(currentDevice, blockedDevice))
+
+        val result = deviceInfoService.getDevices(userId, currentDevice.deviceId)
+
+        assertEquals(2, result.devices.size)
+        with(result.devices.first()) {
+            assertEquals(currentDevice.deviceId, id)
+            assertTrue(current)
+            assertFalse(blocked)
+        }
+        with(result.devices.last()) {
+            assertEquals(blockedDevice.deviceId, id)
+            assertFalse(current)
+            assertTrue(blocked)
+        }
+        verify(deviceInfoRepository).findAllByUserId(userId)
+    }
+
+    @Test
+    fun `unblocking owned device saves its active state`() {
+        val userId = UUID.randomUUID()
+        val approvingDevice = deviceInfo(UUID.randomUUID(), userId)
+        val blockedDevice = deviceInfo(UUID.randomUUID(), userId, blocked = true)
+        whenever(deviceInfoRepository.findById(approvingDevice.deviceId))
+            .thenReturn(Optional.of(approvingDevice))
+        whenever(deviceInfoRepository.findById(blockedDevice.deviceId))
+            .thenReturn(Optional.of(blockedDevice))
+
+        deviceInfoService.setDeviceBlocked(approvingDevice.deviceId, blockedDevice.deviceId, false)
+
+        val captor = argumentCaptor<DeviceInfo>()
+        verify(deviceInfoRepository).save(captor.capture())
+        assertEquals(blockedDevice.deviceId, captor.firstValue.deviceId)
+        assertFalse(captor.firstValue.blocked)
+    }
+
+    @Test
+    fun `blocked device cannot unblock another device`() {
+        val userId = UUID.randomUUID()
+        val blockedApprover = deviceInfo(UUID.randomUUID(), userId, blocked = true)
+        val target = deviceInfo(UUID.randomUUID(), userId, blocked = true)
+        whenever(deviceInfoRepository.findById(blockedApprover.deviceId))
+            .thenReturn(Optional.of(blockedApprover))
+        whenever(deviceInfoRepository.findById(target.deviceId))
+            .thenReturn(Optional.of(target))
+
+        assertThrows<AccessDeniedException> {
+            deviceInfoService.setDeviceBlocked(blockedApprover.deviceId, target.deviceId, false)
+        }
+
+        verify(deviceInfoRepository, never()).save(any<DeviceInfo>())
     }
 
     @Test
@@ -632,9 +728,9 @@ class DeviceInfoServiceTest {
         val publicIdentityKey = generateKeyPair().toPublicJWK()
         val enrollment = DeviceEnrollment(
             enrollmentId = enrollmentId,
-            osName = "Linux",
+            userAgent = "Linux",
             remoteAddr = "192.0.2.1",
-            publicIdentityKey = publicIdentityKey,
+            publicIdentityKey = publicIdentityKey.decodedX,
         )
 
         whenever(deviceEnrollmentRepository.findById(enrollmentId))
@@ -644,7 +740,7 @@ class DeviceInfoServiceTest {
                 challengeId,
                 signature,
                 enrollmentId,
-                publicIdentityKey,
+                publicIdentityKey.decodedX,
             )
         ).thenReturn(false)
 
@@ -686,16 +782,16 @@ class DeviceInfoServiceTest {
         id = UUID.randomUUID(),
         userId = userId,
         remoteAddr = "192.0.2.30",
-        osName = "Windows",
-        publicIdentityKey = generateKeyPair().toPublicJWK(),
+        userAgent = "Windows",
+        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
         createdAt = Instant.parse("2026-08-10T12:00:00Z"),
     )
 
     private fun deviceInfo(deviceId: UUID, userId: UUID, blocked: Boolean = false) = DeviceInfo(
         deviceId = deviceId,
         userId = userId,
-        publicIdentityKey = generateKeyPair().toPublicJWK(),
-        lastOs = "Linux",
+        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+        lastUserAgent = "Linux",
         blocked = blocked,
     )
 }
