@@ -5,8 +5,8 @@ import { NavLink } from 'react-router-dom';
 import RippleButton from '../layout/RippleButton.tsx';
 import type { Dispatch, SetStateAction } from 'react';
 import { loginSchema, type LoginSchema } from '../../forms/loginSchema.ts';
-import { executeLoginRequest } from '../../api/auth.api.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
+import { signIn } from '../../auth/authFlow.ts';
 
 interface SignupFormProps {
 	setResponseState: Dispatch<
@@ -36,22 +36,28 @@ export default function SigninForm({
 	});
 
 	const onSubmit = async (data: LoginSchema) => {
-		await executeLoginRequest(data)
-			.then(async (res) => {
-				const json = await res.json();
-
-				login(json.accessToken);
-				onSuccess();
-			})
-			.catch((err) => {
-				console.log(err);
+		try {
+			const result = await signIn(data);
+			if (result.status === 'enrollment-pending') {
 				setResponseState({
-					message: err
-						? err.message
-						: 'Something went wrong. Please try again later.',
-					isError: true,
+					message:
+						'Device enrollment requested. Approve it from an existing device, then sign in again.',
+					isError: false,
 				});
+				return;
+			}
+
+			login(result.accessToken);
+			onSuccess();
+		} catch (error) {
+			setResponseState({
+				message:
+					error instanceof Error
+						? error.message
+						: 'Something went wrong. Please try again later.',
+				isError: true,
 			});
+		}
 	};
 
 	return (
@@ -158,7 +164,7 @@ export default function SigninForm({
 							animate={{ opacity: [1, 0.5, 1] }}
 							transition={{ duration: 1.5, repeat: Infinity }}
 						>
-							Signing up...
+							Signing in...
 						</motion.span>
 					) : (
 						'Enter vault'

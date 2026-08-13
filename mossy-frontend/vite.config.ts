@@ -6,36 +6,48 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
 	server: {
 		proxy: {
+			'/api/v1/device-trust': {
+				target: 'http://localhost:8086',
+				changeOrigin: true,
+				secure: false,
+				xfwd: true,
+			},
 			'/api/v1/auth': {
 				target: 'http://localhost:8083',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 			},
 			'/api/v1/passwords': {
 				target: 'http://localhost:8082',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 			},
 			'/api/v1/device': {
 				target: 'http://localhost:8081',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 			},
 			'/api/v1/key-sync': {
 				target: 'http://localhost:8081',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 			},
 			'/api/v1/ws/key-sync': {
 				target: 'http://localhost:8081',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 				ws: true,
 			},
 			'/api/v1/statistics': {
 				target: 'http://localhost:8085',
 				changeOrigin: true,
 				secure: false,
+				xfwd: true,
 			},
 		},
 	},

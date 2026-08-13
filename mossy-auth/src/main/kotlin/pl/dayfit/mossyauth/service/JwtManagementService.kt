@@ -1,6 +1,7 @@
 package pl.dayfit.mossyauth.service
 
 import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.LockedException
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.RevokedJwtModel
@@ -20,6 +21,7 @@ class JwtManagementService(
     private val revokedJwtRepository: RevokedJwtRepository,
     private val jwtGenerationService: JwtGenerationService,
     private val userDetailsService: UserDetailsService,
+    private val deviceTrustIntegrationService: DeviceTrustIntegrationService,
     private val jwtDecoder: JwtDecoder
 ) {
     /**
@@ -45,8 +47,7 @@ class JwtManagementService(
      * @param refreshToken the current refresh token used to identify and authenticate the user
      * @return a pair of strings where the first element is the new access token and the second element is the new refresh token
      */
-    fun handleTokenRefreshment(refreshToken: String): Pair<String, String>
-    {
+    fun handleTokenRefreshment(refreshToken: String): JwtGenerationService.TokenPairDto {
         if (revokedJwtRepository.existsByToken(refreshToken))
         {
             throw BadCredentialsException("Refresh token is revoked")
@@ -56,7 +57,16 @@ class JwtManagementService(
         val userId = UUID.fromString(jwt.subject)
 
         val userDetails = userDetailsService.loadUserById(userId)
-        val newPair = jwtGenerationService.generatePairOfTokens(userDetails as UserDetailsImpl)
+        val deviceId = UUID.fromString(jwt.claims["device_id"] as String)
+
+        if (deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)) {
+            throw LockedException("Device is blocked")
+        }
+
+        val newPair = jwtGenerationService.generatePairOfTokens(
+            userDetails as UserDetailsImpl,
+            deviceId
+        )
 
         return newPair
     }

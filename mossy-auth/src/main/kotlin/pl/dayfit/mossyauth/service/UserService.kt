@@ -1,11 +1,13 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.dto.response.UserDetailsResponseDto
@@ -13,6 +15,7 @@ import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauth.service.cache.UserCacheService
+import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import java.util.*
@@ -23,9 +26,11 @@ class UserService(
     private val userRepository: UserRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
-    private val daoAuthenticationProvider: DaoAuthenticationProvider
+    private val daoAuthenticationProvider: DaoAuthenticationProvider,
+    private val deviceTrustIntegrationService: DeviceTrustIntegrationService
 ) {
-    fun register(requestDto: RegisterUserRequestDto) {
+    @Transactional
+    fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String): UUID {
         //Passwords cannot be null, so a result of encoding is not null as well
         val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
 
@@ -42,15 +47,40 @@ class UserService(
             password = encodedPassword,
             authProvider = AuthProvider.LOCAL,
             authorities = listOf("USER"),
-            enabled = true,
+            enabled = false,
             blocked = false
         )
 
         //TODO: create a email confirmation for account registration
-        userCacheService.save(user)
+        val savedUser = userCacheService.save(user)
+
+        val deviceId = deviceTrustIntegrationService.registerDevice(
+            savedUser.id!!,
+            requestDto.publicIdentityKey,
+            userAgent,
+            remoteAddr,
+        )
+
+        savedUser.enabled = true
+        userCacheService.save(savedUser)
+
+        return deviceId
     }
 
-    fun login(loginDto: LoginRequestDto): Pair<String, String> {
+    /**
+     * Authenticates a user and returns either a device-enrollment token or a regular token pair.
+     *
+     * If no challenge payload is provided, the user is treated as logging in from a new device and
+     * receives a device-enrollment token. If a challenge is provided, the signature is verified via
+     * the device-trust service before issuing access and refresh tokens.
+     *
+     * @param loginDto login credentials and optional device challenge payload
+     * @param userAgent caller user-agent used during challenge/device verification
+     * @param remoteAddr caller remote IP address used during challenge/device verification
+     * @return token wrapper containing either a device-enrollment token or a standard access/refresh pair
+     * @throws BadCredentialsException when device challenge verification fails
+     */
+    fun login(loginDto: LoginRequestDto, userAgent: String, remoteAddr: String): JwtGenerationService.TokenPairDto {
         val candidate = UsernamePasswordAuthenticationToken(
             loginDto.identifier,
             loginDto.password
@@ -59,8 +89,31 @@ class UserService(
         val authToken = daoAuthenticationProvider
             .authenticate(candidate) as UsernamePasswordAuthenticationToken
 
+        val userDetails = authToken.principal as UserDetailsImpl
+        val challengeDto = loginDto.challengeDto ?: return JwtGenerationService.TokenPairDto(
+            jwtGenerationService.generateDeviceEnrollmentToken(
+                userDetails
+            ),
+            AccessTokenType.DEVICE_ENROLLMENT_TOKEN
+        )
+
+        val deviceId = challengeDto.deviceId
+        val deviceTrustResponse = deviceTrustIntegrationService.checkChallenge(
+            userDetails.userId,
+            challengeDto.challengeId,
+            challengeDto.signature,
+            userAgent,
+            remoteAddr,
+            deviceId
+        )
+
+        if (!deviceTrustResponse.success) {
+            throw BadCredentialsException("Nonce challenge failed")
+        }
+
         return jwtGenerationService.generatePairOfTokens(
-            authToken.principal as UserDetailsImpl,
+            userDetails,
+            deviceId
         )
     }
 

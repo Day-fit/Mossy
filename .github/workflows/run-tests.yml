@@ -132,5 +132,9 @@ jobs:
           EOF
 
       - name: Run tests
-        working-directory: ${{ matrix.service }}
-        run: mvn -B -ntp test -s /tmp/settings.xml
+        run: >-
+          mvn -B -ntp
+          -pl "${{ matrix.service }}"
+          -am
+          test
+          -s /tmp/settings.xml
