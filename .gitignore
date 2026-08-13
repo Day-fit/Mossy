@@ -1,1 +1,5 @@
 .env
+
+# IntelliJ IDEA project and module metadata
+.idea/
+*.iml
