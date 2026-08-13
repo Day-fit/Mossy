@@ -14,7 +14,7 @@ interface Hashable {
         val bytes = json.toByteArray(Charsets.UTF_8)
 
         val digest = SHA256Digest().apply {
-            update(bytes, 0, json.length)
+            update(bytes, 0, bytes.size)
         }
 
         val hash = ByteArray(digest.digestSize)
