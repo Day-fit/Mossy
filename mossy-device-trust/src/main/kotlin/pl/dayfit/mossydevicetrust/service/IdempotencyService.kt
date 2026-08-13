@@ -24,14 +24,14 @@ class IdempotencyService(
         if (!optionalResult.isPresent) {
             val response = operation()
 
-            val idempotencyKey = IdempotencyKey(
+            val entry = IdempotencyKey(
                 idempotencyKey,
                 requestDto.hash(),
                 HttpStatus.OK,
                 response
             )
 
-            repository.save(idempotencyKey)
+            repository.save(entry)
             return ResponseEntity.ok(response)
         }
 
