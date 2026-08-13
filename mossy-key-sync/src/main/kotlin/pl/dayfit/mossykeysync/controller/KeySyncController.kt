@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.controller
+package pl.dayfit.mossykeysync.controller
 
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import pl.dayfit.mossydevice.dto.request.InitKeySyncRequestDto
-import pl.dayfit.mossydevice.dto.response.InitKeySyncResponseDto
-import pl.dayfit.mossydevice.service.KeySyncService
+import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
+import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
+import pl.dayfit.mossykeysync.service.KeySyncService
 import java.util.UUID
 
 @RestController

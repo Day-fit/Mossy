@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.model.redis
+package pl.dayfit.mossykeysync.model.redis
 
 import org.springframework.data.annotation.Id
 import org.springframework.data.redis.core.RedisHash

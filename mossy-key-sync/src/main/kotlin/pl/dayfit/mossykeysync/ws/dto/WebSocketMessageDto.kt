@@ -1,6 +1,6 @@
-package pl.dayfit.mossydevice.ws.dto
+package pl.dayfit.mossykeysync.ws.dto
 
-import pl.dayfit.mossydevice.type.MessageType
+import pl.dayfit.mossykeysync.type.MessageType
 import java.util.UUID
 
 sealed class WebSocketMessageDto {

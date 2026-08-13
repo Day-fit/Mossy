@@ -1,17 +1,17 @@
-package pl.dayfit.mossydevice.ws.handler
+package pl.dayfit.mossykeysync.ws.handler
 
 import org.springframework.stereotype.Component
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.WebSocketHandlerDecorator
-import pl.dayfit.mossydevice.service.KeySyncService
-import pl.dayfit.mossydevice.service.WebSocketAuthenticationService
-import pl.dayfit.mossydevice.service.WebSocketSessionService
-import pl.dayfit.mossydevice.type.AuthFrameStatus
-import pl.dayfit.mossydevice.type.MessageType
-import pl.dayfit.mossydevice.ws.dto.AuthFrameResponseDto
-import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossykeysync.service.KeySyncService
+import pl.dayfit.mossykeysync.service.WebSocketAuthenticationService
+import pl.dayfit.mossykeysync.service.WebSocketSessionService
+import pl.dayfit.mossykeysync.type.AuthFrameStatus
+import pl.dayfit.mossykeysync.type.MessageType
+import pl.dayfit.mossykeysync.ws.dto.AuthFrameResponseDto
+import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue
 import java.util.concurrent.CompletableFuture

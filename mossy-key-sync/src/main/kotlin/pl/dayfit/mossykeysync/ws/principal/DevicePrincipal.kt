@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.ws.principal
+package pl.dayfit.mossykeysync.ws.principal
 
 import java.security.Principal
 import java.util.UUID

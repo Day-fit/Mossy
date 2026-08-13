@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.service
+package pl.dayfit.mossykeysync.service
 
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -9,12 +9,12 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.WebSocketSession
-import pl.dayfit.mossydevice.model.redis.KeySyncRoom
-import pl.dayfit.mossydevice.repository.redis.KeySyncRoomRepository
-import pl.dayfit.mossydevice.type.KeySyncRole
-import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
-import pl.dayfit.mossydevice.ws.dto.WebSocketServerMessageDto
-import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
+import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
+import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
+import pl.dayfit.mossykeysync.type.KeySyncRole
+import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossykeysync.ws.dto.WebSocketServerMessageDto
+import pl.dayfit.mossykeysync.ws.principal.DevicePrincipal
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -140,7 +140,7 @@ class KeySyncServiceTest {
             senderSession
         )
 
-        assertEquals(room.senderSignatureAccepted, true)
+        assertEquals(true, room.senderSignatureAccepted)
         verify(roomRepository).save(room)
         verify(notifier).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(true))
         verify(notifier).send(senderSession, WebSocketServerMessageDto.SignatureStatus(true))

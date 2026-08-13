@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.ws.interceptor
+package pl.dayfit.mossykeysync.ws.interceptor
 
 import org.springframework.http.server.ServerHttpRequest
 import org.springframework.http.server.ServerHttpResponse

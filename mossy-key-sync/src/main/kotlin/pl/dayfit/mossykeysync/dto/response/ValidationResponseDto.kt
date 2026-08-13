@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.dto.response
+package pl.dayfit.mossykeysync.dto.response
 
 data class ValidationResponseDto(
     val errors: List<ValidationResult>

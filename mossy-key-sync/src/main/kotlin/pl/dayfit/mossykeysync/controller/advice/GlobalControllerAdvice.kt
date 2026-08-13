@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.controller.advice
+package pl.dayfit.mossykeysync.controller.advice
 
 import jakarta.validation.ConstraintViolationException
 import org.springframework.core.annotation.Order
@@ -12,8 +12,8 @@ import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
-import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
-import pl.dayfit.mossydevice.dto.response.ValidationResponseDto
+import pl.dayfit.mossykeysync.dto.response.GenericServerResponseDto
+import pl.dayfit.mossykeysync.dto.response.ValidationResponseDto
 
 
 @Order(2)
@@ -98,7 +98,7 @@ class GlobalControllerAdvice {
 
         return ResponseEntity.badRequest()
             .body(
-                GenericServerResponseDto(exception.message ?: "Missing request header")
+                GenericServerResponseDto(exception.message)
             )
     }
 

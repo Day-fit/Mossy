@@ -1,6 +1,6 @@
-package pl.dayfit.mossydevice.ws.dto
+package pl.dayfit.mossykeysync.ws.dto
 
-import pl.dayfit.mossydevice.type.AuthFrameStatus
+import pl.dayfit.mossykeysync.type.AuthFrameStatus
 
 data class AuthFrameResponseDto(
     val status: AuthFrameStatus,

@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice
+package pl.dayfit.mossykeysync
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

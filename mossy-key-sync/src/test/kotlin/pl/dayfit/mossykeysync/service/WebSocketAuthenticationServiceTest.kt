@@ -1,11 +1,11 @@
-package pl.dayfit.mossydevice.service
+package pl.dayfit.mossykeysync.service
 
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
-import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
 import java.util.UUID
 import kotlin.test.assertEquals
 

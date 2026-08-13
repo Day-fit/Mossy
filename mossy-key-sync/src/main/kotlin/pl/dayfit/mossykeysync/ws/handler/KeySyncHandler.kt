@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.ws.handler
+package pl.dayfit.mossykeysync.ws.handler
 
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -7,12 +7,12 @@ import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketHandler
 import org.springframework.web.socket.WebSocketMessage
 import org.springframework.web.socket.WebSocketSession
-import pl.dayfit.mossydevice.dto.response.GenericServerResponseDto
-import pl.dayfit.mossydevice.service.KeySyncService
-import pl.dayfit.mossydevice.service.WebSocketSessionService
-import pl.dayfit.mossydevice.type.MessageType
-import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
-import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
+import pl.dayfit.mossykeysync.dto.response.GenericServerResponseDto
+import pl.dayfit.mossykeysync.service.KeySyncService
+import pl.dayfit.mossykeysync.service.WebSocketSessionService
+import pl.dayfit.mossykeysync.type.MessageType
+import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossykeysync.ws.principal.DevicePrincipal
 import tools.jackson.databind.DatabindException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.readValue

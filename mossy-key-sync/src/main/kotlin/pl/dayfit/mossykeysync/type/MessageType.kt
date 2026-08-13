@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.type
+package pl.dayfit.mossykeysync.type
 
 enum class MessageType {
     AUTH_FRAME,

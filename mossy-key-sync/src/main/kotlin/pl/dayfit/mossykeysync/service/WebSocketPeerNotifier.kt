@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.service
+package pl.dayfit.mossykeysync.service
 
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.TextMessage

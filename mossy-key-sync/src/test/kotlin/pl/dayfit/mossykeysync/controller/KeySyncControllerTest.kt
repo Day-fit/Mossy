@@ -1,13 +1,13 @@
-package pl.dayfit.mossydevice.controller
+package pl.dayfit.mossykeysync.controller
 
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.springframework.security.oauth2.jwt.Jwt
-import pl.dayfit.mossydevice.dto.request.InitKeySyncRequestDto
-import pl.dayfit.mossydevice.dto.response.InitKeySyncResponseDto
-import pl.dayfit.mossydevice.service.KeySyncService
+import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
+import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
+import pl.dayfit.mossykeysync.service.KeySyncService
 import java.util.UUID
 import kotlin.test.assertEquals
 

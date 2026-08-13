@@ -1,4 +1,4 @@
-package pl.dayfit.mossydevice.dto.request
+package pl.dayfit.mossykeysync.dto.request
 
 import java.util.UUID
 

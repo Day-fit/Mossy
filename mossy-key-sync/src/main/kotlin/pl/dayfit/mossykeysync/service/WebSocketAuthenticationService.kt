@@ -1,9 +1,9 @@
-package pl.dayfit.mossydevice.service
+package pl.dayfit.mossykeysync.service
 
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.stereotype.Service
-import pl.dayfit.mossydevice.ws.dto.WebSocketMessageDto
-import pl.dayfit.mossydevice.ws.principal.DevicePrincipal
+import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
+import pl.dayfit.mossykeysync.ws.principal.DevicePrincipal
 import java.util.UUID
 
 @Service
