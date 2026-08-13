@@ -1,8 +1,8 @@
 services:
-  mossy:
+  mossy-vault:
     image: 'ghcr.io/day-fit/mossy-vault:latest'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6797/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:6797/api/v1/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s

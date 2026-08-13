@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>pl.dayfit</groupId>
+    <artifactId>mossy-reactor</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>mossy-auth</module>
+        <module>mossy-device-trust-shared</module>
+        <module>mossy-device-trust</module>
+        <module>mossy-key-sync</module>
+        <module>mossy-oauth2-resource-server-starter</module>
+        <module>mossy-password</module>
+        <module>mossy-statistics</module>
+        <module>mossy-vault-shared</module>
+        <module>self-hosted/mossy-vault</module>
+    </modules>
+</project>

@@ -132,10 +132,9 @@ jobs:
           EOF
 
       - name: Run tests
-        working-directory: ${{ matrix.service }}
-        run: |
-          if [[ "${{ matrix.service }}" != "./mossy-device-trust-shared" ]]; then
-            mvn -B -ntp install -DskipTests -f ../mossy-device-trust-shared/pom.xml -s /tmp/settings.xml
-          fi
-
-          mvn -B -ntp test -s /tmp/settings.xml
+        run: >-
+          mvn -B -ntp
+          -pl "${{ matrix.service }}"
+          -am
+          test
+          -s /tmp/settings.xml
