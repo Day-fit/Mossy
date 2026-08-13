@@ -3,7 +3,6 @@ package pl.dayfit.mossydevicetrust.service
 import org.bouncycastle.crypto.signers.Ed25519Signer
 import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
 import org.springframework.data.redis.core.RedisTemplate
-import org.springframework.http.ResponseEntity
 import org.springframework.stereotype.Service
 import pl.dayfit.mossydevicetrust.exception.EnrollmentNotAcceptedYetException
 import pl.dayfit.mossydevicetrust.model.NonceChallenge
@@ -20,7 +19,7 @@ import kotlin.io.encoding.Base64
 
 @Service
 class NonceChallengeService(
-    private val deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository
+    private val deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository,
     private val deviceInfoRepository: DeviceInfoRepository,
     private val secureRandom: SecureRandom,
     private val redisTemplate: RedisTemplate<UUID, NonceChallenge>

@@ -39,9 +39,12 @@ describe('auth flow', () => {
 	it('proves possession of the stored device identity before authenticating', async () => {
 		deviceIdentity.loadStoredDeviceId.mockResolvedValue('device-1');
 		deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
-			nonce: 'nonce-1',
-			challengeId: 'challenge-1',
-			expiresAt: '2026-08-11T00:00:00Z',
+			status: 'challenge-ready',
+			challenge: {
+				nonce: 'nonce-1',
+				challengeId: 'challenge-1',
+				expiresAt: '2026-08-11T00:00:00Z',
+			},
 		});
 		authApi.executeLoginRequest.mockResolvedValue({
 			accessToken: 'access-token',
@@ -62,6 +65,20 @@ describe('auth flow', () => {
 			},
 		});
 		expect(deviceTrustApi.executeCreateEnrollmentRequest).not.toHaveBeenCalled();
+	});
+
+	it('reports a stored device as pending without trying to sign a missing challenge', async () => {
+		deviceIdentity.loadStoredDeviceId.mockResolvedValue('pending-device-1');
+		deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
+			status: 'enrollment-pending',
+		});
+
+		await expect(signIn(credentials)).resolves.toEqual({
+			status: 'enrollment-pending',
+			deviceId: 'pending-device-1',
+		});
+		expect(deviceIdentity.signNonce).not.toHaveBeenCalled();
+		expect(authApi.executeLoginRequest).not.toHaveBeenCalled();
 	});
 
 	it('enrolls an unknown device without treating its limited token as authentication', async () => {
@@ -104,9 +121,12 @@ describe('auth flow', () => {
 	it('registers the generated public identity and then performs challenged login', async () => {
 		authApi.executeRegisterRequest.mockResolvedValue({ deviceId: 'device-2' });
 		deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
-			nonce: 'nonce-2',
-			challengeId: 'challenge-2',
-			expiresAt: '2026-08-11T00:00:00Z',
+			status: 'challenge-ready',
+			challenge: {
+				nonce: 'nonce-2',
+				challengeId: 'challenge-2',
+				expiresAt: '2026-08-11T00:00:00Z',
+			},
 		});
 		authApi.executeLoginRequest.mockResolvedValue({
 			accessToken: 'registered-access-token',

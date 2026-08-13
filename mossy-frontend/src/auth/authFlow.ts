@@ -44,8 +44,13 @@ async function loginKnownDevice(
 	credentials: Credentials,
 	deviceId: string,
 	identity: CryptoPair
-): Promise<string> {
-	const challenge = await executeDeviceLoginChallengeRequest(deviceId);
+): Promise<SignInResult> {
+	const challengeResult = await executeDeviceLoginChallengeRequest(deviceId);
+	if (challengeResult.status === 'enrollment-pending') {
+		return { status: 'enrollment-pending', deviceId };
+	}
+
+	const { challenge } = challengeResult;
 	const signature = await signNonce(challenge.nonce, identity);
 	const response = await executeLoginRequest({
 		...credentials,
@@ -55,7 +60,10 @@ async function loginKnownDevice(
 			signature,
 		},
 	});
-	return requireTokenType(response, 'ACCESS_TOKEN');
+	return {
+		status: 'authenticated',
+		accessToken: requireTokenType(response, 'ACCESS_TOKEN'),
+	};
 }
 
 export async function registerAndSignIn(data: {
@@ -70,21 +78,24 @@ export async function registerAndSignIn(data: {
 	});
 	await storeDeviceId(registration.deviceId);
 
-	return loginKnownDevice(
+	const result = await loginKnownDevice(
 		{ identifier: data.email, password: data.password },
 		registration.deviceId,
 		identity
 	);
+
+	if (result.status !== 'authenticated') {
+		throw new Error('Newly registered device is unexpectedly awaiting approval');
+	}
+
+	return result.accessToken;
 }
 
 export async function signIn(credentials: Credentials): Promise<SignInResult> {
 	const identity = await ensureDeviceIdentity();
 	const deviceId = await loadStoredDeviceId();
 	if (deviceId) {
-		return {
-			status: 'authenticated',
-			accessToken: await loginKnownDevice(credentials, deviceId, identity),
-		};
+		return loginKnownDevice(credentials, deviceId, identity);
 	}
 
 	const enrollmentLogin = await executeLoginRequest({

@@ -7,6 +7,10 @@ export type NonceChallenge = {
 	challengeId: string;
 };
 
+export type DeviceLoginChallengeResult =
+	| { status: 'challenge-ready'; challenge: NonceChallenge }
+	| { status: 'enrollment-pending' };
+
 export type DeviceEnrollment = {
 	id: string;
 	lastOsName: string;
@@ -26,11 +30,20 @@ export type DeviceDetails = {
 
 export async function executeDeviceLoginChallengeRequest(
 	deviceId: string
-): Promise<NonceChallenge> {
-	return apiFetch(`/api/v1/device-trust/nonce/${deviceId}`, {
+): Promise<DeviceLoginChallengeResult> {
+	const response = await apiFetch(`/api/v1/device-trust/nonce/${deviceId}`, {
 		includeAuth: false,
 		method: 'GET',
-	}).then((response) => response.json());
+	});
+
+	if (response.status === 202) {
+		return { status: 'enrollment-pending' };
+	}
+
+	return {
+		status: 'challenge-ready',
+		challenge: await response.json(),
+	};
 }
 
 export async function executeCreateEnrollmentRequest(data: {
