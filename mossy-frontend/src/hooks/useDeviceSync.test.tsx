@@ -3,7 +3,12 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDeviceSync } from './useDeviceSync.ts';
 
-const { executeInitKeySyncRequest, deviceKeyStateRef } = vi.hoisted(() => ({
+const {
+	executeGetDeviceIdentityKeyRequest,
+	executeInitKeySyncRequest,
+	deviceKeyStateRef,
+} = vi.hoisted(() => ({
+	executeGetDeviceIdentityKeyRequest: vi.fn(),
 	executeInitKeySyncRequest: vi.fn(),
 	deviceKeyStateRef: {
 		current: {
@@ -13,12 +18,14 @@ const { executeInitKeySyncRequest, deviceKeyStateRef } = vi.hoisted(() => ({
 }));
 
 vi.mock('../api/device.api.ts', () => ({
+	executeGetDeviceIdentityKeyRequest,
 	executeInitKeySyncRequest,
 }));
 
 vi.mock('../store/deviceStore.ts', () => ({
-	useDeviceStore: (selector: (state: { deviceId: string | null }) => unknown) =>
-		selector({ deviceId: deviceKeyStateRef.current.deviceId }),
+	useDeviceStore: (
+		selector: (state: { deviceId: string | null }) => unknown
+	) => selector({ deviceId: deviceKeyStateRef.current.deviceId }),
 }));
 
 vi.mock('./useDeviceKeys.ts', () => ({
@@ -71,10 +78,7 @@ describe('useDeviceSync', () => {
 		screen.getByText('init').click();
 
 		await waitFor(() => {
-			expect(executeInitKeySyncRequest).toHaveBeenCalledWith(
-				'device-1',
-				'vault-1'
-			);
+			expect(executeInitKeySyncRequest).toHaveBeenCalledWith('vault-1');
 		});
 
 		expect(screen.getByText('ABC123')).toBeTruthy();
