@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/client.ts';
 import { registerAndSignIn, signIn } from './authFlow.ts';
 
 const authApi = vi.hoisted(() => ({
@@ -56,6 +57,7 @@ describe('auth flow', () => {
 			accessToken: 'access-token',
 		});
 		expect(deviceIdentity.signNonce).toHaveBeenCalledWith('nonce-1', identity);
+		expect(deviceIdentity.loadStoredDeviceId).toHaveBeenCalledWith('mossy');
 		expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
 			...credentials,
 			challengeDto: {
@@ -115,7 +117,45 @@ describe('auth flow', () => {
 				signature: 'signed-nonce',
 			})
 		);
-		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith('pending-device-1');
+		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
+			'pending-device-1',
+			'mossy'
+		);
+	});
+
+	it('re-enrolls when a stored device no longer exists', async () => {
+		deviceIdentity.loadStoredDeviceId.mockResolvedValue('deleted-device');
+		deviceTrustApi.executeDeviceLoginChallengeRequest.mockRejectedValue(
+			new ApiError('Device not found', 404)
+		);
+		authApi.executeLoginRequest.mockResolvedValue({
+			accessToken: 'enrollment-token',
+			accessTokenType: 'DEVICE_ENROLLMENT_TOKEN',
+		});
+		deviceTrustApi.executeCreateEnrollmentRequest.mockResolvedValue({
+			enrollmentId: 'replacement-enrollment',
+			challenge: {
+				nonce: 'replacement-nonce',
+				challengeId: 'replacement-challenge',
+				expiresAt: '2026-08-11T00:00:00Z',
+			},
+		});
+		deviceTrustApi.executeConfirmEnrollmentRequest.mockResolvedValue({
+			deviceId: 'replacement-device',
+		});
+
+		await expect(signIn(credentials)).resolves.toEqual({
+			status: 'enrollment-pending',
+			deviceId: 'replacement-device',
+		});
+		expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
+			...credentials,
+			challengeDto: null,
+		});
+		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
+			'replacement-device',
+			'mossy'
+		);
 	});
 
 	it('registers the generated public identity and then performs challenged login', async () => {
@@ -150,7 +190,14 @@ describe('auth flow', () => {
 				x: 'public-key',
 			},
 		});
-		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith('device-2');
+		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
+			'device-2',
+			'mossy'
+		);
+		expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
+			'device-2',
+			'mossy@example.com'
+		);
 		expect(deviceTrustApi.executeDeviceLoginChallengeRequest).toHaveBeenCalledWith(
 			'device-2'
 		);

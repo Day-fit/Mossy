@@ -9,7 +9,10 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossydevicetrust.dto.request.Hashable
 import pl.dayfit.mossydevicetrust.model.redis.IdempotencyKey
 import pl.dayfit.mossydevicetrust.repository.redis.IdempotencyKeyRepository
+import java.time.Duration
 import java.util.UUID
+
+private val IN_PROGRESS_TTL: Duration = Duration.ofSeconds(30)
 
 @Service
 class IdempotencyService(
@@ -17,44 +20,60 @@ class IdempotencyService(
     private val redisTemplate: RedisTemplate<UUID, Boolean>,
 ) {
     @Suppress("UNCHECKED_CAST")
-    fun <R: Any> execute(
+    fun <R : Any> execute(
         idempotencyKey: UUID,
         requestDto: Hashable,
         operation: () -> R
     ): ResponseEntity<R> {
         val isInProgress = redisTemplate.opsForValue()
-            .getAndSet(idempotencyKey, true) ?: false
+            .setIfAbsent(idempotencyKey, true, IN_PROGRESS_TTL) != true
 
         if (isInProgress) {
-            repository.findById(idempotencyKey)
+            val result = repository.findById(idempotencyKey)
                 .orElseThrow { LockedException("One request is already in progress") }
-        }
 
-        val optionalResult = repository.findById(idempotencyKey)
-
-        if (!optionalResult.isPresent) {
-            val response = operation()
-
-            val entry = IdempotencyKey(
-                idempotencyKey,
-                requestDto.hash(),
-                HttpStatus.OK,
-                response
+            val sameHash = requestDto.hash().contentEquals(
+                result.requestHash
             )
 
-            repository.save(entry)
-            return ResponseEntity.ok(response)
+            if (!sameHash) {
+                throw AccessDeniedException("Request cannot be changed when using same idempotency key")
+            }
+
+            return ResponseEntity(result.responseDto as R, result.statusCode)
         }
 
-        val result = optionalResult.get()
-        val sameHash = requestDto.hash().contentEquals(
-            result.requestHash
-        )
+        try {
+            val optionalResult = repository.findById(idempotencyKey)
 
-        if (!sameHash) {
-            throw AccessDeniedException("Request cannot be changed when using same idempotency key")
+            if (!optionalResult.isPresent) {
+                val response = operation()
+
+                val entry = IdempotencyKey(
+                    idempotencyKey,
+                    requestDto.hash(),
+                    HttpStatus.OK,
+                    response
+                )
+
+                repository.save(entry)
+
+                return ResponseEntity.ok(response)
+            }
+
+            val result = optionalResult.get()
+            val sameHash = requestDto.hash().contentEquals(
+                result.requestHash
+            )
+
+            if (!sameHash) {
+                throw AccessDeniedException("Request cannot be changed when using same idempotency key")
+            }
+
+            return ResponseEntity(result.responseDto as R, result.statusCode)
+        } finally {
+            redisTemplate.opsForValue()
+                .getAndDelete(idempotencyKey)
         }
-
-        return ResponseEntity(result.responseDto as R, result.statusCode)
     }
 }

@@ -44,6 +44,7 @@ import pl.dayfit.mossydevicetrust.service.IdempotencyService
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
 import pl.dayfit.mossydevicetrustshared.dto.response.GenerateChallengeResponseDto
 import tools.jackson.module.kotlin.jsonMapper
+import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -72,9 +73,9 @@ class DeviceControllerTest(
     fun configureIdempotencyClaims() {
         idempotencyProgress.clear()
         whenever(redisTemplate.opsForValue()).thenReturn(idempotencyValueOperations)
-        whenever(idempotencyValueOperations.getAndSet(any(), eq(true)))
+        whenever(idempotencyValueOperations.setIfAbsent(any(), eq(true), eq(Duration.ofSeconds(30))))
             .thenAnswer { invocation ->
-                idempotencyProgress.put(invocation.getArgument(0), true)
+                idempotencyProgress.putIfAbsent(invocation.getArgument(0), true) == null
             }
     }
 

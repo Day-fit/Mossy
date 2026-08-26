@@ -9,6 +9,7 @@ import {
 	executeCreateEnrollmentRequest,
 	executeDeviceLoginChallengeRequest,
 } from '../api/deviceTrust.api.ts';
+import { ApiError } from '../api/client.ts';
 import {
 	ensureDeviceIdentity,
 	loadStoredDeviceId,
@@ -66,38 +67,10 @@ async function loginKnownDevice(
 	};
 }
 
-export async function registerAndSignIn(data: {
-	username: string;
-	email: string;
-	password: string;
-}): Promise<string> {
-	const identity = await ensureDeviceIdentity();
-	const registration = await executeRegisterRequest({
-		...data,
-		publicIdentityKey: publicJwk(identity),
-	});
-	await storeDeviceId(registration.deviceId);
-
-	const result = await loginKnownDevice(
-		{ identifier: data.email, password: data.password },
-		registration.deviceId,
-		identity
-	);
-
-	if (result.status !== 'authenticated') {
-		throw new Error('Newly registered device is unexpectedly awaiting approval');
-	}
-
-	return result.accessToken;
-}
-
-export async function signIn(credentials: Credentials): Promise<SignInResult> {
-	const identity = await ensureDeviceIdentity();
-	const deviceId = await loadStoredDeviceId();
-	if (deviceId) {
-		return loginKnownDevice(credentials, deviceId, identity);
-	}
-
+async function enrollDevice(
+	credentials: Credentials,
+	identity: CryptoPair
+): Promise<SignInResult> {
 	const enrollmentLogin = await executeLoginRequest({
 		...credentials,
 		challengeDto: null,
@@ -120,7 +93,51 @@ export async function signIn(credentials: Credentials): Promise<SignInResult> {
 		challengeId: enrollment.challenge.challengeId,
 		signature,
 	});
-	await storeDeviceId(confirmed.deviceId);
+	await storeDeviceId(confirmed.deviceId, credentials.identifier);
 
 	return { status: 'enrollment-pending', deviceId: confirmed.deviceId };
+}
+
+export async function registerAndSignIn(data: {
+	username: string;
+	email: string;
+	password: string;
+}): Promise<string> {
+	const identity = await ensureDeviceIdentity();
+	const registration = await executeRegisterRequest({
+		...data,
+		publicIdentityKey: publicJwk(identity),
+	});
+	await Promise.all([
+		storeDeviceId(registration.deviceId, data.username),
+		storeDeviceId(registration.deviceId, data.email),
+	]);
+
+	const result = await loginKnownDevice(
+		{ identifier: data.email, password: data.password },
+		registration.deviceId,
+		identity
+	);
+
+	if (result.status !== 'authenticated') {
+		throw new Error('Newly registered device is unexpectedly awaiting approval');
+	}
+
+	return result.accessToken;
+}
+
+export async function signIn(credentials: Credentials): Promise<SignInResult> {
+	const identity = await ensureDeviceIdentity();
+	const deviceId = await loadStoredDeviceId(credentials.identifier);
+	if (deviceId) {
+		try {
+			return await loginKnownDevice(credentials, deviceId, identity);
+		} catch (error) {
+			if (!(error instanceof ApiError) || ![401, 404].includes(error.status)) {
+				throw error;
+			}
+		}
+	}
+
+	return enrollDevice(credentials, identity);
 }

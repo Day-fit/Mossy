@@ -20,6 +20,7 @@ import org.springframework.security.authentication.LockedException
 import pl.dayfit.mossydevicetrust.dto.request.Hashable
 import pl.dayfit.mossydevicetrust.model.redis.IdempotencyKey
 import pl.dayfit.mossydevicetrust.repository.redis.IdempotencyKeyRepository
+import java.time.Duration
 import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -36,6 +37,8 @@ import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
 class IdempotencyServiceTest {
+    private val inProgressTtl = Duration.ofSeconds(30)
+
     @Mock
     private lateinit var repository: IdempotencyKeyRepository
 
@@ -58,8 +61,8 @@ class IdempotencyServiceTest {
         whenever(repository.findById(idempotencyKey))
             .thenReturn(Optional.empty())
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true))
-            .thenReturn(null)
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl))
+            .thenReturn(true)
         whenever(repository.save(any<IdempotencyKey>()))
             .thenAnswer { it.getArgument(0) }
 
@@ -97,7 +100,7 @@ class IdempotencyServiceTest {
         whenever(repository.findById(idempotencyKey))
             .thenReturn(Optional.of(cachedEntry))
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true)).thenReturn(true)
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl)).thenReturn(false)
 
         val response = service.execute(idempotencyKey, request) {
             operationCalled = true
@@ -126,7 +129,7 @@ class IdempotencyServiceTest {
         whenever(repository.findById(idempotencyKey))
             .thenReturn(Optional.of(cachedEntry))
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true)).thenReturn(true)
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl)).thenReturn(false)
 
         assertThrows<AccessDeniedException> {
             service.execute(idempotencyKey, changedRequest) {
@@ -147,8 +150,8 @@ class IdempotencyServiceTest {
 
         whenever(repository.findById(idempotencyKey)).thenReturn(Optional.empty())
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true))
-            .thenReturn(true)
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl))
+            .thenReturn(false)
 
         assertThrows<LockedException> {
             service.execute(idempotencyKey, request) {
@@ -175,8 +178,8 @@ class IdempotencyServiceTest {
 
         whenever(repository.findById(idempotencyKey)).thenReturn(Optional.of(cachedEntry))
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true))
-            .thenReturn(null)
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl))
+            .thenReturn(true)
 
         val response = service.execute(idempotencyKey, request) {
             TestResponse("new")
@@ -199,8 +202,8 @@ class IdempotencyServiceTest {
         val executor = Executors.newFixedThreadPool(2)
 
         whenever(redisTemplate.opsForValue()).thenReturn(valueOperations)
-        whenever(valueOperations.getAndSet(idempotencyKey, true))
-            .thenAnswer { markerPresent.getAndSet(true) }
+        whenever(valueOperations.setIfAbsent(idempotencyKey, true, inProgressTtl))
+            .thenAnswer { markerPresent.compareAndSet(false, true) }
         whenever(repository.findById(idempotencyKey))
             .thenAnswer { Optional.ofNullable(storedEntries[idempotencyKey]) }
         whenever(repository.save(any<IdempotencyKey>()))

@@ -11,7 +11,8 @@ export type CryptoPair =
 	| ({ type: 'X25519' } & KeyPair);
 
 const CURRENT_IDENTITY_KEY = 'current-device';
-const DEVICE_ID_KEY = 'deviceId';
+const DEVICE_ID_KEY_PREFIX = 'deviceId:';
+const CURRENT_DEVICE_ACCOUNT_KEY = 'currentDeviceAccount';
 
 export const deviceDbRef: { current: IDBPDatabase | null } = {
 	current: null,
@@ -94,14 +95,42 @@ export async function ensureDeviceIdentity(): Promise<CryptoPair> {
 	return identity;
 }
 
-export async function loadStoredDeviceId(): Promise<string | null> {
-	const db = await getDeviceDatabase();
-	return ((await db.get('device', DEVICE_ID_KEY)) as string | undefined) ?? null;
+function deviceIdKey(accountIdentifier: string): string {
+	return `${DEVICE_ID_KEY_PREFIX}${accountIdentifier}`;
 }
 
-export async function storeDeviceId(deviceId: string): Promise<void> {
+export async function loadStoredDeviceId(
+	accountIdentifier?: string
+): Promise<string | null> {
 	const db = await getDeviceDatabase();
-	await db.put('device', deviceId, DEVICE_ID_KEY);
+	const account =
+		accountIdentifier ??
+		((await db.get('device', CURRENT_DEVICE_ACCOUNT_KEY)) as
+			| string
+			| undefined);
+	if (!account) return null;
+
+	if (accountIdentifier) {
+		await db.put('device', accountIdentifier, CURRENT_DEVICE_ACCOUNT_KEY);
+	}
+
+	return (
+		((await db.get('device', deviceIdKey(account))) as string | undefined) ??
+		null
+	);
+}
+
+export async function storeDeviceId(
+	deviceId: string,
+	accountIdentifier: string
+): Promise<void> {
+	const db = await getDeviceDatabase();
+	const transaction = db.transaction('device', 'readwrite');
+	await Promise.all([
+		transaction.store.put(deviceId, deviceIdKey(accountIdentifier)),
+		transaction.store.put(accountIdentifier, CURRENT_DEVICE_ACCOUNT_KEY),
+		transaction.done,
+	]);
 }
 
 export async function signNonce(
