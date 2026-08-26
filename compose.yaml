@@ -11,32 +11,6 @@ services:
       - ./data/acme.json:/etc/traefik/acme.json
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
-  mossy-jwks:
-    image: 'ghcr.io/day-fit/mossy-jwks:latest'
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/actuator/health"]
-      retries: 3
-      timeout: 5s
-      interval: 10s
-    depends_on:
-      - 'redis'
-      - 'rabbitmq'
-    profiles:
-      - 'prod'
-    expose:
-      - '8084'
-    environment:
-      - 'SPRING_PROFILES_ACTIVE=prod'
-      - 'DB_NAME=${DB_NAME}'
-      - 'DB_USER=${DB_USER}'
-      - 'DB_PASSWORD=${DB_PASSWORD}'
-      - 'DB_URL=postgres:5432'
-      - 'REDIS_HOST=redis'
-      - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
-      - 'RABBITMQ_HOST=rabbitmq'
-      - 'RABBITMQ_USER=${RABBITMQ_USER}'
-      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
-
   mossy-auth:
     image: 'ghcr.io/day-fit/mossy-auth:latest'
     healthcheck:
@@ -48,6 +22,7 @@ services:
       - 'postgres'
       - 'rabbitmq'
       - 'redis'
+      - 'mossy-device-trust'
     expose:
       - '8083'
     environment:
@@ -57,13 +32,14 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'RABBITMQ_HOST=rabbitmq'
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
-      - 'JWKS_UPLOAD_URL=http://mossy-jwks:8084/.well-known/jwks.json/add'
-      - 'JWKS_PROVIDER_URI=http://mossy-jwks:8084/.well-known/jwks.json'
+      - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
+      - 'MOSSY_DEVICE_TRUST_SERVICE_HOST=http://mossy-device-trust:8086'
     profiles:
       - 'prod'
     volumes:
@@ -74,6 +50,51 @@ services:
       - 'traefik.http.routers.mossy-auth.entrypoints=websecure'
       - 'traefik.http.routers.mossy-auth.tls.certresolver=myresolver'
       - 'traefik.http.services.mossy-auth.loadbalancer.server.port=8083'
+
+  mossy-device-trust:
+    image: 'ghcr.io/day-fit/mossy-device-trust:latest'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/api/v1/device-trust/actuator/health"]
+      retries: 3
+      timeout: 5s
+      interval: 10s
+    depends_on:
+      - 'postgres'
+      - 'rabbitmq'
+      - 'redis'
+    expose:
+      - '8086'
+    environment:
+      - 'SPRING_PROFILES_ACTIVE=prod'
+      - 'DB_NAME=${DB_NAME}'
+      - 'DB_USER=${DB_USER}'
+      - 'DB_PASSWORD=${DB_PASSWORD}'
+      - 'DB_URL=postgres:5432'
+      - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
+      - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
+      - 'RABBITMQ_HOST=rabbitmq'
+      - 'RABBITMQ_USER=${RABBITMQ_USER}'
+      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
+      - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
+      - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
+    profiles:
+      - 'prod'
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.mossy-device-trust.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust`) && !PathPrefix(`/api/v1/device-trust/internal`)'
+      - 'traefik.http.routers.mossy-device-trust.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-device-trust.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-device-trust-nonce.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust/nonce/`)'
+      - 'traefik.http.routers.mossy-device-trust-nonce.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-device-trust-nonce.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-device-trust-nonce.priority=200'
+      - 'traefik.http.routers.mossy-device-trust-nonce.service=mossy-device-trust'
+      - 'traefik.http.routers.mossy-device-trust-nonce.middlewares=mossy-device-trust-nonce-rate-limit'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.average=10'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.period=1m'
+      - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.burst=5'
+      - 'traefik.http.services.mossy-device-trust.loadbalancer.server.port=8086'
 
   mossy-password:
     image: 'ghcr.io/day-fit/mossy-password:latest'
@@ -96,14 +117,14 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'RABBITMQ_HOST=rabbitmq'
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'KAFKA_BOOTSTRAP_SERVERS=kafka:9092'
-      - 'JWKS_PROVIDER_URI=http://mossy-jwks:8084/.well-known/jwks.json'
+      - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
-      - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
     profiles:
       - 'prod'
     labels:
@@ -117,45 +138,36 @@ services:
       - 'traefik.http.routers.mossy-password-ws.tls.certresolver=myresolver'
       - 'traefik.http.routers.mossy-password-ws.service=mossy-password'
 
-  mossy-device:
-    image: 'ghcr.io/day-fit/mossy-device:latest'
+  mossy-key-sync:
+    image: 'ghcr.io/day-fit/mossy-key-sync:latest'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/actuator/health"]
       retries: 3
       timeout: 5s
       interval: 10s
     depends_on:
-      - 'postgres'
-      - 'rabbitmq'
       - 'redis'
     expose:
       - '8081'
     environment:
       - 'SPRING_PROFILES_ACTIVE=prod'
-      - 'DB_NAME=${DB_NAME}'
-      - 'DB_USER=${DB_USER}'
-      - 'DB_PASSWORD=${DB_PASSWORD}'
-      - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
-      - 'RABBITMQ_HOST=rabbitmq'
-      - 'RABBITMQ_USER=${RABBITMQ_USER}'
-      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
-      - 'JWKS_PROVIDER_URI=http://mossy-jwks:8084/.well-known/jwks.json'
+      - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
-      - 'MOSSY_STOMP_HOST=wss://mossy.dayfit.pl'
     profiles:
       - 'prod'
     labels:
       - 'traefik.enable=true'
-      - 'traefik.http.routers.mossy-device.rule=Host(`mossy.dayfit.pl`) && (PathPrefix(`/api/v1/device`) || PathPrefix(`/api/v1/key-sync`))'
-      - 'traefik.http.routers.mossy-device.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-device.tls.certresolver=myresolver'
-      - 'traefik.http.services.mossy-device.loadbalancer.server.port=8081'
-      - 'traefik.http.routers.mossy-device-ws.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/ws/key-sync`)'
-      - 'traefik.http.routers.mossy-device-ws.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-device-ws.tls.certresolver=myresolver'
-      - 'traefik.http.routers.mossy-device-ws.service=mossy-device'
+      - 'traefik.http.routers.mossy-key-sync.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/key-sync`)'
+      - 'traefik.http.routers.mossy-key-sync.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-key-sync.tls.certresolver=myresolver'
+      - 'traefik.http.services.mossy-key-sync.loadbalancer.server.port=8081'
+      - 'traefik.http.routers.mossy-key-sync-ws.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/ws/key-sync`)'
+      - 'traefik.http.routers.mossy-key-sync-ws.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-key-sync-ws.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-key-sync-ws.service=mossy-key-sync'
 
   mossy-statistics:
     image: 'ghcr.io/day-fit/mossy-statistics:latest'
@@ -179,7 +191,7 @@ services:
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'KAFKA_BOOTSTRAP_SERVERS=kafka:9092'
-      - 'JWKS_PROVIDER_URI=http://mossy-jwks:8084/.well-known/jwks.json'
+      - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
       - 'MOSSY_PASSWORD_BASE_URL=http://mossy-password:8082/api/v1'
     profiles:
@@ -196,7 +208,8 @@ services:
     depends_on:
       - 'mossy-auth'
       - 'mossy-password'
-      - 'mossy-device'
+      - 'mossy-key-sync'
+      - 'mossy-device-trust'
       - 'mossy-statistics'
     expose:
       - '3000'
@@ -217,21 +230,55 @@ services:
       - 'POSTGRES_USER=${DB_USER}'
     volumes:
       - 'postgres:/var/lib/postgresql'
+    expose:
+      - '5432'
+    profiles:
+      - 'prod'
+
+  postgres-dev:
+    image: 'postgres:18.1-alpine'
+    environment:
+      - 'POSTGRES_DB=${DB_NAME}'
+      - 'POSTGRES_PASSWORD=${DB_PASSWORD}'
+      - 'POSTGRES_USER=${DB_USER}'
+    volumes:
+      - 'postgres_dev:/var/lib/postgresql'
     ports:
       - '5432:5432'
+    profiles:
+      - 'dev'
 
   redis:
     image: 'redis:8.4.0-alpine3.22'
+    entrypoint: ['/bin/sh', '/usr/local/bin/mossy-redis-entrypoint.sh']
     environment:
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
+      - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
+    expose:
+      - '6379'
+    volumes:
+      - './redis/docker-entrypoint.sh:/usr/local/bin/mossy-redis-entrypoint.sh:ro'
+    profiles:
+      - 'prod'
+
+  redis-dev:
+    image: 'redis:8.4.0-alpine3.22'
+    entrypoint: ['/bin/sh', '/usr/local/bin/mossy-redis-entrypoint.sh']
+    environment:
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
     ports:
       - '6379:6379'
+    volumes:
+      - './redis/docker-entrypoint.sh:/usr/local/bin/mossy-redis-entrypoint.sh:ro'
+    profiles:
+      - 'dev'
 
   rabbitmq:
     image: 'rabbitmq:4.2.3-management-alpine'
-    ports:
-      - '15672:15672'
-      - '5672:5672'
+    expose:
+      - '5672'
+      - '15672'
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
@@ -253,8 +300,8 @@ services:
 
   kafka:
     image: 'apache/kafka:4.2.0'
-    ports:
-      - '9092:29092'
+    expose:
+      - '9092'
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -273,6 +320,33 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    profiles:
+      - 'prod'
+
+  kafka-dev:
+    image: 'apache/kafka:4.2.0'
+    ports:
+      - '9092:29092'
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-dev:9092,EXTERNAL://localhost:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-dev:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-topics.sh", "--bootstrap-server", "localhost:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    profiles:
+      - 'dev'
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -280,13 +354,16 @@ services:
       - '8080:8080'
     environment:
       KAFKA_CLUSTERS_0_NAME: local
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-dev:9092
     depends_on:
-      kafka:
+      kafka-dev:
         condition: service_healthy
+    profiles:
+      - 'dev'
 
 volumes:
   postgres:
+  postgres_dev:
   rabbitmq:
   rabbitmq_dev:
   jwks-data:

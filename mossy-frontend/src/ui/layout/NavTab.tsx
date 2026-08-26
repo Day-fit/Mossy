@@ -7,11 +7,19 @@ interface NavTabProps {
 	url: string;
 	requiresAuthentication: boolean;
 	onClick?: () => void;
+	badgeCount?: number;
 }
 
-function NavTab({ name, url, requiresAuthentication, onClick }: NavTabProps) {
+const MotionNavLink = motion.create(NavLink);
+
+function NavTab({
+	name,
+	url,
+	requiresAuthentication,
+	onClick,
+	badgeCount = 0,
+}: NavTabProps) {
 	const { isAuthenticated } = useAuth();
-	const MotionNavLink = motion.create(NavLink);
 
 	return (
 		(isAuthenticated === true || !requiresAuthentication) && (
@@ -27,6 +35,11 @@ function NavTab({ name, url, requiresAuthentication, onClick }: NavTabProps) {
 					{({ isActive }) => (
 						<div className={'flex flex-col'}>
 							<span>{name}</span>
+							{badgeCount > 0 ? (
+								<span className="text-center text-[10px] font-medium leading-3 text-amber-700">
+									{badgeCount} pending
+								</span>
+							) : null}
 							{isActive && (
 								<motion.div
 									className="border-b-2 border-emerald-500"

@@ -5,6 +5,16 @@ type ApiFetchOptions = RequestInit & {
 	authToken?: string | null;
 };
 
+export class ApiError extends Error {
+	readonly status: number;
+
+	constructor(message: string, status: number) {
+		super(message);
+		this.name = 'ApiError';
+		this.status = status;
+	}
+}
+
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
 	const { includeAuth = true, authToken, ...requestOptions } = options;
 	const token = includeAuth ? (authToken ?? tokenStorage.get()) : null;
@@ -22,7 +32,7 @@ export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
 
 	if (!response.ok) {
 		const error = await response.json().catch(() => null);
-		throw new Error(error?.message || 'An error occurred');
+		throw new ApiError(error?.message || 'An error occurred', response.status);
 	}
 
 	return response;

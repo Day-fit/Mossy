@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { CgProfile } from 'react-icons/cg';
+import { useDeviceManagementStore } from '../../store/deviceManagementStore.ts';
 
 const menuVariants: Variants = {
 	hidden: { opacity: 0, height: 0 },
@@ -35,12 +36,16 @@ const navItems = [
 	{ name: 'Dashboard', url: '/dashboard', requiresAuthentication: true },
 	{ name: 'Passwords', url: '/passwords', requiresAuthentication: true },
 	{ name: 'Vaults', url: '/vaults', requiresAuthentication: true },
+	{ name: 'Devices', url: '/devices', requiresAuthentication: true },
 ];
 
 function Nav() {
 	const navigate = useNavigate();
 	const { isAuthenticated } = useAuth();
 	const [isOpen, setIsOpen] = useState(false);
+	const enrollmentCount = useDeviceManagementStore(
+		(state) => state.enrollments.length
+	);
 
 	const toggleMenu = () => setIsOpen((prev) => !prev);
 	const closeMenu = () => setIsOpen(false);
@@ -65,6 +70,9 @@ function Nav() {
 							name={item.name}
 							url={item.url}
 							requiresAuthentication={item.requiresAuthentication}
+							badgeCount={
+								item.url === '/devices' ? enrollmentCount : 0
+							}
 						/>
 					))}
 				</div>
@@ -143,6 +151,11 @@ function Nav() {
 										url={item.url}
 										requiresAuthentication={
 											item.requiresAuthentication
+										}
+										badgeCount={
+											item.url === '/devices'
+												? enrollmentCount
+												: 0
 										}
 										onClick={closeMenu}
 									/>

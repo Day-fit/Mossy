@@ -26,12 +26,12 @@ class SecurityControllerAdvice {
     }
 
     @ExceptionHandler(BadCredentialsException::class)
-    fun handleBadCredentialsException(): ResponseEntity<GenericServerResponseDto> {
+    fun handleBadCredentialsException(ex: BadCredentialsException): ResponseEntity<GenericServerResponseDto> {
         logger.debug("Handled bad credentials")
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
             .body(
-                GenericServerResponseDto("Bad credentials")
+                GenericServerResponseDto(ex.message ?: "Bad credentials")
             )
     }
 

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { tokenStorage } from '../auth/tokenStorage.ts';
 import {
 	executeUserDetailsRequest,
+	executeLogoutRequest,
 	type UserDetailsResponse,
 } from '../api/auth.api.ts';
 import { useAuthStore } from '../store/authStore.ts';
@@ -10,7 +11,7 @@ type AuthState = {
 	isAuthenticated: boolean | null;
 	userDetails: UserDetailsResponse | null;
 	login: (token: string) => void;
-	logout: () => void;
+	logout: () => Promise<void>;
 };
 
 export const useAuth = (): AuthState => {
@@ -32,10 +33,14 @@ export const useAuth = (): AuthState => {
 		[setIsAuthenticated, setUserDetails]
 	);
 
-	const logout = useCallback(() => {
-		tokenStorage.set(null);
-		setUserDetails(null);
-		setIsAuthenticated(false);
+	const logout = useCallback(async () => {
+		try {
+			await executeLogoutRequest();
+		} finally {
+			tokenStorage.set(null);
+			setUserDetails(null);
+			setIsAuthenticated(false);
+		}
 	}, [setIsAuthenticated, setUserDetails]);
 
 	return {

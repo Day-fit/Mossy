@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.authentication.LockedException
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingRequestCookieException
@@ -14,12 +15,23 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import pl.dayfit.mossyauth.dto.response.GenericServerResponseDto
 import pl.dayfit.mossyauth.dto.response.ValidationResponseDto
+import pl.dayfit.mossyauth.exception.ForwardedClientErrorException
+import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
 
 
 @Order(2)
 @RestControllerAdvice
 class GlobalControllerAdvice {
     private val logger = org.slf4j.LoggerFactory.getLogger(this::class.java)
+
+    @ExceptionHandler(DownstreamServiceUnavailableException::class)
+    fun handleDownstreamServiceUnavailableException(ex: DownstreamServiceUnavailableException): ResponseEntity<GenericServerResponseDto> {
+        logger.warn(ex.message)
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(GenericServerResponseDto("Service is not available, please try again later."))
+    }
+
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupported(): ResponseEntity<GenericServerResponseDto> {
@@ -97,6 +109,20 @@ class GlobalControllerAdvice {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(
                 GenericServerResponseDto("Access denied")
+            )
+    }
+
+    @ExceptionHandler(ForwardedClientErrorException::class)
+    fun handleForwardedClientErrorException(exception: ForwardedClientErrorException): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.status(exception.forwardedError.forwardedStatusCode)
+            .body(GenericServerResponseDto(exception.forwardedError.forwardedMessage))
+    }
+
+    @ExceptionHandler(LockedException::class)
+    fun handleLockedException(exception: LockedException): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(
+                GenericServerResponseDto(exception.message ?: "Access denied")
             )
     }
 

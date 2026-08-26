@@ -12,6 +12,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       changed: ${{ steps.set-matrix.outputs.changed }}
+      frontend_changed: ${{ steps.set-matrix.outputs.frontend_changed }}
 
     steps:
       - name: Checkout
@@ -36,6 +37,12 @@ jobs:
               "$BASE_SHA" \
               "$HEAD_SHA"
           )"
+
+          if grep -q '^mossy-frontend/' <<< "$files"; then
+            echo "frontend_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
           mapfile -t candidates < <(
             printf '%s\n' "$files" |
@@ -89,6 +96,35 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
+  frontend-test:
+    needs:
+      - detect-changes
+
+    if: needs.detect-changes.outputs.frontend_changed == 'true'
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: mossy-frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: mossy-frontend
+        run: npm ci
+
+      - name: Run tests
+        working-directory: mossy-frontend
+        run: npm test
+
   mvn-test:
     needs:
       - detect-changes
@@ -132,5 +168,9 @@ jobs:
           EOF
 
       - name: Run tests
-        working-directory: ${{ matrix.service }}
-        run: mvn -B -ntp test -s /tmp/settings.xml
+        run: >-
+          mvn -B -ntp
+          -pl "${{ matrix.service }}"
+          -am
+          test
+          -s /tmp/settings.xml

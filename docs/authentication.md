@@ -8,6 +8,8 @@ are no longer part of the authentication design.
 
 `mossy-auth` signs access and refresh tokens with RSA using `RS256`. Each token
 includes a `kid` that identifies the public key used to validate it.
+By default, access tokens are valid for 15 minutes and refresh tokens for 14
+days.
 
 Consumers must use the standard JWT subject as the user identifier:
 
@@ -17,16 +19,26 @@ sub = user UUID
 
 The following claims are also issued:
 
-| Claim | Meaning |
-|---|---|
-| `iss` | `mossy-auth` |
-| `aud` | `mossy-user-api` |
-| `roles` | User roles, converted to Spring authorities with the `ROLE_` prefix |
-| `preferred_username` | User's username |
-| `email` | User's email address |
+| Claim                | Meaning                                                             |
+|----------------------|---------------------------------------------------------------------|
+| `iss`                | `mossy-auth`                                                        |
+| `aud`                | `mossy-user-api`                                                    |
+| `jti`                | Unique token identifier                                             |
+| `iat`                | Token issue time                                                    |
+| `exp`                | Token expiration time                                               |
+| `roles`              | User roles, converted to Spring authorities with the `ROLE_` prefix |
+| `preferred_username` | User's username                                                     |
+| `email`              | User's email address                                                |
+| `scope`              | `user.access` for standard user access and refresh tokens           |
+| `device_id`          | Device associated with the access or refresh token                  |
 
 Do not rely on the retired `userId` claim. Controllers and services should
 parse the user identifier from `Jwt.subject`.
+
+The 30-second device-enrollment token does not contain `device_id`; it carries
+the `device.enrollment.start` and `device.enrollment.challenge` scopes instead.
+Internal service tokens use the `mossy-internal-api` audience and a
+service-specific scope.
 
 ## JWKS publication and rotation
 
@@ -67,16 +79,15 @@ http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json
 `mossy-oauth2-resource-server-starter` provides shared HTTP security support:
 
 - CORS configuration from `mossy.security.allowed-origins`.
-- A `JwtAuthenticationConverter` that reads the `roles` claim and creates
-  authorities such as `ROLE_USER`.
+- A `JwtAuthenticationConverter` that reads the `scope` and `roles` claims and
+  creates authorities such as `SCOPE_user.access` and `ROLE_USER`.
 
 Each service remains responsible for its own `SecurityFilterChain`, public
 route list (`mossy.security.public-routes-patterns`), and
 `spring.security.oauth2.resourceserver.jwt.jwk-set-uri` setting.
 
-## Deployment migration note
+## Docker Compose configuration
 
-The root `compose.yaml` still contains the retired `mossy-jwks` service and
-configures `JWKS_PROVIDER_URI` to that service. Before deploying this branch,
-update those values to point at `mossy-auth` as shown above and remove the
-obsolete `JWKS_UPLOAD_URL` setting and standalone service.
+The root `compose.yaml` points each resource server at the `mossy-auth` JWKS
+endpoint. It also mounts the named `jwks-data` volume at `/app/data`, allowing
+the public key set to survive auth-container replacement. 

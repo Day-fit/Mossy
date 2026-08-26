@@ -13,9 +13,8 @@ class UserCacheService(
     private val userRepository: UserRepository
 ) {
     @CachePut(key = "#user.id", value = ["user.id"])
-    fun save(user: UserModel)
-    {
-        userRepository.save(user)
+    fun save(user: UserModel): UserModel {
+        return userRepository.save(user)
     }
 
     @Cacheable(key = "#userId", value = ["user.id"])
