@@ -41,7 +41,7 @@ class SecurityConfiguration {
                 it.requestMatchers(HttpMethod.POST, "/device/enrollment/challenge")
                     .hasAuthority("SCOPE_device.enrollment.challenge")
                 it.requestMatchers("/internal/**")
-                    .permitAll() //For now, it won't be exposed via rev-proxy, please add mTLS or another auth method in future
+                    .hasAuthority("SCOPE_device.trust.internal")
                 it.anyRequest()
                     .hasAuthority("SCOPE_user.access")
             }

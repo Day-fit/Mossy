@@ -16,10 +16,8 @@ import java.time.Instant
 import java.util.Date
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.atomics.ExperimentalAtomicApi
 
 @Service
-@OptIn(ExperimentalAtomicApi::class)
 /**
  * Rotates the RSA signing key and publishes its public half for resource servers.
  *

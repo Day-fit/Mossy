@@ -11,6 +11,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.whenever
 import pl.dayfit.mossydevicetrust.helper.KeygenHelper.generateKeyPair
+import pl.dayfit.mossydevicetrust.repository.DeviceEnrollmentRequestRepository
 import pl.dayfit.mossydevicetrust.repository.DeviceInfoRepository
 import java.security.SecureRandom
 import org.bouncycastle.crypto.signers.Ed25519Signer
@@ -28,6 +29,10 @@ import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
 class NonceChallengeServiceTest {
+    @Mock
+    @Suppress("unused")
+    private lateinit var deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository
+
     @Mock
     private lateinit var repo: DeviceInfoRepository
 
