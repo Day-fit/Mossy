@@ -6,6 +6,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -13,6 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest
 import org.springframework.context.annotation.Import
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.core.ValueOperations
 import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.http.MediaType
 import org.springframework.security.access.AccessDeniedException
@@ -43,6 +46,7 @@ import pl.dayfit.mossydevicetrustshared.dto.response.GenerateChallengeResponseDt
 import tools.jackson.module.kotlin.jsonMapper
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.test.Test
 import kotlin.test.assertIs
 
@@ -57,6 +61,22 @@ class DeviceControllerTest(
 
     @MockitoBean
     private lateinit var idempotencyKeyRepository: IdempotencyKeyRepository
+
+    @MockitoBean
+    private lateinit var redisTemplate: RedisTemplate<UUID, Boolean>
+
+    private val idempotencyValueOperations: ValueOperations<UUID, Boolean> = mock()
+    private val idempotencyProgress = ConcurrentHashMap<UUID, Boolean>()
+
+    @org.junit.jupiter.api.BeforeEach
+    fun configureIdempotencyClaims() {
+        idempotencyProgress.clear()
+        whenever(redisTemplate.opsForValue()).thenReturn(idempotencyValueOperations)
+        whenever(idempotencyValueOperations.getAndSet(any(), eq(true)))
+            .thenAnswer { invocation ->
+                idempotencyProgress.put(invocation.getArgument(0), true)
+            }
+    }
 
     private val jsonMapper = jsonMapper { }
 
