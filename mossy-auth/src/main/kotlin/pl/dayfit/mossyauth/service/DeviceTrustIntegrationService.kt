@@ -36,7 +36,13 @@ class DeviceTrustIntegrationService(
         private const val DEVICE_BLOCK_STATUS_ENDPOINT = "/api/v1/device-trust/internal/device/{deviceId}/block"
     }
 
-    private lateinit var currentAccessToken: String
+    @Volatile
+    private var currentAccessToken: String? = null
+
+    private fun accessToken(): String =
+        currentAccessToken ?: jwtGenerationService
+            .generateCustomScopeAccessToken("device.trust.internal")
+            .also { currentAccessToken = it }
 
     @EventListener(SecretKeyInitializedEvent::class)
     @Scheduled(initialDelayString = "14m", fixedDelayString = "14m")
