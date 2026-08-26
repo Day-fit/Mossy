@@ -32,6 +32,7 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'RABBITMQ_HOST=rabbitmq'
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
@@ -70,6 +71,7 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'RABBITMQ_HOST=rabbitmq'
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
@@ -115,6 +117,7 @@ services:
       - 'DB_PASSWORD=${DB_PASSWORD}'
       - 'DB_URL=postgres:5432'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'RABBITMQ_HOST=rabbitmq'
       - 'RABBITMQ_USER=${RABBITMQ_USER}'
@@ -149,6 +152,7 @@ services:
     environment:
       - 'SPRING_PROFILES_ACTIVE=prod'
       - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
@@ -227,21 +231,25 @@ services:
     volumes:
       - 'postgres:/var/lib/postgresql'
     expose:
-      - '5432:5432'
+      - '5432'
 
   redis:
     image: 'redis:8.4.0-alpine3.22'
+    entrypoint: ['/bin/sh', '/usr/local/bin/mossy-redis-entrypoint.sh']
     environment:
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
     expose:
-      - '6379:6379'
+      - '6379'
+    volumes:
+      - './redis/docker-entrypoint.sh:/usr/local/bin/mossy-redis-entrypoint.sh:ro'
 
   rabbitmq:
     image: 'rabbitmq:4.2.3-management-alpine'
     ports:
       - '15672:15672'
     expose:
-      - '5672:5672'
+      - '5672'
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
@@ -254,7 +262,7 @@ services:
     ports:
       - '15672:15672'
     expose:
-      - '5672:5672'
+      - '5672'
     volumes:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions-dev.json:/etc/rabbitmq/definitions.json:ro
@@ -264,7 +272,7 @@ services:
 
   kafka:
     image: 'apache/kafka:4.2.0'
-    expose:
+    ports:
       - '9092:29092'
     environment:
       KAFKA_NODE_ID: 1
