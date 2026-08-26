@@ -22,4 +22,15 @@ class RedisConfiguration {
         valueSerializer = JacksonJsonRedisSerializer(objectMapper, NonceChallenge::class.java)
         afterPropertiesSet()
     }
+
+    @Bean
+    fun idempotencyRedisTemplate(
+        connectionFactory: RedisConnectionFactory,
+        objectMapper: ObjectMapper,
+    ): RedisTemplate<UUID, Boolean> = RedisTemplate<UUID, Boolean>().apply {
+        setConnectionFactory(connectionFactory)
+        keySerializer = GenericToStringSerializer(UUID::class.java)
+        valueSerializer = JacksonJsonRedisSerializer(objectMapper, Boolean::class.java)
+        afterPropertiesSet()
+    }
 }
