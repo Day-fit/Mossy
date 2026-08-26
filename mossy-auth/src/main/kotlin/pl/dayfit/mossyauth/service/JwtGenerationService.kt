@@ -6,9 +6,11 @@ import com.nimbusds.jose.crypto.RSASSASigner
 import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jwt.JWTClaimsSet
 import com.nimbusds.jwt.SignedJWT
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
+import pl.dayfit.mossyauth.event.SecretKeyInitializedEvent
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauth.type.AccessTokenType
@@ -33,7 +35,8 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 @Service
 @OptIn(ExperimentalAtomicApi::class)
 class JwtGenerationService(
-    private val jwtConfigurationProperties: JwtConfigurationProperties
+    private val jwtConfigurationProperties: JwtConfigurationProperties,
+    private val applicationEventPublisher: ApplicationEventPublisher
 ) {
     /**
      * Currently active private RSA key used for signing JWTs.
@@ -60,13 +63,13 @@ class JwtGenerationService(
     fun generatePairOfTokens(userDetails: UserDetailsImpl, deviceId: UUID): TokenPairDto
     {
         return TokenPairDto(
-            generate(
+            generateUserJwt(
                 userDetails,
                 jwtConfigurationProperties.accessTokenExpirationTime,
                 deviceId
             ),
             AccessTokenType.ACCESS_TOKEN,
-            generate(
+            generateUserJwt(
                 userDetails,
                 jwtConfigurationProperties.refreshTokenExpirationTime,
                 deviceId,
@@ -87,12 +90,29 @@ class JwtGenerationService(
     fun generateDeviceEnrollmentToken(
         user: UserDetailsImpl,
     ): String {
-        return generate(
+        return generateUserJwt(
             user,
             Duration.ofSeconds(30),
             customClaims = mapOf(
                 "scope" to "device.enrollment.challenge device.enrollment.start"
             )
+        )
+    }
+
+    fun generateCustomScopeAccessToken(scope: String): String {
+        val issuedAt = Date()
+
+        val claims = JWTClaimsSet.Builder()
+            .jwtID(UUID.randomUUID().toString())
+            .issuer("mossy-auth")
+            .audience("mossy-internal-api")
+            .issueTime(issuedAt)
+            .expirationTime(Date(issuedAt.time + 15 * 60 * 1000))
+            .claim("scope", scope)
+            .build()
+
+        return generateJwt(
+            claims
         )
     }
 
@@ -120,7 +140,7 @@ class JwtGenerationService(
      * @throws IllegalArgumentException if both [deviceId] and [customClaims] are missing.
      * @throws SigningKeyNotInitializedException when signing key is not yet available.
      */
-    private fun generate(
+    private fun generateUserJwt(
         user: UserDetailsImpl,
         duration: Duration,
         deviceId: UUID? = null,
@@ -130,13 +150,6 @@ class JwtGenerationService(
         if (deviceId == null && customClaims.isNullOrEmpty()) {
             throw IllegalArgumentException("Either deviceId or customClaims must be set")
         }
-
-        val secret = secretKey.load()
-            ?: throw SigningKeyNotInitializedException("Secret key is not initialized yet.")
-
-        val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.RS256)
-            .keyID(secret.keyID)
-            .build()
 
         val issuedAt = Date()
         val claimsBuilder = JWTClaimsSet.Builder()
@@ -158,8 +171,29 @@ class JwtGenerationService(
             claimsBuilder.claim(name, value)
         }
 
+        return generateJwt(claimsBuilder.build())
+    }
+
+    /**
+     * Signs and serializes an arbitrary JWT claims set with the active RSA key.
+     *
+     * Unlike [generateUserJwt], this method does not add, remove, or validate claims. Callers are
+     * responsible for supplying all required claims, including token lifetime and intended scope.
+     *
+     * @param claims Claims to include in the token without modification.
+     * @return Serialized signed JWT.
+     * @throws SigningKeyNotInitializedException when signing key is not yet available.
+     */
+    private fun generateJwt(claims: JWTClaimsSet): String {
+        val secret = secretKey.load()
+            ?: throw SigningKeyNotInitializedException("Secret key is not initialized yet.")
+
+        val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.RS256)
+            .keyID(secret.keyID)
+            .build()
+
         val signedJwt = SignedJWT(
-            header, claimsBuilder.build()
+            header, claims
         )
 
         val signer = RSASSASigner(secret)
@@ -178,7 +212,15 @@ class JwtGenerationService(
     @EventListener(SecretRotatedEvent::class)
     private fun updateSecretKey(event: SecretRotatedEvent)
     {
-        secretKey.exchange(event.newSecret)
+        val oldValue = secretKey.exchange(event.newSecret)
+
+        if (oldValue != null) {
+            return
+        }
+
+        applicationEventPublisher.publishEvent(
+            SecretKeyInitializedEvent()
+        )
     }
 
     data class TokenPairDto(

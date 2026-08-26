@@ -120,7 +120,7 @@ class DeviceControllerSecurityTest(
     }
 
     @Test
-    fun `regular user scope can call non-enrollment device endpoint`() {
+    fun `regular user scope cannot call internal device endpoint`() {
         val deviceId = UUID.randomUUID()
         whenever(deviceController.getIsBlocked(deviceId))
             .thenReturn(ResponseEntity.ok(GetIsBlockedResponseDto(false)))
@@ -128,17 +128,26 @@ class DeviceControllerSecurityTest(
         mockMvc.perform(
             get("/internal/device/$deviceId/block")
                 .with(jwtWithScope("user.access"))
-        ).andExpect(status().isOk)
+        ).andExpect(status().isForbidden)
     }
 
     @Test
-    fun `nested internal device route is available to trusted services without user token`() {
+    fun `internal scope can call internal device endpoint`() {
         val deviceId = UUID.randomUUID()
         whenever(deviceController.getIsBlocked(deviceId))
             .thenReturn(ResponseEntity.ok(GetIsBlockedResponseDto(false)))
 
-        mockMvc.perform(get("/internal/device/$deviceId/block"))
+        mockMvc.perform(
+            get("/internal/device/$deviceId/block")
+                .with(jwtWithScope("device.trust.internal"))
+        )
             .andExpect(status().isOk)
+    }
+
+    @Test
+    fun `unauthenticated caller cannot call internal device endpoint`() {
+        mockMvc.perform(get("/internal/device/${UUID.randomUUID()}/block"))
+            .andExpect(status().isUnauthorized)
     }
 
     @Test

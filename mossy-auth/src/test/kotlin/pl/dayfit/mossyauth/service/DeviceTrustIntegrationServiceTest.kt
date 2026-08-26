@@ -4,6 +4,7 @@ import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
@@ -36,10 +37,12 @@ import kotlin.test.assertEquals
 @ExtendWith(MockitoExtension::class)
 class DeviceTrustIntegrationServiceTest {
     private val restTemplate: RestTemplate = mock()
+    private val jwtGenerationService: JwtGenerationService = mock()
 
     private val deviceTrustIntegrationService: DeviceTrustIntegrationService = DeviceTrustIntegrationService(
         restTemplate,
-        VALID_TRUST_SERVICE_HOST
+        VALID_TRUST_SERVICE_HOST,
+        jwtGenerationService
     )
 
     companion object {
@@ -52,6 +55,19 @@ class DeviceTrustIntegrationServiceTest {
         const val VALID_REGISTER_DEVICE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/device"
         const val VALID_CHECK_CHALLENGE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/nonce/challenge"
         const val VALID_CHECK_DEVICE_BLOCK_STATUS_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/device/{deviceId}/block"
+        const val ACCESS_TOKEN = "internal-access-token"
+    }
+
+    @BeforeEach
+    fun initializeAccessToken() {
+        whenever(jwtGenerationService.generateCustomScopeAccessToken("device.trust.internal"))
+            .thenReturn(ACCESS_TOKEN)
+        deviceTrustIntegrationService.rotateAccessToken()
+    }
+
+    @Test
+    fun `access token rotation requests internal device trust scope`() {
+        verify(jwtGenerationService).generateCustomScopeAccessToken("device.trust.internal")
     }
     
     @Test
@@ -59,12 +75,12 @@ class DeviceTrustIntegrationServiceTest {
         val deviceId = UUID.fromString("6df4de64-aedf-4acc-abbf-9a39689bba7d")
 
         whenever (
-            restTemplate
-                .postForEntity(
-                    eq(VALID_REGISTER_DEVICE_URL),
-                    any<RegisterDeviceRequestDto>(),
-                    eq(RegisterDeviceResponseDto::class.java)
-                )
+            restTemplate.exchange(
+                eq(VALID_REGISTER_DEVICE_URL),
+                eq(HttpMethod.POST),
+                any<HttpEntity<RegisterDeviceRequestDto>>(),
+                any<ParameterizedTypeReference<RegisterDeviceResponseDto>>()
+            )
         ).thenReturn(
             ResponseEntity.ok(
             RegisterDeviceResponseDto(
@@ -79,27 +95,31 @@ class DeviceTrustIntegrationServiceTest {
             "93.63.58.190"
         )
 
-        val requestCaptor = argumentCaptor<RegisterDeviceRequestDto>()
-        verify(restTemplate).postForEntity(
+        val requestCaptor = argumentCaptor<HttpEntity<RegisterDeviceRequestDto>>()
+        verify(restTemplate).exchange(
             eq(VALID_REGISTER_DEVICE_URL),
+            eq(HttpMethod.POST),
             requestCaptor.capture(),
-            eq(RegisterDeviceResponseDto::class.java)
+            any<ParameterizedTypeReference<RegisterDeviceResponseDto>>()
         )
 
         assertEquals(deviceId, returnedDeviceId)
-        assertEquals(validUserId, requestCaptor.firstValue.userId)
-        assertEquals("Windows", requestCaptor.firstValue.userAgent)
-        assertEquals("93.63.58.190", requestCaptor.firstValue.remoteAddr)
-        assertEquals(validPublicJWK, requestCaptor.firstValue.publicIdentityKey)
+        assertEquals("Bearer $ACCESS_TOKEN", requestCaptor.firstValue.headers.getFirst("Authorization"))
+        val request = requireNotNull(requestCaptor.firstValue.body)
+        assertEquals(validUserId, request.userId)
+        assertEquals("Windows", request.userAgent)
+        assertEquals("93.63.58.190", request.remoteAddr)
+        assertEquals(validPublicJWK, request.publicIdentityKey)
     }
 
     @Test
     fun `register device throws exception on non-200 response`() {
         whenever(
-            restTemplate.postForEntity(
+            restTemplate.exchange(
                 eq(VALID_REGISTER_DEVICE_URL),
-                any<RegisterDeviceRequestDto>(),
-                eq(RegisterDeviceResponseDto::class.java)
+                eq(HttpMethod.POST),
+                any<HttpEntity<RegisterDeviceRequestDto>>(),
+                any<ParameterizedTypeReference<RegisterDeviceResponseDto>>()
             )
         ).thenReturn(
             ResponseEntity.internalServerError()
@@ -160,6 +180,7 @@ class DeviceTrustIntegrationServiceTest {
         assertEquals(true, response.success)
         assertEquals(false, response.alertSent)
         val capturedRequest = requireNotNull(requestCaptor.firstValue.body)
+        assertEquals("Bearer $ACCESS_TOKEN", requestCaptor.firstValue.headers.getFirst("Authorization"))
         assertEquals(validUserId, capturedRequest.userId)
         assertEquals(challengeId, capturedRequest.challengeId)
         assertEquals(signature, capturedRequest.signature)
@@ -267,10 +288,12 @@ class DeviceTrustIntegrationServiceTest {
         val deviceId = UUID.randomUUID()
 
         whenever (
-            restTemplate.getForEntity(
-                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
-                GetIsBlockedResponseDto::class.java,
-                deviceId
+            restTemplate.exchange(
+                eq(VALID_CHECK_DEVICE_BLOCK_STATUS_URL),
+                eq(HttpMethod.GET),
+                any<HttpEntity<Unit>>(),
+                any<ParameterizedTypeReference<GetIsBlockedResponseDto>>(),
+                eq(deviceId)
             )
             ).thenReturn(
             ResponseEntity.ok(
@@ -285,6 +308,16 @@ class DeviceTrustIntegrationServiceTest {
         )
 
         assertTrue(result)
+
+        val requestCaptor = argumentCaptor<HttpEntity<Unit>>()
+        verify(restTemplate).exchange(
+            eq(VALID_CHECK_DEVICE_BLOCK_STATUS_URL),
+            eq(HttpMethod.GET),
+            requestCaptor.capture(),
+            any<ParameterizedTypeReference<GetIsBlockedResponseDto>>(),
+            eq(deviceId)
+        )
+        assertEquals("Bearer $ACCESS_TOKEN", requestCaptor.firstValue.headers.getFirst("Authorization"))
     }
 
     @Test
@@ -292,10 +325,12 @@ class DeviceTrustIntegrationServiceTest {
         val deviceId = UUID.randomUUID()
 
         whenever (
-            restTemplate.getForEntity(
-                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
-                GetIsBlockedResponseDto::class.java,
-                deviceId
+            restTemplate.exchange(
+                eq(VALID_CHECK_DEVICE_BLOCK_STATUS_URL),
+                eq(HttpMethod.GET),
+                any<HttpEntity<Unit>>(),
+                any<ParameterizedTypeReference<GetIsBlockedResponseDto>>(),
+                eq(deviceId)
             )
         ).thenReturn(
             ResponseEntity.ok(
@@ -317,10 +352,12 @@ class DeviceTrustIntegrationServiceTest {
         val deviceId = UUID.randomUUID()
 
         whenever (
-            restTemplate.getForEntity(
-                VALID_CHECK_DEVICE_BLOCK_STATUS_URL,
-                GetIsBlockedResponseDto::class.java,
-                deviceId
+            restTemplate.exchange(
+                eq(VALID_CHECK_DEVICE_BLOCK_STATUS_URL),
+                eq(HttpMethod.GET),
+                any<HttpEntity<Unit>>(),
+                any<ParameterizedTypeReference<GetIsBlockedResponseDto>>(),
+                eq(deviceId)
             )
         ).thenReturn(
             ResponseEntity.notFound()

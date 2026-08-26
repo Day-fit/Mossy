@@ -1,15 +1,17 @@
 package pl.dayfit.mossyauth.service
 
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.event.EventListener
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import org.springframework.web.client.RestClientException
 import org.springframework.web.client.RestTemplate
-import org.springframework.web.client.getForEntity
-import org.springframework.web.client.postForEntity
+import org.springframework.web.client.exchange
+import pl.dayfit.mossyauth.event.SecretKeyInitializedEvent
 import pl.dayfit.mossyauth.exception.ForwardedClientErrorException
 import pl.dayfit.mossyauth.exception.DownstreamServiceUnavailableException
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
@@ -25,12 +27,29 @@ class DeviceTrustIntegrationService(
     private val restTemplate: RestTemplate,
 
     @Value($$$"${mossy.integration.device-trust-service.host}")
-    private val deviceTrustServiceHost: String
+    private val deviceTrustServiceHost: String,
+    private val jwtGenerationService: JwtGenerationService
 ) {
     companion object {
         private const val REGISTER_DEVICE_ENDPOINT = "/api/v1/device-trust/internal/device"
         private const val CHECK_CHALLENGE_ENDPOINT = "/api/v1/device-trust/internal/nonce/challenge"
         private const val DEVICE_BLOCK_STATUS_ENDPOINT = "/api/v1/device-trust/internal/device/{deviceId}/block"
+    }
+
+    @Volatile
+    private var currentAccessToken: String? = null
+
+    private fun accessToken(): String =
+        currentAccessToken ?: jwtGenerationService
+            .generateCustomScopeAccessToken("device.trust.internal")
+            .also { currentAccessToken = it }
+
+    @EventListener(SecretKeyInitializedEvent::class)
+    @Scheduled(initialDelayString = "14m", fixedDelayString = "14m")
+    fun rotateAccessToken() {
+        currentAccessToken = jwtGenerationService.generateCustomScopeAccessToken(
+            "device.trust.internal"
+        )
     }
 
     fun registerDevice(
@@ -39,14 +58,17 @@ class DeviceTrustIntegrationService(
         userAgent: String,
         remoteAddr: String
     ): UUID {
-        val response = restTemplate.postForEntity<RegisterDeviceResponseDto>(
+        val response = restTemplate.exchange<RegisterDeviceResponseDto>(
             deviceTrustServiceHost + REGISTER_DEVICE_ENDPOINT,
-            RegisterDeviceRequestDto(
+            HttpMethod.POST,
+            HttpEntity(RegisterDeviceRequestDto(
                 userId,
                 userAgent,
                 remoteAddr,
                 publicIdentityKey
-            )
+            )).apply {
+                headers.setBearerAuth(currentAccessToken)
+            }
         )
 
         val body = response.body
@@ -78,7 +100,9 @@ class DeviceTrustIntegrationService(
             restTemplate.exchange(
                 deviceTrustServiceHost + CHECK_CHALLENGE_ENDPOINT,
                 HttpMethod.POST,
-                HttpEntity(request),
+                HttpEntity(request).apply {
+                    headers.setBearerAuth(currentAccessToken)
+                },
                 object : ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>() {},
             )
         } catch (_: RestClientException) {
@@ -104,8 +128,12 @@ class DeviceTrustIntegrationService(
     }
 
     fun getDeviceBlockStatus(deviceId: UUID): Boolean {
-        val response = restTemplate.getForEntity<GetIsBlockedResponseDto>(
+        val response = restTemplate.exchange<GetIsBlockedResponseDto>(
             deviceTrustServiceHost + DEVICE_BLOCK_STATUS_ENDPOINT,
+            HttpMethod.GET,
+            HttpEntity(Unit).apply {
+                headers.setBearerAuth(currentAccessToken)
+            },
             deviceId
         )
 
