@@ -13,14 +13,13 @@ case "$REDIS_USER" in
 esac
 
 password_hash="$(printf '%s' "$REDIS_PASSWORD" | sha256sum | cut -d ' ' -f 1)"
-acl_file=/tmp/users.acl
+acl_file=/data/users.acl
+
+umask 077
 
 {
     echo "user default off"
     printf 'user %s on #%s ~* &* +@all\n' "$REDIS_USER" "$password_hash"
 } > "$acl_file"
 
-chown redis:redis "$acl_file"
-chmod 600 "$acl_file"
-
-exec gosu redis redis-server --aclfile "$acl_file"
+exec redis-server --aclfile "$acl_file"
