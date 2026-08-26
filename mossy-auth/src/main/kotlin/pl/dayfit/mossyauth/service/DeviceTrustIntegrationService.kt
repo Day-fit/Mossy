@@ -39,6 +39,11 @@ class DeviceTrustIntegrationService(
     @Volatile
     private var currentAccessToken: String? = null
 
+    /**
+     * Returns the cached device-trust access token, creating and storing one if it is not yet available.
+     *
+     * @return The bearer token used to authenticate internal requests to the device-trust service.
+     */
     private fun accessToken(): String =
         currentAccessToken ?: jwtGenerationService
             .generateCustomScopeAccessToken("device.trust.internal")
@@ -67,7 +72,7 @@ class DeviceTrustIntegrationService(
                 remoteAddr,
                 publicIdentityKey
             )).apply {
-                headers.setBearerAuth(currentAccessToken)
+                headers.setBearerAuth(accessToken())
             }
         )
 
@@ -101,7 +106,7 @@ class DeviceTrustIntegrationService(
                 deviceTrustServiceHost + CHECK_CHALLENGE_ENDPOINT,
                 HttpMethod.POST,
                 HttpEntity(request).apply {
-                    headers.setBearerAuth(currentAccessToken)
+                    headers.setBearerAuth(accessToken())
                 },
                 object : ParameterizedTypeReference<InternalResponseDto<NonceChallengeResponseDto>>() {},
             )
@@ -132,7 +137,7 @@ class DeviceTrustIntegrationService(
             deviceTrustServiceHost + DEVICE_BLOCK_STATUS_ENDPOINT,
             HttpMethod.GET,
             HttpEntity(Unit).apply {
-                headers.setBearerAuth(currentAccessToken)
+                headers.setBearerAuth(accessToken())
             },
             deviceId
         )
