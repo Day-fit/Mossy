@@ -1,6 +1,11 @@
 # Mossy
 
 ### Self-hosted password manager with a remotely accessible, end-to-end encrypted vault.
+![GitHub Tag](https://img.shields.io/github/v/tag/Day-fit/Mossy)
+![GitHub license](https://img.shields.io/github/license/Day-fit/Mossy)
+[![Build Docker images](https://github.com/Day-fit/Mossy/actions/workflows/build-docker.yml/badge.svg?branch=main)](https://github.com/Day-fit/Mossy/actions/workflows/build-docker.yml)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Day-fit/Mossy)
+
 
 ![Mossy Home](./images/Mossy_Home.png)
 
