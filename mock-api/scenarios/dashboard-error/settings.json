@@ -1,0 +1,12 @@
+{
+  "autoApproveEnrollments": true,
+  "newVaultsOnline": true,
+  "overrides": {
+    "statistics.dashboard": {
+      "status": 503,
+      "delayMs": 750,
+      "headers": { "X-Mock-Scenario": "dashboard-error" },
+      "body": { "message": "Statistics service is not available" }
+    }
+  }
+}

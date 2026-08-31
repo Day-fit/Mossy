@@ -1,0 +1,651 @@
+{
+  "uuid": {
+    "type": "string",
+    "format": "uuid"
+  },
+  "isoDate": {
+    "type": "string",
+    "format": "date-time"
+  },
+  "ed25519Jwk": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["kty", "crv", "x"],
+    "properties": {
+      "kty": { "const": "OKP" },
+      "crv": { "const": "Ed25519" },
+      "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+    }
+  },
+  "x25519Jwk": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["kty", "crv", "x"],
+    "properties": {
+      "kty": { "const": "OKP" },
+      "crv": { "const": "X25519" },
+      "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+    }
+  },
+  "messageResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["message"],
+    "properties": { "message": { "type": "string" } }
+  },
+  "validationResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["errors"],
+    "properties": {
+      "errors": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["field", "message"],
+          "properties": {
+            "field": { "type": "string" },
+            "message": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+  "registerRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["username", "email", "password", "publicIdentityKey"],
+    "properties": {
+      "username": { "type": "string", "minLength": 3, "maxLength": 20 },
+      "email": { "type": "string", "format": "email" },
+      "password": { "type": "string", "minLength": 8 },
+      "publicIdentityKey": { "$ref": "ed25519Jwk" }
+    }
+  },
+  "registerResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["deviceId"],
+    "properties": { "deviceId": { "$ref": "uuid" } }
+  },
+  "loginRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["identifier", "password", "challengeDto"],
+    "properties": {
+      "identifier": { "type": "string", "minLength": 1 },
+      "password": { "type": "string", "minLength": 8 },
+      "challengeDto": {
+        "anyOf": [
+          { "type": "null" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["deviceId", "challengeId", "signature"],
+            "properties": {
+              "deviceId": { "$ref": "uuid" },
+              "challengeId": { "$ref": "uuid" },
+              "signature": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "loginResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["accessToken", "accessTokenType"],
+    "properties": {
+      "accessToken": { "type": "string", "minLength": 1 },
+      "accessTokenType": { "enum": ["ACCESS_TOKEN", "DEVICE_ENROLLMENT_TOKEN"] }
+    }
+  },
+  "authStatusResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["isAuthenticated"],
+    "properties": { "isAuthenticated": { "type": "boolean" } }
+  },
+  "userDetailsResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["userId", "username", "email", "grantedAuthorities"],
+    "properties": {
+      "userId": { "$ref": "uuid" },
+      "username": { "type": "string" },
+      "email": { "type": ["string", "null"], "format": "email" },
+      "grantedAuthorities": { "type": "array", "items": { "type": "string" } }
+    }
+  },
+  "tokenParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["token"],
+    "properties": { "token": { "type": "string", "minLength": 1 } }
+  },
+  "deviceIdParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["deviceId"],
+    "properties": { "deviceId": { "$ref": "uuid" } }
+  },
+  "nonceResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["nonce", "expiresAt", "challengeId"],
+    "properties": {
+      "nonce": { "type": "string", "minLength": 1 },
+      "expiresAt": { "$ref": "isoDate" },
+      "challengeId": { "$ref": "uuid" }
+    }
+  },
+  "idempotencyHeaders": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["idempotency-key"],
+    "properties": { "idempotency-key": { "$ref": "uuid" } }
+  },
+  "createEnrollmentRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["userAgent", "publicIdentityKey"],
+    "properties": {
+      "userAgent": { "type": "string", "minLength": 1 },
+      "publicIdentityKey": { "$ref": "ed25519Jwk" }
+    }
+  },
+  "createEnrollmentResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["enrollmentId", "challenge"],
+    "properties": {
+      "enrollmentId": { "$ref": "uuid" },
+      "challenge": { "$ref": "nonceResponse" }
+    }
+  },
+  "confirmEnrollmentRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["enrollmentId", "challengeId", "signature"],
+    "properties": {
+      "enrollmentId": { "$ref": "uuid" },
+      "challengeId": { "$ref": "uuid" },
+      "signature": { "type": "string", "minLength": 1 }
+    }
+  },
+  "enrollmentsResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["enrollments"],
+    "properties": {
+      "enrollments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "lastOsName", "deviceType", "remoteAddr", "createdAt"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "lastOsName": { "type": "string" },
+            "deviceType": { "type": "string" },
+            "remoteAddr": { "type": "string" },
+            "createdAt": { "$ref": "isoDate" }
+          }
+        }
+      }
+    }
+  },
+  "devicesResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["devices"],
+    "properties": {
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "lastOsName", "deviceType", "lastSeen", "blocked", "current"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "lastOsName": { "type": "string" },
+            "deviceType": { "type": "string" },
+            "lastSeen": { "anyOf": [{ "$ref": "isoDate" }, { "type": "null" }] },
+            "blocked": { "type": "boolean" },
+            "current": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  },
+  "enrollmentIdParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["enrollmentId"],
+    "properties": { "enrollmentId": { "$ref": "uuid" } }
+  },
+  "blockDeviceRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["targetDeviceId"],
+    "properties": { "targetDeviceId": { "$ref": "uuid" } }
+  },
+  "initKeySyncRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId"],
+    "properties": { "vaultId": { "$ref": "uuid" } }
+  },
+  "initKeySyncResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["code"],
+    "properties": { "code": { "type": "string", "pattern": "^[0-9]{6}$" } }
+  },
+  "vaultRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultName"],
+    "properties": { "vaultName": { "type": "string", "minLength": 1, "maxLength": 80, "pattern": "\\S" } }
+  },
+  "vaultParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId"],
+    "properties": { "vaultId": { "$ref": "uuid" } }
+  },
+  "vaultResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId", "apiKey", "message"],
+    "properties": {
+      "vaultId": { "$ref": "uuid" },
+      "apiKey": { "type": "string", "minLength": 1 },
+      "message": { "type": "string" }
+    }
+  },
+  "vaultListResponse": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["vaultId", "vaultName", "isOnline", "passwordCount", "lastSeenAt"],
+      "properties": {
+        "vaultId": { "$ref": "uuid" },
+        "vaultName": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "passwordCount": { "type": "integer", "minimum": 0 },
+        "lastSeenAt": { "anyOf": [{ "$ref": "isoDate" }, { "type": "null" }] }
+      }
+    }
+  },
+  "savePasswordRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["identifier", "address", "cipherText", "vaultId", "passwordType"],
+    "properties": {
+      "identifier": { "type": "string", "minLength": 1 },
+      "address": { "type": "string", "minLength": 1 },
+      "cipherText": { "type": "string", "maxLength": 102400 },
+      "vaultId": { "$ref": "uuid" },
+      "passwordType": { "enum": ["PASSWORD", "SSH_KEY"] }
+    }
+  },
+  "updatePasswordRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["passwordId", "identifier", "address", "cipherText", "vaultId"],
+    "properties": {
+      "passwordId": { "$ref": "uuid" },
+      "identifier": { "type": "string", "minLength": 1 },
+      "address": { "type": "string", "minLength": 1 },
+      "cipherText": { "type": "string", "maxLength": 102400 },
+      "vaultId": { "$ref": "uuid" }
+    }
+  },
+  "deletePasswordRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["passwordId", "vaultId"],
+    "properties": {
+      "passwordId": { "$ref": "uuid" },
+      "vaultId": { "$ref": "uuid" }
+    }
+  },
+  "vaultQuery": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId"],
+    "properties": { "vaultId": { "$ref": "uuid" } }
+  },
+  "ciphertextParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["passwordId"],
+    "properties": { "passwordId": { "$ref": "uuid" } }
+  },
+  "passwordMetadataResponse": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passwordId", "identifier", "address", "lastModified", "hasNote", "tags", "passwordType"],
+      "properties": {
+        "passwordId": { "$ref": "uuid" },
+        "identifier": { "type": "string" },
+        "address": { "type": "string" },
+        "lastModified": { "$ref": "isoDate" },
+        "hasNote": { "type": "boolean" },
+        "passwordType": { "enum": ["PASSWORD", "SSH_KEY"] },
+        "tags": {
+          "type": "array",
+          "items": { "$ref": "tagResponse" }
+        }
+      }
+    }
+  },
+  "ciphertextResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["ciphertext", "passwordId", "type"],
+    "properties": {
+      "ciphertext": { "type": "string" },
+      "passwordId": { "$ref": "uuid" },
+      "type": { "const": "CIPHERTEXT_RETRIEVAL" }
+    }
+  },
+  "tagResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["tagId", "tagName", "color"],
+    "properties": {
+      "tagId": { "$ref": "uuid" },
+      "tagName": { "type": "string" },
+      "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" }
+    }
+  },
+  "tagsResponse": {
+    "type": "array",
+    "items": { "$ref": "tagResponse" }
+  },
+  "createTagRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId", "tagName", "color"],
+    "properties": {
+      "vaultId": { "$ref": "uuid" },
+      "tagName": { "type": "string", "minLength": 1 },
+      "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" }
+    }
+  },
+  "tagParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId", "tagId"],
+    "properties": {
+      "vaultId": { "$ref": "uuid" },
+      "tagId": { "$ref": "uuid" }
+    }
+  },
+  "updateTagRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "minProperties": 1,
+    "properties": {
+      "tagName": { "type": "string", "minLength": 1 },
+      "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" }
+    }
+  },
+  "passwordParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["passwordId"],
+    "properties": { "passwordId": { "$ref": "uuid" } }
+  },
+  "assignTagRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId", "tagId"],
+    "properties": {
+      "vaultId": { "$ref": "uuid" },
+      "tagId": { "$ref": "uuid" }
+    }
+  },
+  "noteParams": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["vaultId", "passwordId"],
+    "properties": {
+      "vaultId": { "$ref": "uuid" },
+      "passwordId": { "$ref": "uuid" }
+    }
+  },
+  "saveNoteRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["content"],
+    "properties": { "content": { "type": "string", "maxLength": 25000 } }
+  },
+  "noteResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["content"],
+    "properties": { "content": { "type": "string" } }
+  },
+  "statisticsResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["passwordChart", "recentActions"],
+    "properties": {
+      "passwordChart": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["date", "addedCount"],
+          "properties": {
+            "date": { "$ref": "isoDate" },
+            "addedCount": { "type": "integer", "minimum": 0 }
+          }
+        }
+      },
+      "recentActions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["date", "actionType", "domain", "vaultId"],
+          "properties": {
+            "date": { "$ref": "isoDate" },
+            "actionType": { "enum": ["ADDED", "REMOVED", "UPDATED"] },
+            "domain": { "type": "string" },
+            "vaultId": { "$ref": "uuid" }
+          }
+        }
+      }
+    }
+  },
+  "wsAuthFrame": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "accessToken", "signature", "jwkPublicDh"],
+    "properties": {
+      "type": { "const": "AUTH_FRAME" },
+      "accessToken": { "type": "string", "minLength": 1 },
+      "signature": { "type": "string", "minLength": 1 },
+      "jwkPublicDh": { "$ref": "x25519Jwk" }
+    }
+  },
+  "wsSignatureStatus": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "signatureAccepted"],
+    "properties": {
+      "type": { "const": "SIGNATURE_STATUS" },
+      "signatureAccepted": { "type": "boolean" }
+    }
+  },
+  "wsKeySync": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "ciphertext", "nonce", "signature", "vaultId"],
+    "properties": {
+      "type": { "const": "KEY_SYNC" },
+      "ciphertext": { "type": "string", "minLength": 1 },
+      "nonce": { "type": "string", "minLength": 1 },
+      "signature": { "type": "string", "minLength": 1 },
+      "vaultId": { "$ref": "uuid" }
+    }
+  },
+  "scenarioState": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["users", "devices", "enrollments", "vaults", "passwords", "tags", "events"],
+    "properties": {
+      "users": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "username", "email", "password", "grantedAuthorities"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "username": { "type": "string" },
+            "email": { "type": ["string", "null"] },
+            "password": { "type": "string" },
+            "grantedAuthorities": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "devices": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "userId", "publicIdentityKey", "lastOsName", "deviceType", "remoteAddr", "lastSeen", "blocked", "approved"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "publicIdentityKey": { "$ref": "ed25519Jwk" },
+            "lastOsName": { "type": "string" },
+            "deviceType": { "type": "string" },
+            "remoteAddr": { "type": "string" },
+            "lastSeen": { "anyOf": [{ "$ref": "isoDate" }, { "type": "null" }] },
+            "blocked": { "type": "boolean" },
+            "approved": { "type": "boolean" }
+          }
+        }
+      },
+      "enrollments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "userId", "deviceId", "publicIdentityKey", "userAgent", "remoteAddr", "createdAt"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "deviceId": { "$ref": "uuid" },
+            "publicIdentityKey": { "$ref": "ed25519Jwk" },
+            "userAgent": { "type": "string" },
+            "remoteAddr": { "type": "string" },
+            "createdAt": { "$ref": "isoDate" }
+          }
+        }
+      },
+      "vaults": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "userId", "name", "isOnline", "lastSeenAt", "apiKey"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "name": { "type": "string" },
+            "isOnline": { "type": "boolean" },
+            "lastSeenAt": { "anyOf": [{ "$ref": "isoDate" }, { "type": "null" }] },
+            "apiKey": { "type": "string" }
+          }
+        }
+      },
+      "passwords": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "vaultId", "userId", "identifier", "address", "cipherText", "lastModified", "passwordType", "tagIds", "note"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "vaultId": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "identifier": { "type": "string" },
+            "address": { "type": "string" },
+            "cipherText": { "type": "string" },
+            "lastModified": { "$ref": "isoDate" },
+            "passwordType": { "enum": ["PASSWORD", "SSH_KEY"] },
+            "tagIds": { "type": "array", "uniqueItems": true, "items": { "$ref": "uuid" } },
+            "note": { "type": ["string", "null"] }
+          }
+        }
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "vaultId", "userId", "name", "color"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "vaultId": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "name": { "type": "string" },
+            "color": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" }
+          }
+        }
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "userId", "vaultId", "passwordId", "domain", "actionType", "date"],
+          "properties": {
+            "id": { "$ref": "uuid" },
+            "userId": { "$ref": "uuid" },
+            "vaultId": { "$ref": "uuid" },
+            "passwordId": { "$ref": "uuid" },
+            "domain": { "type": "string" },
+            "actionType": { "enum": ["ADDED", "REMOVED", "UPDATED"] },
+            "date": { "$ref": "isoDate" }
+          }
+        }
+      }
+    }
+  },
+  "scenarioSettings": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["autoApproveEnrollments", "newVaultsOnline", "overrides"],
+    "properties": {
+      "autoApproveEnrollments": { "type": "boolean" },
+      "newVaultsOnline": { "type": "boolean" },
+      "overrides": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status"],
+          "properties": {
+            "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "delayMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+            "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+            "body": {}
+          }
+        }
+      }
+    }
+  }
+}
