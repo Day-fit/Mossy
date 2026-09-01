@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion';
 import { useState, type FormEvent } from 'react';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import {
 	executeCreateVaultRequest,
 	executeDeleteVaultRequest,
@@ -188,13 +188,13 @@ export default function VaultHero() {
 							maxLength={80}
 							required
 						/>
-						<RippleButton
+						<Button
 							type="submit"
 							className="px-5 py-2 text-white"
 							disabled={isSubmitting}
 						>
 							{isSubmitting ? 'Saving...' : 'Add vault'}
-						</RippleButton>
+						</Button>
 					</form>
 
 					{successMessage ? (

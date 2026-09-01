@@ -1,4 +1,4 @@
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from './Button.tsx';
 import * as React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -138,17 +138,17 @@ export default function PasswordPinModal({
 				</div>
 
 				<div className="flex justify-center gap-3">
-					<RippleButton className="text-white" type="submit">
+					<Button className="text-white" type="submit">
 						Continue
-					</RippleButton>
-					<RippleButton
+					</Button>
+					<Button
 						variant="outline"
 						className="box-border"
 						type="reset"
 						onClick={() => setIsPinModalActive(false)}
 					>
 						Close
-					</RippleButton>
+					</Button>
 				</div>
 			</form>
 		</div>

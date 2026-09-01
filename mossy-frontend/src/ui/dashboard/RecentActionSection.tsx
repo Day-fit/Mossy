@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import RecentActionEntry from './RecentActionEntry.tsx';
 import type { ActionType } from './index.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 
 type RecentAction = {
 	date: string;
@@ -47,26 +47,26 @@ export default function RecentActionSection({
 					<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
 						<p>Recent actions could not be loaded.</p>
 						{onRetry ? (
-							<RippleButton
+							<Button
 								type="button"
 								className="px-4 py-2 text-sm"
 								onClick={onRetry}
 							>
 								Retry
-							</RippleButton>
+							</Button>
 						) : null}
 					</div>
 				) : actions.length === 0 ? (
 					<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 						<p>No actions yet.</p>
 						{emptyAction ? (
-							<RippleButton
+							<Button
 								type="button"
 								className="px-4 py-2 text-sm"
 								onClick={emptyAction.onClick}
 							>
 								{emptyAction.label}
-							</RippleButton>
+							</Button>
 						) : null}
 					</div>
 				) : (

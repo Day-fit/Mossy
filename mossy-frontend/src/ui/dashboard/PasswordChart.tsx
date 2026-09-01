@@ -9,7 +9,7 @@ import {
 	YAxis,
 } from 'recharts';
 import { formatDate } from '../../helpers/DateFormatHelper.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 
 type PasswordData = {
 	date: string;
@@ -35,13 +35,13 @@ export default function PasswordChart({
 				<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 					<p>No password history yet.</p>
 					{emptyAction ? (
-						<RippleButton
+						<Button
 							type="button"
 							className="px-4 py-2 text-sm"
 							onClick={emptyAction.onClick}
 						>
 							{emptyAction.label}
-						</RippleButton>
+						</Button>
 					) : null}
 				</div>
 			) : (

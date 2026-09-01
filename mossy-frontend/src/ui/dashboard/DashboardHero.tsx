@@ -4,7 +4,7 @@ import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
 import { useVault } from '../../hooks/useVault.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useMemo } from 'react';
 
@@ -66,13 +66,13 @@ export default function DashboardHero() {
 							  statistics.passwordChart.length === 0 ? (
 								<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
 									<p>Password history could not be loaded.</p>
-									<RippleButton
+									<Button
 										type="button"
 										className="px-4 py-2 text-sm"
 										onClick={() => void reload()}
 									>
 										Retry
-									</RippleButton>
+									</Button>
 								</div>
 							) : (
 								<PasswordChart
@@ -93,24 +93,24 @@ export default function DashboardHero() {
 						) : vaultsErrorOccurred && vaults.length === 0 ? (
 							<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
 								<p>Vaults could not be loaded.</p>
-								<RippleButton
+								<Button
 									type="button"
 									className="px-4 py-2 text-sm"
 									onClick={() => void refreshVaults()}
 								>
 									Retry
-								</RippleButton>
+								</Button>
 							</div>
 						) : vaults.length === 0 ? (
 							<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
 								<p>No vaults yet.</p>
-								<RippleButton
+								<Button
 									type="button"
 									className="px-4 py-2 text-sm"
 									onClick={() => navigate('/vaults')}
 								>
 									Create a vault
-								</RippleButton>
+								</Button>
 							</div>
 						) : (
 							vaults.map((vault) => {

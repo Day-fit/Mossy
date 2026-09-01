@@ -6,7 +6,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NavLink } from 'react-router-dom';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import type { Dispatch, SetStateAction } from 'react';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { registerAndSignIn } from '../../auth/authFlow.ts';
@@ -178,7 +178,7 @@ export default function SignupForm({
 					</AnimatePresence>
 				</motion.div>
 
-				<RippleButton
+				<Button
 					type="submit"
 					className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400
                               text-white font-semibold py-3 px-6 rounded-lg transition-all
@@ -194,7 +194,7 @@ export default function SignupForm({
 					) : (
 						'Take control'
 					)}
-				</RippleButton>
+				</Button>
 
 				<NavLink
 					to="/login"

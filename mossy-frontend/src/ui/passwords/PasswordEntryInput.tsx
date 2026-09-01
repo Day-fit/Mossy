@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { MdCheck, MdClose, MdPassword, MdVpnKey } from 'react-icons/md';
 import type { PasswordFormState, SavePasswordResult } from './index.ts';
 import StrengthMeter from './StrengthMeter.tsx';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import type { PasswordType } from '../../api/password.api.ts';
 import SshKeyEntryInput from './SshKeyEntryInput.tsx';
 import { validateSshKeyPair } from './secretPayload.ts';
@@ -246,16 +246,16 @@ export default function PasswordEntryInput({
 			) : null}
 
 			<div className="flex items-center gap-2">
-				<RippleButton
+				<Button
 					type="submit"
 					disabled={isBusy || !isVaultOnline}
 					className="inline-flex items-center gap-1"
 				>
 					<MdCheck size={16} />
 					{isBusy ? 'Saving...' : isEditing ? 'Update' : 'Add'}
-				</RippleButton>
+				</Button>
 
-				<RippleButton
+				<Button
 					type="button"
 					variant="outline"
 					onClick={onCancel}
@@ -264,7 +264,7 @@ export default function PasswordEntryInput({
 				>
 					<MdClose size={16} />
 					Cancel
-				</RippleButton>
+				</Button>
 			</div>
 		</form>
 	);
