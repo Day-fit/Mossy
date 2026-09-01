@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import { useForm } from 'react-hook-form';
 import {
 	emailConfirmationSchema,
@@ -166,7 +166,7 @@ export default function EmailConfirmation({
 					</AnimatePresence>
 				</div>
 
-				<RippleButton
+				<Button
 					type="submit"
 					className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400
           text-white font-semibold py-3 px-6 rounded-lg transition-all
@@ -182,7 +182,7 @@ export default function EmailConfirmation({
 					) : (
 						'Take control'
 					)}
-				</RippleButton>
+				</Button>
 			</form>
 		</div>
 	);

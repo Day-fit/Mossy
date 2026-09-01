@@ -1,4 +1,4 @@
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.ts';
 
@@ -23,24 +23,24 @@ function HomeHero() {
 			<div className="flex flex-col sm:flex-row gap-2 sm:gap-0">
 				{!isAuthenticated ? (
 					<>
-						<RippleButton
+						<Button
 							className="sm:mr-1"
 							onClick={() => navigate('/register')}
 						>
 							Sign Up
-						</RippleButton>
-						<RippleButton
+						</Button>
+						<Button
 							variant={'outline'}
 							rippleColor="rgb(0, 0, 0, 0.7)"
 							onClick={() => navigate('/login')}
 						>
 							Sign In
-						</RippleButton>
+						</Button>
 					</>
 				) : (
-					<RippleButton onClick={() => navigate('/dashboard')}>
+					<Button onClick={() => navigate('/dashboard')}>
 						Go to dashboard
-					</RippleButton>
+					</Button>
 				)}
 			</div>
 		</section>

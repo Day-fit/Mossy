@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import VaultOptionsMenu from './VaultOptionsMenu.tsx';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 
 type VaultCardProps = {
 	vaultId: string;
@@ -65,7 +65,7 @@ export default function VaultCard({
 					readOnly
 					className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
 				/>
-				<RippleButton
+				<Button
 					type="button"
 					variant="outline"
 					className="px-4 py-2 text-sm"
@@ -73,7 +73,7 @@ export default function VaultCard({
 					onClick={() => copyText(vaultId)}
 				>
 					Copy
-				</RippleButton>
+				</Button>
 			</div>
 		</motion.article>
 	);

@@ -7,7 +7,7 @@ import {
 	type EncryptionPinSchema,
 } from '../../../forms/encryptionPinSchema.ts';
 import { useEncryptionHook } from '../../../hooks/useEncryptionHook.ts';
-import RippleButton from '../../layout/RippleButton.tsx';
+import Button from '../../shared/Button.tsx';
 
 type PasswordPinStepProps = {
 	vaultId?: string;
@@ -149,17 +149,17 @@ export default function PasswordPinStep({
 			</div>
 
 			<div className="flex justify-center gap-3">
-				<RippleButton className="text-white" type="submit">
+				<Button className="text-white" type="submit">
 					Continue
-				</RippleButton>
-				<RippleButton
+				</Button>
+				<Button
 					variant="outline"
 					className="box-border"
 					type="reset"
 					onClick={onCancel}
 				>
 					Close
-				</RippleButton>
+				</Button>
 			</div>
 		</motion.form>
 	);

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from './Button.tsx';
 
 type ActionModalProps = {
 	title: string;
@@ -42,7 +42,7 @@ export default function ActionModal({
 				{children}
 
 				<div className="mt-6 flex justify-end gap-2">
-					<RippleButton
+					<Button
 						type="button"
 						variant="outline"
 						rippleColor="rgb(0, 0, 0, 0.7)"
@@ -50,15 +50,15 @@ export default function ActionModal({
 						onClick={onClose}
 					>
 						Cancel
-					</RippleButton>
-					<RippleButton
+					</Button>
+					<Button
 						type="button"
 						className="px-6 py-2 text-sm text-white disabled:opacity-60"
 						disabled={confirmDisabled}
 						onClick={onConfirm}
 					>
 						{confirmLabel}
-					</RippleButton>
+					</Button>
 				</div>
 			</motion.div>
 		</motion.section>
