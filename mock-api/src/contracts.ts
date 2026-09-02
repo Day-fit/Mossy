@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Ajv, type ErrorObject, type ValidateFunction } from "ajv";
+import Ajv, { type ErrorObject, type ValidateFunction } from "ajv";
 import type { FormatsPlugin } from "ajv-formats";
 import type {
   ContractBundle,

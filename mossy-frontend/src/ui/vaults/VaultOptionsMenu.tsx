@@ -41,6 +41,7 @@ export default function VaultOptionsMenu({
 				variant='ghost'
 				type="button"
 				padding="none"
+				aria-label="options"
 				onClick={() => setIsOpen((prev) => !prev)}
 			>
 				⋯

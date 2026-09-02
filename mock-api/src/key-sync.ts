@@ -197,6 +197,10 @@ export class KeySyncServer implements KeySyncRoomManager {
       delete existing.room.peers[existing.peer.role];
     }
     this.connections.delete(connection);
+
+    if (!existing.room.peers.SENDER && !existing.room.peers.RECEIVER) {
+      this.rooms.delete(existing.room.code);
+    }
   }
 
   private validate(schemaName: string, value: unknown): boolean {
