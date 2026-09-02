@@ -4,11 +4,12 @@ This package replaces the backend services consumed by `mossy-frontend` with one
 
 ## Start the frontend and mock API
 
-From the repository root:
+With Node.js 22 installed, run from the repository root:
 
 ```sh
 npm --prefix mock-api install
-npm --prefix mock-api run dev
+npm --prefix mossy-frontend install
+npm --prefix mossy-frontend run dev:mock
 ```
 
 The command starts the API on `http://localhost:3001` and Vite in `mock` mode. Vite proxies all `/api` HTTP and SockJS traffic to the mock.
@@ -16,13 +17,13 @@ The command starts the API on `http://localhost:3001` and Vite in `mock` mode. V
 To run only the API:
 
 ```sh
-npm --prefix mock-api run dev:api
+npm --prefix mock-api run dev
 ```
 
 Use another scenario by setting `MOCK_SCENARIO`:
 
 ```sh
-MOCK_SCENARIO=empty npm --prefix mock-api run dev
+MOCK_SCENARIO=empty npm --prefix mossy-frontend run dev:mock
 ```
 
 `PORT` changes the API port, but the Vite proxy defaults to port 3001.

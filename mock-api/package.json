@@ -4,8 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n mock-api,frontend \"npm run dev:api\" \"npm --prefix ../mossy-frontend run dev:mock\"",
-    "dev:api": "tsx watch --include './contracts/**/*.json' --include './scenarios/**/*.json' src/index.ts",
+    "dev": "tsx watch --include './contracts/**/*.json' --include './scenarios/**/*.json' src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -28,7 +27,6 @@
     "@types/sockjs": "^0.3.36",
     "@types/sockjs-client": "^1.5.4",
     "@types/supertest": "^6.0.3",
-    "concurrently": "^9.2.1",
     "sockjs-client": "^1.6.1",
     "supertest": "^7.1.4",
     "tsx": "^4.23.13",
