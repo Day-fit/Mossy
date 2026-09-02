@@ -30,6 +30,16 @@
         <java.version>21</java.version>
         <kotlin.version>2.3.21</kotlin.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+    </repositories>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -58,7 +68,7 @@
         <dependency>
             <groupId>pl.dayfit</groupId>
             <artifactId>mossy-oauth2-resource-server-starter</artifactId>
-            <version>0.0.5</version>
+            <version>0.0.6</version>
         </dependency>
         <dependency>
             <groupId>pl.dayfit</groupId>
@@ -122,6 +132,10 @@
             <artifactId>yauaa</artifactId>
             <version>8.2.0</version>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
     </dependencies>
 

@@ -10,7 +10,7 @@
     </parent>
     <groupId>pl.dayfit</groupId>
     <artifactId>mossy-oauth2-resource-server-starter</artifactId>
-    <version>0.0.5</version>
+    <version>0.0.6</version>
     <name>mossy-oauth2-resource-server-starter</name>
     <description>mossy-oauth2-resource-server-starter</description>
     <repositories>
