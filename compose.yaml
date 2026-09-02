@@ -154,6 +154,9 @@ services:
       - 'REDIS_HOST=redis'
       - 'REDIS_USER=${REDIS_USER:-mossy}'
       - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
+      - 'RABBITMQ_HOST=rabbitmq'
+      - 'RABBITMQ_USER=${RABBITMQ_USER}'
+      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
     profiles:
