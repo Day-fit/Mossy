@@ -26,7 +26,7 @@
 
 ## Why Mossy?
 
-Mossy is designed so you can avoid typical self-hosting pain while keeping the majority of the benefits. You no longer need to worry about putting infrastructure on a VLAN, forwarding ports securely, or configuring a VPN. The vault makes an outbound STOMP-over-WebSocket connection to Mossy's relay, so you don't need to worry about this mess. Also, thanks to E2EE, your secret data remains encrypted even if your vault or the relay is compromised. \*
+Mossy is designed so you can avoid typical self-hosting pain while keeping the majority of the benefits. You no longer need to worry about putting infrastructure on a VLAN, forwarding ports securely, or configuring a VPN. The vault makes an outbound STOMP-over-WebSocket connection to Mossy's relay, so you don't need to worry about this mess. Also, thanks to E2EE, your secret data remains encrypted even if your vault or the relay is compromised.
 
 \* This assumes that your device, browser, and the frontend code delivered to it are not compromised, and that your vault key remains secret.
 
