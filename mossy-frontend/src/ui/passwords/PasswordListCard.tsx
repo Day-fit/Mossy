@@ -12,6 +12,7 @@ import SearchBar from './SearchBar.tsx';
 import { MdAdd } from 'react-icons/md';
 import PasswordEntryInput from './PasswordEntryInput.tsx';
 import { usePasswordListActions } from './usePasswordListActions.tsx';
+import Button from '../shared/Button.tsx';
 
 type PasswordListCardProps = {
 	vaultId: string;
@@ -114,15 +115,17 @@ function PasswordListCard({
 				</h2>
 
 				<div className="flex items-center gap-2">
-					<button
+					<Button
+						variant='outline'
+						padding='medium'
 						type="button"
 						onClick={() => setIsAddingPassword(true)}
 						disabled={isAddingPassword || isSubmitting}
-						className="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2.5 py-1.5 text-sm text-gray-500 transition-all hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
+						className="inline-flex items-center gap-1 rounded-md border border-dashed border-gray-300 text-gray-500 transition-all hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
 					>
 						<MdAdd size={16} />
 						Add password
-					</button>
+					</Button>
 
 					<TagsMenu />
 				</div>

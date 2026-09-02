@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 
 type AddVaultModalProps = {
 	vaultId: string;
@@ -46,7 +46,7 @@ export default function AddVaultModal({
 								readOnly
 								className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
 							/>
-							<RippleButton
+							<Button
 								type="button"
 								variant="outline"
 								className="px-4 py-2 text-sm"
@@ -54,7 +54,7 @@ export default function AddVaultModal({
 								onClick={() => copyText(vaultId)}
 							>
 								Copy
-							</RippleButton>
+							</Button>
 						</div>
 					</div>
 
@@ -69,7 +69,7 @@ export default function AddVaultModal({
 								readOnly
 								className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700"
 							/>
-							<RippleButton
+							<Button
 								type="button"
 								variant="outline"
 								className="px-4 py-2 text-sm"
@@ -77,19 +77,19 @@ export default function AddVaultModal({
 								onClick={() => copyText(apiKey)}
 							>
 								Copy
-							</RippleButton>
+							</Button>
 						</div>
 					</div>
 				</div>
 
 				<div className="mt-6 flex justify-end">
-					<RippleButton
+					<Button
 						type="button"
 						className="px-6 py-2 text-white"
 						onClick={onClose}
 					>
 						Done
-					</RippleButton>
+					</Button>
 				</div>
 			</motion.div>
 		</motion.section>

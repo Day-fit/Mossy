@@ -1,0 +1,44 @@
+[
+  { "id": "auth.register", "method": "post", "path": "/api/v1/auth/register", "auth": "public", "request": { "body": "registerRequest" }, "responses": { "200": "registerResponse", "default": "messageResponse" } },
+  { "id": "auth.login", "method": "post", "path": "/api/v1/auth/login", "auth": "public", "request": { "body": "loginRequest" }, "responses": { "200": "loginResponse", "default": "messageResponse" } },
+  { "id": "auth.status", "method": "get", "path": "/api/v1/auth/status", "auth": "optional", "request": {}, "responses": { "200": "authStatusResponse", "default": "messageResponse" } },
+  { "id": "auth.me", "method": "get", "path": "/api/v1/auth/user/me", "auth": "access", "request": {}, "responses": { "200": "userDetailsResponse", "default": "messageResponse" } },
+  { "id": "auth.confirmEmail", "method": "get", "path": "/api/v1/auth/user/confirm/:token", "auth": "public", "request": { "params": "tokenParams" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "auth.refresh", "method": "post", "path": "/api/v1/auth/refresh", "auth": "public", "request": {}, "responses": { "200": "loginResponse", "default": "messageResponse" } },
+  { "id": "auth.logout", "method": "post", "path": "/api/v1/auth/logout", "auth": "public", "request": {}, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+
+  { "id": "device.nonce", "method": "get", "path": "/api/v1/device-trust/nonce/:deviceId", "auth": "public", "request": { "params": "deviceIdParams" }, "responses": { "200": "nonceResponse", "202": "messageResponse", "default": "messageResponse" } },
+  { "id": "device.createEnrollment", "method": "post", "path": "/api/v1/device-trust/device/enrollment", "auth": "enrollment", "request": { "body": "createEnrollmentRequest", "headers": "idempotencyHeaders" }, "responses": { "200": "createEnrollmentResponse", "default": "messageResponse" } },
+  { "id": "device.confirmEnrollment", "method": "post", "path": "/api/v1/device-trust/device/enrollment/challenge", "auth": "enrollment", "request": { "body": "confirmEnrollmentRequest", "headers": "idempotencyHeaders" }, "responses": { "200": "registerResponse", "default": "messageResponse" } },
+  { "id": "device.enrollments", "method": "get", "path": "/api/v1/device-trust/device/enrollments", "auth": "access", "request": {}, "responses": { "200": "enrollmentsResponse", "default": "messageResponse" } },
+  { "id": "device.approveEnrollment", "method": "post", "path": "/api/v1/device-trust/device/enrollment/:enrollmentId/approve", "auth": "access", "request": { "params": "enrollmentIdParams" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "device.devices", "method": "get", "path": "/api/v1/device-trust/devices", "auth": "access", "request": {}, "responses": { "200": "devicesResponse", "default": "messageResponse" } },
+  { "id": "device.block", "method": "post", "path": "/api/v1/device-trust/device/block", "auth": "access", "request": { "body": "blockDeviceRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "device.unblock", "method": "post", "path": "/api/v1/device-trust/device/unblock", "auth": "access", "request": { "body": "blockDeviceRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "device.identity", "method": "get", "path": "/api/v1/device-trust/device/:deviceId/identity-key", "auth": "access", "request": { "params": "deviceIdParams" }, "responses": { "200": "ed25519Jwk", "default": "messageResponse" } },
+
+  { "id": "keySync.init", "method": "post", "path": "/api/v1/key-sync/init", "auth": "access", "request": { "body": "initKeySyncRequest" }, "responses": { "200": "initKeySyncResponse", "default": "messageResponse" } },
+
+  { "id": "vault.list", "method": "get", "path": "/api/v1/passwords/vault/vaults", "auth": "access", "request": {}, "responses": { "200": "vaultListResponse", "default": "messageResponse" } },
+  { "id": "vault.create", "method": "post", "path": "/api/v1/passwords/vault", "auth": "access", "request": { "body": "vaultRequest" }, "responses": { "200": "vaultResponse", "default": "messageResponse" } },
+  { "id": "vault.update", "method": "put", "path": "/api/v1/passwords/vault/:vaultId", "auth": "access", "request": { "params": "vaultParams", "body": "vaultRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "vault.delete", "method": "delete", "path": "/api/v1/passwords/vault/:vaultId", "auth": "access", "request": { "params": "vaultParams" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+
+  { "id": "password.save", "method": "post", "path": "/api/v1/passwords/save", "auth": "access", "request": { "body": "savePasswordRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "password.update", "method": "patch", "path": "/api/v1/passwords/update", "auth": "access", "request": { "body": "updatePasswordRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "password.delete", "method": "delete", "path": "/api/v1/passwords/delete", "auth": "access", "request": { "body": "deletePasswordRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
+  { "id": "password.metadata", "method": "get", "path": "/api/v1/passwords/metadata", "auth": "access", "request": { "query": "vaultQuery" }, "responses": { "200": "passwordMetadataResponse", "default": "messageResponse" } },
+  { "id": "password.ciphertext", "method": "get", "path": "/api/v1/passwords/ciphertext/:passwordId", "auth": "access", "request": { "params": "ciphertextParams", "query": "vaultQuery" }, "responses": { "200": "ciphertextResponse", "default": "messageResponse" } },
+
+  { "id": "tag.list", "method": "get", "path": "/api/v1/passwords/vault/:vaultId/tags", "auth": "access", "request": { "params": "vaultParams" }, "responses": { "200": "tagsResponse", "default": "messageResponse" } },
+  { "id": "tag.create", "method": "post", "path": "/api/v1/passwords/tag", "auth": "access", "request": { "body": "createTagRequest" }, "responses": { "201": null, "default": "messageResponse" } },
+  { "id": "tag.update", "method": "patch", "path": "/api/v1/passwords/vault/:vaultId/tag/:tagId", "auth": "access", "request": { "params": "tagParams", "body": "updateTagRequest" }, "responses": { "200": null, "default": "messageResponse" } },
+  { "id": "tag.delete", "method": "delete", "path": "/api/v1/passwords/vault/:vaultId/tag/:tagId", "auth": "access", "request": { "params": "tagParams" }, "responses": { "200": null, "default": "messageResponse" } },
+  { "id": "tag.assign", "method": "put", "path": "/api/v1/passwords/:passwordId/tags", "auth": "access", "request": { "params": "passwordParams", "body": "assignTagRequest" }, "responses": { "204": null, "default": "messageResponse" } },
+  { "id": "tag.unassign", "method": "delete", "path": "/api/v1/passwords/:passwordId/tags", "auth": "access", "request": { "params": "passwordParams", "body": "assignTagRequest" }, "responses": { "204": null, "default": "messageResponse" } },
+
+  { "id": "note.get", "method": "get", "path": "/api/v1/passwords/vault/:vaultId/password/:passwordId/note", "auth": "access", "request": { "params": "noteParams" }, "responses": { "200": "noteResponse", "default": "messageResponse" } },
+  { "id": "note.save", "method": "post", "path": "/api/v1/passwords/vault/:vaultId/password/:passwordId/note", "auth": "access", "request": { "params": "noteParams", "body": "saveNoteRequest" }, "responses": { "204": null, "default": "messageResponse" } },
+
+  { "id": "statistics.dashboard", "method": "get", "path": "/api/v1/statistics/dashboard", "auth": "access", "request": {}, "responses": { "200": "statisticsResponse", "default": "messageResponse" } }
+]

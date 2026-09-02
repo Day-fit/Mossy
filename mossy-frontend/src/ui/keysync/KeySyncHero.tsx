@@ -7,7 +7,7 @@ import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { PinNotFoundException } from '../../exception/PinNotFoundException.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 
 type SyncPhase = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -130,17 +130,17 @@ export default function KeySyncHero() {
 
 	const { connect, resumeWithPin } = useDeviceSync();
 
-	const [phase, setPhase] = useState<SyncPhase>('idle');
+	const [phase, setPhase] = useState<SyncPhase>(() =>
+		fromUrl ? 'syncing' : 'idle'
+	);
 	const [vaultId, setVaultId] = useState<string | undefined>(undefined);
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
 
 	const deviceId = useDeviceStore((state) => state.deviceId);
 
-	const startSync = useCallback(
+	const sync = useCallback(
 		(syncCode: string) => {
 			if (!deviceId) return;
-
-			setPhase('syncing');
 
 			connect('/api/v1/ws/key-sync', 'SENDER', syncCode)
 				.then(() => setPhase('success'))
@@ -165,8 +165,9 @@ export default function KeySyncHero() {
 	);
 
 	const onSubmit = ({ code }: { code: string }) => {
-		if (code.length === 6 && phase !== 'syncing') {
-			startSync(code);
+		if (code.length === 6 && phase !== 'syncing' && deviceId) {
+			setPhase('syncing');
+			sync(code);
 		}
 	};
 
@@ -182,8 +183,8 @@ export default function KeySyncHero() {
 		if (startedRef.current) return;
 
 		startedRef.current = true;
-		startSync(urlCode);
-	}, [urlCode, deviceId, fromUrl, startSync]);
+		sync(urlCode);
+	}, [urlCode, deviceId, fromUrl, sync]);
 
 	const isBusy = phase === 'syncing';
 	const isSuccess = phase === 'success';
@@ -224,7 +225,8 @@ export default function KeySyncHero() {
 									transition={{ duration: 0.25 }}
 									className="relative"
 								>
-									<div className="w-14 h-14 rounded-2xl bg-[#007735]/8 flex items-center justify-center">
+									<div
+										className="w-14 h-14 rounded-2xl bg-[#007735]/8 flex items-center justify-center">
 										<svg
 											width="26"
 											height="26"
@@ -235,7 +237,8 @@ export default function KeySyncHero() {
 											strokeLinecap="round"
 											strokeLinejoin="round"
 										>
-											<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+											<path
+												d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
 										</svg>
 									</div>
 									{isBusy && (
@@ -374,45 +377,45 @@ export default function KeySyncHero() {
 						<div className="flex justify-center gap-3">
 							{isError ? (
 								<>
-									<RippleButton
+									<Button
 										variant="outline"
 										className="box-border"
 										onClick={() => navigate(-1)}
 									>
 										Cancel
-									</RippleButton>
-									<RippleButton
+									</Button>
+									<Button
 										className="text-white bg-[#007735] hover:bg-[#005f29]"
 										onClick={handleRetry}
 									>
 										Try again
-									</RippleButton>
+									</Button>
 								</>
 							) : isSuccess ? (
-								<RippleButton
+								<Button
 									className="text-white bg-[#007735] hover:bg-[#005f29]"
 									onClick={() => navigate('/dashboard')}
 								>
 									Done
-								</RippleButton>
+								</Button>
 							) : (
 								<>
-									<RippleButton
+									<Button
 										variant="outline"
 										className="box-border"
 										onClick={() => navigate('/dashboard')}
 										disabled={isBusy}
 									>
 										Cancel
-									</RippleButton>
+									</Button>
 									{!fromUrl && (
-										<RippleButton
+										<Button
 											className="text-white bg-[#007735] hover:bg-[#005f29] disabled:opacity-40"
 											onClick={handleSubmit(onSubmit)}
 											disabled={isBusy}
 										>
 											{isBusy ? 'Syncing…' : 'Continue'}
-										</RippleButton>
+										</Button>
 									)}
 								</>
 							)}

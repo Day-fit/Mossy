@@ -10,6 +10,7 @@ import {
 import type { TagDto } from '../../../api/password.api.ts';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import * as React from 'react';
+import Button from '../../shared/Button.tsx';
 
 interface AssignTagDropdownProps {
 	assignedTags: TagDto[];
@@ -70,7 +71,8 @@ export default function AssignTagDropdown({
 			ref={rootRef}
 			className="z-20 flex flex-col items-start gap-1 relative"
 		>
-			<button
+			<Button
+				variant='icon'
 				type="button"
 				onClick={() => setIsOpen((v) => !v)}
 				className="flex items-center justify-center w-7 h-7 border-2 border-emerald-800 rounded-md cursor-pointer hover:bg-emerald-50 transition-colors"
@@ -80,9 +82,9 @@ export default function AssignTagDropdown({
 					animate={{ rotate: isOpen ? 45 : 0 }}
 					transition={{ duration: 0.2 }}
 				>
-					<MdAdd className="text-emerald-800 text-lg" />
+					<MdAdd/>
 				</motion.div>
-			</button>
+			</Button>
 
 			<motion.div
 				initial={false}

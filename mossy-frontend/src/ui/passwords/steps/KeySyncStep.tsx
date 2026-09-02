@@ -5,7 +5,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import RippleButton from '../../layout/RippleButton.tsx';
+import Button from '../../shared/Button.tsx';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useDeviceSync } from '../../../hooks/useDeviceSync.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
@@ -165,7 +165,7 @@ export default function KeySyncStep({
 							/>
 						</div>
 						<div className="flex gap-2 mt-5">
-							<RippleButton
+							<Button
 								onClick={() => {
 									setIsKeySyncModalActive(false);
 									disconnect();
@@ -173,7 +173,7 @@ export default function KeySyncStep({
 								variant="outline"
 							>
 								Cancel
-							</RippleButton>
+							</Button>
 						</div>
 					</motion.div>
 				)}

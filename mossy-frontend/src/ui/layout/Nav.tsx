@@ -1,5 +1,5 @@
 import NavTab from './NavTab.tsx';
-import RippleButton from './RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
@@ -80,16 +80,16 @@ function Nav() {
 				<div className={'hidden sm:flex mr-2'}>
 					{!isAuthenticated ? (
 						<div className="hidden sm:flex mr-2 gap-1">
-							<RippleButton onClick={() => navigate('/register')}>
+							<Button onClick={() => navigate('/register')}>
 								Sign Up
-							</RippleButton>
-							<RippleButton
+							</Button>
+							<Button
 								variant={'outline'}
 								rippleColor="rgb(0, 0, 0, 0.7)"
 								onClick={() => navigate('/login')}
 							>
 								Sign In
-							</RippleButton>
+							</Button>
 						</div>
 					) : (
 						<CgProfile className={'text-4xl mr-5'} />
@@ -166,15 +166,15 @@ function Nav() {
 									variants={itemVariants}
 									className="flex flex-col gap-3 w-full pt-2"
 								>
-									<RippleButton
+									<Button
 										onClick={() => {
 											navigate('/register');
 											closeMenu();
 										}}
 									>
 										Sign Up
-									</RippleButton>
-									<RippleButton
+									</Button>
+									<Button
 										variant={'outline'}
 										rippleColor="rgb(0, 0, 0, 0.7)"
 										onClick={() => {
@@ -183,7 +183,7 @@ function Nav() {
 										}}
 									>
 										Sign In
-									</RippleButton>
+									</Button>
 								</motion.div>
 							)}
 						</div>

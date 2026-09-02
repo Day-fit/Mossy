@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import type { DeviceDetails } from '../../api/deviceTrust.api.ts';
 import { useDevices } from '../../hooks/useDevices.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import ActionModal from '../shared/ActionModal.tsx';
 import { DeviceIcon } from './deviceIcon.tsx';
 
@@ -71,7 +71,7 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
 				</dl>
 
 				{!device.current ? (
-					<RippleButton
+					<Button
 						type="button"
 						variant={device.blocked ? 'primary' : 'outline'}
 						className="mt-5 px-4 py-2 text-sm"
@@ -79,7 +79,7 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
 						onClick={() => setIsConfirming(true)}
 					>
 						{isUpdating ? 'Updating…' : actionLabel}
-					</RippleButton>
+					</Button>
 				) : null}
 			</motion.article>
 

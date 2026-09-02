@@ -5,6 +5,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"dev:mock": "concurrently -k -n mock-api,frontend \"npm --prefix ../mock-api run dev\" \"npm run dev:mock:frontend\"",
+		"dev:mock:frontend": "vite --mode mock",
 		"build": "tsc -b && vite build",
 		"lint": "eslint .",
 		"preview": "vite preview",
@@ -47,6 +49,7 @@
 		"@types/zxcvbn": "^4.4.5",
 		"@vitejs/plugin-react": "^5.1.1",
 		"babel-plugin-react-compiler": "^1.0.0",
+		"concurrently": "^9.2.1",
 		"eslint": "^9.39.1",
 		"eslint-plugin-react-hooks": "^7.0.1",
 		"eslint-plugin-react-refresh": "^0.4.24",

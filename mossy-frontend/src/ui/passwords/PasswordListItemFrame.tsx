@@ -15,6 +15,7 @@ import {
 	MdOutlineStickyNote2,
 	MdStickyNote2,
 } from 'react-icons/md';
+import Button from '../shared/Button.tsx';
 
 export type PasswordListItemFrameProps = {
 	passwordDto: PasswordMetadataDto;
@@ -134,27 +135,28 @@ export default function PasswordListItemFrame({
 
 				<div className="flex flex-col items-end gap-2">
 					<div className="flex gap-2">
-						<button
+						<Button
+							variant="icon"
 							type="button"
-							className="inline-flex h-8 w-8 items-center justify-center rounded-sm border text-gray-700 hover:bg-gray-50 disabled:opacity-60"
 							disabled={isSubmitting}
 							onClick={() => setIsEditing(true)}
 							aria-label={`Edit ${iconLabel.toLowerCase()}`}
 							title={`Edit ${iconLabel.toLowerCase()}`}
 						>
 							<MdEdit size={18} />
-						</button>
+						</Button>
 
-						<button
+						<Button
+							variant="icon"
+							tone="destructive"
 							type="button"
-							className="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-60"
 							disabled={isSubmitting}
 							onClick={() => onDelete(passwordDto.passwordId)}
 							aria-label={`Delete ${iconLabel.toLowerCase()}`}
 							title={`Delete ${iconLabel.toLowerCase()}`}
 						>
 							<MdDelete size={18} />
-						</button>
+						</Button>
 					</div>
 
 					{passwordDto.hasNote ? (

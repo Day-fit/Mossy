@@ -6,6 +6,7 @@ import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useTagStore } from '../../../store/tagStore.ts';
 import AddTagButton from './AddTagButton.tsx';
 import TagListItem from './TagListItem.tsx';
+import Button from '../../shared/Button.tsx';
 
 export default function TagsMenu() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -35,8 +36,10 @@ export default function TagsMenu() {
 			ref={rootRef}
 			className="z-20 flex flex-col items-start gap-1 relative"
 		>
-			<div
-				className="w-fit flex gap-1 items-center p-2 border-emerald-800 border-2 rounded-md cursor-pointer"
+			<Button
+				variant='outline'
+				padding='medium'
+				className="w-fit flex gap-1 items-center"
 				onClick={() => setIsOpen((v) => !v)}
 			>
 				<FaTags className="text-emerald-800" />
@@ -44,7 +47,7 @@ export default function TagsMenu() {
 				<motion.div animate={{ rotate: isOpen ? -180 : 0 }}>
 					<IoIosArrowDown className="text-gray-500" />
 				</motion.div>
-			</div>
+			</Button>
 
 			<motion.div
 				layout

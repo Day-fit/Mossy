@@ -1,0 +1,109 @@
+{
+  "users": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "username": "demo",
+      "email": "demo@mossy.test",
+      "password": "Mossy123!",
+      "grantedAuthorities": ["ROLE_USER"]
+    }
+  ],
+  "devices": [
+    {
+      "id": "22222222-2222-4222-8222-222222222221",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "publicIdentityKey": { "kty": "OKP", "crv": "Ed25519", "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
+      "lastOsName": "Linux",
+      "deviceType": "Desktop",
+      "remoteAddr": "127.0.0.1",
+      "lastSeen": "2026-08-31T10:00:00.000Z",
+      "blocked": false,
+      "approved": true
+    },
+    {
+      "id": "22222222-2222-4222-8222-222222222222",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "publicIdentityKey": { "kty": "OKP", "crv": "Ed25519", "x": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB" },
+      "lastOsName": "Android",
+      "deviceType": "Mobile",
+      "remoteAddr": "192.0.2.20",
+      "lastSeen": "2026-08-30T18:30:00.000Z",
+      "blocked": false,
+      "approved": true
+    }
+  ],
+  "enrollments": [],
+  "vaults": [
+    {
+      "id": "33333333-3333-4333-8333-333333333331",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "name": "Personal",
+      "isOnline": true,
+      "lastSeenAt": "2026-08-31T10:00:00.000Z",
+      "apiKey": "mock-personal-vault-api-key"
+    },
+    {
+      "id": "33333333-3333-4333-8333-333333333332",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "name": "Archive",
+      "isOnline": false,
+      "lastSeenAt": "2026-08-20T12:00:00.000Z",
+      "apiKey": "mock-archive-vault-api-key"
+    }
+  ],
+  "passwords": [
+    {
+      "id": "44444444-4444-4444-8444-444444444441",
+      "vaultId": "33333333-3333-4333-8333-333333333331",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "identifier": "demo@mossy.test",
+      "address": "example.com",
+      "cipherText": "fixture-ciphertext-not-intended-for-decryption",
+      "lastModified": "2026-08-30T15:00:00.000Z",
+      "passwordType": "PASSWORD",
+      "tagIds": ["55555555-5555-4555-8555-555555555551"],
+      "note": "fixture-encrypted-note"
+    },
+    {
+      "id": "44444444-4444-4444-8444-444444444442",
+      "vaultId": "33333333-3333-4333-8333-333333333331",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "identifier": "deploy",
+      "address": "git.example.com",
+      "cipherText": "fixture-ssh-ciphertext-not-intended-for-decryption",
+      "lastModified": "2026-08-29T09:30:00.000Z",
+      "passwordType": "SSH_KEY",
+      "tagIds": [],
+      "note": null
+    }
+  ],
+  "tags": [
+    {
+      "id": "55555555-5555-4555-8555-555555555551",
+      "vaultId": "33333333-3333-4333-8333-333333333331",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "name": "Work",
+      "color": "#007735"
+    }
+  ],
+  "events": [
+    {
+      "id": "66666666-6666-4666-8666-666666666661",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "vaultId": "33333333-3333-4333-8333-333333333331",
+      "passwordId": "44444444-4444-4444-8444-444444444441",
+      "domain": "example.com",
+      "actionType": "ADDED",
+      "date": "2026-08-30T15:00:00.000Z"
+    },
+    {
+      "id": "66666666-6666-4666-8666-666666666662",
+      "userId": "11111111-1111-4111-8111-111111111111",
+      "vaultId": "33333333-3333-4333-8333-333333333331",
+      "passwordId": "44444444-4444-4444-8444-444444444442",
+      "domain": "git.example.com",
+      "actionType": "ADDED",
+      "date": "2026-08-29T09:30:00.000Z"
+    }
+  ]
+}

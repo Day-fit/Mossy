@@ -6,7 +6,7 @@ import type {
 	PasswordFormState,
 	SavePasswordResult,
 } from './index.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import PasswordListItemFrame from './PasswordListItemFrame.tsx';
 
 type SshKeyListItemProps = {
@@ -56,7 +56,7 @@ function SshKeyListItem({
 					SSH key file
 				</p>
 
-				<RippleButton
+				<Button
 					type="button"
 					variant="outline"
 					className="inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm"
@@ -66,7 +66,7 @@ function SshKeyListItem({
 				>
 					<MdDownload size={16} />
 					{phase !== undefined ? `${phase}...` : 'Download keys'}
-				</RippleButton>
+				</Button>
 			</div>
 		</PasswordListItemFrame>
 	);

@@ -6,7 +6,7 @@ import type {
 	PasswordFormState,
 	SavePasswordResult,
 } from './index.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import PasswordListItemFrame from './PasswordListItemFrame.tsx';
 
 type PasswordListItemProps = {
@@ -57,7 +57,7 @@ function PasswordListItem({
 					{revealedPassword ?? '••••••••••••'}
 				</p>
 
-				<RippleButton
+				<Button
 					type="button"
 					variant="outline"
 					className="rounded-sm border px-2 py-1 text-sm"
@@ -70,7 +70,7 @@ function PasswordListItem({
 						: revealedPassword
 							? 'Hide'
 							: 'Reveal'}
-				</RippleButton>
+				</Button>
 			</div>
 		</PasswordListItemFrame>
 	);

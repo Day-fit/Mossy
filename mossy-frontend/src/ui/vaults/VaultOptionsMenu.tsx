@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Button from "../shared/Button.tsx";
 
 type VaultOptionsMenuProps = {
 	onRename: () => void;
@@ -36,13 +37,15 @@ export default function VaultOptionsMenu({
 
 	return (
 		<div className="relative" ref={rootRef}>
-			<button
+			<Button
+				variant='ghost'
 				type="button"
-				className="rounded-md border border-gray-200 px-2 py-1 text-sm hover:bg-gray-100"
+				padding="none"
+				aria-label="options"
 				onClick={() => setIsOpen((prev) => !prev)}
 			>
 				⋯
-			</button>
+			</Button>
 
 			{isOpen ? (
 				<div className="absolute right-0 z-20 mt-2 min-w-40 rounded-md border border-gray-200 bg-white p-1 shadow-lg">

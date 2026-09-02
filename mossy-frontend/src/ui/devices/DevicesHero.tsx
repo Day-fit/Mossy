@@ -1,6 +1,6 @@
 import { motion, type Variants } from 'framer-motion';
 import { useDevices } from '../../hooks/useDevices.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import DeviceCard from './DeviceCard.tsx';
 import EnrollmentCard from './EnrollmentCard.tsx';
 
@@ -39,7 +39,7 @@ export default function DevicesHero() {
 								that can access your account.
 							</p>
 						</div>
-						<RippleButton
+						<Button
 							type="button"
 							variant="outline"
 							className="px-4 py-2 text-sm"
@@ -47,7 +47,7 @@ export default function DevicesHero() {
 							onClick={() => void refreshDevices()}
 						>
 							{isLoading ? 'Refreshing…' : 'Refresh'}
-						</RippleButton>
+						</Button>
 					</div>
 					{error ? (
 						<p role="alert" className="mt-4 text-sm text-red-600">

@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import type { DeviceEnrollment } from '../../api/deviceTrust.api.ts';
 import { useDevices } from '../../hooks/useDevices.ts';
-import RippleButton from '../layout/RippleButton.tsx';
+import Button from '../shared/Button.tsx';
 import { DeviceIcon } from './deviceIcon.tsx';
 
 export default function EnrollmentCard({
@@ -46,14 +46,14 @@ export default function EnrollmentCard({
 					<dd>{new Date(enrollment.createdAt).toLocaleString()}</dd>
 				</div>
 			</dl>
-			<RippleButton
+			<Button
 				type="button"
 				className="mt-5 px-4 py-2 text-sm text-white"
 				disabled={actionId !== null}
 				onClick={() => void approveEnrollment(enrollment.id)}
 			>
 				{isApproving ? 'Approving…' : 'Approve'}
-			</RippleButton>
+			</Button>
 		</motion.article>
 	);
 }
