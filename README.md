@@ -26,7 +26,7 @@
 
 ## Why Mossy?
 
-Mossy is designed so you can avoid typical self-hosting pain while keeping the majority of the benefits. You no longer need to worry about putting infrastructure on a VLAN, forwarding ports securely, or configuring a VPN. The vault makes an outbound STOMP-over-WebSocket connection to Mossy's relay, so you don't need to worry about this mess. Also, thanks to E2EE, your secret data remains encrypted even if your vault or the relay is compromised. \*
+Mossy is designed so you can avoid typical self-hosting pain while keeping the majority of the benefits. You no longer need to worry about putting infrastructure on a VLAN, forwarding ports securely, or configuring a VPN. The vault makes an outbound STOMP-over-WebSocket connection to Mossy's relay, so you don't need to worry about this mess. Also, thanks to E2EE, your secret data remains encrypted even if your vault or the relay is compromised.
 
 \* This assumes that your device, browser, and the frontend code delivered to it are not compromised, and that your vault key remains secret.
 
@@ -190,8 +190,25 @@ Mossy encrypts secret fields and notes in the browser with AES-256-GCM before th
 
 ## Running locally
 
-Mossy is containerized, so you do not need to install Java, Maven, Node.js, PostgreSQL,
-Redis, RabbitMQ, or Kafka on the host.
+The self-hosted and complete-infrastructure options are containerized, so they do not
+require Java, Maven, Node.js, PostgreSQL, Redis, RabbitMQ, or Kafka on the host.
+
+### Develop the frontend with the mock API
+
+For frontend development without the backend infrastructure, use Node.js 22 to install
+the two packages and start the frontend in mock mode:
+
+```bash
+npm --prefix mock-api install
+npm --prefix mossy-frontend install
+npm --prefix mossy-frontend run dev:mock
+```
+
+This starts Vite at `http://localhost:5173` and the in-memory mock API at
+`http://localhost:3001`. Sign in with `demo` and `Mossy123!`; the first login enrolls
+the browser, so submit the same credentials once more to sign in. Mock data resets when
+the API restarts. See the [mock API guide](mock-api/README.md) for alternate scenarios,
+API-only startup, and fixture maintenance.
 
 ### Prerequisites
 
