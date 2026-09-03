@@ -11,7 +11,7 @@ import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
-import { useVault } from '../../hooks/useVault.ts';
+import { useVaultStore } from '../../store/vaultStore.ts';
 
 type CreatedVaultState = {
 	vaultId: string;
@@ -29,7 +29,7 @@ type DeleteState = {
 } | null;
 
 export default function VaultHero() {
-	const { vaults, refreshVaults, isLoading } = useVault();
+	const { vaults, refreshVaults, isLoading } = useVaultStore();
 	const [isPinModalActive, setIsPinModalActive] = useState(false);
 	const [vaultName, setVaultName] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);

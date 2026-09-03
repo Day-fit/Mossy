@@ -56,7 +56,10 @@ describe('auth flow', () => {
 			status: 'authenticated',
 			accessToken: 'access-token',
 		});
-		expect(deviceIdentity.signNonce).toHaveBeenCalledWith('nonce-1', identity);
+		expect(deviceIdentity.signNonce).toHaveBeenCalledWith(
+			'nonce-1',
+			identity
+		);
 		expect(deviceIdentity.loadStoredDeviceId).toHaveBeenCalledWith('mossy');
 		expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
 			...credentials,
@@ -66,7 +69,9 @@ describe('auth flow', () => {
 				signature: 'signed-nonce',
 			},
 		});
-		expect(deviceTrustApi.executeCreateEnrollmentRequest).not.toHaveBeenCalled();
+		expect(
+			deviceTrustApi.executeCreateEnrollmentRequest
+		).not.toHaveBeenCalled();
 	});
 
 	it('reports a stored device as pending without trying to sign a missing challenge', async () => {
@@ -109,7 +114,9 @@ describe('auth flow', () => {
 			...credentials,
 			challengeDto: null,
 		});
-		expect(deviceTrustApi.executeConfirmEnrollmentRequest).toHaveBeenCalledWith(
+		expect(
+			deviceTrustApi.executeConfirmEnrollmentRequest
+		).toHaveBeenCalledWith(
 			expect.objectContaining({
 				token: 'enrollment-token',
 				enrollmentId: 'enrollment-1',
@@ -159,7 +166,9 @@ describe('auth flow', () => {
 	});
 
 	it('registers the generated public identity and then performs challenged login', async () => {
-		authApi.executeRegisterRequest.mockResolvedValue({ deviceId: 'device-2' });
+		authApi.executeRegisterRequest.mockResolvedValue({
+			deviceId: 'device-2',
+		});
 		deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
 			status: 'challenge-ready',
 			challenge: {
@@ -198,8 +207,8 @@ describe('auth flow', () => {
 			'device-2',
 			'mossy@example.com'
 		);
-		expect(deviceTrustApi.executeDeviceLoginChallengeRequest).toHaveBeenCalledWith(
-			'device-2'
-		);
+		expect(
+			deviceTrustApi.executeDeviceLoginChallengeRequest
+		).toHaveBeenCalledWith('device-2');
 	});
 });

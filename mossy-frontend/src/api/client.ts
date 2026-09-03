@@ -32,7 +32,10 @@ export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
 
 	if (!response.ok) {
 		const error = await response.json().catch(() => null);
-		throw new ApiError(error?.message || 'An error occurred', response.status);
+		throw new ApiError(
+			error?.message || 'An error occurred',
+			response.status
+		);
 	}
 
 	return response;

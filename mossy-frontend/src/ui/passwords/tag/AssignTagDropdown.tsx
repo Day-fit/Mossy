@@ -72,7 +72,7 @@ export default function AssignTagDropdown({
 			className="z-20 flex flex-col items-start gap-1 relative"
 		>
 			<Button
-				variant='icon'
+				variant="icon"
 				type="button"
 				onClick={() => setIsOpen((v) => !v)}
 				className="flex items-center justify-center w-7 h-7 border-2 border-emerald-800 rounded-md cursor-pointer hover:bg-emerald-50 transition-colors"
@@ -82,7 +82,7 @@ export default function AssignTagDropdown({
 					animate={{ rotate: isOpen ? 45 : 0 }}
 					transition={{ duration: 0.2 }}
 				>
-					<MdAdd/>
+					<MdAdd />
 				</motion.div>
 			</Button>
 

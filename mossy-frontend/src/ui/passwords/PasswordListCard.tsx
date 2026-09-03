@@ -116,8 +116,8 @@ function PasswordListCard({
 
 				<div className="flex items-center gap-2">
 					<Button
-						variant='outline'
-						padding='medium'
+						variant="outline"
+						padding="medium"
 						type="button"
 						onClick={() => setIsAddingPassword(true)}
 						disabled={isAddingPassword || isSubmitting}

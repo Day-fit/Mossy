@@ -12,10 +12,7 @@ import {
 	MdTv,
 	MdWatch,
 } from 'react-icons/md';
-import {
-	getDeviceIconKind,
-	type DeviceIconKind,
-} from './deviceIconKind.ts';
+import { getDeviceIconKind, type DeviceIconKind } from './deviceIconKind.ts';
 
 const iconByKind: Record<DeviceIconKind, IconType> = {
 	desktop: MdComputer,

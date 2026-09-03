@@ -120,7 +120,9 @@ export async function registerAndSignIn(data: {
 	);
 
 	if (result.status !== 'authenticated') {
-		throw new Error('Newly registered device is unexpectedly awaiting approval');
+		throw new Error(
+			'Newly registered device is unexpectedly awaiting approval'
+		);
 	}
 
 	return result.accessToken;
@@ -133,7 +135,10 @@ export async function signIn(credentials: Credentials): Promise<SignInResult> {
 		try {
 			return await loginKnownDevice(credentials, deviceId, identity);
 		} catch (error) {
-			if (!(error instanceof ApiError) || ![401, 404].includes(error.status)) {
+			if (
+				!(error instanceof ApiError) ||
+				![401, 404].includes(error.status)
+			) {
 				throw error;
 			}
 		}
