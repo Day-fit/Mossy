@@ -37,8 +37,8 @@ export default function TagsMenu() {
 			className="z-20 flex flex-col items-start gap-1 relative"
 		>
 			<Button
-				variant='outline'
-				padding='medium'
+				variant="outline"
+				padding="medium"
 				className="w-fit flex gap-1 items-center"
 				onClick={() => setIsOpen((v) => !v)}
 			>

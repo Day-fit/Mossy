@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import Button from "../shared/Button.tsx";
+import Button from '../shared/Button.tsx';
 
 type VaultOptionsMenuProps = {
 	onRename: () => void;
@@ -38,7 +38,7 @@ export default function VaultOptionsMenu({
 	return (
 		<div className="relative" ref={rootRef}>
 			<Button
-				variant='ghost'
+				variant="ghost"
 				type="button"
 				padding="none"
 				aria-label="options"

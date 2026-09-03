@@ -2,12 +2,11 @@ import { useEffect } from 'react';
 import { type UserVaultDto } from '../../api/vault.api.ts';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
-import { useVault } from '../../hooks/useVault.ts';
 import { useVaultStore } from '../../store/vaultStore.ts';
 
 export default function PasswordHero() {
-	const { selectedVaultId, setSelectedVaultId } = useVaultStore();
-	const { vaults, refreshVaults } = useVault();
+	const { selectedVaultId, setSelectedVaultId, vaults, refreshVaults } =
+		useVaultStore();
 
 	const selectedVault =
 		vaults.find((v) => v.vaultId === selectedVaultId) ?? null;

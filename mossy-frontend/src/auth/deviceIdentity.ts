@@ -115,8 +115,9 @@ export async function loadStoredDeviceId(
 	}
 
 	return (
-		((await db.get('device', deviceIdKey(account))) as string | undefined) ??
-		null
+		((await db.get('device', deviceIdKey(account))) as
+			| string
+			| undefined) ?? null
 	);
 }
 

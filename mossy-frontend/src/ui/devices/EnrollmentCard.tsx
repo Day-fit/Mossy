@@ -28,7 +28,8 @@ export default function EnrollmentCard({
 						{enrollment.lastOsName || 'Unknown OS'}
 					</h3>
 					<p className="text-sm text-amber-700">
-						{enrollment.deviceType || 'Unknown device'} · Awaiting approval
+						{enrollment.deviceType || 'Unknown device'} · Awaiting
+						approval
 					</p>
 				</div>
 			</div>

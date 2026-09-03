@@ -1,4 +1,5 @@
 import type { UserVaultDto } from '../../api/vault.api.ts';
+import { GoCheckCircleFill } from 'react-icons/go';
 
 type VaultSelectorProps = {
 	vaults: UserVaultDto[];
@@ -37,8 +38,9 @@ function VaultSelectorCard({
 								key={vault.vaultId}
 								type="button"
 								onClick={() => onSelectVault(vault)}
+								aria-pressed={isSelected}
 								className={[
-									'relative w-full rounded-xl border p-4 text-left transition',
+									'relative w-full rounded-xl border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2',
 									'hover:shadow-md active:scale-[0.99]',
 									isSelected
 										? 'border-emerald-900 bg-emerald-900 text-white'
@@ -86,7 +88,12 @@ function VaultSelectorCard({
 								</div>
 
 								{isSelected && (
-									<div className="absolute right-3 top-3 h-2 w-2 rounded-full bg-white" />
+									<div className="absolute right-3 top-3">
+										<GoCheckCircleFill
+											className="text-xl text-emerald-300"
+											aria-hidden="true"
+										/>
+									</div>
 								)}
 							</button>
 						);

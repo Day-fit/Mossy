@@ -3,10 +3,10 @@ import { useDashboardStatistics } from '../../hooks/useDashboardStatistics.ts';
 import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 import VaultDashboardView from './VaultDashboardView.tsx';
-import { useVault } from '../../hooks/useVault.ts';
 import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useVaultStore } from '../../store/vaultStore.ts';
 
 export default function DashboardHero() {
 	const { statistics, isLoading, error, reload } = useDashboardStatistics();
@@ -15,7 +15,10 @@ export default function DashboardHero() {
 		isLoading: areVaultsLoading,
 		errorOccurred: vaultsErrorOccurred,
 		refreshVaults,
-	} = useVault();
+		selectedVaultId,
+		setSelectedVaultId,
+	} = useVaultStore();
+
 	const navigate = useNavigate();
 	const addPasswordAction = useMemo(
 		() => ({
@@ -24,6 +27,20 @@ export default function DashboardHero() {
 		}),
 		[navigate]
 	);
+
+	useEffect(() => {
+		if (vaults.length === 0) {
+			if (selectedVaultId) setSelectedVaultId(undefined);
+			return;
+		}
+
+		const selectionExists = vaults.some(
+			(vault) => vault.vaultId === selectedVaultId
+		);
+		if (selectionExists) return;
+
+		setSelectedVaultId(vaults[0]?.vaultId);
+	}, [vaults, selectedVaultId, setSelectedVaultId]);
 
 	const containerVariants: Variants = {
 		hidden: { opacity: 0, x: -50, scale: 0.98 },
@@ -123,6 +140,12 @@ export default function DashboardHero() {
 										name={vaultName}
 										isOnline={vault.isOnline}
 										lastSeenAt={vault.lastSeenAt}
+										isSelected={
+											selectedVaultId === vault.vaultId
+										}
+										onSelect={() =>
+											setSelectedVaultId(vault.vaultId)
+										}
 									/>
 								);
 							})
