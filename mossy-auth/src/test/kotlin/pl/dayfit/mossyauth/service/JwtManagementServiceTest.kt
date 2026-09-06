@@ -6,6 +6,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.LockedException
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
@@ -13,6 +14,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
 import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossyauthstarter.type.AudienceType
+import pl.dayfit.mossyauthstarter.type.UserTokenType
 import java.time.Instant
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -37,7 +40,6 @@ class JwtManagementServiceTest {
         val refreshToken = "refresh-token"
         val userId = UUID.randomUUID()
         val deviceId = UUID.randomUUID()
-        val jwt: Jwt = mock()
         val user = UserDetailsImpl("alice", "password", userId, "alice@example.com", listOf(SimpleGrantedAuthority("USER")))
         val expectedTokens = JwtGenerationService.TokenPairDto(
             accessToken = "access-token",
@@ -45,11 +47,23 @@ class JwtManagementServiceTest {
             refreshToken = "new-refresh-token",
         )
 
+        val jwt = Jwt(
+            "mock-token",
+            Instant.now(),
+            Instant.now().plusSeconds(60),
+            mapOf<String, Any>("kid" to UUID.randomUUID()),
+            mapOf(
+                "aud" to AudienceType.MOSSY_AUTH_API,
+                "device_id" to deviceId.toString(),
+                "sub" to userId,
+                "type" to UserTokenType.REFRESH_TOKEN,
+            )
+        )
+        whenever { jwtDecoder.decode(any() ) }
+            .thenReturn(jwt)
+
         whenever(deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)).thenReturn(false)
         whenever(revokedJwtRepository.existsByToken(refreshToken)).thenReturn(false)
-        whenever(jwtDecoder.decode(refreshToken)).thenReturn(jwt)
-        whenever(jwt.subject).thenReturn(userId.toString())
-        whenever(jwt.claims).thenReturn(mapOf("device_id" to deviceId.toString()))
         whenever(userDetailsService.loadUserById(userId)).thenReturn(user)
         whenever(jwtGenerationService.generatePairOfTokens(user, deviceId)).thenReturn(expectedTokens)
 
@@ -69,8 +83,10 @@ class JwtManagementServiceTest {
             Instant.now().plusSeconds(60),
             mapOf<String, Any>("kid" to UUID.randomUUID()),
             mapOf(
+                "aud" to AudienceType.MOSSY_AUTH_API,
                 "device_id" to deviceId.toString(),
-                "sub" to UUID.randomUUID().toString()
+                "sub" to UUID.randomUUID().toString(),
+                "type" to UserTokenType.REFRESH_TOKEN,
             )
         )
         whenever { jwtDecoder.decode(any() ) }
@@ -81,6 +97,90 @@ class JwtManagementServiceTest {
         }.thenReturn(true)
 
         assertThrows<LockedException> {
+            service.handleTokenRefreshment("mock-token")
+        }
+    }
+
+    @Test
+    fun `refresh throws if provided token is not refresh token`() {
+        val deviceId = UUID.randomUUID()
+
+        val jwt = Jwt(
+            "mock-token",
+            Instant.now(),
+            Instant.now().plusSeconds(60),
+            mapOf<String, Any>("kid" to UUID.randomUUID()),
+            mapOf(
+                "aud" to AudienceType.MOSSY_AUTH_API,
+                "device_id" to deviceId.toString(),
+                "sub" to UUID.randomUUID().toString(),
+                "type" to UserTokenType.ACCESS_TOKEN,
+            )
+        )
+        whenever { jwtDecoder.decode(any() ) }
+            .thenReturn(jwt)
+
+        whenever {
+            deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)
+        }.thenReturn(true)
+
+        assertThrows<AccessDeniedException> {
+            service.handleTokenRefreshment("mock-token")
+        }
+    }
+
+    @Test
+    fun `refresh throws if token type is not provided`() {
+        val deviceId = UUID.randomUUID()
+
+        val jwt = Jwt(
+            "mock-token",
+            Instant.now(),
+            Instant.now().plusSeconds(60),
+            mapOf<String, Any>("kid" to UUID.randomUUID()),
+            mapOf(
+                "aud" to AudienceType.MOSSY_AUTH_API,
+                "device_id" to deviceId.toString(),
+                "sub" to UUID.randomUUID().toString(),
+                "type" to UserTokenType.ACCESS_TOKEN,
+            )
+        )
+        whenever { jwtDecoder.decode(any() ) }
+            .thenReturn(jwt)
+
+        whenever {
+            deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)
+        }.thenReturn(true)
+
+        assertThrows<AccessDeniedException> {
+            service.handleTokenRefreshment("mock-token")
+        }
+    }
+
+    @Test
+    fun `refresh throws if audience is invalid`() {
+        val deviceId = UUID.randomUUID()
+
+        val jwt = Jwt(
+            "mock-token",
+            Instant.now(),
+            Instant.now().plusSeconds(60),
+            mapOf<String, Any>("kid" to UUID.randomUUID()),
+            mapOf(
+                "aud" to AudienceType.MOSSY_USER_API,
+                "device_id" to deviceId.toString(),
+                "sub" to UUID.randomUUID().toString(),
+                "type" to UserTokenType.REFRESH_TOKEN,
+            )
+        )
+        whenever { jwtDecoder.decode(any() ) }
+            .thenReturn(jwt)
+
+        whenever {
+            deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)
+        }.thenReturn(true)
+
+        assertThrows<AccessDeniedException> {
             service.handleTokenRefreshment("mock-token")
         }
     }

@@ -15,7 +15,8 @@ import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
-import java.time.Duration
+import pl.dayfit.mossyauthstarter.type.AudienceType
+import pl.dayfit.mossyauthstarter.type.UserTokenType
 import java.util.Date
 import java.util.UUID
 import kotlin.concurrent.atomics.AtomicReference
@@ -63,17 +64,9 @@ class JwtGenerationService(
     fun generatePairOfTokens(userDetails: UserDetailsImpl, deviceId: UUID): TokenPairDto
     {
         return TokenPairDto(
-            generateUserJwt(
-                userDetails,
-                jwtConfigurationProperties.accessTokenExpirationTime,
-                deviceId
-            ),
+            generateAccessToken(userDetails, deviceId),
             AccessTokenType.ACCESS_TOKEN,
-            generateUserJwt(
-                userDetails,
-                jwtConfigurationProperties.refreshTokenExpirationTime,
-                deviceId,
-            )
+            generateRefreshToken(userDetails.userId)
         )
     }
 
@@ -90,13 +83,23 @@ class JwtGenerationService(
     fun generateDeviceEnrollmentToken(
         user: UserDetailsImpl,
     ): String {
-        return generateUserJwt(
-            user,
-            Duration.ofSeconds(30),
-            customClaims = mapOf(
-                "scope" to "device.enrollment.challenge device.enrollment.start"
-            )
-        )
+        val issuedAt = Date()
+        val duration = jwtConfigurationProperties.deviceEnrollmentTokenExpirationTime
+
+        val claimsBuilder = JWTClaimsSet.Builder()
+            .jwtID(UUID.randomUUID().toString())
+            .subject(user.userId.toString())
+            .issuer("mossy-auth")
+            .audience(AudienceType.MOSSY_USER_API.toString())
+            .issueTime(issuedAt)
+            .expirationTime(Date(issuedAt.time + duration.toMillis()))
+            .claim("roles", user.authorities.map { it.authority })
+            .claim("preferred_username", user.username)
+            .claim("scope", "device.enrollment.challenge device.enrollment.start")
+            .claim("type", UserTokenType.ACCESS_TOKEN)
+            .build()
+
+        return generateJwt(claimsBuilder)
     }
 
     fun generateCustomScopeAccessToken(scope: String): String {
@@ -105,7 +108,7 @@ class JwtGenerationService(
         val claims = JWTClaimsSet.Builder()
             .jwtID(UUID.randomUUID().toString())
             .issuer("mossy-auth")
-            .audience("mossy-internal-api")
+            .audience(AudienceType.MOSSY_INTERNAL_API.toString())
             .issueTime(issuedAt)
             .expirationTime(Date(issuedAt.time + 15 * 60 * 1000))
             .claim("scope", scope)
@@ -126,58 +129,56 @@ class JwtGenerationService(
      * - `iat`, `exp`
      * - `roles`, `preferred_username`, `email`
      *
-     * Optional claims:
-     * - `device_id` when [deviceId] is provided
-     * - entries from [customClaims]
-     *
-     * Exactly one contextual source is required: either [deviceId] or [customClaims].
-     *
      * @param user User whose data is embedded in token claims.
-     * @param duration Token validity duration from issuance time.
      * @param deviceId Optional device identifier claim.
-     * @param customClaims Optional additional claim map.
      * @return Serialized signed JWT.
-     * @throws IllegalArgumentException if both [deviceId] and [customClaims] are missing.
      * @throws SigningKeyNotInitializedException when signing key is not yet available.
      */
-    private fun generateUserJwt(
+    private fun generateAccessToken(
         user: UserDetailsImpl,
-        duration: Duration,
-        deviceId: UUID? = null,
-        customClaims: Map<String, Any>? = null,
-    ): String
-    {
-        if (deviceId == null && customClaims.isNullOrEmpty()) {
-            throw IllegalArgumentException("Either deviceId or customClaims must be set")
-        }
-
+        deviceId: UUID,
+    ): String {
         val issuedAt = Date()
+        val duration = jwtConfigurationProperties.accessTokenExpirationTime
+
         val claimsBuilder = JWTClaimsSet.Builder()
             .jwtID(UUID.randomUUID().toString())
             .subject(user.userId.toString())
             .issuer("mossy-auth")
-            .audience("mossy-user-api")
+            .audience(AudienceType.MOSSY_USER_API.toString())
             .issueTime(issuedAt)
             .expirationTime(Date(issuedAt.time + duration.toMillis()))
             .claim("roles", user.authorities.map { it.authority })
             .claim("preferred_username", user.username)
             .claim("email", user.email)
             .claim("scope", "user.access")
+            .claim("type", UserTokenType.ACCESS_TOKEN)
 
-        deviceId?.let {
+        deviceId.let {
             claimsBuilder.claim("device_id", it)
-        }
-        customClaims?.forEach { (name, value) ->
-            claimsBuilder.claim(name, value)
         }
 
         return generateJwt(claimsBuilder.build())
     }
 
+    fun generateRefreshToken(userId: UUID): String {
+        val duration = jwtConfigurationProperties.refreshTokenExpirationTime
+
+        val claims = JWTClaimsSet.Builder()
+            .jwtID(UUID.randomUUID().toString())
+            .issuer(AudienceType.MOSSY_AUTH_API.toString())
+            .audience("mossy-auth-api")
+            .subject(userId.toString())
+            .expirationTime(Date(Date().time + duration.toMillis()))
+            .build()
+
+        return generateJwt(claims)
+    }
+
     /**
      * Signs and serializes an arbitrary JWT claims set with the active RSA key.
      *
-     * Unlike [generateUserJwt], this method does not add, remove, or validate claims. Callers are
+     * Unlike [generateAccessToken], this method does not add, remove, or validate claims. Callers are
      * responsible for supplying all required claims, including token lifetime and intended scope.
      *
      * @param claims Claims to include in the token without modification.

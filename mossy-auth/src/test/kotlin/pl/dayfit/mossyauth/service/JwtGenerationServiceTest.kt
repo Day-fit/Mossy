@@ -15,6 +15,7 @@ import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretKeyInitializedEvent
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossyauthstarter.type.AudienceType
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -38,7 +39,10 @@ class JwtGenerationServiceTest {
         assertEquals(JWSAlgorithm.RS256, token.header.algorithm)
         assertEquals("key-id", token.header.keyID)
         assertEquals("mossy-auth", claims.issuer)
-        assertEquals(listOf("mossy-internal-api"), claims.audience)
+        assertEquals(
+            listOf(AudienceType.MOSSY_INTERNAL_API.toString()),
+            claims.audience
+        )
         assertEquals("device.trust.internal", claims.getStringClaim("scope"))
         assertEquals(15 * 60, Duration.between(claims.issueTime.toInstant(), claims.expirationTime.toInstant()).seconds)
         assertTrue(claims.expirationTime.toInstant().isAfter(Instant.now()))

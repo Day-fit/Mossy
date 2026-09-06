@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.LockedException
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -7,6 +8,8 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.RevokedJwtModel
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossyauthstarter.type.AudienceType
+import pl.dayfit.mossyauthstarter.type.UserTokenType
 import java.time.Instant
 import java.util.UUID
 
@@ -56,8 +59,20 @@ class JwtManagementService(
         val jwt = jwtDecoder.decode(refreshToken)
         val userId = UUID.fromString(jwt.subject)
 
+        val tokenType: String =
+            jwt.getClaimAsString("type")
+                ?: throw AccessDeniedException("Type of jwt token is invalid")
+
+        if (tokenType != UserTokenType.REFRESH_TOKEN.toString()) {
+            throw AccessDeniedException("This token cannot be used to refresh your token")
+        }
+
+        if (!jwt.audience.any{ it == AudienceType.MOSSY_AUTH_API.toString() }) {
+            throw AccessDeniedException("This token audience is invalid")
+        }
+
         val userDetails = userDetailsService.loadUserById(userId)
-        val deviceId = UUID.fromString(jwt.claims["device_id"] as String)
+        val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
 
         if (deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)) {
             throw LockedException("Device is blocked")

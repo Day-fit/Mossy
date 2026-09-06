@@ -7,4 +7,5 @@ import java.time.Duration
 class JwtConfigurationProperties {
     var accessTokenExpirationTime: Duration = Duration.ofMinutes(15)
     var refreshTokenExpirationTime: Duration = Duration.ofDays(14)
+    var deviceEnrollmentTokenExpirationTime: Duration = Duration.ofSeconds(30)
 }
