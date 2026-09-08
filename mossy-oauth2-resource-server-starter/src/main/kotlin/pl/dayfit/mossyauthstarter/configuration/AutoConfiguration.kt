@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Import
 @Import(
     value = [
         HttpConfiguration::class,
+        JwtDecoderConfiguration::class,
     ]
 )
 @Configuration

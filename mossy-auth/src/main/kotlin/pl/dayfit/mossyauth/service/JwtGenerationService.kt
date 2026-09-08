@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.service
 
+import com.nimbusds.jose.JOSEObjectType
 import com.nimbusds.jose.JWSAlgorithm
 import com.nimbusds.jose.JWSHeader
 import com.nimbusds.jose.crypto.RSASSASigner
@@ -16,7 +17,6 @@ import pl.dayfit.mossyauth.exception.SigningKeyNotInitializedException
 import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import pl.dayfit.mossyauthstarter.type.AudienceType
-import pl.dayfit.mossyauthstarter.type.UserTokenType
 import java.util.Date
 import java.util.UUID
 import kotlin.concurrent.atomics.AtomicReference
@@ -52,7 +52,7 @@ class JwtGenerationService(
      * - access token (short-lived)
      * - refresh token (long-lived)
      *
-     * Both tokens include a `device_id` claim and share the same user identity claims.
+     * Both tokens include `sub` and `device_id`; only access tokens carry roles and scopes.
      *
      * @param userDetails Authenticated user details used to populate identity/authorization claims.
      * @param deviceId Device identifier associated with the issued session/tokens.
@@ -66,7 +66,7 @@ class JwtGenerationService(
         return TokenPairDto(
             generateAccessToken(userDetails, deviceId),
             AccessTokenType.ACCESS_TOKEN,
-            generateRefreshToken(userDetails.userId)
+            generateRefreshToken(userDetails.userId, deviceId)
         )
     }
 
@@ -96,10 +96,9 @@ class JwtGenerationService(
             .claim("roles", user.authorities.map { it.authority })
             .claim("preferred_username", user.username)
             .claim("scope", "device.enrollment.challenge device.enrollment.start")
-            .claim("type", UserTokenType.ACCESS_TOKEN)
             .build()
 
-        return generateJwt(claimsBuilder)
+        return generateJwt(claimsBuilder, JOSEObjectType("at+jwt"))
     }
 
     fun generateCustomScopeAccessToken(scope: String): String {
@@ -114,9 +113,7 @@ class JwtGenerationService(
             .claim("scope", scope)
             .build()
 
-        return generateJwt(
-            claims
-        )
+        return generateJwt(claims, JOSEObjectType("at+jwt"))
     }
 
     /**
@@ -152,27 +149,29 @@ class JwtGenerationService(
             .claim("preferred_username", user.username)
             .claim("email", user.email)
             .claim("scope", "user.access")
-            .claim("type", UserTokenType.ACCESS_TOKEN)
 
         deviceId.let {
             claimsBuilder.claim("device_id", it)
         }
 
-        return generateJwt(claimsBuilder.build())
+        return generateJwt(claimsBuilder.build(), JOSEObjectType("at+jwt"))
     }
 
-    fun generateRefreshToken(userId: UUID): String {
+    fun generateRefreshToken(userId: UUID, deviceId: UUID): String {
+        val issuedAt = Date()
         val duration = jwtConfigurationProperties.refreshTokenExpirationTime
 
         val claims = JWTClaimsSet.Builder()
             .jwtID(UUID.randomUUID().toString())
-            .issuer(AudienceType.MOSSY_AUTH_API.toString())
-            .audience("mossy-auth-api")
+            .issuer("mossy-auth")
+            .audience(AudienceType.MOSSY_AUTH_API.toString())
             .subject(userId.toString())
-            .expirationTime(Date(Date().time + duration.toMillis()))
+            .issueTime(issuedAt)
+            .expirationTime(Date(issuedAt.time + duration.toMillis()))
+            .claim("device_id", deviceId.toString())
             .build()
 
-        return generateJwt(claims)
+        return generateJwt(claims, JOSEObjectType.JWT)
     }
 
     /**
@@ -185,11 +184,12 @@ class JwtGenerationService(
      * @return Serialized signed JWT.
      * @throws SigningKeyNotInitializedException when signing key is not yet available.
      */
-    private fun generateJwt(claims: JWTClaimsSet): String {
+    private fun generateJwt(claims: JWTClaimsSet, type: JOSEObjectType): String {
         val secret = secretKey.load()
             ?: throw SigningKeyNotInitializedException("Secret key is not initialized yet.")
 
         val header: JWSHeader = JWSHeader.Builder(JWSAlgorithm.RS256)
+            .type(type)
             .keyID(secret.keyID)
             .build()
 
