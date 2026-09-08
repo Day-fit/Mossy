@@ -8,6 +8,18 @@ are no longer part of the authentication design.
 
 `mossy-auth` signs access and refresh tokens with RSA using `RS256`. Each token
 includes a `kid` that identifies the public key used to validate it.
+
+The signed `typ` header is `at+jwt` for access tokens (including enrollment and
+internal tokens), and `JWT` for refresh tokens. There is no payload `type` claim.
+Refresh tokens are recognized by their exclusive `MOSSY_AUTH_API` audience.
+API decoders require `at+jwt` (or `application/at+jwt`) and accept only
+`MOSSY_USER_API` and `MOSSY_INTERNAL_API` audiences. Both decoders verify the
+signature, timestamps, and `mossy-auth` issuer.
+
+Deploy the issuer and resource servers together. Existing access tokens without
+`typ: at+jwt` are rejected, and existing refresh tokens need to be replaced by
+signing in again.
+
 By default, access tokens are valid for 15 minutes and refresh tokens for 14
 days.
 
@@ -17,27 +29,30 @@ Consumers must use the standard JWT subject as the user identifier:
 sub = user UUID
 ```
 
-The following claims are also issued:
+Standard user access tokens contain these claims:
 
 | Claim                | Meaning                                                             |
 |----------------------|---------------------------------------------------------------------|
 | `iss`                | `mossy-auth`                                                        |
-| `aud`                | `mossy-user-api`                                                    |
+| `aud`                | `MOSSY_USER_API`                                                    |
 | `jti`                | Unique token identifier                                             |
 | `iat`                | Token issue time                                                    |
 | `exp`                | Token expiration time                                               |
 | `roles`              | User roles, converted to Spring authorities with the `ROLE_` prefix |
 | `preferred_username` | User's username                                                     |
 | `email`              | User's email address                                                |
-| `scope`              | `user.access` for standard user access and refresh tokens           |
+| `scope`              | `user.access` for standard user access tokens           |
 | `device_id`          | Device associated with the access or refresh token                  |
+
+Refresh tokens contain `iss`, `aud`, `sub`, `jti`, `iat`, `exp`, and
+`device_id`; they do not carry access scopes or roles.
 
 Do not rely on the retired `userId` claim. Controllers and services should
 parse the user identifier from `Jwt.subject`.
 
 The 30-second device-enrollment token does not contain `device_id`; it carries
 the `device.enrollment.start` and `device.enrollment.challenge` scopes instead.
-Internal service tokens use the `mossy-internal-api` audience and a
+Internal service tokens use the `MOSSY_INTERNAL_API` audience and a
 service-specific scope.
 
 ## JWKS publication and rotation

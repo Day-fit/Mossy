@@ -15,6 +15,7 @@ import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.event.SecretKeyInitializedEvent
 import pl.dayfit.mossyauth.event.SecretRotatedEvent
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossyauthstarter.type.AudienceType
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
@@ -32,13 +33,18 @@ class JwtGenerationServiceTest {
         setSigningKey(service, signingKey)
 
         val token = SignedJWT.parse(service.generateCustomScopeAccessToken("device.trust.internal"))
+        assertEquals("at+jwt", token.header.type.toString())
+        assertNull(token.jwtClaimsSet.getClaim("type"))
         val claims = token.jwtClaimsSet
 
         assertTrue(token.verify(RSASSAVerifier(signingKey.toRSAPublicKey())))
         assertEquals(JWSAlgorithm.RS256, token.header.algorithm)
         assertEquals("key-id", token.header.keyID)
         assertEquals("mossy-auth", claims.issuer)
-        assertEquals(listOf("mossy-internal-api"), claims.audience)
+        assertEquals(
+            listOf(AudienceType.MOSSY_INTERNAL_API.toString()),
+            claims.audience
+        )
         assertEquals("device.trust.internal", claims.getStringClaim("scope"))
         assertEquals(15 * 60, Duration.between(claims.issueTime.toInstant(), claims.expirationTime.toInstant()).seconds)
         assertTrue(claims.expirationTime.toInstant().isAfter(Instant.now()))
@@ -78,7 +84,18 @@ class JwtGenerationServiceTest {
         val deviceId = UUID.randomUUID()
         setSigningKey(service, signingKey)
 
-        val accessToken = SignedJWT.parse(service.generatePairOfTokens(user, deviceId).accessToken)
+        val pair = service.generatePairOfTokens(user, deviceId)
+        val accessToken = SignedJWT.parse(pair.accessToken)
+        val refreshToken = SignedJWT.parse(pair.refreshToken)
+
+        assertEquals("at+jwt", accessToken.header.type.toString())
+        assertEquals("JWT", refreshToken.header.type.toString())
+        assertNull(accessToken.jwtClaimsSet.getClaim("type"))
+        assertNull(refreshToken.jwtClaimsSet.getClaim("type"))
+        assertEquals(listOf(AudienceType.MOSSY_AUTH_API.toString()), refreshToken.jwtClaimsSet.audience)
+        assertEquals("mossy-auth", refreshToken.jwtClaimsSet.issuer)
+        assertEquals(userId.toString(), refreshToken.jwtClaimsSet.subject)
+        assertEquals(deviceId.toString(), refreshToken.jwtClaimsSet.getStringClaim("device_id"))
 
         assertEquals(JWSAlgorithm.RS256, accessToken.header.algorithm)
         assertEquals("key-id", accessToken.header.keyID)
@@ -105,6 +122,8 @@ class JwtGenerationServiceTest {
         setSigningKey(service, signingKey)
 
         val token = SignedJWT.parse(service.generateDeviceEnrollmentToken(user))
+        assertEquals("at+jwt", token.header.type.toString())
+        assertNull(token.jwtClaimsSet.getClaim("type"))
         val claims = token.jwtClaimsSet
 
         assertTrue(token.verify(RSASSAVerifier(signingKey.toRSAPublicKey())))
