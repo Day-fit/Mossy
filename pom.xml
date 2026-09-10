@@ -19,5 +19,7 @@
         <module>mossy-statistics</module>
         <module>mossy-vault-shared</module>
         <module>self-hosted/mossy-vault</module>
+        <module>mossy-mailer</module>
+        <module>mossy-mailer-shared</module>
     </modules>
 </project>
