@@ -2,8 +2,10 @@ import { apiFetch } from './client.ts';
 import type { ActionType } from '../ui/dashboard';
 
 export type DashboardStatisticsResponse = {
+	totalPasswords: number;
 	passwordChart: {
 		date: string;
+		passwordCount: number;
 		addedCount: number;
 	}[];
 	recentActions: {
@@ -22,6 +24,8 @@ export async function executeDashboardStatisticsRequest(): Promise<DashboardStat
 		(await response.json()) as Partial<DashboardStatisticsResponse>;
 
 	return {
+		totalPasswords:
+			typeof data?.totalPasswords === 'number' ? data.totalPasswords : 0,
 		passwordChart: Array.isArray(data?.passwordChart)
 			? data.passwordChart
 			: [],

@@ -18,7 +18,7 @@ class StatisticsControllerTest {
     fun `get dashboard statistics uses JWT subject as user id`() {
         val userId = UUID.randomUUID()
         val jwt: Jwt = mock()
-        val response = DashboardResponseDto(emptyList(), emptyList())
+        val response = DashboardResponseDto(0, emptyList(), emptyList())
         `when`(jwt.subject).thenReturn(userId.toString())
         `when`(statisticsQueryService.getDashboardStatistics(userId)).thenReturn(response)
 
