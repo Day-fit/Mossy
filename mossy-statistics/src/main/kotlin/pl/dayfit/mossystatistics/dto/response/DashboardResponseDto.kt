@@ -5,12 +5,14 @@ import java.time.Instant
 import java.util.UUID
 
 data class DashboardResponseDto(
+    val totalPasswords: Long,
     val passwordChart: List<PasswordChartPointDto>,
     val recentActions: List<RecentActionDto>,
 )
 
 data class PasswordChartPointDto(
     val date: Instant,
+    val passwordCount: Long,
     val addedCount: Long
 )
 
