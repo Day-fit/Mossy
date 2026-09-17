@@ -5,6 +5,7 @@ import {
 } from '../api/statistics.api.ts';
 
 const EMPTY_STATISTICS: DashboardStatisticsResponse = {
+	totalPasswords: 0,
 	passwordChart: [],
 	recentActions: [],
 };

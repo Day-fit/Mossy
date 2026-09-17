@@ -1,5 +1,7 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.LockedException
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -7,6 +9,7 @@ import org.springframework.stereotype.Service
 import pl.dayfit.mossyauth.model.RevokedJwtModel
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
+import pl.dayfit.mossyauthstarter.type.AudienceType
 import java.time.Instant
 import java.util.UUID
 
@@ -22,7 +25,7 @@ class JwtManagementService(
     private val jwtGenerationService: JwtGenerationService,
     private val userDetailsService: UserDetailsService,
     private val deviceTrustIntegrationService: DeviceTrustIntegrationService,
-    private val jwtDecoder: JwtDecoder
+    @Qualifier("refreshJwtDecoder") private val jwtDecoder: JwtDecoder
 ) {
     /**
      * Records a non-blank refresh token as revoked. Blank values are ignored so
@@ -54,10 +57,13 @@ class JwtManagementService(
         }
 
         val jwt = jwtDecoder.decode(refreshToken)
-        val userId = UUID.fromString(jwt.subject)
+        if (jwt.audience != listOf(AudienceType.MOSSY_AUTH_API.toString())) {
+            throw AccessDeniedException("This token audience is invalid")
+        }
 
+        val userId = UUID.fromString(jwt.subject)
         val userDetails = userDetailsService.loadUserById(userId)
-        val deviceId = UUID.fromString(jwt.claims["device_id"] as String)
+        val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
 
         if (deviceTrustIntegrationService.getDeviceBlockStatus(deviceId)) {
             throw LockedException("Device is blocked")
