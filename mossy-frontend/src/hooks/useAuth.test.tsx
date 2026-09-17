@@ -1,96 +1,73 @@
-import { useEffect } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '../store/authStore.ts';
 import { useAuth } from './useAuth.ts';
 import { useAuthInit } from './useAuthInit.ts';
 
 const {
-	tokenStorage,
-	executeCheckAuthState,
-	executeRefreshRequest,
-	executeUserDetailsRequest,
+    tokenStorage,
+    executeCheckAuthState,
+    executeRefreshRequest,
+    executeUserDetailsRequest,
 } = vi.hoisted(() => ({
-	tokenStorage: {
-		get: vi.fn(),
-		set: vi.fn(),
-	},
-	executeCheckAuthState: vi.fn(),
-	executeRefreshRequest: vi.fn(),
-	executeUserDetailsRequest: vi.fn(),
+    tokenStorage: {
+        get: vi.fn(),
+        set: vi.fn(),
+    },
+    executeCheckAuthState: vi.fn(),
+    executeRefreshRequest: vi.fn(),
+    executeUserDetailsRequest: vi.fn(),
 }));
 
 vi.mock('../auth/tokenStorage.ts', () => ({
-	tokenStorage,
+    tokenStorage,
 }));
 
 vi.mock('../api/auth.api.ts', () => ({
-	executeCheckAuthState,
-	executeRefreshRequest,
-	executeUserDetailsRequest,
+    executeCheckAuthState,
+    executeRefreshRequest,
+    executeUserDetailsRequest,
 }));
 
-function AuthInitWrapper({ children }: { children: React.ReactNode }) {
-	useAuthInit();
-	const { isAuthenticated } = useAuth();
-	return isAuthenticated !== null ? children : null;
-}
+afterEach(cleanup);
 
 describe('useAuth / useAuthInit', () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		tokenStorage.get.mockReturnValue('test-token');
-		executeCheckAuthState.mockResolvedValue({
-			json: async () => ({ isAuthenticated: false }),
-		});
-		executeRefreshRequest.mockResolvedValue({
-			json: async () => ({ accessToken: null }),
-		});
-		executeUserDetailsRequest.mockResolvedValue(null);
-	});
+    beforeEach(() => {
+        vi.resetAllMocks();
+        useAuthStore.setState({ isAuthenticated: null, userDetails: null });
+        tokenStorage.get.mockReturnValue('test-token');
+        executeCheckAuthState.mockResolvedValue({
+            json: async () => ({ isAuthenticated: false }),
+        });
+        executeRefreshRequest.mockResolvedValue({
+            json: async () => ({ accessToken: null }),
+        });
+        executeUserDetailsRequest.mockResolvedValue(null);
+    });
 
-	it('renders children after auth init resolves', async () => {
-		render(
-			<AuthInitWrapper>
-				<div>auth-ready</div>
-			</AuthInitWrapper>
-		);
+    it('resolves authentication state after initialization', async () => {
+        renderHook(useAuthInit);
+        await waitFor(() => {
+            expect(useAuthStore.getState().isAuthenticated).toBe(false);
+        });
+    });
 
-		await waitFor(() => {
-			expect(screen.getByText('auth-ready')).toBeTruthy();
-		});
-	});
+    it('loads user details after login sets authenticated state', async () => {
+        executeUserDetailsRequest.mockResolvedValue({
+            userId: 'user-1',
+            username: 'user',
+            email: 'user@example.com',
+            grantedAuthorities: [],
+        });
 
-	it('loads user details after login sets authenticated state', async () => {
-		tokenStorage.get.mockReturnValue(null);
-		executeRefreshRequest.mockResolvedValue({
-			json: async () => ({ accessToken: null }),
-		});
-		executeUserDetailsRequest.mockResolvedValue({
-			userId: 'user-1',
-			username: 'user',
-			email: 'user@example.com',
-			grantedAuthorities: [],
-		});
+        const { result } = renderHook(useAuth);
+        act(() => result.current.login('new-access-token'));
 
-		const LoginProbe = () => {
-			const { login, userDetails } = useAuth();
-
-			useEffect(() => {
-				login('new-access-token');
-			}, [login]);
-
-			return <div>{userDetails?.userId ?? 'no-user'}</div>;
-		};
-
-		render(
-			<AuthInitWrapper>
-				<LoginProbe />
-			</AuthInitWrapper>
-		);
-
-		await waitFor(() => {
-			expect(executeUserDetailsRequest).toHaveBeenCalledTimes(1);
-			expect(screen.getByText('user-1')).toBeTruthy();
-		});
-	});
+        await waitFor(() => {
+            expect(result.current.userDetails?.userId).toBe('user-1');
+        });
+        expect(result.current.isAuthenticated).toBe(true);
+        expect(tokenStorage.set).toHaveBeenCalledWith('new-access-token');
+        expect(executeUserDetailsRequest).toHaveBeenCalledTimes(1);
+    });
 });

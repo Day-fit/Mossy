@@ -1,52 +1,52 @@
 import { useCallback } from 'react';
 import { tokenStorage } from '../auth/tokenStorage.ts';
 import {
-	executeUserDetailsRequest,
-	executeLogoutRequest,
-	type UserDetailsResponse,
+    executeUserDetailsRequest,
+    executeLogoutRequest,
+    type UserDetailsResponse,
 } from '../api/auth.api.ts';
 import { useAuthStore } from '../store/authStore.ts';
 
 type AuthState = {
-	isAuthenticated: boolean | null;
-	userDetails: UserDetailsResponse | null;
-	login: (token: string) => void;
-	logout: () => Promise<void>;
+    isAuthenticated: boolean | null;
+    userDetails: UserDetailsResponse | null;
+    login: (token: string) => void;
+    logout: () => Promise<void>;
 };
 
 export const useAuth = (): AuthState => {
-	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-	const userDetails = useAuthStore((state) => state.userDetails);
-	const setIsAuthenticated = useAuthStore(
-		(state) => state.setIsAuthenticated
-	);
-	const setUserDetails = useAuthStore((state) => state.setUserDetails);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const userDetails = useAuthStore((state) => state.userDetails);
+    const setIsAuthenticated = useAuthStore(
+        (state) => state.setIsAuthenticated
+    );
+    const setUserDetails = useAuthStore((state) => state.setUserDetails);
 
-	const login = useCallback(
-		(token: string) => {
-			tokenStorage.set(token);
-			setIsAuthenticated(true);
-			void executeUserDetailsRequest()
-				.then((res) => setUserDetails(res))
-				.catch(() => setUserDetails(null));
-		},
-		[setIsAuthenticated, setUserDetails]
-	);
+    const login = useCallback(
+        (token: string) => {
+            tokenStorage.set(token);
+            setIsAuthenticated(true);
+            void executeUserDetailsRequest()
+                .then((res) => setUserDetails(res))
+                .catch(() => setUserDetails(null));
+        },
+        [setIsAuthenticated, setUserDetails]
+    );
 
-	const logout = useCallback(async () => {
-		try {
-			await executeLogoutRequest();
-		} finally {
-			tokenStorage.set(null);
-			setUserDetails(null);
-			setIsAuthenticated(false);
-		}
-	}, [setIsAuthenticated, setUserDetails]);
+    const logout = useCallback(async () => {
+        try {
+            await executeLogoutRequest();
+        } finally {
+            tokenStorage.set(null);
+            setUserDetails(null);
+            setIsAuthenticated(false);
+        }
+    }, [setIsAuthenticated, setUserDetails]);
 
-	return {
-		isAuthenticated,
-		userDetails,
-		login,
-		logout,
-	};
+    return {
+        isAuthenticated,
+        userDetails,
+        login,
+        logout,
+    };
 };

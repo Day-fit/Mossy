@@ -114,7 +114,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Linux",
             null,
             false
@@ -123,7 +123,7 @@ class DeviceInfoServiceTest {
         val targetDeviceInfo = DeviceInfo(
             targetDeviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Linux",
             null,
             false
@@ -159,7 +159,7 @@ class DeviceInfoServiceTest {
         val targetDeviceInfo = DeviceInfo(
             targetDeviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Windows",
             Instant.now(),
             true
@@ -169,7 +169,7 @@ class DeviceInfoServiceTest {
         val anotherDeviceInfo = DeviceInfo(
             anotherDeviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Windows",
             Instant.now(),
             false
@@ -222,7 +222,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Windows",
             Instant.now(),
         )
@@ -236,7 +236,7 @@ class DeviceInfoServiceTest {
         val anotherDeviceInfo = DeviceInfo(
             anotherDeviceId,
             anotherUserId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Windows",
             Instant.now(),
         )
@@ -255,7 +255,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Windows",
             Instant.now(),
             true,
@@ -273,7 +273,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             UUID.fromString("155eacf5-ca0b-4d27-b2c2-ad14ab81c20b"),
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Linux",
             Instant.now(),
             false,
@@ -304,7 +304,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             deviceId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Linux",
             Instant.now(),
             false,
@@ -349,7 +349,7 @@ class DeviceInfoServiceTest {
         val deviceInfo = DeviceInfo(
             otherUserId,
             userId,
-            generateKeyPair().toPublicJWK().decodedX,
+            ByteArray(32) { it.toByte() },
             "Linux",
             Instant.now(),
             false,
@@ -508,7 +508,7 @@ class DeviceInfoServiceTest {
             userId = userId,
             remoteAddr = "192.0.2.10",
             userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
-            publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+            publicIdentityKey = ByteArray(32) { it.toByte() },
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
 
@@ -549,7 +549,7 @@ class DeviceInfoServiceTest {
                     DeviceInfo(
                         deviceId = approvingDeviceId,
                         userId = userId,
-                        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+                        publicIdentityKey = ByteArray(32) { it.toByte() },
                         lastUserAgent = "Linux",
                     )
                 )
@@ -783,14 +783,14 @@ class DeviceInfoServiceTest {
         userId = userId,
         remoteAddr = "192.0.2.30",
         userAgent = "Windows",
-        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+        publicIdentityKey = ByteArray(32) { it.toByte() },
         createdAt = Instant.parse("2026-08-10T12:00:00Z"),
     )
 
     private fun deviceInfo(deviceId: UUID, userId: UUID, blocked: Boolean = false) = DeviceInfo(
         deviceId = deviceId,
         userId = userId,
-        publicIdentityKey = generateKeyPair().toPublicJWK().decodedX,
+        publicIdentityKey = ByteArray(32) { it.toByte() },
         lastUserAgent = "Linux",
         blocked = blocked,
     )

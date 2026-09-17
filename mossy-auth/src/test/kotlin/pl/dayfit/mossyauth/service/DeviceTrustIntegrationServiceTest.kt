@@ -1,7 +1,5 @@
 package pl.dayfit.mossyauth.service
 
-import com.nimbusds.jose.jwk.Curve
-import com.nimbusds.jose.jwk.gen.OctetKeyPairGenerator
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
@@ -47,10 +45,11 @@ class DeviceTrustIntegrationServiceTest {
 
     companion object {
         val validUserId: UUID = UUID.fromString("eba918b5-f417-4ec5-817c-151c998519ea")
-        val validPublicJWK: Map<String, Any> = OctetKeyPairGenerator(Curve.Ed25519)
-            .generate()
-            .toPublicJWK()
-            .toJSONObject()
+        val validPublicJWK: Map<String, Any> = mapOf(
+            "kty" to "OKP",
+            "crv" to "Ed25519",
+            "x" to "A".repeat(43),
+        )
         const val VALID_TRUST_SERVICE_HOST = "https://mossy.dayfit.pl"
         const val VALID_REGISTER_DEVICE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/device"
         const val VALID_CHECK_CHALLENGE_URL = "https://mossy.dayfit.pl/api/v1/device-trust/internal/nonce/challenge"

@@ -5,7 +5,7 @@ import App from './App';
 const root = document.getElementById('root') as HTMLElement;
 
 ReactDOM.createRoot(root).render(
-	<BrowserRouter>
-		<App />
-	</BrowserRouter>
+    <BrowserRouter>
+        <App />
+    </BrowserRouter>
 );
