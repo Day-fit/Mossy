@@ -633,19 +633,36 @@ const noteSave: OperationHandler = (context) => {
 const statisticsDashboard: OperationHandler = (context) => {
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const events = context.store.state.events.filter((event) => event.userId === userId(context));
-  const counts = new Map<string, number>();
-  for (const event of events) {
-    if (event.actionType !== "ADDED" || Date.parse(event.date) < cutoff) continue;
+  const recentEvents = events
+    .filter((event) => Date.parse(event.date) >= cutoff)
+    .sort((left, right) => Date.parse(left.date) - Date.parse(right.date));
+  const totalPasswords = context.store.state.passwords.filter(
+    (password) => password.userId === userId(context),
+  ).length;
+  const countChange = (actionType: string) => actionType === "ADDED" ? 1 : actionType === "REMOVED" ? -1 : 0;
+  let passwordCount = totalPasswords - recentEvents.reduce(
+    (total, event) => total + countChange(event.actionType),
+    0,
+  );
+  const counts = new Map<string, { addedCount: number; change: number }>();
+  for (const event of recentEvents) {
     const day = new Date(event.date);
     day.setUTCHours(0, 0, 0, 0);
     const key = day.toISOString();
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    const count = counts.get(key) ?? { addedCount: 0, change: 0 };
+    count.addedCount += event.actionType === "ADDED" ? 1 : 0;
+    count.change += countChange(event.actionType);
+    counts.set(key, count);
   }
   return {
     body: {
+      totalPasswords,
       passwordChart: [...counts.entries()]
         .sort(([left], [right]) => left.localeCompare(right))
-        .map(([date, addedCount]) => ({ date, addedCount })),
+        .map(([date, count]) => {
+          passwordCount = Math.max(0, passwordCount + count.change);
+          return { date, passwordCount, addedCount: count.addedCount };
+        }),
       recentActions: [...events]
         .sort((left, right) => Date.parse(right.date) - Date.parse(left.date))
         .slice(0, 20)

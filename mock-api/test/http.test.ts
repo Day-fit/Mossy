@@ -86,6 +86,8 @@ describe("mock HTTP API", () => {
       .get("/api/v1/statistics/dashboard")
       .set(auth)
       .expect(200);
+    expect(statistics.body.totalPasswords).toBe(1);
+    expect(statistics.body.passwordChart.at(-1)).toMatchObject({ passwordCount: 1, addedCount: 1 });
     expect(statistics.body.recentActions[0]).toMatchObject({ actionType: "ADDED", domain: "example.test" });
   });
 

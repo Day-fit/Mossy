@@ -437,16 +437,18 @@
   "statisticsResponse": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["passwordChart", "recentActions"],
+    "required": ["totalPasswords", "passwordChart", "recentActions"],
     "properties": {
+      "totalPasswords": { "type": "integer", "minimum": 0 },
       "passwordChart": {
         "type": "array",
         "items": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["date", "addedCount"],
+          "required": ["date", "passwordCount", "addedCount"],
           "properties": {
             "date": { "$ref": "isoDate" },
+            "passwordCount": { "type": "integer", "minimum": 0 },
             "addedCount": { "type": "integer", "minimum": 0 }
           }
         }

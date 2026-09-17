@@ -70,7 +70,7 @@ export default function DashboardHero() {
 				animate="show"
 			>
 				<motion.div
-					className="lg:flex-1 lg:min-h-0"
+					className="h-80 lg:h-auto lg:flex-1 lg:min-h-0"
 					variants={childVariants}
 				>
 					<div className="h-full rounded-md shadow-2xl bg-white">
