@@ -106,3 +106,45 @@ route list (`mossy.security.public-routes-patterns`), and
 The root `compose.yaml` points each resource server at the `mossy-auth` JWKS
 endpoint. It also mounts the named `jwks-data` volume at `/app/data`, allowing
 the public key set to survive auth-container replacement. 
+
+## Email verification
+
+Registration returns `deviceId` and nullable `verification` metadata containing
+`verificationId`, `expiresAt`, and `resendAvailableAt`. With
+`mossy.auth.require-email-verification=true` (the production default), newly
+registered accounts remain disabled until confirmation. Login, enrollment-token
+issuance, and refresh reject these accounts with `EMAIL_VERIFICATION_REQUIRED`.
+The development profile keeps verification optional.
+
+The public endpoints under `/api/v1/auth` are:
+
+- `POST /user/confirm`: `{ "verificationId": "UUID", "code": "012345" }`,
+  or the same request with `token` instead of `code`. Supply exactly one secret.
+- `POST /user/verification/resend`: `{ "verificationId": "UUID" }`.
+- `POST /user/verification/recover`: `{ "identifier": "username or email", "password": "password" }`.
+  Recovery verifies credentials without creating a session.
+
+Codes and links expire after 15 minutes. Each code belongs to its verification
+ID; equal codes on different requests do not collide. Five failed code attempts
+lock that code while leaving its email link usable. Resends replace the previous
+request and require a 60-second cooldown, with five deliveries per account per
+hour. Throttled responses include `Retry-After`. Expired or replaced requests
+return 410. Redis retains request context for 24 hours to support resend and
+idempotent confirmation; credentials are stored as hashes.
+
+Registration stays in `UserService`; issuance, confirmation, resend, and recovery
+share `EmailVerificationService`. Their explicit transaction blocks commit
+account updates before email delivery and cache cleanup. Redis models
+use repositories, with partial updates for attempt counters and completion so
+concurrent reads never observe a temporarily deleted record. PostgreSQL user-row
+locks serialize confirmation and resend.
+
+The frontend `/verify-email` page supports code entry, resend, and credential
+recovery. Email links carry their token in the URL fragment and require an
+explicit Confirm click. Pending request metadata lives in session storage;
+passwords and link tokens are not persisted there. Set `FRONTEND_BASE_URL` for
+links in the Compose deployment.
+
+Request rate limiting is configured in the `mossy-auth-verification` Traefik
+router labels (10 requests per minute, burst 10). Backend limits apply to code
+attempts and account deliveries.

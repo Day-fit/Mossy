@@ -25,6 +25,7 @@ export type OperationOverride = {
 
 export type ScenarioSettings = {
   autoApproveEnrollments: boolean;
+  requireEmailVerification?: boolean;
   newVaultsOnline: boolean;
   overrides: Record<string, OperationOverride>;
 };
@@ -41,6 +42,8 @@ export type UserRecord = {
   email: string | null;
   password: string;
   grantedAuthorities: string[];
+  enabled?: boolean;
+  blocked?: boolean;
 };
 
 export type DeviceRecord = {

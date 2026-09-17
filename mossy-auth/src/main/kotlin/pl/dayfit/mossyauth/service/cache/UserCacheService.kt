@@ -25,6 +25,9 @@ class UserCacheService(
     }
 
     @CacheEvict(key = "#userId", value = ["user.id"])
+    fun evict(userId: UUID) { }
+
+    @CacheEvict(key = "#userId", value = ["user.id"])
     fun delete(userId: UUID) {
         userRepository.deleteById(userId)
     }

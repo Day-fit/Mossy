@@ -1,5 +1,6 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
@@ -7,64 +8,88 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.TransactionDefinition
+import org.springframework.transaction.support.TransactionTemplate
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
+import pl.dayfit.mossyauth.dto.response.RegisterUserResponseDto
 import pl.dayfit.mossyauth.dto.response.UserDetailsResponseDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
+import pl.dayfit.mossyauth.service.EmailVerificationService.VerificationIssuance
 import pl.dayfit.mossyauth.service.cache.UserCacheService
 import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauth.type.AuthProvider
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
-import java.util.*
+import java.util.UUID
 
 @Service
 class UserService(
     private val userCacheService: UserCacheService,
-    private val userRepository: UserRepository,
-    private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
     private val daoAuthenticationProvider: DaoAuthenticationProvider,
-    private val deviceTrustIntegrationService: DeviceTrustIntegrationService
+    private val deviceTrustIntegrationService: DeviceTrustIntegrationService,
+    private val emailVerificationService: EmailVerificationService,
+    private val userDetailsService: UserDetailsService,
+    private val userRepository: UserRepository,
+    private val passwordEncoder: PasswordEncoder,
+    @Value($$"${mossy.auth.require-email-verification:true}")
+    private val requireEmailVerification: Boolean,
+    transactionManager: PlatformTransactionManager
 ) {
-    @Transactional
-    fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String): UUID {
-        //Passwords cannot be null, so a result of encoding is not null as well
-        val encodedPassword: String = passwordEncoder.encode(requestDto.password)!!
+    private val transactionTemplate = TransactionTemplate(transactionManager).apply {
+        propagationBehavior = TransactionDefinition.PROPAGATION_REQUIRES_NEW
+    }
 
-        val email = requestDto.email
-        val username = requestDto.username
+    fun register(
+        requestDto: RegisterUserRequestDto,
+        userAgent: String,
+        remoteAddr: String
+    ): RegisterUserResponseDto {
+        val result = transactionTemplate.execute {
+            if (userRepository.existsByUsernameOrEmail(requestDto.username, requestDto.email)) {
+                throw UserAlreadyExistsException("User with given username or email already exists")
+            }
 
-        if (userRepository.existsByUsernameAndEmail(username, email)) {
-            throw UserAlreadyExistsException("User with given username or email already exists")
+            val user = userCacheService.save(
+                UserModel(
+                    username = requestDto.username,
+                    email = requestDto.email,
+                    password = passwordEncoder.encode(requestDto.password)!!,
+                    authProvider = AuthProvider.LOCAL,
+                    authorities = listOf("USER"),
+                    enabled = false,
+                    blocked = false
+                )
+            )
+            val deviceId = deviceTrustIntegrationService.registerDevice(
+                user.id!!,
+                requestDto.publicIdentityKey,
+                userAgent,
+                remoteAddr
+            )
+
+            user.enabled = !requireEmailVerification
+            userCacheService.save(user)
+
+            val issuance = if (requireEmailVerification) {
+                emailVerificationService.issue(user)
+            } else {
+                null
+            }
+
+            RegistrationResult(
+                RegisterUserResponseDto(deviceId, issuance?.verification),
+                issuance
+            )
         }
 
-        val user = UserModel(
-            username = requestDto.username,
-            email = requestDto.email,
-            password = encodedPassword,
-            authProvider = AuthProvider.LOCAL,
-            authorities = listOf("USER"),
-            enabled = false,
-            blocked = false
-        )
-
-        //TODO: create a email confirmation for account registration
-        val savedUser = userCacheService.save(user)
-
-        val deviceId = deviceTrustIntegrationService.registerDevice(
-            savedUser.id!!,
-            requestDto.publicIdentityKey,
-            userAgent,
-            remoteAddr,
-        )
-
-        savedUser.enabled = true
-        userCacheService.save(savedUser)
-
-        return deviceId
+        result.issuance?.let {
+            emailVerificationService.send(it.command, it.verification.verificationId)
+        }
+        return result.response
     }
 
     /**
@@ -90,6 +115,7 @@ class UserService(
             .authenticate(candidate) as UsernamePasswordAuthenticationToken
 
         val userDetails = authToken.principal as UserDetailsImpl
+        userDetailsService.requireEnabled(userDetails.userId)
         val challengeDto = loginDto.challengeDto ?: return JwtGenerationService.TokenPairDto(
             jwtGenerationService.generateDeviceEnrollmentToken(
                 userDetails
@@ -136,4 +162,9 @@ class UserService(
             }
         )
     }
+
+    private data class RegistrationResult(
+        val response: RegisterUserResponseDto,
+        val issuance: VerificationIssuance?
+    )
 }

@@ -1,12 +1,14 @@
 export class AppError extends Error {
   readonly status: number;
   readonly body: unknown;
+  readonly headers: Record<string, string>;
 
-  constructor(status: number, message: string, body: unknown = { message }) {
+  constructor(status: number, message: string, body: unknown = { message }, headers: Record<string, string> = {}) {
     super(message);
     this.name = "AppError";
     this.status = status;
     this.body = body;
+    this.headers = headers;
   }
 }
 

@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "username": "demo",
+      "email": "demo@mossy.test",
+      "password": "Mossy123!",
+      "grantedAuthorities": ["ROLE_USER"]
+    }
+  ],
+  "devices": [],
+  "enrollments": [],
+  "vaults": [],
+  "passwords": [],
+  "tags": [],
+  "events": []
+}

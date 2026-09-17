@@ -9,160 +9,160 @@ import { useEffect, useMemo } from 'react';
 import { useVaultStore } from '../../store/vaultStore.ts';
 
 export default function DashboardHero() {
-	const { statistics, isLoading, error, reload } = useDashboardStatistics();
-	const {
-		vaults,
-		isLoading: areVaultsLoading,
-		errorOccurred: vaultsErrorOccurred,
-		refreshVaults,
-		selectedVaultId,
-		setSelectedVaultId,
-	} = useVaultStore();
+    const { statistics, isLoading, error, reload } = useDashboardStatistics();
+    const {
+        vaults,
+        isLoading: areVaultsLoading,
+        errorOccurred: vaultsErrorOccurred,
+        refreshVaults,
+        selectedVaultId,
+        setSelectedVaultId,
+    } = useVaultStore();
 
-	const navigate = useNavigate();
-	const addPasswordAction = useMemo(
-		() => ({
-			label: 'Add a password',
-			onClick: () => navigate('/passwords'),
-		}),
-		[navigate]
-	);
+    const navigate = useNavigate();
+    const addPasswordAction = useMemo(
+        () => ({
+            label: 'Add a password',
+            onClick: () => navigate('/passwords'),
+        }),
+        [navigate]
+    );
 
-	useEffect(() => {
-		if (vaults.length === 0) {
-			if (selectedVaultId) setSelectedVaultId(undefined);
-			return;
-		}
+    useEffect(() => {
+        if (vaults.length === 0) {
+            if (selectedVaultId) setSelectedVaultId(undefined);
+            return;
+        }
 
-		const selectionExists = vaults.some(
-			(vault) => vault.vaultId === selectedVaultId
-		);
-		if (selectionExists) return;
+        const selectionExists = vaults.some(
+            (vault) => vault.vaultId === selectedVaultId
+        );
+        if (selectionExists) return;
 
-		setSelectedVaultId(vaults[0]?.vaultId);
-	}, [vaults, selectedVaultId, setSelectedVaultId]);
+        setSelectedVaultId(vaults[0]?.vaultId);
+    }, [vaults, selectedVaultId, setSelectedVaultId]);
 
-	const containerVariants: Variants = {
-		hidden: { opacity: 0, x: -50, scale: 0.98 },
-		show: {
-			opacity: 1,
-			x: 0,
-			scale: 1,
-			transition: {
-				duration: 0.5,
-				ease: 'easeOut',
-				delayChildren: stagger(0.2),
-			},
-		},
-	};
+    const containerVariants: Variants = {
+        hidden: { opacity: 0, x: -50, scale: 0.98 },
+        show: {
+            opacity: 1,
+            x: 0,
+            scale: 1,
+            transition: {
+                duration: 0.5,
+                ease: 'easeOut',
+                delayChildren: stagger(0.2),
+            },
+        },
+    };
 
-	const childVariants: Variants = {
-		hidden: { opacity: 0, x: -50 },
-		show: { opacity: 1, x: 0 },
-	};
+    const childVariants: Variants = {
+        hidden: { opacity: 0, x: -50 },
+        show: { opacity: 1, x: 0 },
+    };
 
-	return (
-		<section className="flex flex-col lg:flex-row lg:h-[90vh] gap-8 px-4 py-2 overflow-x-hidden">
-			<motion.section
-				className="flex flex-col flex-1 gap-8 min-h-0"
-				variants={containerVariants}
-				initial="hidden"
-				animate="show"
-			>
-				<motion.div
-					className="h-80 lg:h-auto lg:flex-1 lg:min-h-0"
-					variants={childVariants}
-				>
-					<div className="h-full rounded-md shadow-2xl bg-white">
-						<div className="h-full overflow-hidden rounded-md p-4">
-							{isLoading ? (
-								<div className="w-full h-full flex items-center justify-center text-gray-500">
-									Loading statistics...
-								</div>
-							) : error &&
-							  statistics.passwordChart.length === 0 ? (
-								<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
-									<p>Password history could not be loaded.</p>
-									<Button
-										type="button"
-										className="px-4 py-2 text-sm"
-										onClick={() => void reload()}
-									>
-										Retry
-									</Button>
-								</div>
-							) : (
-								<PasswordChart
-									data={statistics.passwordChart}
-									emptyAction={addPasswordAction}
-								/>
-							)}
-						</div>
-					</div>
-				</motion.div>
+    return (
+        <section className="flex flex-col lg:flex-row lg:h-[90vh] gap-8 px-4 py-2 overflow-x-hidden">
+            <motion.section
+                className="flex flex-col flex-1 gap-8 min-h-0"
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+            >
+                <motion.div
+                    className="h-80 lg:h-auto lg:flex-1 lg:min-h-0"
+                    variants={childVariants}
+                >
+                    <div className="h-full rounded-md shadow-2xl bg-white">
+                        <div className="h-full overflow-hidden rounded-md p-4">
+                            {isLoading ? (
+                                <div className="w-full h-full flex items-center justify-center text-gray-500">
+                                    Loading statistics...
+                                </div>
+                            ) : error &&
+                              statistics.passwordChart.length === 0 ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
+                                    <p>Password history could not be loaded.</p>
+                                    <Button
+                                        type="button"
+                                        className="px-4 py-2 text-sm"
+                                        onClick={() => void reload()}
+                                    >
+                                        Retry
+                                    </Button>
+                                </div>
+                            ) : (
+                                <PasswordChart
+                                    data={statistics.passwordChart}
+                                    emptyAction={addPasswordAction}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
 
-				<motion.div className="flex-1 min-h-0" variants={childVariants}>
-					<div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
-						{areVaultsLoading ? (
-							<div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
-								Loading vaults...
-							</div>
-						) : vaultsErrorOccurred && vaults.length === 0 ? (
-							<div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
-								<p>Vaults could not be loaded.</p>
-								<Button
-									type="button"
-									className="px-4 py-2 text-sm"
-									onClick={() => void refreshVaults()}
-								>
-									Retry
-								</Button>
-							</div>
-						) : vaults.length === 0 ? (
-							<div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
-								<p>No vaults yet.</p>
-								<Button
-									type="button"
-									className="px-4 py-2 text-sm"
-									onClick={() => navigate('/vaults')}
-								>
-									Create a vault
-								</Button>
-							</div>
-						) : (
-							vaults.map((vault) => {
-								const vaultName =
-									vault.vaultName ?? vault.vaultId;
-								return (
-									<VaultDashboardView
-										key={vault.vaultId}
-										passwordsCount={vault.passwordCount}
-										name={vaultName}
-										isOnline={vault.isOnline}
-										lastSeenAt={vault.lastSeenAt}
-										isSelected={
-											selectedVaultId === vault.vaultId
-										}
-										onSelect={() =>
-											setSelectedVaultId(vault.vaultId)
-										}
-									/>
-								);
-							})
-						)}
-					</div>
-				</motion.div>
-			</motion.section>
+                <motion.div className="flex-1 min-h-0" variants={childVariants}>
+                    <div className="h-full rounded-md shadow-2xl bg-white p-10 flex overflow-x-auto gap-5">
+                        {areVaultsLoading ? (
+                            <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
+                                Loading vaults...
+                            </div>
+                        ) : vaultsErrorOccurred && vaults.length === 0 ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
+                                <p>Vaults could not be loaded.</p>
+                                <Button
+                                    type="button"
+                                    className="px-4 py-2 text-sm"
+                                    onClick={() => void refreshVaults()}
+                                >
+                                    Retry
+                                </Button>
+                            </div>
+                        ) : vaults.length === 0 ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
+                                <p>No vaults yet.</p>
+                                <Button
+                                    type="button"
+                                    className="px-4 py-2 text-sm"
+                                    onClick={() => navigate('/vaults')}
+                                >
+                                    Create a vault
+                                </Button>
+                            </div>
+                        ) : (
+                            vaults.map((vault) => {
+                                const vaultName =
+                                    vault.vaultName ?? vault.vaultId;
+                                return (
+                                    <VaultDashboardView
+                                        key={vault.vaultId}
+                                        passwordsCount={vault.passwordCount}
+                                        name={vaultName}
+                                        isOnline={vault.isOnline}
+                                        lastSeenAt={vault.lastSeenAt}
+                                        isSelected={
+                                            selectedVaultId === vault.vaultId
+                                        }
+                                        onSelect={() =>
+                                            setSelectedVaultId(vault.vaultId)
+                                        }
+                                    />
+                                );
+                            })
+                        )}
+                    </div>
+                </motion.div>
+            </motion.section>
 
-			<div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
-				<RecentActionSection
-					actions={statistics.recentActions}
-					isLoading={isLoading}
-					error={error}
-					onRetry={() => void reload()}
-					emptyAction={addPasswordAction}
-				/>
-			</div>
-		</section>
-	);
+            <div className="lg:flex-1 lg:min-h-0 lg:flex lg:flex-col">
+                <RecentActionSection
+                    actions={statistics.recentActions}
+                    isLoading={isLoading}
+                    error={error}
+                    onRetry={() => void reload()}
+                    emptyAction={addPasswordAction}
+                />
+            </div>
+        </section>
+    );
 }

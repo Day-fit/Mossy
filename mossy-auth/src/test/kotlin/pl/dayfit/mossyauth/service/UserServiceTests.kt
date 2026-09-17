@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.Mock
+import org.mockito.Mockito.lenient
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.junit.jupiter.MockitoExtension
@@ -17,6 +18,8 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.SimpleTransactionStatus
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
 import pl.dayfit.mossyauth.dto.request.RegisterUserRequestDto
 import pl.dayfit.mossyauth.exception.UserAlreadyExistsException
@@ -47,17 +50,32 @@ class UserServiceTests {
     @Mock
     private lateinit var deviceTrustIntegrationService: DeviceTrustIntegrationService
 
+    @Mock
+    private lateinit var emailVerificationService: EmailVerificationService
+
+    @Mock
+    private lateinit var userDetailsService: UserDetailsService
+
+    @Mock
+    private lateinit var transactionManager: PlatformTransactionManager
+
     private lateinit var userService: UserService
 
     @BeforeEach
     fun setUp() {
+        lenient().`when`(transactionManager.getTransaction(any()))
+            .thenReturn(SimpleTransactionStatus())
         userService = UserService(
-            passwordEncoder = passwordEncoder,
-            daoAuthenticationProvider = daoAuthenticationProvider,
             userCacheService = userCacheService,
             jwtGenerationService = jwtGenerationService,
+            daoAuthenticationProvider = daoAuthenticationProvider,
+            deviceTrustIntegrationService = deviceTrustIntegrationService,
+            emailVerificationService = emailVerificationService,
+            userDetailsService = userDetailsService,
             userRepository = userRepository,
-            deviceTrustIntegrationService = deviceTrustIntegrationService
+            passwordEncoder = passwordEncoder,
+            requireEmailVerification = false,
+            transactionManager = transactionManager
         )
     }
 
@@ -67,11 +85,13 @@ class UserServiceTests {
         val username = "test"
         val email = "test@test.test"
 
-        whenever(userCacheService.save(any())).thenAnswer { invocation ->
+        whenever(userCacheService.save(any<UserModel>())).thenAnswer { invocation ->
             invocation.getArgument<UserModel>(0).apply {
                 id = id ?: UUID.randomUUID()
             }
         }
+
+        whenever(deviceTrustIntegrationService.registerDevice(any(), any(), any(), any())).thenReturn(UUID.randomUUID())
 
         userService.register(
             RegisterUserRequestDto(username, email, password, mapOf()),
@@ -265,7 +285,7 @@ class UserServiceTests {
     @Test
     fun `test registering with existing username`()
     {
-        whenever { userRepository.existsByUsernameAndEmail(any(), any()) }
+        whenever { userRepository.existsByUsernameOrEmail(any(), any()) }
             .thenReturn(true)
 
         assertFailsWith<UserAlreadyExistsException> { userService.register(
@@ -282,54 +302,22 @@ class UserServiceTests {
 
     @Test
     fun `account is not enabled until device trust service responds`() {
-        val request = RegisterUserRequestDto(
-            "test",
-            "test@test.com",
-            "test123",
-            mapOf()
-        )
+        val request = RegisterUserRequestDto("test", "test@test.com", "test123", mapOf())
+        lateinit var savedUser: UserModel
 
-        val userId = UUID.randomUUID()
-        val userModel = UserModel(
-            userId,
-            "test",
-            "test",
-            "test123",
-            AuthProvider.LOCAL,
-            listOf("USER"),
-            enabled = false,
-            blocked = false
-        )
+        whenever(userCacheService.save(any<UserModel>())).thenAnswer { invocation ->
+            invocation.getArgument<UserModel>(0).also {
+                it.id = it.id ?: UUID.randomUUID()
+                savedUser = it
+            }
+        }
+        whenever(deviceTrustIntegrationService.registerDevice(any(), any(), any(), any())).thenAnswer {
+            kotlin.test.assertFalse(savedUser.enabled)
+            UUID.randomUUID()
+        }
 
-        val captor = argumentCaptor<UserModel>()
+        userService.register(request, "Android", "163.84.244.143")
 
-        whenever {
-            userRepository.existsByUsernameAndEmail(any(), any())
-        }.thenReturn(false)
-
-        whenever {
-            userCacheService.save(any())
-        }.thenReturn(userModel)
-
-        userService.register(
-            request,
-            "Android",
-            "163.84.244.143"
-        )
-
-        verify(deviceTrustIntegrationService)
-            .registerDevice(
-                any(),
-                any(),
-                any(),
-                any()
-            )
-
-        verify(
-            userCacheService, times(2)
-        ).save(captor.capture())
-
-        assert(!captor.firstValue.enabled)
-        assert(captor.secondValue.enabled)
+        kotlin.test.assertTrue(savedUser.enabled)
     }
 }

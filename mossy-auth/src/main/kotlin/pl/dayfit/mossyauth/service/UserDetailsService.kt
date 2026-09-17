@@ -1,10 +1,13 @@
 package pl.dayfit.mossyauth.service
 
+import org.springframework.security.authentication.BadCredentialsException
+import org.springframework.security.authentication.LockedException
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.stereotype.Service
+import pl.dayfit.mossyauth.exception.EmailVerificationRequiredException
 import pl.dayfit.mossyauth.model.UserModel
 import pl.dayfit.mossyauth.repository.UserRepository
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
@@ -24,7 +27,7 @@ class UserDetailsService(
      * @throws UsernameNotFoundException if no user is found for the given username or email
      */
     override fun loadUserByUsername(username: String): UserDetails {
-        val user = if(username.contains("@").not()) loadByUsername(username) else loadByEmail(username)
+        val user = if (username.contains("@").not()) loadByUsername(username) else loadByEmail(username)
 
         val authorities = user.authorities.map { SimpleGrantedAuthority(it) }
 
@@ -34,7 +37,7 @@ class UserDetailsService(
             user.id!!,
             user.email,
             authorities
-            )
+        )
     }
 
     fun loadUserById(userId: UUID): UserDetails {
@@ -52,14 +55,24 @@ class UserDetailsService(
         )
     }
 
-    private fun loadByUsername(username: String): UserModel
-    {
+    fun requireEnabled(userId: UUID) {
+        val user = userRepository.findById(userId)
+            .orElseThrow { BadCredentialsException("Bad credentials") }
+
+        if (user.blocked) {
+            throw LockedException("Account is blocked")
+        }
+        if (!user.enabled) {
+            throw EmailVerificationRequiredException()
+        }
+    }
+
+    private fun loadByUsername(username: String): UserModel {
         return userRepository.findByUsername(username)
             .orElseThrow { throw UsernameNotFoundException("Username or password is incorrect") }
     }
 
-    private fun loadByEmail(email: String): UserModel
-    {
+    private fun loadByEmail(email: String): UserModel {
         return userRepository.findByEmail(email)
             .orElseThrow { throw UsernameNotFoundException("Username or password is incorrect") }
     }

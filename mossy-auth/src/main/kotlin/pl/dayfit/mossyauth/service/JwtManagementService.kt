@@ -62,6 +62,7 @@ class JwtManagementService(
         }
 
         val userId = UUID.fromString(jwt.subject)
+        userDetailsService.requireEnabled(userId)
         val userDetails = userDetailsService.loadUserById(userId)
         val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
 

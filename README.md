@@ -344,6 +344,8 @@ docker compose --profile prod down
 
 ## Tests
 
+The current suite contains unit tests only. It does not require running databases, message brokers, or Docker.
+
 Run the backend test suite from the project root:
 
 ```bash
