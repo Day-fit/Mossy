@@ -31,7 +31,7 @@
     "type": "object",
     "additionalProperties": false,
     "required": ["message"],
-    "properties": { "message": { "type": "string" } }
+    "properties": { "message": { "type": "string" }, "code": { "type": "string" } }
   },
   "validationResponse": {
     "type": "object",
@@ -66,8 +66,11 @@
   "registerResponse": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["deviceId"],
-    "properties": { "deviceId": { "$ref": "uuid" } }
+    "required": ["deviceId", "verification"],
+    "properties": {
+      "deviceId": { "$ref": "uuid" },
+      "verification": { "anyOf": [{ "$ref": "verificationMetadata" }, { "type": "null" }] }
+    }
   },
   "loginRequest": {
     "type": "object",
@@ -517,7 +520,9 @@
             "username": { "type": "string" },
             "email": { "type": ["string", "null"] },
             "password": { "type": "string" },
-            "grantedAuthorities": { "type": "array", "items": { "type": "string" } }
+            "grantedAuthorities": { "type": "array", "items": { "type": "string" } },
+            "enabled": { "type": "boolean" },
+            "blocked": { "type": "boolean" }
           }
         }
       },
@@ -633,6 +638,7 @@
     "required": ["autoApproveEnrollments", "newVaultsOnline", "overrides"],
     "properties": {
       "autoApproveEnrollments": { "type": "boolean" },
+      "requireEmailVerification": { "type": "boolean" },
       "newVaultsOnline": { "type": "boolean" },
       "overrides": {
         "type": "object",
@@ -647,6 +653,127 @@
             "body": {}
           }
         }
+      }
+    }
+  },
+  "verificationMetadata": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "verificationId",
+      "expiresAt",
+      "resendAvailableAt"
+    ],
+    "properties": {
+      "verificationId": {
+        "$ref": "uuid"
+      },
+      "expiresAt": {
+        "$ref": "isoDate"
+      },
+      "resendAvailableAt": {
+        "$ref": "isoDate"
+      }
+    }
+  },
+  "verificationResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "verification"
+    ],
+    "properties": {
+      "verification": {
+        "anyOf": [
+          {
+            "$ref": "verificationMetadata"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "deviceRegistrationResponse": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "deviceId"
+    ],
+    "properties": {
+      "deviceId": {
+        "$ref": "uuid"
+      }
+    }
+  },
+  "confirmEmailRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "verificationId"
+    ],
+    "properties": {
+      "verificationId": {
+        "$ref": "uuid"
+      },
+      "code": {
+        "type": "string",
+        "pattern": "^[0-9]{6}$"
+      },
+      "token": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_-]{43}$"
+      }
+    },
+    "oneOf": [
+      {
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {}
+        }
+      },
+      {
+        "required": [
+          "token"
+        ],
+        "properties": {
+          "token": {}
+        }
+      }
+    ]
+  },
+  "resendVerificationRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "verificationId"
+    ],
+    "properties": {
+      "verificationId": {
+        "$ref": "uuid"
+      }
+    }
+  },
+  "recoverVerificationRequest": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "identifier",
+      "password"
+    ],
+    "properties": {
+      "identifier": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 254
+      },
+      "password": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
       }
     }
   }

@@ -3,6 +3,7 @@ package pl.dayfit.mossyauth.service
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
@@ -11,6 +12,7 @@ import org.springframework.security.authentication.LockedException
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import pl.dayfit.mossyauth.repository.RevokedJwtRepository
+import pl.dayfit.mossyauth.exception.EmailVerificationRequiredException
 import pl.dayfit.mossyauth.type.AccessTokenType
 import pl.dayfit.mossyauthstarter.auth.principal.UserDetailsImpl
 import pl.dayfit.mossyauthstarter.type.AudienceType
@@ -70,6 +72,18 @@ class JwtManagementServiceTest {
 
         assertThrows<AccessDeniedException> { service.handleTokenRefreshment("refresh-token") }
         verifyNoInteractions(userDetailsService, jwtGenerationService, deviceTrustIntegrationService)
+    }
+
+    @Test
+    fun `refresh rejects an account awaiting email verification`() {
+        whenever(jwtDecoder.decode("refresh-token")).thenReturn(token(AudienceType.MOSSY_AUTH_API))
+        doThrow(EmailVerificationRequiredException()).`when`(userDetailsService).requireEnabled(userId)
+
+        assertThrows<EmailVerificationRequiredException> {
+            service.handleTokenRefreshment("refresh-token")
+        }
+        verify(userDetailsService).requireEnabled(userId)
+        verifyNoInteractions(jwtGenerationService, deviceTrustIntegrationService)
     }
 
     @Test

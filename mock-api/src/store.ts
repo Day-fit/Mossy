@@ -16,6 +16,17 @@ export type ChallengeRecord = {
   purpose: "login" | "enrollment";
 };
 
+export type VerificationRecord = {
+  verificationId: string;
+  userId: string;
+  code: string;
+  token: string;
+  expiresAt: string;
+  resendAvailableAt: string;
+  retainedUntil: number;
+  attempts: number;
+};
+
 export class RuntimeStore {
   readonly state: ScenarioState;
   readonly settings: ScenarioSettings;
@@ -23,6 +34,8 @@ export class RuntimeStore {
   readonly refreshTokens = new Map<string, TokenSession>();
   readonly challenges = new Map<string, ChallengeRecord>();
   readonly idempotency = new Map<string, unknown>();
+  readonly verifications = new Map<string, VerificationRecord>();
+  readonly verificationDelivery = new Map<string, { id: string; lastSent: number; windowStart: number; sends: number }>();
 
   constructor(state: ScenarioState, settings: ScenarioSettings) {
     this.state = structuredClone(state);

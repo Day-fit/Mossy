@@ -5,39 +5,39 @@ import { MdChangeCircle } from 'react-icons/md';
 import type { ActionType } from './index.ts';
 
 type RecentActionElementProps = {
-	actionType: ActionType;
-	date: string;
-	domain: string;
+    actionType: ActionType;
+    date: string;
+    domain: string;
 };
 
 export default function RecentActionEntry({
-	actionType,
-	date,
-	domain,
+    actionType,
+    date,
+    domain,
 }: RecentActionElementProps) {
-	const textToIcon = (actionType: ActionType): ReactNode => {
-		switch (actionType) {
-			case 'ADDED':
-				return <IoAddCircle className={'text-2xl'} />;
-			case 'REMOVED':
-				return <IoRemoveCircle className={'text-2xl'} />;
-			case 'UPDATED':
-				return <MdChangeCircle className={'text-2xl'} />;
-		}
-	};
+    const textToIcon = (actionType: ActionType): ReactNode => {
+        switch (actionType) {
+            case 'ADDED':
+                return <IoAddCircle className={'text-2xl'} />;
+            case 'REMOVED':
+                return <IoRemoveCircle className={'text-2xl'} />;
+            case 'UPDATED':
+                return <MdChangeCircle className={'text-2xl'} />;
+        }
+    };
 
-	return (
-		<div className="flex items-center justify-around w-11/12 bg-gray-200 py-3 px-2 rounded-md">
-			<img
-				src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
-				alt={`${domain} icon`}
-				className="w-6 h-6 mr-2"
-			/>
-			<h2 className="text-lg">{domain}</h2>
-			<span className="text-xs text-gray-500 ml-2">
-				{formatDate(date)}
-			</span>
-			{textToIcon(actionType)}
-		</div>
-	);
+    return (
+        <div className="flex items-center justify-around w-11/12 bg-gray-200 py-3 px-2 rounded-md">
+            <img
+                src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`}
+                alt={`${domain} icon`}
+                className="w-6 h-6 mr-2"
+            />
+            <h2 className="text-lg">{domain}</h2>
+            <span className="text-xs text-gray-500 ml-2">
+                {formatDate(date)}
+            </span>
+            {textToIcon(actionType)}
+        </div>
+    );
 }

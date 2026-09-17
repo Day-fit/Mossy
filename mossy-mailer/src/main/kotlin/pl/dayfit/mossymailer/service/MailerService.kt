@@ -6,6 +6,7 @@ import com.resend.core.exception.ResendException
 import com.resend.core.net.RequestOptions
 import com.resend.services.emails.model.CreateEmailOptions
 import com.resend.services.emails.model.Template
+import mossymailershared.MailerMessaging
 import mossymailershared.event.SendEmailCommand
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.rabbit.annotation.RabbitListener
@@ -24,7 +25,7 @@ class MailerService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    @RabbitListener(queues = ["mossy.email.queue"])
+    @RabbitListener(queues = [MailerMessaging.QUEUE])
     fun sendEmail(
         batch: List<Message<SendEmailCommand>>,
         channel: Channel

@@ -2,7 +2,6 @@ package pl.dayfit.mossydevicetrust.service
 
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertDoesNotThrow
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.InjectMocks
 import org.mockito.Mock
@@ -51,10 +50,9 @@ class NonceChallengeServiceTest {
     private val realSecureRandom = SecureRandom()
 
     @Test
-    fun `Generator returns valid and secure nonce`() {
+    fun `generator encodes the nonce supplied by secure random`() {
         val deviceId = UUID.randomUUID().toString()
-        val nonce = ByteArray(16)
-        realSecureRandom.nextBytes(nonce)
+        val nonce = ByteArray(16) { it.toByte() }
 
         doAnswer {
             nonce.copyInto(it.arguments[0] as ByteArray)
@@ -69,15 +67,6 @@ class NonceChallengeServiceTest {
         val result = nonceChallengeService.generateNonce(deviceId, NonceChallengeTarget.EXISTING_DEVICE)
             .nonce
 
-        assertDoesNotThrow {
-            Base64.UrlSafe
-                .withPadding(
-                    Base64.PaddingOption
-                        .ABSENT_OPTIONAL
-                ).decode(
-                    result
-                )
-        }
 
         assert(
             result == Base64.UrlSafe.withPadding(

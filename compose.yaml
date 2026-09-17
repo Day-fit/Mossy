@@ -40,6 +40,7 @@ services:
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
       - 'MOSSY_DEVICE_TRUST_SERVICE_HOST=http://mossy-device-trust:8086'
+      - 'FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-https://mossy.dayfit.pl}'
     profiles:
       - 'prod'
     volumes:
@@ -50,6 +51,15 @@ services:
       - 'traefik.http.routers.mossy-auth.entrypoints=websecure'
       - 'traefik.http.routers.mossy-auth.tls.certresolver=myresolver'
       - 'traefik.http.services.mossy-auth.loadbalancer.server.port=8083'
+      - 'traefik.http.routers.mossy-auth-verification.rule=Host(`mossy.dayfit.pl`) && (Path(`/api/v1/auth/user/confirm`) || PathPrefix(`/api/v1/auth/user/verification/`))'
+      - 'traefik.http.routers.mossy-auth-verification.priority=100'
+      - 'traefik.http.routers.mossy-auth-verification.entrypoints=websecure'
+      - 'traefik.http.routers.mossy-auth-verification.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-auth-verification.service=mossy-auth'
+      - 'traefik.http.routers.mossy-auth-verification.middlewares=mossy-auth-verification-rate-limit'
+      - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.average=10'
+      - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.period=1m'
+      - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.burst=10'
 
   mossy-device-trust:
     image: 'ghcr.io/day-fit/mossy-device-trust:latest'

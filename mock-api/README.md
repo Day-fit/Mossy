@@ -94,3 +94,11 @@ npm --prefix mock-api run build
 npm --prefix mossy-frontend test
 npm --prefix mossy-frontend run build
 ```
+
+### Email verification scenario
+
+Use the `email-verification` scenario to require verification during signup.
+The mock sends no email: its six-digit confirmation code is `123456`, scoped to
+its returned verification ID. It implements confirmation, resend, credential
+recovery, expiry, attempt limits, and login/refresh gating. Other scenarios keep
+registration immediately enabled unless `requireEmailVerification` is set.

@@ -25,10 +25,6 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.0",
     "@types/sockjs": "^0.3.36",
-    "@types/sockjs-client": "^1.5.4",
-    "@types/supertest": "^6.0.3",
-    "sockjs-client": "^1.6.1",
-    "supertest": "^7.1.4",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^3.2.4"

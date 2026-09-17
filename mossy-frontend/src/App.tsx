@@ -11,30 +11,35 @@ import { useVaultInit } from './hooks/useVaultInit.ts';
 import KeySync from './routes/KeySync.tsx';
 import { useAuthStore } from './store/authStore.ts';
 import Devices from './routes/Devices.tsx';
+import VerifyEmail from './routes/VerifyEmail.tsx';
+import AuthRoutes from './ui/auth/AuthTransition.tsx';
 import { useDevicesInit } from './hooks/useDevicesInit.ts';
 
 function App() {
-	useAuthInit();
-	useVaultInit();
-	useDevicesInit();
-	const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    useAuthInit();
+    useVaultInit();
+    useDevicesInit();
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-	if (isAuthenticated === null) return null;
+    if (isAuthenticated === null) return null;
 
-	return (
-		<Routes>
-			<Route element={<Layout />}>
-				<Route path="/" element={<Home />} />
-				<Route path="/dashboard" element={<Dashboard />} />
-				<Route path={'/key-sync'} element={<KeySync />} />
-				<Route path="/vaults" element={<Vaults />} />
-				<Route path="/devices" element={<Devices />} />
-				<Route path="/passwords" element={<Passwords />} />
-				<Route path="/register" element={<Register />} />
-				<Route path="/login" element={<Login />} />
-			</Route>
-		</Routes>
-	);
+    return (
+        <Routes>
+            <Route element={<Layout />}>
+                <Route path="/" element={<Home />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path={'/key-sync'} element={<KeySync />} />
+                <Route path="/vaults" element={<Vaults />} />
+                <Route path="/devices" element={<Devices />} />
+                <Route path="/passwords" element={<Passwords />} />
+                <Route element={<AuthRoutes />}>
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/verify-email" element={<VerifyEmail />} />
+                </Route>
+            </Route>
+        </Routes>
+    );
 }
 
 export default App;

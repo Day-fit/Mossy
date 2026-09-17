@@ -45,12 +45,10 @@ class AuthController(
     ): ResponseEntity<RegisterUserResponseDto>
     {
         return ResponseEntity.ok(
-            RegisterUserResponseDto(
-                userService.register(
-                    requestDto,
-                    userAgent,
-                    httpServletRequest.remoteAddr
-                )
+            userService.register(
+                requestDto,
+                userAgent,
+                httpServletRequest.remoteAddr
             )
         )
     }

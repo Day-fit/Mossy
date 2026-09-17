@@ -182,7 +182,7 @@ export function createMockRuntime(options: { scenario?: string; rootDir?: string
       return;
     }
     if (error instanceof AppError) {
-      response.status(error.status).json(error.body);
+      response.set(error.headers).status(error.status).json(error.body);
       return;
     }
     console.error("Unhandled mock API error", error);

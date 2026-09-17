@@ -57,6 +57,14 @@
   ],
   "exchanges": [
     {
+      "name": "mossy.email.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
       "name": "password.replica.exchange",
       "vhost": "/",
       "type": "direct",
@@ -65,5 +73,14 @@
       "internal": false
     }
   ],
-  "bindings": []
+  "bindings": [
+    {
+      "source": "mossy.email.exchange",
+      "vhost": "/",
+      "destination": "mossy.email.queue",
+      "destination_type": "queue",
+      "routing_key": "email.send",
+      "arguments": {}
+    }
+  ]
 }
