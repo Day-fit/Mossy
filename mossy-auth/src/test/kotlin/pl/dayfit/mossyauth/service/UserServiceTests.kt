@@ -11,6 +11,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.times
 import org.mockito.kotlin.whenever
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
@@ -47,17 +48,21 @@ class UserServiceTests {
     @Mock
     private lateinit var deviceTrustIntegrationService: DeviceTrustIntegrationService
 
+    @Mock
+    private lateinit var rabbitTemplate: RabbitTemplate
+
     private lateinit var userService: UserService
 
     @BeforeEach
     fun setUp() {
         userService = UserService(
-            passwordEncoder = passwordEncoder,
-            daoAuthenticationProvider = daoAuthenticationProvider,
             userCacheService = userCacheService,
-            jwtGenerationService = jwtGenerationService,
             userRepository = userRepository,
-            deviceTrustIntegrationService = deviceTrustIntegrationService
+            passwordEncoder = passwordEncoder,
+            jwtGenerationService = jwtGenerationService,
+            daoAuthenticationProvider = daoAuthenticationProvider,
+            deviceTrustIntegrationService = deviceTrustIntegrationService,
+            rabbitTemplate = rabbitTemplate
         )
     }
 

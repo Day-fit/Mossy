@@ -1,5 +1,9 @@
 package pl.dayfit.mossyauth.service
 
+import mossymailershared.MailerMessaging
+import mossymailershared.event.SendEmailCommand
+import org.springframework.amqp.rabbit.core.RabbitTemplate
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider
@@ -27,8 +31,12 @@ class UserService(
     private val passwordEncoder: PasswordEncoder,
     private val jwtGenerationService: JwtGenerationService,
     private val daoAuthenticationProvider: DaoAuthenticationProvider,
-    private val deviceTrustIntegrationService: DeviceTrustIntegrationService
+    private val deviceTrustIntegrationService: DeviceTrustIntegrationService,
+    private val rabbitTemplate: RabbitTemplate
 ) {
+    @Value($$"${mossy.auth.require-email-verification}")
+    private var requireEmailVerification: Boolean = true
+
     @Transactional
     fun register(requestDto: RegisterUserRequestDto, userAgent: String, remoteAddr: String): UUID {
         //Passwords cannot be null, so a result of encoding is not null as well
@@ -47,11 +55,27 @@ class UserService(
             password = encodedPassword,
             authProvider = AuthProvider.LOCAL,
             authorities = listOf("USER"),
-            enabled = false,
+            enabled = !requireEmailVerification,
             blocked = false
         )
 
-        //TODO: create a email confirmation for account registration
+        if (requireEmailVerification) {
+            rabbitTemplate.convertAndSend(
+                MailerMessaging.EXCHANGE,
+                MailerMessaging.SEND_ROUTING_KEY,
+                SendEmailCommand(
+                    UUID.randomUUID().toString(),
+                    "email-verification",
+                    requestDto.email,
+                    mapOf(
+                        "VERIFICATION_CODE" to "test",
+                        "EXPIRES_IN_MINUTES" to "test",
+                        "CONFIRMATION_URL" to "test"
+                    )
+                )
+            )
+        }
+
         val savedUser = userCacheService.save(user)
 
         val deviceId = deviceTrustIntegrationService.registerDevice(
