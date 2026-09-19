@@ -20,10 +20,19 @@
 
     <repositories>
         <repository>
-            <id>mavenCentral</id>
-            <url>https://repo1.maven.org/maven2/</url>
+            <id>github</id>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>true</enabled></snapshots>
         </repository>
     </repositories>
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>Mossy OAuth2 Resource Server Starter</name>
+            <url>https://maven.pkg.github.com/day-fit/Mossy</url>
+        </repository>
+    </distributionManagement>
 
     <build>
         <sourceDirectory>src/main/kotlin</sourceDirectory>
