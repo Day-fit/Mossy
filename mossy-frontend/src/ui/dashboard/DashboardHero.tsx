@@ -79,21 +79,11 @@ export default function DashboardHero() {
                                 <div className="w-full h-full flex items-center justify-center text-gray-500">
                                     Loading statistics...
                                 </div>
-                            ) : error &&
-                              statistics.passwordChart.length === 0 ? (
-                                <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
-                                    <p>Password history could not be loaded.</p>
-                                    <Button
-                                        type="button"
-                                        className="px-4 py-2 text-sm"
-                                        onClick={() => void reload()}
-                                    >
-                                        Retry
-                                    </Button>
-                                </div>
                             ) : (
                                 <PasswordChart
                                     data={statistics.passwordChart}
+                                    error={error}
+                                    onRetry={() => void reload()}
                                     emptyAction={addPasswordAction}
                                 />
                             )}

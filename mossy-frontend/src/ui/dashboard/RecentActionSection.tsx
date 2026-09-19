@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { IoWarningOutline } from 'react-icons/io5';
 import RecentActionEntry from './RecentActionEntry.tsx';
 import type { ActionType } from './index.ts';
 import Button from '../shared/Button.tsx';
@@ -8,6 +9,13 @@ type RecentAction = {
     actionType: ActionType;
     domain: string;
 };
+
+const emptyActions: RecentAction[] = [
+    { date: '2025-01-04', actionType: 'ADDED', domain: 'example.com' },
+    { date: '2025-01-03', actionType: 'UPDATED', domain: 'mail.example.com' },
+    { date: '2025-01-02', actionType: 'REMOVED', domain: 'shop.example.com' },
+    { date: '2025-01-01', actionType: 'ADDED', domain: 'work.example.com' },
+];
 
 type RecentActionSectionProps = {
     actions: RecentAction[];
@@ -27,6 +35,10 @@ export default function RecentActionSection({
     onRetry,
     emptyAction,
 }: RecentActionSectionProps) {
+    const overlayAction = error
+        ? onRetry && { label: 'Retry', onClick: onRetry }
+        : emptyAction;
+
     return (
         <motion.aside
             className="flex flex-col min-h-100 lg:flex-1 lg:min-h-0 rounded-md bg-white shadow-2xl"
@@ -38,36 +50,49 @@ export default function RecentActionSection({
                 Recent actions
             </h2>
 
-            <div className="flex flex-col lg:flex-1 lg:min-h-0 gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
+            <div className="flex flex-1 min-h-0 flex-col gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
                 {isLoading ? (
                     <div className="w-full h-full flex items-center justify-center text-sm text-gray-500">
                         Loading recent actions...
                     </div>
-                ) : error && actions.length === 0 ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-gray-500 gap-3">
-                        <p>Recent actions could not be loaded.</p>
-                        {onRetry ? (
-                            <Button
-                                type="button"
-                                className="px-4 py-2 text-sm"
-                                onClick={onRetry}
-                            >
-                                Retry
-                            </Button>
-                        ) : null}
-                    </div>
-                ) : actions.length === 0 ? (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 text-sm gap-3">
-                        <p>No actions yet.</p>
-                        {emptyAction ? (
-                            <Button
-                                type="button"
-                                className="px-4 py-2 text-sm"
-                                onClick={emptyAction.onClick}
-                            >
-                                {emptyAction.label}
-                            </Button>
-                        ) : null}
+                ) : error || actions.length === 0 ? (
+                    <div className="relative w-full flex-1 overflow-hidden">
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none flex w-full select-none flex-col gap-2 blur-xs opacity-80"
+                        >
+                            {(actions.length === 0
+                                ? emptyActions
+                                : actions
+                            ).map((action, index) => (
+                                <RecentActionEntry
+                                    key={`${action.domain}-${action.date}-${index}`}
+                                    {...action}
+                                />
+                            ))}
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center text-sm text-gray-700">
+                            {error ? (
+                                <IoWarningOutline
+                                    aria-hidden="true"
+                                    className="h-9 w-9 shrink-0 text-yellow-500"
+                                />
+                            ) : null}
+                            <p>
+                                {error
+                                    ? 'Recent actions could not be loaded.'
+                                    : 'No actions yet.'}
+                            </p>
+                            {overlayAction ? (
+                                <Button
+                                    type="button"
+                                    className="px-4 py-2 text-sm"
+                                    onClick={overlayAction.onClick}
+                                >
+                                    {overlayAction.label}
+                                </Button>
+                            ) : null}
+                        </div>
                     </div>
                 ) : (
                     actions.map((action, index) => (
