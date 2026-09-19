@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { IoWarningOutline } from 'react-icons/io5';
 import {
     CartesianGrid,
     Line,
@@ -22,6 +23,8 @@ type ChartMode = 'total' | 'added';
 
 type PasswordChartProps = {
     data: PasswordData[];
+    error?: string | null;
+    onRetry?: () => void;
     emptyAction?: {
         label: string;
         onClick: () => void;
@@ -37,10 +40,16 @@ const emptyChartData: PasswordData[] = [
 
 export default function PasswordChart({
     data,
+    error = null,
+    onRetry,
     emptyAction,
 }: PasswordChartProps) {
     const [mode, setMode] = useState<ChartMode>('total');
     const isEmpty = data.length === 0;
+    const showOverlay = isEmpty || Boolean(error);
+    const overlayAction = error
+        ? onRetry && { label: 'Retry', onClick: onRetry }
+        : emptyAction;
     const chartData = isEmpty ? emptyChartData : data;
     const dataKey = mode === 'total' ? 'passwordCount' : 'addedCount';
     const lineName = mode === 'total' ? 'Total passwords' : 'Passwords added';
@@ -55,18 +64,18 @@ export default function PasswordChart({
                 <div className="flex justify-self-end rounded-md bg-gray-100 p-1 text-xs">
                     <button
                         type="button"
-                        disabled={isEmpty}
+                        disabled={showOverlay}
                         aria-pressed={mode === 'total'}
-                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!isEmpty && mode === 'total' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
+                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!showOverlay && mode === 'total' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
                         onClick={() => setMode('total')}
                     >
                         Total
                     </button>
                     <button
                         type="button"
-                        disabled={isEmpty}
+                        disabled={showOverlay}
                         aria-pressed={mode === 'added'}
-                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!isEmpty && mode === 'added' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
+                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!showOverlay && mode === 'added' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
                         onClick={() => setMode('added')}
                     >
                         Added
@@ -75,9 +84,11 @@ export default function PasswordChart({
             </div>
             <div className="relative w-full h-full">
                 <div
+                    aria-hidden={showOverlay || undefined}
+                    inert={showOverlay}
                     className={
-                        isEmpty
-                            ? 'w-full h-full blur-xs opacity-80'
+                        showOverlay
+                            ? 'w-full h-full pointer-events-none select-none blur-xs opacity-80'
                             : 'w-full h-full'
                     }
                 >
@@ -109,16 +120,26 @@ export default function PasswordChart({
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
-                {isEmpty ? (
+                {showOverlay ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-sm gap-3">
-                        <p>No password history yet.</p>
-                        {emptyAction ? (
+                        {error ? (
+                            <IoWarningOutline
+                                aria-hidden="true"
+                                className="h-9 w-9 shrink-0 text-yellow-500"
+                            />
+                        ) : null}
+                        <p>
+                            {error
+                                ? 'Password history could not be loaded.'
+                                : 'No password history yet.'}
+                        </p>
+                        {overlayAction ? (
                             <Button
                                 type="button"
                                 className="px-4 py-2 text-sm"
-                                onClick={emptyAction.onClick}
+                                onClick={overlayAction.onClick}
                             >
-                                {emptyAction.label}
+                                {overlayAction.label}
                             </Button>
                         ) : null}
                     </div>
