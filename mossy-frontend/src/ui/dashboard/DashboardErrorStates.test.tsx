@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PasswordChart from './PasswordChart.tsx';
 import RecentActionSection from './RecentActionSection.tsx';
 
@@ -8,7 +8,15 @@ vi.mock('recharts', async (importOriginal) => ({
     ResponsiveContainer: () => null,
 }));
 
-afterEach(cleanup);
+beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2025-01-03T12:00:00Z'));
+});
+
+afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+});
 
 describe.each(['chart', 'actions'] as const)('%s API failure', (kind) => {
     const data = [{ date: '2025-01-01', passwordCount: 2, addedCount: 1 }];
@@ -77,4 +85,22 @@ describe.each(['chart', 'actions'] as const)('%s API failure', (kind) => {
         ).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull();
     });
+});
+
+it('shows relative action time with the full date in a tooltip', () => {
+    const date = '2025-01-01T12:00:00Z';
+
+    render(
+        <RecentActionSection
+            actions={[
+                { date, domain: 'example.com', actionType: 'ADDED' as const },
+            ]}
+        />
+    );
+
+    const timestamp = screen.getByText('2 days ago');
+    expect(timestamp.getAttribute('datetime')).toBe(date);
+    expect(timestamp.getAttribute('title')).toBe(
+        new Date(date).toLocaleString()
+    );
 });

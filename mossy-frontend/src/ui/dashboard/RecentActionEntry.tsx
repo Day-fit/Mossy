@@ -1,4 +1,7 @@
-import { formatDate } from '../../helpers/DateFormatHelper.ts';
+import {
+    formatDateTime,
+    formatRelativeTime,
+} from '../../helpers/DateFormatHelper.ts';
 import type { ActionType } from './index.ts';
 
 const actionBadges: Record<ActionType, { label: string; className: string }> = {
@@ -40,9 +43,10 @@ export default function RecentActionEntry({
                 </h3>
                 <time
                     dateTime={date}
+                    title={formatDateTime(date)}
                     className="mt-1 block text-xs leading-4 tabular-nums text-gray-500"
                 >
-                    {formatDate(date)}
+                    {formatRelativeTime(date)}
                 </time>
             </div>
             <span
