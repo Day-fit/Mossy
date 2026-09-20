@@ -52,18 +52,20 @@ function Nav() {
 
     return (
         <>
-            <nav className="flex justify-between items-center w-full h-20 border-b-gray-200 border-b-2 sticky top-0 bg-white z-50">
-                <img
-                    className="h-full p-2 cursor-pointer"
-                    alt="mossy-logo"
-                    src="/mossy_logo.png"
-                    onClick={() => {
-                        navigate('/');
-                        closeMenu();
-                    }}
-                />
+            <nav className="grid grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-gray-200 sticky top-0 bg-white z-50">
+                <div className="col-start-1 justify-self-start self-stretch shrink-0">
+                    <img
+                        className="h-full w-auto max-w-none p-2 object-contain cursor-pointer"
+                        alt="mossy-logo"
+                        src="/mossy_logo.png"
+                        onClick={() => {
+                            navigate('/');
+                            closeMenu();
+                        }}
+                    />
+                </div>
 
-                <div className="hidden sm:flex gap-10 items-center h-full">
+                <div className="hidden lg:flex gap-10 items-center h-full">
                     {navItems.map((item) => (
                         <NavTab
                             key={item.url}
@@ -77,9 +79,9 @@ function Nav() {
                     ))}
                 </div>
 
-                <div className={'hidden sm:flex mr-2'}>
+                <div className={'hidden lg:flex justify-self-end mr-4'}>
                     {!isAuthenticated ? (
-                        <div className="hidden sm:flex mr-2 gap-1">
+                        <div className="flex gap-1">
                             <Button onClick={() => navigate('/register')}>
                                 Sign Up
                             </Button>
@@ -97,7 +99,7 @@ function Nav() {
                 </div>
 
                 <button
-                    className="sm:hidden mr-4 flex flex-col justify-center items-center w-10 h-10 cursor-pointer"
+                    className="lg:hidden mr-4 flex flex-col col-start-3 justify-self-end justify-center items-center w-10 h-10 cursor-pointer"
                     onClick={toggleMenu}
                     aria-label={isOpen ? 'Close menu' : 'Open menu'}
                 >
@@ -137,7 +139,7 @@ function Nav() {
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="sm:hidden overflow-hidden bg-white border-b-2 border-gray-200 sticky top-20 z-40 w-full"
+                        className="lg:hidden overflow-hidden bg-white border-b-2 border-gray-200 sticky top-20 z-40 w-full"
                     >
                         <div className="flex flex-col items-start px-6 py-4 gap-4">
                             {navItems.map((item) => (
