@@ -45,7 +45,7 @@ function VaultSelectorCard({
                                     isSelected
                                         ? 'border-brand bg-brand text-fg-inverse'
                                         : vault.isOnline
-                                          ? 'border-brand-muted bg-surface-card text-brand hover:border-brand-muted'
+                                          ? 'border-brand-muted bg-brand-subtle text-brand hover:border-brand-muted'
                                           : 'border-danger-border bg-danger-subtle text-danger hover:border-danger-border',
                                 ].join(' ')}
                             >
