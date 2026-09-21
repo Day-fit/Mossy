@@ -1,7 +1,6 @@
 import type { UserVaultDto } from '../../api/vault.api.ts';
 import { GoCheckCircleFill } from 'react-icons/go';
 import { motion } from 'framer-motion';
-import { resolveGlobalStyleToken } from '../../theme/globalTokens.ts';
 
 type VaultSelectorProps = {
     vaults: UserVaultDto[];
@@ -39,10 +38,6 @@ function VaultSelectorCard({
                                 type="button"
                                 onClick={() => onSelectVault(vault)}
                                 aria-pressed={isSelected}
-                                whileHover={{
-                                    boxShadow:
-                                        resolveGlobalStyleToken('cardShadow'),
-                                }}
                                 whileTap={{ scale: 0.99 }}
                                 transition={{ duration: 0.15 }}
                                 className={[
