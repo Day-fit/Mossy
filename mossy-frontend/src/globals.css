@@ -1,0 +1,356 @@
+@import 'tailwindcss';
+@import '@fontsource/syne/400.css';
+@import '@fontsource/syne/500.css';
+@import '@fontsource/syne/600.css';
+@import '@fontsource/syne/700.css';
+
+:root {
+    color-scheme: light;
+
+    /* Brand */
+    --mossy-color-brand: #007735;
+    --mossy-color-brand-hover: #005f29;
+    --mossy-color-brand-subtle: #f0faf4;
+    --mossy-color-brand-muted: #d1fae5;
+    --mossy-color-on-brand: #ffffff;
+
+    /* Surfaces */
+    --mossy-color-surface-page: #f6f6f6;
+    --mossy-color-surface-card: #ffffff;
+    --mossy-color-surface-chrome: var(--mossy-color-surface-card);
+    --mossy-color-surface-input: var(--mossy-color-surface-card);
+    --mossy-color-surface-subtle: #f9fafb;
+    --mossy-color-surface-muted: #f3f4f6;
+    --mossy-color-surface-disabled: #e5e7eb;
+    --mossy-color-control-disabled: #9ca3af;
+
+    /* Foreground */
+    --mossy-color-fg-primary: #111827;
+    --mossy-color-fg-secondary: #374151;
+    --mossy-color-fg-muted: #4b5563;
+    --mossy-color-fg-subtle: #6b7280;
+    --mossy-color-fg-disabled: #9ca3af;
+    --mossy-color-fg-inverse: #ffffff;
+
+    /* Borders and focus */
+    --mossy-color-border: #e5e7eb;
+    --mossy-color-border-strong: #9ca3af;
+    --mossy-color-border-muted: #f3f4f6;
+    --mossy-color-focus: var(--mossy-color-brand);
+    --mossy-color-swatch-border: rgb(0 0 0 / 10%);
+
+    /* Feedback */
+    --mossy-color-success: #15803d;
+    --mossy-color-success-hover: #166534;
+    --mossy-color-success-subtle: #f0fdf4;
+    --mossy-color-success-muted: #dcfce7;
+    --mossy-color-danger: #b91c1c;
+    --mossy-color-danger-hover: #991b1b;
+    --mossy-color-danger-subtle: #fef2f2;
+    --mossy-color-danger-muted: #fee2e2;
+    --mossy-color-danger-border: #fecaca;
+    --mossy-color-warning: #a16207;
+    --mossy-color-warning-subtle: #fffbeb;
+    --mossy-color-info: var(--mossy-color-brand);
+    --mossy-color-info-subtle: var(--mossy-color-brand-subtle);
+
+    /* Overlays, effects, and data visualization */
+    --mossy-color-overlay: rgb(0 0 0 / 30%);
+    --mossy-color-transparent: transparent;
+    --mossy-color-ripple-dark: rgb(0 0 0 / 70%);
+    --mossy-color-ripple-inverse: rgb(255 255 255 / 60%);
+    --mossy-color-chart-primary: var(--mossy-color-brand);
+    --mossy-color-qr-background: #ffffff;
+    --mossy-color-tag-unlabeled: #373737;
+    --mossy-color-strength-critical: #ef4444;
+    --mossy-color-strength-low: #f97316;
+    --mossy-color-strength-medium: #facc15;
+    --mossy-color-strength-good: #84cc16;
+    --mossy-color-strength-strong: #22c55e;
+    --mossy-color-strength-excellent: #10b981;
+    --mossy-color-strength-maximum: #06b6d4;
+
+    --mossy-gradient-strength-0: linear-gradient(
+        90deg,
+        var(--mossy-color-strength-critical),
+        var(--mossy-color-strength-low)
+    );
+    --mossy-gradient-strength-1: linear-gradient(
+        90deg,
+        var(--mossy-color-strength-low),
+        var(--mossy-color-strength-medium)
+    );
+    --mossy-gradient-strength-2: linear-gradient(
+        90deg,
+        var(--mossy-color-strength-medium),
+        var(--mossy-color-strength-good)
+    );
+    --mossy-gradient-strength-3: linear-gradient(
+        90deg,
+        var(--mossy-color-strength-strong),
+        var(--mossy-color-strength-excellent)
+    );
+    --mossy-gradient-strength-4: linear-gradient(
+        90deg,
+        var(--mossy-color-strength-excellent),
+        var(--mossy-color-strength-maximum)
+    );
+
+    /* Shadows */
+    --mossy-shadow-card: 0 4px 10px rgb(17 24 39 / 10%);
+    --mossy-shadow-popover: 0 10px 20px rgb(17 24 39 / 14%);
+    --mossy-shadow-modal: 0 24px 48px rgb(17 24 39 / 18%);
+    --mossy-shadow-control: 0 1px 3px rgb(17 24 39 / 12%);
+    --mossy-shadow-control-focus: 0 0 0 3px rgb(17 24 39 / 6%);
+    --mossy-shadow-card-inset: 0 0 0 3px rgb(17 24 39 / 4%);
+    --mossy-shadow-brand-focus: 0 0 0 4px rgb(0 119 53 / 10%);
+    --mossy-shadow-hero: 0 20px 25px rgb(17 24 39 / 25%);
+}
+
+@theme inline {
+    --font-sans: 'Syne', sans-serif;
+
+    --color-brand: var(--mossy-color-brand);
+    --color-brand-hover: var(--mossy-color-brand-hover);
+    --color-brand-subtle: var(--mossy-color-brand-subtle);
+    --color-brand-muted: var(--mossy-color-brand-muted);
+    --color-on-brand: var(--mossy-color-on-brand);
+
+    --color-surface-page: var(--mossy-color-surface-page);
+    --color-surface-card: var(--mossy-color-surface-card);
+    --color-surface-chrome: var(--mossy-color-surface-chrome);
+    --color-surface-input: var(--mossy-color-surface-input);
+    --color-surface-subtle: var(--mossy-color-surface-subtle);
+    --color-surface-muted: var(--mossy-color-surface-muted);
+    --color-surface-disabled: var(--mossy-color-surface-disabled);
+    --color-control-disabled: var(--mossy-color-control-disabled);
+
+    --color-fg-primary: var(--mossy-color-fg-primary);
+    --color-fg-secondary: var(--mossy-color-fg-secondary);
+    --color-fg-muted: var(--mossy-color-fg-muted);
+    --color-fg-subtle: var(--mossy-color-fg-subtle);
+    --color-fg-disabled: var(--mossy-color-fg-disabled);
+    --color-fg-inverse: var(--mossy-color-fg-inverse);
+
+    --color-border: var(--mossy-color-border);
+    --color-border-strong: var(--mossy-color-border-strong);
+    --color-border-muted: var(--mossy-color-border-muted);
+    --color-focus: var(--mossy-color-focus);
+    --color-swatch-border: var(--mossy-color-swatch-border);
+
+    --color-success: var(--mossy-color-success);
+    --color-success-hover: var(--mossy-color-success-hover);
+    --color-success-subtle: var(--mossy-color-success-subtle);
+    --color-success-muted: var(--mossy-color-success-muted);
+    --color-danger: var(--mossy-color-danger);
+    --color-danger-hover: var(--mossy-color-danger-hover);
+    --color-danger-subtle: var(--mossy-color-danger-subtle);
+    --color-danger-muted: var(--mossy-color-danger-muted);
+    --color-danger-border: var(--mossy-color-danger-border);
+    --color-warning: var(--mossy-color-warning);
+    --color-warning-subtle: var(--mossy-color-warning-subtle);
+    --color-info: var(--mossy-color-info);
+    --color-info-subtle: var(--mossy-color-info-subtle);
+
+    --color-overlay: var(--mossy-color-overlay);
+    --color-transparent: var(--mossy-color-transparent);
+    --color-ripple-dark: var(--mossy-color-ripple-dark);
+    --color-ripple-inverse: var(--mossy-color-ripple-inverse);
+    --color-chart-primary: var(--mossy-color-chart-primary);
+    --color-qr-background: var(--mossy-color-qr-background);
+    --color-tag-unlabeled: var(--mossy-color-tag-unlabeled);
+
+    --shadow-card: var(--mossy-shadow-card);
+    --shadow-popover: var(--mossy-shadow-popover);
+    --shadow-modal: var(--mossy-shadow-modal);
+    --shadow-control: var(--mossy-shadow-control);
+    --shadow-control-focus: var(--mossy-shadow-control-focus);
+    --shadow-card-inset: var(--mossy-shadow-card-inset);
+    --shadow-brand-focus: var(--mossy-shadow-brand-focus);
+    --drop-shadow-hero: var(--mossy-shadow-hero);
+}
+
+@layer base {
+    body {
+        margin: 0;
+        background-color: var(--mossy-color-surface-page);
+        color: var(--mossy-color-fg-primary);
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+        font-family: inherit;
+    }
+}
+
+@layer components {
+    .type-display {
+        font-size: 3rem;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.025em;
+    }
+
+    .type-hero {
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1.25;
+    }
+
+    .type-page-title {
+        font-size: 2.25rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .type-section-title {
+        font-size: 1.875rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .type-card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .type-dialog-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1.33;
+    }
+
+    .type-component-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+
+    .type-lead {
+        font-size: 1.25rem;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    .type-body {
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    .type-body-lg {
+        font-size: 1.125rem;
+        font-weight: 400;
+        line-height: 1.75;
+    }
+
+    .type-body-sm {
+        font-size: 0.875rem;
+        font-weight: 400;
+        line-height: 1.25rem;
+    }
+
+    .type-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        line-height: 1.25rem;
+    }
+
+    .type-caption {
+        font-size: 0.75rem;
+        font-weight: 400;
+        line-height: 1rem;
+    }
+
+    .type-caption-strong {
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1rem;
+    }
+
+    .type-overline {
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .type-button {
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.25rem;
+    }
+
+    .type-button-sm {
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1.25rem;
+    }
+
+    .type-nav {
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5rem;
+    }
+
+    .type-nav-active {
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.5rem;
+    }
+
+    .type-code {
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        font-weight: 400;
+        line-height: 1.25rem;
+    }
+
+    .type-code-sm {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 400;
+        line-height: 1rem;
+    }
+
+    .type-pin {
+        font-family: var(--font-mono);
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 2rem;
+    }
+
+    .type-metric {
+        font-size: 6rem;
+        font-weight: 400;
+        line-height: 1;
+    }
+
+    @media (min-width: 40rem) {
+        .type-hero {
+            font-size: 1.875rem;
+        }
+    }
+
+    @media (min-width: 48rem) {
+        .type-display {
+            font-size: 3.75rem;
+        }
+
+        .type-hero {
+            font-size: 2.25rem;
+        }
+
+        .type-lead {
+            font-size: 1.5rem;
+        }
+    }
+}

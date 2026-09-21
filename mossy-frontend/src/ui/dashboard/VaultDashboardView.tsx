@@ -28,43 +28,43 @@ export default function VaultDashboardView({
             variant="ghost"
             onClick={onSelect}
             aria-pressed={isSelected}
-            className={`border-2 rounded-md p-4 h-full aspect-square flex flex-col text-left cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 ${
+            className={`border-2 rounded-md p-4 h-full aspect-square flex flex-col text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${
                 isSelected
-                    ? 'border-emerald-400 bg-emerald-50/50 ring-2 ring-emerald-100'
-                    : 'border-gray-200 bg-white hover:border-emerald-300 hover:bg-emerald-50/20'
+                    ? 'border-brand bg-brand-subtle/50 ring-2 ring-brand-muted'
+                    : 'border-border bg-surface-card hover:border-brand-muted hover:bg-brand-subtle/20'
             }`}
         >
             <div className="flex justify-around items-center">
-                <h3 className="text-4xl sm:text-3xl">{name}</h3>
+                <h3 className="type-section-title">{name}</h3>
 
                 <div className={'flex items-center'}>
                     <GoDotFill
-                        className={`text-xl sm:text-2xl ${isOnline ? 'text-green-500' : 'text-red-500'}`}
+                        className={`text-xl sm:text-2xl ${isOnline ? 'text-success' : 'text-danger'}`}
                     />
-                    <h3 className="text-xs sm:text-sm">
+                    <h3 className="type-body-sm">
                         {isOnline ? 'Online' : 'Offline'}
                     </h3>
                 </div>
             </div>
 
-            <p className="mt-3 text-xs text-gray-500">
+            <p className="mt-3 type-caption text-fg-muted">
                 Last seen: {formattedLastSeenAt}
             </p>
 
             <div className="mt-auto flex items-end justify-between gap-3">
                 {isSelected && (
-                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm">
+                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 type-caption-strong text-fg-inverse shadow-control">
                         <GoDotFill
-                            className="text-emerald-200"
+                            className="text-brand-muted"
                             aria-hidden="true"
                         />
                         Selected
                     </span>
                 )}
 
-                <h1 className="ml-auto text-8xl sm:text-8xl text-right">
+                <p className="type-metric ml-auto text-right">
                     {passwordsCount}
-                </h1>
+                </p>
             </div>
         </Button>
     );

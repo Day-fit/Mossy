@@ -7,6 +7,8 @@ import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useEffect, useRef, useState } from 'react';
 import * as React from 'react';
 import { useTagStore } from '../../../store/tagStore.ts';
+import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
+import { motion } from 'framer-motion';
 
 type TagInputProps = {
     tagId?: string;
@@ -18,7 +20,7 @@ type TagInputProps = {
 
 export default function TagInput({
     name = '',
-    color = '#007735',
+    color,
     onFocusOut,
     tagId,
     onUpdate,
@@ -29,7 +31,9 @@ export default function TagInput({
     const ref = useRef<HTMLDivElement | null>(null);
 
     const [tagName, setTagName] = useState(name);
-    const [tagColor, setTagColor] = useState(color);
+    const [tagColor, setTagColor] = useState(
+        () => color ?? resolveGlobalStyleToken('brand')
+    );
 
     useEffect(() => {
         const handlePointerDown = (e: PointerEvent) => {
@@ -91,11 +95,11 @@ export default function TagInput({
     return (
         <div
             ref={ref}
-            className="inline-flex items-center gap-0 rounded-md border border-gray-300 bg-white px-1.5 py-0.5 shadow-[0_0_0_3px_rgba(0,0,0,0.06)]"
+            className="inline-flex items-center gap-0 rounded-md border border-border bg-surface-card px-1.5 py-0.5 shadow-control-focus"
         >
             <label className="relative w-4 h-4 cursor-pointer shrink-0">
                 <span
-                    className="block w-4 h-4 rounded-full border border-black/10 pointer-events-none"
+                    className="block w-4 h-4 rounded-full border border-swatch-border pointer-events-none"
                     style={{ background: tagColor }}
                 />
                 <input
@@ -112,16 +116,18 @@ export default function TagInput({
                 onChange={(e) => setTagName(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="tag name…"
-                className="border-none outline-none bg-transparent text-xs w-28 px-1.5 placeholder:text-gray-400"
+                className="border-none outline-none bg-transparent type-caption w-28 px-1.5 placeholder:text-fg-subtle"
             />
 
-            <button
+            <motion.button
                 onClick={handleConfirm}
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-gray-900 text-white hover:opacity-80 active:scale-95 transition-all shrink-0"
+                whileHover={{ opacity: 0.8 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-fg-primary text-fg-inverse shrink-0"
                 aria-label="add tag"
             >
                 <MdCheck size={12} />
-            </button>
+            </motion.button>
         </div>
     );
 }

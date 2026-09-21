@@ -14,34 +14,34 @@ export default function EnrollmentCard({
 
     return (
         <motion.article
-            className="rounded-xl border border-gray-200 bg-white p-5 shadow-md"
+            className="rounded-xl border border-border bg-surface-card p-5 shadow-card"
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
             <div className="flex items-start gap-4">
-                <div className="rounded-lg bg-amber-50 p-3 text-3xl text-amber-700">
+                <div className="rounded-lg bg-warning-subtle p-3 text-3xl text-warning">
                     <DeviceIcon deviceType={enrollment.deviceType} />
                 </div>
                 <div className="min-w-0">
-                    <h3 className="truncate text-lg font-semibold text-gray-900">
+                    <h3 className="truncate type-component-title text-fg-primary">
                         {enrollment.lastOsName || 'Unknown OS'}
                     </h3>
-                    <p className="text-sm text-amber-700">
+                    <p className="type-body-sm text-warning">
                         {enrollment.deviceType || 'Unknown device'} · Awaiting
                         approval
                     </p>
                 </div>
             </div>
-            <dl className="mt-5 space-y-2 text-sm text-gray-700">
+            <dl className="mt-5 space-y-2 type-body-sm text-fg-secondary">
                 <div>
-                    <dt className="text-xs font-medium text-gray-500">
+                    <dt className="type-caption-strong text-fg-muted">
                         IP address
                     </dt>
                     <dd>{enrollment.remoteAddr}</dd>
                 </div>
                 <div>
-                    <dt className="text-xs font-medium text-gray-500">
+                    <dt className="type-caption-strong text-fg-muted">
                         Requested
                     </dt>
                     <dd>{new Date(enrollment.createdAt).toLocaleString()}</dd>
@@ -49,7 +49,7 @@ export default function EnrollmentCard({
             </dl>
             <Button
                 type="button"
-                className="mt-5 px-4 py-2 text-sm text-white"
+                className="mt-5 px-4 py-2 type-button-sm text-fg-inverse"
                 disabled={actionId !== null}
                 onClick={() => void approveEnrollment(enrollment.id)}
             >

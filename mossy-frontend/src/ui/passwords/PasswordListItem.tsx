@@ -52,17 +52,16 @@ function PasswordListItem({
                 passwordType: 'PASSWORD',
             }}
         >
-            <div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
-                <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
+            <div className="flex items-center justify-between gap-3 rounded bg-surface-subtle p-2">
+                <p className="max-w-full overflow-x-auto whitespace-nowrap type-code text-fg-secondary">
                     {revealedPassword ?? '••••••••••••'}
                 </p>
 
                 <Button
                     type="button"
                     variant="outline"
-                    className="rounded-sm border px-2 py-1 text-sm"
+                    className="rounded-sm border px-2 py-1 type-button-sm"
                     disabled={phase !== undefined}
-                    rippleColor="rgb(0, 0, 0, 0.7)"
                     onClick={() => onRevealToggle(passwordDto.passwordId)}
                 >
                     {phase !== undefined

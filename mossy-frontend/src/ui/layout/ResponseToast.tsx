@@ -13,16 +13,16 @@ interface ResponseToastProps {
     >;
 }
 
+const ErrorIcon = motion.create(PiSealWarningFill);
+const InfoIcon = motion.create(AiFillInfoCircle);
+const DeleteIcon = motion.create(MdDelete);
+
 export default function ResponseToast({
     message,
     isError,
     className,
     setResponseState,
 }: ResponseToastProps) {
-    const ErrorIcon = motion.create(PiSealWarningFill);
-    const InfoIcon = motion.create(AiFillInfoCircle);
-    const DeleteIcon = motion.create(MdDelete);
-
     const variants: Variants = {
         hidden: {
             opacity: 0,
@@ -44,7 +44,7 @@ export default function ResponseToast({
                 initial="hidden"
                 animate="visible"
                 variants={variants}
-                className={`${isError ? 'bg-red-500 ' : 'bg-green-500'} flex items-center gap-2 p-2 rounded-md origin-right ${className}`}
+                className={`${isError ? 'bg-danger ' : 'bg-success'} flex items-center gap-2 p-2 rounded-md origin-right ${className}`}
             >
                 {!isError && (
                     <InfoIcon
@@ -53,7 +53,7 @@ export default function ResponseToast({
                             opacity: 1,
                             transition: { delay: 0.3, duration: 0.3 },
                         }}
-                        className="text-white text-3xl"
+                        className="text-fg-inverse text-3xl"
                     />
                 )}
 
@@ -64,7 +64,7 @@ export default function ResponseToast({
                             opacity: 1,
                             transition: { delay: 0.3, duration: 0.3 },
                         }}
-                        className="text-white text-3xl"
+                        className="text-fg-inverse text-3xl"
                     />
                 )}
                 <motion.p
@@ -73,7 +73,7 @@ export default function ResponseToast({
                         opacity: 1,
                         transition: { delay: 0.3, duration: 0.3 },
                     }}
-                    className="text-white text-lg"
+                    className="type-body text-fg-inverse"
                 >
                     {message}
                 </motion.p>
@@ -84,7 +84,7 @@ export default function ResponseToast({
                         opacity: 1,
                         transition: { delay: 0.3, duration: 0.3 },
                     }}
-                    className="text-white text-3xl cursor-pointer"
+                    className="text-fg-inverse text-3xl cursor-pointer"
                     onClick={() => {
                         setResponseState({ message: '', isError: undefined });
                     }}

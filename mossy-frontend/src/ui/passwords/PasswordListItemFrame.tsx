@@ -7,6 +7,7 @@ import {
 import type { PasswordFormState, SavePasswordResult } from './index.ts';
 import PasswordEntryInput from './PasswordEntryInput.tsx';
 import Tag from './tag/Tag.tsx';
+import { globalStyleVar } from '../../theme/globalTokens.ts';
 import AssignTagDropdown from './tag/AssignTagDropdown.tsx';
 import NoteCard from './note/NoteCard.tsx';
 import {
@@ -85,28 +86,28 @@ export default function PasswordListItemFrame({
     }
 
     return (
-        <article className="flex flex-col gap-3 rounded-md border border-gray-200 p-3">
+        <article className="flex flex-col gap-3 rounded-md border border-border p-3">
             <div className="flex items-start justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
                         <span
-                            className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-gray-100 text-gray-700"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-surface-muted text-fg-secondary"
                             title={iconLabel}
                             aria-label={iconLabel}
                         >
                             {icon}
                         </span>
 
-                        <p className="font-medium text-gray-900">
+                        <p className="type-label text-fg-primary">
                             {passwordDto.identifier}
                         </p>
                     </div>
 
-                    <p className="text-sm text-gray-600">
+                    <p className="type-body-sm text-fg-muted">
                         {passwordDto.address}
                     </p>
 
-                    <p className="text-xs text-gray-500">
+                    <p className="type-caption text-fg-muted">
                         Updated{' '}
                         {new Date(passwordDto.lastModified).toLocaleString()}
                     </p>
@@ -122,7 +123,10 @@ export default function PasswordListItemFrame({
                                 />
                             ))
                         ) : (
-                            <Tag name="unlabeled" color="#373737" />
+                            <Tag
+                                name="unlabeled"
+                                color={globalStyleVar('tagUnlabeled')}
+                            />
                         )}
 
                         <AssignTagDropdown

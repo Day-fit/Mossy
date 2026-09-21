@@ -12,10 +12,10 @@ export default function SearchBar() {
             <input
                 type="text"
                 placeholder="Search"
-                className="w-full py-2 pr-8 pl-2 border border-green-800 rounded-md"
+                className="w-full py-2 pr-8 pl-2 border border-brand rounded-md"
                 onChange={handleChange}
             />
-            <MdSearch className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-800 text-lg pointer-events-none" />
+            <MdSearch className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brand text-lg pointer-events-none" />
         </div>
     );
 }

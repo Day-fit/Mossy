@@ -213,7 +213,7 @@ export default function EmailConfirmation() {
                         alt="Mossy Logo"
                     />
                     <motion.h1
-                        className="text-4xl font-bold text-center text-emerald-800 mb-1"
+                        className="type-page-title text-center text-brand mb-1"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
@@ -230,8 +230,8 @@ export default function EmailConfirmation() {
                                 role={isError ? 'alert' : 'status'}
                                 className={
                                     isError
-                                        ? 'text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md'
-                                        : 'text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-md'
+                                        ? 'type-body-sm text-danger bg-danger-subtle px-3 py-2 rounded-md'
+                                        : 'type-body-sm text-success bg-success-subtle px-3 py-2 rounded-md'
                                 }
                             >
                                 {message}
@@ -240,7 +240,7 @@ export default function EmailConfirmation() {
                     </AnimatePresence>
                     {link ? (
                         <>
-                            <p className="text-center text-gray-600 text-sm">
+                            <p className="text-center text-fg-muted type-body-sm">
                                 Click below to confirm your email address. This
                                 link is valid for 15 minutes.
                             </p>
@@ -258,7 +258,7 @@ export default function EmailConfirmation() {
                         </>
                     ) : pending ? (
                         <form onSubmit={confirm} className="space-y-7">
-                            <p className="text-center text-gray-600 text-sm break-words">
+                            <p className="text-center text-fg-muted type-body-sm break-words">
                                 Enter the six-digit code from your verification
                                 email
                                 {pending.identifier
@@ -266,7 +266,7 @@ export default function EmailConfirmation() {
                                     : ''}
                                 .
                             </p>
-                            <p className="text-center text-sm text-gray-600">
+                            <p className="text-center type-body-sm text-fg-muted">
                                 {expired
                                     ? 'Your code has expired. Request a new email.'
                                     : `Code expires in ${Math.ceil((expiry - now) / 60000)} minute(s).`}
@@ -284,7 +284,7 @@ export default function EmailConfirmation() {
                                             refs.current[index] = input;
                                         }}
                                         aria-label={`Code digit ${index + 1}`}
-                                        className="w-10 h-12 sm:w-12 sm:h-14 min-w-0 text-center text-2xl font-bold border-2 border-gray-200 rounded-lg focus:border-emerald-500 focus:outline-none transition-colors duration-300"
+                                        className="w-10 h-12 sm:w-12 sm:h-14 min-w-0 text-center type-pin border-2 border-border rounded-lg focus:border-focus focus:outline-none"
                                         inputMode="numeric"
                                         autoComplete={
                                             index === 0
@@ -323,7 +323,7 @@ export default function EmailConfirmation() {
                         </form>
                     ) : (
                         <form onSubmit={recover} className="space-y-7">
-                            <p className="text-center text-gray-600 text-sm">
+                            <p className="text-center text-fg-muted type-body-sm">
                                 Enter your account details to resume
                                 verification and request a new email.
                             </p>
@@ -334,7 +334,7 @@ export default function EmailConfirmation() {
                             >
                                 <label
                                     htmlFor="verification-identifier"
-                                    className="block text-sm font-medium text-gray-700 mb-2"
+                                    className="block type-label text-fg-secondary mb-2"
                                 >
                                     Email or username
                                 </label>
@@ -358,7 +358,7 @@ export default function EmailConfirmation() {
                             >
                                 <label
                                     htmlFor="verification-password"
-                                    className="block text-sm font-medium text-gray-700 mb-2"
+                                    className="block type-label text-fg-secondary mb-2"
                                 >
                                     Password
                                 </label>
@@ -401,7 +401,7 @@ export default function EmailConfirmation() {
                     )}
                     {(pending || link) && (
                         <button
-                            className="w-full text-sm text-emerald-700 hover:text-emerald-800 transition-colors duration-300 disabled:text-gray-500 disabled:cursor-not-allowed cursor-pointer"
+                            className="type-button-sm w-full cursor-pointer text-brand hover:text-brand-hover disabled:cursor-not-allowed disabled:text-fg-muted"
                             disabled={busy || wait > 0}
                             onClick={resend}
                         >
@@ -412,7 +412,7 @@ export default function EmailConfirmation() {
                     )}
                     {(pending || link) && (
                         <button
-                            className="w-full text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300 disabled:cursor-not-allowed cursor-pointer"
+                            className="type-button-sm w-full cursor-pointer text-fg-muted hover:text-fg-secondary disabled:cursor-not-allowed"
                             disabled={busy}
                             onClick={showRecovery}
                         >

@@ -49,7 +49,7 @@ export default function TagListItem({
 
     return (
         <div
-            className={`flex ${isSelected ? 'bg-emerald-200' : 'bg-gray-100'} rounded-md p-2`}
+            className={`flex ${isSelected ? 'bg-brand-muted' : 'bg-surface-muted'} rounded-md p-2`}
             onClick={() => {
                 const _isSelected = !isSelected;
 
@@ -63,13 +63,13 @@ export default function TagListItem({
             }}
         >
             <span
-                className="block w-4 h-4 rounded-full border border-black/10 pointer-events-none"
+                className="block w-4 h-4 rounded-full border border-swatch-border pointer-events-none"
                 style={{ background: color }}
             />
 
             <h3
                 className={
-                    'text-xs w-28 px-1.5 placeholder:text-gray-400 cursor-text'
+                    'type-caption w-28 px-1.5 placeholder:text-fg-subtle cursor-text'
                 }
             >
                 {name}
@@ -83,7 +83,7 @@ export default function TagListItem({
 
             <MdDelete
                 size={'1rem'}
-                className={'cursor-pointer text-red-500'}
+                className={'cursor-pointer text-danger'}
                 onClick={() => {
                     handleDeletion();
                 }}

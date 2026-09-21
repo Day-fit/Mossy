@@ -20,28 +20,28 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
     return (
         <>
             <motion.article
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-md"
+                className="rounded-xl border border-border bg-surface-card p-5 shadow-card"
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
             >
                 <div className="flex items-start gap-4">
-                    <div className="rounded-lg bg-emerald-50 p-3 text-3xl text-emerald-700">
+                    <div className="rounded-lg bg-brand-subtle p-3 text-3xl text-brand">
                         <DeviceIcon deviceType={device.deviceType} />
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-semibold text-gray-900">
+                            <h3 className="truncate type-component-title text-fg-primary">
                                 {device.lastOsName || 'Unknown OS'}
                             </h3>
                             {device.current ? (
-                                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800">
+                                <span className="rounded-full bg-brand-muted px-2 py-0.5 type-caption-strong text-brand">
                                     Current device
                                 </span>
                             ) : null}
                         </div>
                         <p
-                            className={`mt-1 text-sm ${device.blocked ? 'text-red-600' : 'text-emerald-700'}`}
+                            className={`mt-1 type-body-sm ${device.blocked ? 'text-danger' : 'text-success'}`}
                         >
                             {device.deviceType || 'Unknown device'} ·{' '}
                             {device.blocked ? 'Blocked' : 'Active'}
@@ -49,20 +49,20 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
                     </div>
                 </div>
 
-                <dl className="mt-5 space-y-3 text-sm">
+                <dl className="mt-5 space-y-3 type-body-sm">
                     <div>
-                        <dt className="text-xs font-medium text-gray-500">
+                        <dt className="type-caption-strong text-fg-muted">
                             Device ID
                         </dt>
-                        <dd className="mt-1 break-all font-mono text-xs text-gray-700">
+                        <dd className="mt-1 break-all type-code-sm text-fg-secondary">
                             {device.id}
                         </dd>
                     </div>
                     <div>
-                        <dt className="text-xs font-medium text-gray-500">
+                        <dt className="type-caption-strong text-fg-muted">
                             Last seen
                         </dt>
-                        <dd className="text-gray-700">
+                        <dd className="text-fg-secondary">
                             {device.lastSeen
                                 ? new Date(device.lastSeen).toLocaleString()
                                 : 'Never'}
@@ -74,7 +74,7 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
                     <Button
                         type="button"
                         variant={device.blocked ? 'primary' : 'outline'}
-                        className="mt-5 px-4 py-2 text-sm"
+                        className="mt-5 px-4 py-2 type-button-sm"
                         disabled={actionId !== null}
                         onClick={() => setIsConfirming(true)}
                     >

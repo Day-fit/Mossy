@@ -9,15 +9,15 @@ export default function Tag({ name, color }: TagProps) {
         <div
             className="rounded-md flex items-center gap-2 px-2 py-1"
             style={{
-                background: `color-mix(in srgb, ${color} 15%, white)`,
+                background: `color-mix(in srgb, ${color} 15%, var(--mossy-color-surface-card))`,
             }}
         >
             <span
-                className="block w-2 h-2 rounded-full border border-black/10"
+                className="block w-2 h-2 rounded-full border border-swatch-border"
                 style={{ background: color }}
             />
 
-            <h3 className="text-xs">{name}</h3>
+            <h3 className="type-caption">{name}</h3>
         </div>
     );
 }

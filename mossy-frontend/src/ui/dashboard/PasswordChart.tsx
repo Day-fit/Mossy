@@ -12,6 +12,7 @@ import {
 import { formatDate } from '../../helpers/DateFormatHelper.ts';
 import Button from '../shared/Button.tsx';
 import { useState } from 'react';
+import { globalStyleVar } from '../../theme/globalTokens.ts';
 
 type PasswordData = {
     date: string;
@@ -58,15 +59,15 @@ export default function PasswordChart({
         <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
             <div className="grid w-full grid-cols-3 items-center">
                 <div />
-                <h2 className="justify-self-center text-lg text-gray-700 whitespace-nowrap">
+                <h2 className="type-component-title justify-self-center text-fg-secondary whitespace-nowrap">
                     Secured passwords
                 </h2>
-                <div className="flex justify-self-end rounded-md bg-gray-100 p-1 text-xs">
+                <div className="flex justify-self-end rounded-md bg-surface-muted p-1 type-caption">
                     <button
                         type="button"
                         disabled={showOverlay}
                         aria-pressed={mode === 'total'}
-                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!showOverlay && mode === 'total' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
+                        className={`rounded px-2 py-1 disabled:cursor-not-allowed disabled:text-fg-subtle ${!showOverlay && mode === 'total' ? 'bg-brand text-fg-inverse' : 'text-fg-muted'}`}
                         onClick={() => setMode('total')}
                     >
                         Total
@@ -75,7 +76,7 @@ export default function PasswordChart({
                         type="button"
                         disabled={showOverlay}
                         aria-pressed={mode === 'added'}
-                        className={`rounded px-2 py-1 transition-colors disabled:cursor-not-allowed disabled:text-gray-400 ${!showOverlay && mode === 'added' ? 'bg-green-700 text-white' : 'text-gray-600'}`}
+                        className={`rounded px-2 py-1 disabled:cursor-not-allowed disabled:text-fg-subtle ${!showOverlay && mode === 'added' ? 'bg-brand text-fg-inverse' : 'text-fg-muted'}`}
                         onClick={() => setMode('added')}
                     >
                         Added
@@ -114,18 +115,18 @@ export default function PasswordChart({
                                 type="monotone"
                                 dataKey={dataKey}
                                 name={lineName}
-                                stroke="#00bc7d"
+                                stroke={globalStyleVar('chartPrimary')}
                                 strokeWidth={3}
                             />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
                 {showOverlay ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-sm gap-3">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-fg-secondary type-body-sm gap-3">
                         {error ? (
                             <IoWarningOutline
                                 aria-hidden="true"
-                                className="h-9 w-9 shrink-0 text-yellow-500"
+                                className="h-9 w-9 shrink-0 text-warning"
                             />
                         ) : null}
                         <p>
@@ -136,7 +137,7 @@ export default function PasswordChart({
                         {overlayAction ? (
                             <Button
                                 type="button"
-                                className="px-4 py-2 text-sm"
+                                className="px-4 py-2 type-button-sm"
                                 onClick={overlayAction.onClick}
                             >
                                 {overlayAction.label}

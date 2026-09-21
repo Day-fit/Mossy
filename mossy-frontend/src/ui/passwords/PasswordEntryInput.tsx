@@ -6,6 +6,7 @@ import Button from '../shared/Button.tsx';
 import type { PasswordType } from '../../api/password.api.ts';
 import SshKeyEntryInput from './SshKeyEntryInput.tsx';
 import { validateSshKeyPair } from './secretPayload.ts';
+import { motion } from 'framer-motion';
 
 type PasswordEntryInputProps = {
     initialState?: PasswordFormState;
@@ -93,7 +94,7 @@ export default function PasswordEntryInput({
     };
 
     return (
-        <form
+        <motion.form
             onSubmit={(event) => {
                 event.preventDefault();
 
@@ -140,13 +141,17 @@ export default function PasswordEntryInput({
                     onCancel();
                 }
             }}
-            className={`flex flex-col gap-4 rounded-md border border-gray-200 bg-white p-3 shadow-[0_0_0_3px_rgba(0,0,0,0.04)] ${
-                isSubmitPending ? 'animate-pulse' : ''
-            }`}
+            animate={{ opacity: isSubmitPending ? [1, 0.6, 1] : 1 }}
+            transition={{
+                duration: 1.2,
+                repeat: isSubmitPending ? Infinity : 0,
+                ease: 'easeInOut',
+            }}
+            className="flex flex-col gap-4 rounded-md border border-border bg-surface-card p-3 shadow-card-inset"
         >
             <div className="flex flex-wrap items-center gap-2">
                 {isEditing ? (
-                    <span className="inline-flex items-center gap-1 rounded-sm border border-gray-200 px-2 py-1 text-sm text-gray-700">
+                    <span className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-1 type-body-sm text-fg-secondary">
                         {formState.passwordType === 'SSH_KEY' ? (
                             <MdVpnKey size={16} />
                         ) : (
@@ -161,10 +166,10 @@ export default function PasswordEntryInput({
                         <button
                             type="button"
                             onClick={() => handlePasswordTypeChange('PASSWORD')}
-                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm ${
+                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 type-button-sm ${
                                 formState.passwordType === 'PASSWORD'
-                                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    ? 'border-brand bg-brand-subtle text-brand'
+                                    : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'PASSWORD'}
                         >
@@ -175,10 +180,10 @@ export default function PasswordEntryInput({
                         <button
                             type="button"
                             onClick={() => handlePasswordTypeChange('SSH_KEY')}
-                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm ${
+                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 type-button-sm ${
                                 formState.passwordType === 'SSH_KEY'
-                                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                                    : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                                    ? 'border-brand bg-brand-subtle text-brand'
+                                    : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'SSH_KEY'}
                         >
@@ -198,7 +203,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('identifier', event.target.value)
                     }
                     placeholder="Enter identifier (email/username)"
-                    className="border-b-2 p-2"
+                    className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
                     required
                     autoFocus
                 />
@@ -211,7 +216,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('address', event.target.value)
                     }
                     placeholder="Enter address"
-                    className="border-b-2 p-2"
+                    className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
                     required
                 />
             </div>
@@ -234,7 +239,7 @@ export default function PasswordEntryInput({
                         placeholder={
                             isEditing ? 'Enter new password' : 'Enter password'
                         }
-                        className="border-b-2 p-2"
+                        className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
                         required
                     />
                     <StrengthMeter password={formState.password} />
@@ -242,7 +247,7 @@ export default function PasswordEntryInput({
             )}
 
             {submitError ? (
-                <p className="text-sm text-red-600">{submitError}</p>
+                <p className="type-body-sm text-danger">{submitError}</p>
             ) : null}
 
             <div className="flex items-center gap-2">
@@ -266,6 +271,6 @@ export default function PasswordEntryInput({
                     Cancel
                 </Button>
             </div>
-        </form>
+        </motion.form>
     );
 }

@@ -10,6 +10,7 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useDeviceSync } from '../../../hooks/useDeviceSync.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
 import SyncSuccessView from './SyncSuccessView.tsx';
+import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
 
 type KeySyncModalProps = {
     vaultId: string;
@@ -17,37 +18,41 @@ type KeySyncModalProps = {
     setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
 };
 
-const qrConfig: Partial<Options> = {
-    width: 240,
-    height: 240,
-    type: 'svg',
-    data: '',
-    image: '/mossy_logo.png',
-    margin: 12,
-    qrOptions: {
-        errorCorrectionLevel: 'H',
-    },
-    dotsOptions: {
-        type: 'rounded',
-        color: '#007735',
-    },
-    backgroundOptions: {
-        color: '#ffffff',
-    },
-    imageOptions: {
-        crossOrigin: 'anonymous',
-        margin: 6,
-        imageSize: 0.28,
-    },
-    cornersSquareOptions: {
-        type: 'extra-rounded',
-        color: '#007735',
-    },
-    cornersDotOptions: {
-        type: 'dot',
-        color: '#007735',
-    },
-};
+function createQrConfig(): Partial<Options> {
+    const brandColor = resolveGlobalStyleToken('brand');
+
+    return {
+        width: 240,
+        height: 240,
+        type: 'svg',
+        data: '',
+        image: '/mossy_logo.png',
+        margin: 12,
+        qrOptions: {
+            errorCorrectionLevel: 'H',
+        },
+        dotsOptions: {
+            type: 'rounded',
+            color: brandColor,
+        },
+        backgroundOptions: {
+            color: resolveGlobalStyleToken('qrBackground'),
+        },
+        imageOptions: {
+            crossOrigin: 'anonymous',
+            margin: 6,
+            imageSize: 0.28,
+        },
+        cornersSquareOptions: {
+            type: 'extra-rounded',
+            color: brandColor,
+        },
+        cornersDotOptions: {
+            type: 'dot',
+            color: brandColor,
+        },
+    };
+}
 
 const stepVariants: Variants = {
     enter: { x: '100%', opacity: 0 },
@@ -87,7 +92,7 @@ export default function KeySyncStep({
         el.innerHTML = '';
 
         const qr = new QRCodeStyling({
-            ...qrConfig,
+            ...createQrConfig(),
             data: `${window.location.origin}/key-sync?code=${syncCode}`,
         });
 
@@ -106,7 +111,7 @@ export default function KeySyncStep({
             initial="enter"
             animate="center"
             exit="exit"
-            className="bg-white shadow-md rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
+            className="bg-surface-card shadow-card rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
         >
             <AnimatePresence mode="wait">
                 {synced ? (
@@ -130,11 +135,11 @@ export default function KeySyncStep({
                         }}
                     >
                         <div>
-                            <h2 className="text-3xl font-semibold">
+                            <h2 className="type-section-title">
                                 To use this vault, please synchronize encryption
                                 key
                             </h2>
-                            <p className="text-sm text-gray-500 mt-2">
+                            <p className="type-body-sm text-fg-muted mt-2">
                                 As encryption keys are stored on your device,
                                 only way to use them somewhere else is
                                 synchronization
@@ -149,9 +154,9 @@ export default function KeySyncStep({
                                     backfaceVisibility: 'hidden',
                                 }}
                             />
-                            <p className="text-center text-sm text-gray-600">
+                            <p className="type-body-sm text-center text-fg-muted">
                                 Scan the QR code, or go to{' '}
-                                <span className="font-mono text-gray-800">
+                                <span className="type-code text-fg-secondary">
                                     {window.origin}/key-sync
                                 </span>{' '}
                                 on the device that has access to this vault and
@@ -161,7 +166,7 @@ export default function KeySyncStep({
                                 type="text"
                                 value={syncCode || 'Failed to get code'}
                                 readOnly
-                                className="w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xl text-center text-gray-700"
+                                className="type-code w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
                             />
                         </div>
                         <div className="flex gap-2 mt-5">

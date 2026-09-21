@@ -23,7 +23,7 @@ export default function ActionModal({
 }: ActionModalProps) {
     return (
         <motion.section
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             role="dialog"
@@ -31,29 +31,28 @@ export default function ActionModal({
             aria-label={title}
         >
             <motion.div
-                className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl"
+                className="w-full max-w-lg rounded-xl bg-surface-card p-6 shadow-modal"
                 initial={{ scale: 0.95, y: 12 }}
                 animate={{ scale: 1, y: 0 }}
             >
-                <h3 className="mb-2 text-2xl font-semibold text-gray-900">
+                <h3 className="mb-2 type-dialog-title text-fg-primary">
                     {title}
                 </h3>
-                <p className="mb-5 text-sm text-gray-600">{description}</p>
+                <p className="mb-5 type-body-sm text-fg-muted">{description}</p>
                 {children}
 
                 <div className="mt-6 flex justify-end gap-2">
                     <Button
                         type="button"
                         variant="outline"
-                        rippleColor="rgb(0, 0, 0, 0.7)"
-                        className="px-6 py-2 text-sm"
+                        className="px-6 py-2 type-button-sm"
                         onClick={onClose}
                     >
                         Cancel
                     </Button>
                     <Button
                         type="button"
-                        className="px-6 py-2 text-sm text-white disabled:opacity-60"
+                        className="px-6 py-2 type-button-sm text-fg-inverse disabled:opacity-60"
                         disabled={confirmDisabled}
                         onClick={onConfirm}
                     >

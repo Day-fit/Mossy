@@ -70,9 +70,9 @@ export default function SshKeyEntryInput({
 
     return (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-gray-200 p-3">
-                <span className="text-sm font-medium text-gray-700">
-                    Private key <span className="text-red-500">*</span>
+            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border p-3">
+                <span className="type-label text-fg-secondary">
+                    Private key <span className="text-danger">*</span>
                 </span>
                 <textarea
                     name="privateKey"
@@ -80,11 +80,11 @@ export default function SshKeyEntryInput({
                     onChange={(event) =>
                         updateField('privateKey', event.target.value)
                     }
-                    className="min-h-40 flex-1 resize-y border-0 bg-gray-50 p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-700"
+                    className="min-h-40 flex-1 resize-y border-0 bg-surface-subtle p-2 type-code outline-none focus:ring-2 focus:ring-focus"
                     required
                     spellCheck={false}
                 />
-                <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                <span className="inline-flex items-center gap-2 type-body-sm text-fg-muted">
                     <MdUploadFile size={16} />
                     <input
                         type="file"
@@ -92,25 +92,23 @@ export default function SshKeyEntryInput({
                         onChange={(event) =>
                             void handleFile('privateKey', event)
                         }
-                        className="text-sm"
+                        className="type-body-sm"
                     />
                 </span>
             </label>
 
-            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-gray-200 p-3">
-                <span className="text-sm font-medium text-gray-700">
-                    Public key
-                </span>
+            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border p-3">
+                <span className="type-label text-fg-secondary">Public key</span>
                 <textarea
                     name="publicKey"
                     value={formState.publicKey}
                     onChange={(event) =>
                         updateField('publicKey', event.target.value)
                     }
-                    className="min-h-40 flex-1 resize-y border-0 bg-gray-50 p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-emerald-700"
+                    className="min-h-40 flex-1 resize-y border-0 bg-surface-subtle p-2 type-code outline-none focus:ring-2 focus:ring-focus"
                     spellCheck={false}
                 />
-                <span className="inline-flex items-center gap-2 text-sm text-gray-600">
+                <span className="inline-flex items-center gap-2 type-body-sm text-fg-muted">
                     <MdUploadFile size={16} />
                     <input
                         type="file"
@@ -118,13 +116,13 @@ export default function SshKeyEntryInput({
                         onChange={(event) =>
                             void handleFile('publicKey', event)
                         }
-                        className="text-sm"
+                        className="type-body-sm"
                     />
                 </span>
             </label>
 
             {validationMessage ? (
-                <p className="inline-flex items-center gap-1 text-sm text-red-600 lg:col-span-2">
+                <p className="inline-flex items-center gap-1 type-body-sm text-danger lg:col-span-2">
                     <MdErrorOutline size={16} />
                     {validationMessage}
                 </p>
