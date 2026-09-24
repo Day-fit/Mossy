@@ -59,7 +59,7 @@ export default function PasswordChart({
         <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center">
             <div className="grid w-full grid-cols-3 items-center">
                 <div />
-                <h2 className="text-lg font-semibold leading-[1.5] justify-self-center text-fg-secondary whitespace-nowrap">
+                <h2 className="text-lg/6 justify-self-center text-fg-secondary whitespace-nowrap">
                     Secured passwords
                 </h2>
                 <div className="flex justify-self-end rounded-md bg-surface-muted p-1 text-xs">

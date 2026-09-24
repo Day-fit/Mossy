@@ -67,7 +67,7 @@ export default function TagListItem({
                 style={{ background: color }}
             />
 
-            <h3 className={'text-xs w-28 px-1.5 cursor-text'}>{name}</h3>
+            <span className={'text-xs w-28 px-1.5 cursor-text'}>{name}</span>
 
             <MdEdit
                 className={'cursor-pointer'}

@@ -101,7 +101,7 @@ export default function SigninForm({
                 />
 
                 <motion.h1
-                    className="text-4xl font-bold leading-[1.1] text-center text-brand mb-1"
+                    className="text-4xl text-center text-brand mb-1 leading-tight"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}

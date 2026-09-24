@@ -24,7 +24,7 @@ export default function EnrollmentCard({
                     <DeviceIcon deviceType={enrollment.deviceType} />
                 </div>
                 <div className="min-w-0">
-                    <h3 className="truncate text-lg font-semibold leading-[1.5]">
+                    <h3 className="truncate text-lg/6">
                         {enrollment.lastOsName || 'Unknown OS'}
                     </h3>
                     <p className="text-sm text-warning">

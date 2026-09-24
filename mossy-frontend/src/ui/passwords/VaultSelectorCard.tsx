@@ -16,7 +16,7 @@ function VaultSelectorCard({
     return (
         <section className="rounded-xl p-6 shadow-control bg-surface">
             <div className="mb-5 flex items-center justify-between">
-                <h2 className="text-lg font-semibold leading-[1.5]">Vaults</h2>
+                <h2 className="text-lg/6">Vaults</h2>
 
                 <span className="text-xs text-brand/70">
                     {vaults.length} total

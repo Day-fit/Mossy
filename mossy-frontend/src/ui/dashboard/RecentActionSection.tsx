@@ -46,7 +46,7 @@ export default function RecentActionSection({
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-            <h2 className="text-lg font-semibold leading-[1.5] text-fg-secondary mt-5 text-center shrink-0">
+            <h2 className="text-lg/6 text-fg-secondary mt-5 text-center shrink-0">
                 Recent actions
             </h2>
 

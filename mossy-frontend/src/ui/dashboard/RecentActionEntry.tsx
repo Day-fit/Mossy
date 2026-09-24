@@ -35,7 +35,10 @@ export default function RecentActionEntry({
     return (
         <article className="flex w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border border-border bg-surface-subtle px-4 py-3.5">
             <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-medium" title={domain}>
+                <h3
+                    className="truncate text-sm font-sans font-medium tracking-normal"
+                    title={domain}
+                >
                     {domain}
                 </h3>
                 <time

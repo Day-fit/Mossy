@@ -135,7 +135,7 @@ export default function KeySyncStep({
                         }}
                     >
                         <div>
-                            <h2 className="text-3xl font-semibold">
+                            <h2 className="text-3xl">
                                 To use this vault, please synchronize encryption
                                 key
                             </h2>

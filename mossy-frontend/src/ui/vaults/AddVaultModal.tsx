@@ -27,9 +27,7 @@ export default function AddVaultModal({
                 initial={{ scale: 0.95, y: 12 }}
                 animate={{ scale: 1, y: 0 }}
             >
-                <h3 className="mb-2 text-2xl font-semibold leading-[1.33]">
-                    Vault created
-                </h3>
+                <h3 className="mb-2 text-2xl">Vault created</h3>
                 <p className="mb-5 text-sm text-fg-muted">
                     Copy these credentials now. API key is shown only once.
                 </p>

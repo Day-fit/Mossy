@@ -41,9 +41,9 @@ export default function VaultDashboardView({
                     <GoDotFill
                         className={`text-xl sm:text-2xl ${isOnline ? 'text-success' : 'text-danger'}`}
                     />
-                    <h3 className="text-sm font-normal">
+                    <span className="text-sm font-normal">
                         {isOnline ? 'Online' : 'Offline'}
-                    </h3>
+                    </span>
                 </div>
             </div>
 

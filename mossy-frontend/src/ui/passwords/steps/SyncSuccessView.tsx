@@ -48,14 +48,14 @@ export default function SyncSuccessView() {
                     }}
                 />
             </svg>
-            <motion.p
-                className="text-xl font-semibold"
+            <motion.h2
+                className="text-xl"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
             >
                 Key synchronized!
-            </motion.p>
+            </motion.h2>
             <motion.p
                 className="text-sm text-fg-muted text-center"
                 initial={{ opacity: 0, y: 8 }}

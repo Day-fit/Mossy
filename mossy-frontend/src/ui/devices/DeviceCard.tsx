@@ -31,7 +31,7 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
                     </div>
                     <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="truncate text-lg font-semibold leading-[1.5]">
+                            <h3 className="truncate text-lg/6">
                                 {device.lastOsName || 'Unknown OS'}
                             </h3>
                             {device.current ? (

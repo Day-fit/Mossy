@@ -110,7 +110,7 @@ function PasswordListCard({
                     'flex flex-wrap justify-between items-center w-full gap-3 relative mb-4'
                 }
             >
-                <h2 className="text-xl font-semibold">Passwords</h2>
+                <h2 className="text-xl">Passwords</h2>
 
                 <div className="flex items-center gap-2">
                     <Button

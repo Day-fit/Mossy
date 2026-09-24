@@ -9,7 +9,7 @@ function HomeHero() {
     return (
         <section className="bg-[url('/hero.png')] bg-cover bg-bottom bg-no-repeat w-full p-6 sm:p-10 md:p-20 lg:p-30 shadow-card">
             <div className="max-w-full sm:max-w-[80%] md:max-w-[60%] lg:max-w-[40%]">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold leading-tight mb-4">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl leading-tight mb-4">
                     An open-source password manager that never wants your
                     secrets
                 </h1>
