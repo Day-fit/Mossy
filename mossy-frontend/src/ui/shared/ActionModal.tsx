@@ -31,28 +31,28 @@ export default function ActionModal({
             aria-label={title}
         >
             <motion.div
-                className="w-full max-w-lg rounded-xl bg-surface-card p-6 shadow-modal"
+                className="w-full max-w-lg rounded-xl bg-surface p-6 shadow-modal"
                 initial={{ scale: 0.95, y: 12 }}
                 animate={{ scale: 1, y: 0 }}
             >
-                <h3 className="mb-2 type-dialog-title text-fg-primary">
+                <h3 className="mb-2 text-2xl font-semibold leading-[1.33]">
                     {title}
                 </h3>
-                <p className="mb-5 type-body-sm text-fg-muted">{description}</p>
+                <p className="mb-5 text-sm text-fg-muted">{description}</p>
                 {children}
 
                 <div className="mt-6 flex justify-end gap-2">
                     <Button
                         type="button"
                         variant="outline"
-                        className="px-6 py-2 type-button-sm"
+                        className="text-sm"
                         onClick={onClose}
                     >
                         Cancel
                     </Button>
                     <Button
                         type="button"
-                        className="px-6 py-2 type-button-sm text-fg-inverse disabled:opacity-60"
+                        className="text-sm disabled:opacity-60"
                         disabled={confirmDisabled}
                         onClick={onConfirm}
                     >

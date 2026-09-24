@@ -73,7 +73,7 @@ export default function DashboardHero() {
                     className="h-80 lg:h-auto lg:flex-1 lg:min-h-0"
                     variants={childVariants}
                 >
-                    <div className="h-full rounded-md shadow-card bg-surface-card">
+                    <div className="h-full rounded-md shadow-card bg-surface">
                         <div className="h-full overflow-hidden rounded-md p-4">
                             {isLoading ? (
                                 <div className="w-full h-full flex items-center justify-center text-fg-muted">
@@ -92,28 +92,28 @@ export default function DashboardHero() {
                 </motion.div>
 
                 <motion.div className="flex-1 min-h-0" variants={childVariants}>
-                    <div className="h-full rounded-md shadow-card bg-surface-card p-10 flex overflow-x-auto gap-5">
+                    <div className="h-full rounded-md shadow-card bg-surface p-10 flex overflow-x-auto gap-5">
                         {areVaultsLoading ? (
-                            <div className="w-full h-full flex items-center justify-center type-body-sm text-fg-muted">
+                            <div className="w-full h-full flex items-center justify-center text-sm text-fg-muted">
                                 Loading vaults...
                             </div>
                         ) : vaultsErrorOccurred && vaults.length === 0 ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-center type-body-sm text-fg-muted gap-3">
+                            <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-fg-muted gap-3">
                                 <p>Vaults could not be loaded.</p>
                                 <Button
                                     type="button"
-                                    className="px-4 py-2 type-button-sm"
+                                    className="text-sm"
                                     onClick={() => void refreshVaults()}
                                 >
                                     Retry
                                 </Button>
                             </div>
                         ) : vaults.length === 0 ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-fg-muted type-body-sm gap-3">
+                            <div className="w-full h-full flex flex-col items-center justify-center text-fg-muted text-sm gap-3">
                                 <p>No vaults yet.</p>
                                 <Button
                                     type="button"
-                                    className="px-4 py-2 type-button-sm"
+                                    className="text-sm"
                                     onClick={() => navigate('/vaults')}
                                 >
                                     Create a vault

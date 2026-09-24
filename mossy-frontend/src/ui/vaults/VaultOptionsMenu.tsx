@@ -48,24 +48,24 @@ export default function VaultOptionsMenu({
             </Button>
 
             {isOpen ? (
-                <div className="absolute right-0 z-20 mt-2 min-w-40 rounded-md border border-border bg-surface-card p-1 shadow-popover">
+                <div className="absolute right-0 z-20 mt-2 min-w-40 rounded-md border border-border bg-surface p-1 shadow-card">
                     <button
                         type="button"
-                        className="type-button-sm block w-full rounded px-3 py-2 text-left hover:bg-surface-muted"
+                        className="text-sm font-semibold block w-full rounded px-3 py-2 text-left hover:bg-surface-muted"
                         onClick={() => closeAndRun(onCopyVaultId)}
                     >
                         Copy vault ID
                     </button>
                     <button
                         type="button"
-                        className="type-button-sm block w-full rounded px-3 py-2 text-left hover:bg-surface-muted"
+                        className="text-sm font-semibold block w-full rounded px-3 py-2 text-left hover:bg-surface-muted"
                         onClick={() => closeAndRun(onRename)}
                     >
                         Rename vault
                     </button>
                     <button
                         type="button"
-                        className="type-button-sm block w-full rounded px-3 py-2 text-left text-danger hover:bg-danger-subtle"
+                        className="text-sm font-semibold block w-full rounded px-3 py-2 text-left text-danger hover:bg-danger/5"
                         onClick={() => closeAndRun(onDelete)}
                     >
                         Delete vault

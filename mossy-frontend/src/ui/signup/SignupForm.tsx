@@ -95,7 +95,7 @@ export default function SignupForm({
                 />
 
                 <motion.h1
-                    className="type-page-title text-center text-brand mb-1"
+                    className="text-4xl font-bold leading-[1.1] text-center text-brand mb-1"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
@@ -103,7 +103,7 @@ export default function SignupForm({
                     Grow your vault
                 </motion.h1>
 
-                <motion.p className="text-center text-fg-muted type-body-sm">
+                <motion.p className="text-center text-fg-muted text-sm">
                     Your infrastructure. Your rules.
                 </motion.p>
 
@@ -112,7 +112,7 @@ export default function SignupForm({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
                 >
-                    <label className="block type-label text-fg-secondary mb-2">
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">
                         Username
                     </label>
                     <input
@@ -128,7 +128,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 type-body-sm text-danger bg-danger-subtle px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.username.message}
                             </motion.p>
@@ -141,7 +141,7 @@ export default function SignupForm({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.5, duration: 0.5 }}
                 >
-                    <label className="block type-label text-fg-secondary mb-2">
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">
                         Email
                     </label>
                     <input
@@ -158,7 +158,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 type-body-sm text-danger bg-danger-subtle px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.email.message}
                             </motion.p>
@@ -171,7 +171,7 @@ export default function SignupForm({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.6, duration: 0.5 }}
                 >
-                    <label className="block type-label text-fg-secondary mb-2">
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">
                         Password
                     </label>
                     <input
@@ -187,7 +187,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 type-body-sm text-danger bg-danger-subtle px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.password.message}
                             </motion.p>
@@ -214,7 +214,7 @@ export default function SignupForm({
 
                 <NavLink
                     to="/login"
-                    className="type-body-sm text-fg-muted hover:text-fg-secondary"
+                    className="text-sm text-fg-muted hover:text-fg-secondary"
                 >
                     Already have an account? Click here
                 </NavLink>

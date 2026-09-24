@@ -98,16 +98,16 @@ export default function PasswordListItemFrame({
                             {icon}
                         </span>
 
-                        <p className="type-label text-fg-primary">
+                        <p className="text-sm font-medium">
                             {passwordDto.identifier}
                         </p>
                     </div>
 
-                    <p className="type-body-sm text-fg-muted">
+                    <p className="text-sm text-fg-muted">
                         {passwordDto.address}
                     </p>
 
-                    <p className="type-caption text-fg-muted">
+                    <p className="text-xs text-fg-muted">
                         Updated{' '}
                         {new Date(passwordDto.lastModified).toLocaleString()}
                     </p>
@@ -125,7 +125,7 @@ export default function PasswordListItemFrame({
                         ) : (
                             <Tag
                                 name="unlabeled"
-                                color={globalStyleVar('tagUnlabeled')}
+                                color={globalStyleVar('fgSecondary')}
                             />
                         )}
 

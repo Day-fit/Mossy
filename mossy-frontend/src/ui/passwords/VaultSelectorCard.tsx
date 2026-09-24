@@ -14,17 +14,17 @@ function VaultSelectorCard({
     onSelectVault,
 }: VaultSelectorProps) {
     return (
-        <section className="rounded-xl p-6 shadow-control bg-surface-card">
+        <section className="rounded-xl p-6 shadow-control bg-surface">
             <div className="mb-5 flex items-center justify-between">
-                <h2 className="type-component-title text-brand">Vaults</h2>
+                <h2 className="text-lg font-semibold leading-[1.5]">Vaults</h2>
 
-                <span className="type-caption text-brand/70">
+                <span className="text-xs text-brand/70">
                     {vaults.length} total
                 </span>
             </div>
 
             {vaults.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-brand-muted bg-surface-card p-4 type-body-sm text-brand/70">
+                <div className="rounded-lg border border-dashed border-brand/20 bg-surface p-4 text-sm text-brand/70">
                     No vaults available
                 </div>
             ) : (
@@ -41,27 +41,27 @@ function VaultSelectorCard({
                                 whileTap={{ scale: 0.99 }}
                                 transition={{ duration: 0.15 }}
                                 className={[
-                                    'relative w-full rounded-xl border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                                    'relative w-full rounded-xl border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
                                     isSelected
                                         ? 'border-brand bg-brand text-fg-inverse'
                                         : vault.isOnline
-                                          ? 'border-brand-muted bg-brand-subtle text-brand hover:border-brand-muted'
-                                          : 'border-danger-border bg-danger-subtle text-danger hover:border-danger-border',
+                                          ? 'border-brand/20 bg-brand/5 text-brand hover:border-brand/20'
+                                          : 'border-danger/20 bg-danger/5 text-danger hover:border-danger/20',
                                 ].join(' ')}
                             >
                                 <div className="flex items-start justify-between gap-3">
                                     <div>
-                                        <p className="type-label">
+                                        <p className="text-sm font-medium">
                                             {vault.vaultName}
                                         </p>
 
-                                        <p className="mt-1 type-caption opacity-70">
+                                        <p className="mt-1 text-xs opacity-70">
                                             {vault.passwordCount} passwords
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 flex items-center justify-between type-caption opacity-80">
+                                <div className="mt-3 flex items-center justify-between text-xs opacity-80">
                                     <div className="flex items-center gap-2">
                                         <span
                                             className={[
@@ -90,7 +90,7 @@ function VaultSelectorCard({
                                 {isSelected && (
                                     <div className="absolute right-3 top-3">
                                         <GoCheckCircleFill
-                                            className="text-xl text-brand-muted"
+                                            className="text-xl text-fg-inverse/80"
                                             aria-hidden="true"
                                         />
                                     </div>

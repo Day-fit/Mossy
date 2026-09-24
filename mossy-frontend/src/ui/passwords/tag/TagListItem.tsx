@@ -49,7 +49,7 @@ export default function TagListItem({
 
     return (
         <div
-            className={`flex ${isSelected ? 'bg-brand-muted' : 'bg-surface-muted'} rounded-md p-2`}
+            className={`flex ${isSelected ? 'bg-brand/15' : 'bg-surface-muted'} rounded-md p-2`}
             onClick={() => {
                 const _isSelected = !isSelected;
 
@@ -63,17 +63,11 @@ export default function TagListItem({
             }}
         >
             <span
-                className="block w-4 h-4 rounded-full border border-swatch-border pointer-events-none"
+                className="w-4 h-4 rounded-full border border-fg-primary/10 pointer-events-none"
                 style={{ background: color }}
             />
 
-            <h3
-                className={
-                    'type-caption w-28 px-1.5 placeholder:text-fg-subtle cursor-text'
-                }
-            >
-                {name}
-            </h3>
+            <h3 className={'text-xs w-28 px-1.5 cursor-text'}>{name}</h3>
 
             <MdEdit
                 className={'cursor-pointer'}

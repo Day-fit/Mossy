@@ -147,11 +147,11 @@ export default function PasswordEntryInput({
                 repeat: isSubmitPending ? Infinity : 0,
                 ease: 'easeInOut',
             }}
-            className="flex flex-col gap-4 rounded-md border border-border bg-surface-card p-3 shadow-card-inset"
+            className="flex flex-col gap-4 rounded-md border border-border bg-surface p-3 shadow-control"
         >
             <div className="flex flex-wrap items-center gap-2">
                 {isEditing ? (
-                    <span className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-1 type-body-sm text-fg-secondary">
+                    <span className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-1 text-sm text-fg-secondary">
                         {formState.passwordType === 'SSH_KEY' ? (
                             <MdVpnKey size={16} />
                         ) : (
@@ -166,9 +166,9 @@ export default function PasswordEntryInput({
                         <button
                             type="button"
                             onClick={() => handlePasswordTypeChange('PASSWORD')}
-                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 type-button-sm ${
+                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm font-semibold ${
                                 formState.passwordType === 'PASSWORD'
-                                    ? 'border-brand bg-brand-subtle text-brand'
+                                    ? 'border-brand bg-brand/5 text-brand'
                                     : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'PASSWORD'}
@@ -180,9 +180,9 @@ export default function PasswordEntryInput({
                         <button
                             type="button"
                             onClick={() => handlePasswordTypeChange('SSH_KEY')}
-                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 type-button-sm ${
+                            className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm font-semibold ${
                                 formState.passwordType === 'SSH_KEY'
-                                    ? 'border-brand bg-brand-subtle text-brand'
+                                    ? 'border-brand bg-brand/5 text-brand'
                                     : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'SSH_KEY'}
@@ -203,7 +203,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('identifier', event.target.value)
                     }
                     placeholder="Enter identifier (email/username)"
-                    className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
+                    className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
                     required
                     autoFocus
                 />
@@ -216,7 +216,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('address', event.target.value)
                     }
                     placeholder="Enter address"
-                    className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
+                    className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
                     required
                 />
             </div>
@@ -239,7 +239,7 @@ export default function PasswordEntryInput({
                         placeholder={
                             isEditing ? 'Enter new password' : 'Enter password'
                         }
-                        className="border-b-2 border-border p-2 focus:border-focus focus:outline-none"
+                        className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
                         required
                     />
                     <StrengthMeter password={formState.password} />
@@ -247,7 +247,7 @@ export default function PasswordEntryInput({
             )}
 
             {submitError ? (
-                <p className="type-body-sm text-danger">{submitError}</p>
+                <p className="text-sm text-danger">{submitError}</p>
             ) : null}
 
             <div className="flex items-center gap-2">

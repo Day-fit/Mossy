@@ -56,13 +56,13 @@ export default function PasswordChart({
     const lineName = mode === 'total' ? 'Total passwords' : 'Passwords added';
 
     return (
-        <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center ">
+        <motion.div className="w-full h-full p-5 rounded-md flex flex-col justify-center items-center">
             <div className="grid w-full grid-cols-3 items-center">
                 <div />
-                <h2 className="type-component-title justify-self-center text-fg-secondary whitespace-nowrap">
+                <h2 className="text-lg font-semibold leading-[1.5] justify-self-center text-fg-secondary whitespace-nowrap">
                     Secured passwords
                 </h2>
-                <div className="flex justify-self-end rounded-md bg-surface-muted p-1 type-caption">
+                <div className="flex justify-self-end rounded-md bg-surface-muted p-1 text-xs">
                     <button
                         type="button"
                         disabled={showOverlay}
@@ -115,14 +115,14 @@ export default function PasswordChart({
                                 type="monotone"
                                 dataKey={dataKey}
                                 name={lineName}
-                                stroke={globalStyleVar('chartPrimary')}
+                                stroke={globalStyleVar('brand')}
                                 strokeWidth={3}
                             />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
                 {showOverlay ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-fg-secondary type-body-sm gap-3">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-fg-secondary text-sm gap-3">
                         {error ? (
                             <IoWarningOutline
                                 aria-hidden="true"
@@ -137,7 +137,7 @@ export default function PasswordChart({
                         {overlayAction ? (
                             <Button
                                 type="button"
-                                className="px-4 py-2 type-button-sm"
+                                className="text-sm"
                                 onClick={overlayAction.onClick}
                             >
                                 {overlayAction.label}

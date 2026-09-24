@@ -67,15 +67,12 @@ export default function AssignTagDropdown({
     };
 
     return (
-        <div
-            ref={rootRef}
-            className="z-20 flex flex-col items-start gap-1 relative"
-        >
+        <div ref={rootRef} className="z-20 flex flex-col items-start relative">
             <Button
                 variant="icon"
                 type="button"
                 onClick={() => setIsOpen((v) => !v)}
-                className="flex items-center justify-center w-7 h-7 border-2 border-brand rounded-md cursor-pointer hover:bg-brand-subtle"
+                className="border-2 border-brand"
                 aria-label="Assign tag"
             >
                 <motion.div
@@ -92,17 +89,15 @@ export default function AssignTagDropdown({
                     opacity: isOpen ? 1 : 0,
                     pointerEvents: isOpen ? 'auto' : 'none',
                 }}
-                className="origin-top absolute top-full left-0 min-w-max bg-surface-card shadow-card rounded-md overflow-hidden"
+                className="absolute top-full left-0 min-w-max bg-surface shadow-card rounded-md overflow-hidden"
             >
                 <div className="p-3 flex flex-col gap-1 max-h-48 overflow-y-auto">
                     {error ? (
-                        <p className="type-body-sm text-danger">{error}</p>
+                        <p className="text-sm text-danger">{error}</p>
                     ) : loading ? (
-                        <p className="type-body-sm text-fg-subtle">
-                            Loading...
-                        </p>
+                        <p className="text-sm text-fg-subtle">Loading...</p>
                     ) : tags.length === 0 ? (
-                        <p className="type-body-sm text-fg-subtle">
+                        <p className="text-sm text-fg-subtle">
                             No tags available
                         </p>
                     ) : (
@@ -115,9 +110,9 @@ export default function AssignTagDropdown({
                                     key={tag.tagId}
                                     type="button"
                                     onClick={() => handleToggleTag(tag)}
-                                    className={`type-button-sm flex items-center gap-2 px-2 py-1.5 rounded-md text-left ${
+                                    className={`text-sm font-semibold flex items-center gap-2 px-2 py-1.5 rounded-md text-left ${
                                         isAssigned
-                                            ? 'bg-brand-subtle text-brand'
+                                            ? 'bg-brand/5 text-brand'
                                             : 'hover:bg-surface-muted text-fg-secondary'
                                     }`}
                                 >
@@ -129,7 +124,7 @@ export default function AssignTagDropdown({
                                         {tag.tagName}
                                     </span>
                                     {isAssigned && (
-                                        <span className="ml-auto text-brand type-caption-strong">
+                                        <span className="ml-auto text-xs">
                                             ✓
                                         </span>
                                     )}

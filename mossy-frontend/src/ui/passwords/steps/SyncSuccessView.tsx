@@ -15,7 +15,8 @@ export default function SyncSuccessView() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke={globalStyleVar('brandMuted')}
+                    stroke={globalStyleVar('brand')}
+                    strokeOpacity="0.15"
                     strokeWidth="6"
                 />
                 <motion.circle
@@ -48,7 +49,7 @@ export default function SyncSuccessView() {
                 />
             </svg>
             <motion.p
-                className="type-card-title text-fg-primary"
+                className="text-xl font-semibold"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
@@ -56,7 +57,7 @@ export default function SyncSuccessView() {
                 Key synchronized!
             </motion.p>
             <motion.p
-                className="type-body-sm text-fg-muted text-center"
+                className="text-sm text-fg-muted text-center"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.85 }}

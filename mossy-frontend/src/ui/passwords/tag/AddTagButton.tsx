@@ -13,7 +13,7 @@ export default function AddTagButton() {
         return (
             <button
                 onClick={handleOpen}
-                className="type-button-sm inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-fg-subtle hover:border-border-strong hover:bg-surface-subtle hover:text-fg-muted"
+                className="text-sm font-semibold inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-0.5 text-fg-subtle hover:border-border-strong hover:bg-surface-subtle hover:text-fg-muted"
             >
                 <MdAdd size={14} />
                 add tag

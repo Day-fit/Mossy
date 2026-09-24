@@ -12,22 +12,22 @@ export default function StrengthMeter({ password }: Props) {
     const percent = isEmpty ? 0 : Math.max(5, Math.round((score / 4) * 100));
 
     const gradients = [
-        'var(--mossy-gradient-strength-0)',
-        'var(--mossy-gradient-strength-1)',
-        'var(--mossy-gradient-strength-2)',
-        'var(--mossy-gradient-strength-3)',
-        'var(--mossy-gradient-strength-4)',
+        'var(--color-danger)',
+        'linear-gradient(90deg, var(--color-danger), var(--color-warning))',
+        'var(--color-warning)',
+        'linear-gradient(90deg, var(--color-warning), var(--color-brand))',
+        'var(--color-brand)',
     ];
 
     const labels = ['Very bad', 'Bad', 'Mid', 'Good', 'Perfect!'];
 
     return (
         <div className="w-full">
-            <div className="type-body-sm flex items-center justify-between mb-2 text-fg-muted">
+            <div className="text-sm flex items-center mb-2 text-fg-muted">
                 <span className="truncate">{isEmpty ? '' : labels[score]}</span>
             </div>
 
-            <div className="w-full h-2 rounded-full overflow-hidden bg-surface-disabled">
+            <div className="h-2 rounded-full overflow-hidden bg-border">
                 <motion.div
                     className="h-full rounded-full"
                     style={{

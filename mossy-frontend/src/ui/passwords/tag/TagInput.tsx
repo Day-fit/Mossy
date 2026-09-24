@@ -95,18 +95,18 @@ export default function TagInput({
     return (
         <div
             ref={ref}
-            className="inline-flex items-center gap-0 rounded-md border border-border bg-surface-card px-1.5 py-0.5 shadow-control-focus"
+            className="inline-flex items-center rounded-md border border-border bg-surface px-1.5 py-0.5 shadow-control"
         >
             <label className="relative w-4 h-4 cursor-pointer shrink-0">
                 <span
-                    className="block w-4 h-4 rounded-full border border-swatch-border pointer-events-none"
+                    className="block w-4 h-4 rounded-full border border-fg-primary/10 pointer-events-none"
                     style={{ background: tagColor }}
                 />
                 <input
                     type="color"
                     value={tagColor}
                     onChange={(e) => setTagColor(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    className="absolute inset-0 opacity-0 w-full h-full"
                 />
             </label>
 
@@ -116,7 +116,7 @@ export default function TagInput({
                 onChange={(e) => setTagName(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="tag name…"
-                className="border-none outline-none bg-transparent type-caption w-28 px-1.5 placeholder:text-fg-subtle"
+                className="outline-none text-xs w-28 px-1.5 placeholder:text-fg-subtle"
             />
 
             <motion.button

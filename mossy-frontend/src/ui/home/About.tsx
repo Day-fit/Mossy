@@ -17,10 +17,10 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h2 className="type-display text-fg-primary">
+                    <h2 className="text-5xl md:text-6xl font-bold tracking-tight">
                         Your passwords live on your server.
                     </h2>
-                    <p className="type-lead text-fg-muted">
+                    <p className="text-xl md:text-2xl leading-[1.5] text-fg-muted">
                         Not ours. Not “encrypted with us”. Yours.
                     </p>
                 </motion.div>
@@ -35,16 +35,14 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h3 className="type-section-title text-fg-primary">
-                        What this is
-                    </h3>
+                    <h3 className="text-3xl font-semibold">What this is</h3>
 
-                    <p className="type-body-lg text-fg-secondary">
+                    <p className="text-lg text-fg-secondary">
                         This is not a traditional secure password manager. It is
                         a deliberate reduction of trust.
                     </p>
 
-                    <p className="type-body-lg text-fg-secondary">
+                    <p className="text-lg text-fg-secondary">
                         Mossy exists for one simple reason: passwords should be
                         stored only on infrastructure you control. No cloud
                         custody. No trust promises.
@@ -62,15 +60,13 @@ export default function About() {
                     variants={fadeUp}
                 >
                     <div className="space-y-6">
-                        <h3 className="type-section-title text-fg-primary">
-                            How it works
-                        </h3>
+                        <h3 className="text-3xl font-semibold">How it works</h3>
 
-                        <p className="type-body-lg text-fg-secondary">
+                        <p className="text-lg text-fg-secondary">
                             The backend is intentionally minimal.
                         </p>
 
-                        <ul className="type-body-lg space-y-4 text-fg-secondary">
+                        <ul className="text-lg space-y-4 text-fg-secondary">
                             {[
                                 'Data transport',
                                 'Key synchronization',
@@ -90,7 +86,7 @@ export default function About() {
                     </div>
 
                     <div className="space-y-6">
-                        <h4 className="type-card-title text-fg-primary">
+                        <h4 className="text-xl font-semibold">
                             What this guarantees
                         </h4>
 
@@ -128,13 +124,11 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h3 className="type-section-title text-fg-primary">
-                        Is this for you?
-                    </h3>
+                    <h3 className="text-3xl font-semibold">Is this for you?</h3>
 
                     <div className="grid md:grid-cols-2 gap-12">
                         <div>
-                            <h4 className="type-card-title text-fg-primary mb-4">
+                            <h4 className="text-xl font-semibold mb-4">
                                 Probably yes, if you:
                             </h4>
                             <ul className="space-y-3 text-fg-secondary">
@@ -157,7 +151,7 @@ export default function About() {
                         </div>
 
                         <div>
-                            <h4 className="type-card-title text-fg-primary mb-4">
+                            <h4 className="text-xl font-semibold mb-4">
                                 Probably not, if you:
                             </h4>
                             <ul className="space-y-3 text-fg-secondary">

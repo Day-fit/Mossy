@@ -73,7 +73,7 @@ export default function ResponseToast({
                         opacity: 1,
                         transition: { delay: 0.3, duration: 0.3 },
                     }}
-                    className="type-body text-fg-inverse"
+                    className="text-fg-inverse"
                 >
                     {message}
                 </motion.p>

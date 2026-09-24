@@ -1,6 +1,5 @@
 import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import { useState, useRef, type MouseEvent, type ReactNode } from 'react';
-import { globalStyleVar } from '../../theme/globalTokens.ts';
 
 interface Ripple {
     id: number;
@@ -33,12 +32,6 @@ export default function Button({
 }: RippleButtonProps) {
     const [ripples, setRipples] = useState<Ripple[]>([]);
     const ref = useRef<HTMLButtonElement>(null);
-    const rippleColor = globalStyleVar(
-        variant === 'primary' || variant === 'destructive'
-            ? 'rippleInverse'
-            : 'rippleDark'
-    );
-
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
         if (variant !== 'icon') {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -64,16 +57,16 @@ export default function Button({
     const variantClassNames: Record<Variant, string> = {
         primary: 'bg-brand hover:bg-brand-hover text-fg-inverse',
         destructive: 'bg-danger hover:bg-danger-hover text-fg-inverse',
-        outline: 'bg-transparent box-border border-2 border-brand text-brand',
-        ghost: 'bg-transparent box-border',
-        icon: 'inline-flex h-8 w-8 shrink-0 items-center justify-center border bg-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+        outline: 'border-2 border-brand text-brand',
+        ghost: '',
+        icon: 'inline-flex h-8 w-8 shrink-0 items-center justify-center border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
     };
 
     const toneClassNames: Record<Tone, string> = {
         neutral:
-            'border-border-strong text-fg-secondary hover:bg-surface-subtle focus-visible:ring-focus',
+            'border-border-strong text-fg-secondary hover:bg-surface-subtle focus-visible:ring-brand',
         destructive:
-            'border-danger-border text-danger hover:bg-danger-subtle focus-visible:ring-danger',
+            'border-danger/20 text-danger hover:bg-danger/5 focus-visible:ring-danger',
     };
 
     const paddingClassNames: Record<PaddingVariant, string> = {
@@ -90,7 +83,7 @@ export default function Button({
             type={type}
             onClick={handleClick}
             className={[
-                `type-button relative overflow-hidden ${paddingClassNames[variant === 'icon' ? 'none' : padding]} cursor-pointer ${variant === 'icon' ? 'rounded-sm' : 'rounded-md'} ${variantClassNames[variant]} ${variant === 'icon' ? toneClassNames[tone] : ''}`,
+                `text-base font-semibold leading-5 relative overflow-hidden ${paddingClassNames[variant === 'icon' ? 'none' : padding]} cursor-pointer ${variant === 'icon' ? 'rounded-sm' : 'rounded-md'} ${variantClassNames[variant]} ${variant === 'icon' ? toneClassNames[tone] : ''}`,
                 className,
             ]
                 .filter(Boolean)
@@ -114,7 +107,7 @@ export default function Button({
                                 width: ripple.size,
                                 height: ripple.size,
                                 borderRadius: '50%',
-                                background: rippleColor,
+                                background: 'currentColor',
                                 pointerEvents: 'none',
                             }}
                         />

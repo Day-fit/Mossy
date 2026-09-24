@@ -32,17 +32,14 @@ export default function TagsMenu() {
     }, [isOpen]);
 
     return (
-        <div
-            ref={rootRef}
-            className="z-20 flex flex-col items-start gap-1 relative"
-        >
+        <div ref={rootRef} className="z-20 flex flex-col items-start relative">
             <Button
                 variant="outline"
                 padding="medium"
-                className="w-fit flex gap-1 items-center"
+                className="flex gap-1 items-center"
                 onClick={() => setIsOpen((v) => !v)}
             >
-                <FaTags className="text-brand" />
+                <FaTags />
                 <h3 className="select-none">Tags</h3>
                 <motion.div animate={{ rotate: isOpen ? -180 : 0 }}>
                     <IoIosArrowDown className="text-fg-muted" />
@@ -56,7 +53,7 @@ export default function TagsMenu() {
                     opacity: isOpen ? 1 : 0,
                     pointerEvents: isOpen ? 'auto' : 'none',
                 }}
-                className="origin-top absolute top-full right-0 min-w-max bg-surface-card shadow-card rounded-md overflow-y-hidden"
+                className="origin-top absolute top-full right-0 min-w-max bg-surface shadow-card rounded-md overflow-y-hidden"
             >
                 <div className="p-4 flex flex-col gap-3 max-h-60 overflow-y-auto">
                     {error ? (

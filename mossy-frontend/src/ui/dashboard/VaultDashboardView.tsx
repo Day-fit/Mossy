@@ -28,41 +28,41 @@ export default function VaultDashboardView({
             variant="ghost"
             onClick={onSelect}
             aria-pressed={isSelected}
-            className={`border-2 rounded-md p-4 h-full aspect-square flex flex-col text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${
+            className={`border-2 h-full aspect-square flex flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
                 isSelected
-                    ? 'border-brand bg-brand-subtle/50 ring-2 ring-brand-muted'
-                    : 'border-border bg-surface-card hover:border-brand-muted hover:bg-brand-subtle/20'
+                    ? 'border-brand bg-brand/5 ring-2 ring-brand/20'
+                    : 'border-border bg-surface hover:border-brand/20 hover:bg-brand/5'
             }`}
         >
             <div className="flex justify-around items-center">
-                <h3 className="type-section-title">{name}</h3>
+                <h3 className="text-3xl">{name}</h3>
 
                 <div className={'flex items-center'}>
                     <GoDotFill
                         className={`text-xl sm:text-2xl ${isOnline ? 'text-success' : 'text-danger'}`}
                     />
-                    <h3 className="type-body-sm">
+                    <h3 className="text-sm font-normal">
                         {isOnline ? 'Online' : 'Offline'}
                     </h3>
                 </div>
             </div>
 
-            <p className="mt-3 type-caption text-fg-muted">
+            <p className="mt-3 text-xs font-normal text-fg-muted">
                 Last seen: {formattedLastSeenAt}
             </p>
 
             <div className="mt-auto flex items-end justify-between gap-3">
                 {isSelected && (
-                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 type-caption-strong text-fg-inverse shadow-control">
+                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-xs text-fg-inverse shadow-control">
                         <GoDotFill
-                            className="text-brand-muted"
+                            className="text-fg-inverse/80"
                             aria-hidden="true"
                         />
                         Selected
                     </span>
                 )}
 
-                <p className="type-metric ml-auto text-right">
+                <p className="text-8xl font-normal ml-auto text-right">
                     {passwordsCount}
                 </p>
             </div>

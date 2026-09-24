@@ -52,14 +52,14 @@ function SshKeyListItem({
             }}
         >
             <div className="flex items-center justify-between gap-3 rounded bg-surface-subtle p-2">
-                <p className="max-w-full overflow-x-auto whitespace-nowrap type-code text-fg-secondary">
+                <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-fg-secondary">
                     SSH key file
                 </p>
 
                 <Button
                     type="button"
                     variant="outline"
-                    className="inline-flex items-center gap-1 rounded-sm border px-2 py-1 type-button-sm"
+                    className="inline-flex items-center gap-1 rounded-sm text-sm"
                     disabled={phase !== undefined}
                     onClick={() => onDownloadSshKey(passwordDto)}
                 >

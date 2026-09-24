@@ -37,16 +37,16 @@ export default function PasswordHero() {
             />
 
             {!selectedVaultId ? (
-                <section className="rounded-md bg-surface-card p-5 shadow-card">
-                    <p className="type-body-sm text-fg-muted">
+                <section className="rounded-md bg-surface p-5 shadow-card">
+                    <p className="text-sm text-fg-muted">
                         Select a vault above to manage passwords.
                     </p>
                 </section>
             ) : null}
 
             {selectedVaultId && selectedVault && !selectedVault.isOnline ? (
-                <section className="rounded-md bg-surface-card p-5 shadow-card">
-                    <p className="type-body-sm text-fg-muted">
+                <section className="rounded-md bg-surface p-5 shadow-card">
+                    <p className="text-sm text-fg-muted">
                         Selected vault is offline. Connect the vault to manage
                         passwords.
                     </p>

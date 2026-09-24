@@ -53,14 +53,14 @@ function PasswordListItem({
             }}
         >
             <div className="flex items-center justify-between gap-3 rounded bg-surface-subtle p-2">
-                <p className="max-w-full overflow-x-auto whitespace-nowrap type-code text-fg-secondary">
+                <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-fg-secondary">
                     {revealedPassword ?? '••••••••••••'}
                 </p>
 
                 <Button
                     type="button"
                     variant="outline"
-                    className="rounded-sm border px-2 py-1 type-button-sm"
+                    className="rounded-sm text-sm"
                     disabled={phase !== undefined}
                     onClick={() => onRevealToggle(passwordDto.passwordId)}
                 >

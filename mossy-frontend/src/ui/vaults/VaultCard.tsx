@@ -30,20 +30,18 @@ export default function VaultCard({
 
     return (
         <motion.article
-            className="rounded-xl border border-border bg-surface-card p-5 shadow-card"
+            className="rounded-xl border border-border bg-surface p-5 shadow-card"
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="type-card-title text-fg-primary">
-                        {vaultName}
-                    </h3>
-                    <p className={`type-body-sm ${statusClassName}`}>
+                    <h3 className="text-xl font-semibold">{vaultName}</h3>
+                    <p className={`text-sm ${statusClassName}`}>
                         {isOnline ? 'Online' : 'Offline'}
                     </p>
-                    <p className="type-caption text-fg-muted">
+                    <p className="text-xs text-fg-muted">
                         Last seen: {formattedLastSeenAt}
                     </p>
                 </div>
@@ -55,7 +53,7 @@ export default function VaultCard({
                 />
             </div>
 
-            <label className="mb-2 block type-caption-strong text-fg-muted">
+            <label className="mb-2 block text-xs font-semibold text-fg-muted">
                 Vault ID
             </label>
             <div className="flex gap-2">
@@ -63,12 +61,12 @@ export default function VaultCard({
                     type="text"
                     value={vaultId}
                     readOnly
-                    className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 type-code-sm text-fg-secondary"
+                    className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 font-mono text-xs text-fg-secondary"
                 />
                 <Button
                     type="button"
                     variant="outline"
-                    className="px-4 py-2 type-button-sm"
+                    className="text-sm"
                     onClick={() => copyText(vaultId)}
                 >
                     Copy

@@ -80,19 +80,39 @@ describe('global design token contract', () => {
         expect(existsSync(join(srcRoot, 'style.css'))).toBe(false);
     });
 
-    it.each([
-        '--mossy-color-brand',
-        '--mossy-color-surface-page',
-        '--mossy-color-surface-card',
-        '--mossy-color-fg-primary',
-        '--mossy-color-border',
-        '--mossy-color-focus',
-        '--mossy-color-success',
-        '--mossy-color-danger',
-        '--mossy-color-warning',
-        '--mossy-shadow-card',
-    ])('defines %s', (token) => {
-        expect(globals).toContain(`${token}:`);
+    it('defines only the approved global theme tokens', () => {
+        const declaredTokens = [...globals.matchAll(/^\s*(--[\w-]+):/gm)].map(
+            ([, token]) => token
+        );
+
+        expect(declaredTokens).toEqual([
+            '--font-sans',
+            '--color-brand',
+            '--color-brand-hover',
+            '--color-surface-page',
+            '--color-surface',
+            '--color-surface-subtle',
+            '--color-surface-muted',
+            '--color-fg-primary',
+            '--color-fg-secondary',
+            '--color-fg-muted',
+            '--color-fg-subtle',
+            '--color-fg-disabled',
+            '--color-fg-inverse',
+            '--color-border',
+            '--color-border-strong',
+            '--color-success',
+            '--color-danger',
+            '--color-danger-hover',
+            '--color-warning',
+            '--color-overlay',
+            '--shadow-control',
+            '--shadow-card',
+            '--shadow-modal',
+        ]);
+
+        expect(globals).not.toContain('--mossy-');
+        expect(globals).not.toMatch(/^\s*\.type-[\w-]+/m);
     });
 
     it('keeps static colors and palette utilities out of component source', () => {
@@ -112,6 +132,23 @@ describe('global design token contract', () => {
                 ...(source.match(rawPaletteUtility) ?? []),
                 ...(source.match(frameworkShadow) ?? []),
             ];
+
+            if (matches.length > 0) {
+                violations.push(
+                    `${path.slice(frontendRoot.length + 1)}: ${matches.join(', ')}`
+                );
+            }
+        }
+
+        expect(violations).toEqual([]);
+    });
+
+    it('keeps legacy tokens and global typography classes out of source', () => {
+        const violations: string[] = [];
+
+        for (const path of sourceFiles(srcRoot)) {
+            const source = readFileSync(path, 'utf8');
+            const matches = source.match(/--mossy-[\w-]+|\btype-[\w-]+/g) ?? [];
 
             if (matches.length > 0) {
                 violations.push(
@@ -146,21 +183,18 @@ describe('global design token contract', () => {
     });
 
     it.each([
-        ['brand', 'on-brand'],
-        ['brand', 'surface-card'],
+        ['brand', 'fg-inverse'],
+        ['brand', 'surface'],
         ['fg-primary', 'surface-page'],
-        ['fg-secondary', 'surface-card'],
-        ['fg-muted', 'surface-card'],
-        ['success', 'on-brand'],
-        ['success', 'success-subtle'],
-        ['danger', 'on-brand'],
-        ['danger', 'danger-subtle'],
-        ['warning', 'on-brand'],
-        ['warning', 'warning-subtle'],
+        ['fg-secondary', 'surface'],
+        ['fg-muted', 'surface'],
+        ['success', 'fg-inverse'],
+        ['danger', 'fg-inverse'],
+        ['warning', 'fg-inverse'],
     ])('%s and %s meet WCAG AA contrast', (foreground, background) => {
         const tokenValue = (name: string) => {
             const match = globals.match(
-                new RegExp(`--mossy-color-${name}:\\s*(#[\\da-fA-F]{6});`)
+                new RegExp(`--color-${name}:\\s*(#[\\da-fA-F]{6});`)
             );
 
             expect(match, `Missing hex value for ${name}`).not.toBeNull();
@@ -171,4 +205,30 @@ describe('global design token contract', () => {
             contrastRatio(tokenValue(foreground), tokenValue(background))
         ).toBeGreaterThanOrEqual(4.5);
     });
+
+    it.each(['brand', 'success', 'danger', 'warning'])(
+        '%s remains legible on its derived subtle background',
+        (name) => {
+            const match = globals.match(
+                new RegExp(`--color-${name}:\\s*#([\\da-fA-F]{6});`)
+            );
+
+            expect(match, `Missing hex value for ${name}`).not.toBeNull();
+
+            const channels = match![1]
+                .match(/.{2}/g)!
+                .map((value) => Number.parseInt(value, 16));
+            const subtle = `#${channels
+                .map((channel) =>
+                    Math.round(channel * 0.05 + 255 * 0.95)
+                        .toString(16)
+                        .padStart(2, '0')
+                )
+                .join('')}`;
+
+            expect(
+                contrastRatio(`#${match![1]}`, subtle)
+            ).toBeGreaterThanOrEqual(4.5);
+        }
+    );
 });

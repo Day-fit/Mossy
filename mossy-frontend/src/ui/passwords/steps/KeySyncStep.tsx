@@ -36,7 +36,7 @@ function createQrConfig(): Partial<Options> {
             color: brandColor,
         },
         backgroundOptions: {
-            color: resolveGlobalStyleToken('qrBackground'),
+            color: resolveGlobalStyleToken('surface'),
         },
         imageOptions: {
             crossOrigin: 'anonymous',
@@ -111,7 +111,7 @@ export default function KeySyncStep({
             initial="enter"
             animate="center"
             exit="exit"
-            className="bg-surface-card shadow-card rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
+            className="bg-surface shadow-card rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
         >
             <AnimatePresence mode="wait">
                 {synced ? (
@@ -135,11 +135,11 @@ export default function KeySyncStep({
                         }}
                     >
                         <div>
-                            <h2 className="type-section-title">
+                            <h2 className="text-3xl font-semibold">
                                 To use this vault, please synchronize encryption
                                 key
                             </h2>
-                            <p className="type-body-sm text-fg-muted mt-2">
+                            <p className="text-sm text-fg-muted mt-2">
                                 As encryption keys are stored on your device,
                                 only way to use them somewhere else is
                                 synchronization
@@ -154,9 +154,9 @@ export default function KeySyncStep({
                                     backfaceVisibility: 'hidden',
                                 }}
                             />
-                            <p className="type-body-sm text-center text-fg-muted">
+                            <p className="text-sm text-center text-fg-muted">
                                 Scan the QR code, or go to{' '}
-                                <span className="type-code text-fg-secondary">
+                                <span className="font-mono text-fg-secondary">
                                     {window.origin}/key-sync
                                 </span>{' '}
                                 on the device that has access to this vault and
@@ -166,7 +166,7 @@ export default function KeySyncStep({
                                 type="text"
                                 value={syncCode || 'Failed to get code'}
                                 readOnly
-                                className="type-code w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
+                                className="font-mono text-sm w-full rounded-md border border-border bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
                             />
                         </div>
                         <div className="flex gap-2 mt-5">

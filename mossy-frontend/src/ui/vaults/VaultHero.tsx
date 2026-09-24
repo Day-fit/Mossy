@@ -163,11 +163,9 @@ export default function VaultHero() {
                     />
                 )}
 
-                <motion.div className="rounded-xl bg-surface-card p-6 shadow-card">
-                    <h2 className="mb-2 type-section-title text-fg-primary">
-                        Vaults
-                    </h2>
-                    <p className="mb-6 type-body-sm text-fg-muted">
+                <motion.div className="rounded-xl bg-surface p-6 shadow-card">
+                    <h2 className="mb-2 text-3xl font-semibold">Vaults</h2>
+                    <p className="mb-6 text-sm text-fg-muted">
                         Manage your existing vaults and create new vault
                         credentials.
                     </p>
@@ -188,22 +186,18 @@ export default function VaultHero() {
                             maxLength={80}
                             required
                         />
-                        <Button
-                            type="submit"
-                            className="px-5 py-2 text-fg-inverse"
-                            disabled={isSubmitting}
-                        >
+                        <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? 'Saving...' : 'Add vault'}
                         </Button>
                     </form>
 
                     {successMessage ? (
-                        <p className="mt-3 type-body-sm text-success">
+                        <p className="mt-3 text-sm text-success">
                             {successMessage}
                         </p>
                     ) : null}
                     {errorMessage ? (
-                        <p className="mt-3 type-body-sm text-danger">
+                        <p className="mt-3 text-sm text-danger">
                             {errorMessage}
                         </p>
                     ) : null}
@@ -211,12 +205,12 @@ export default function VaultHero() {
 
                 <motion.div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {isLoading ? (
-                        <p className="type-body-sm text-fg-muted">
+                        <p className="text-sm text-fg-muted">
                             Loading vaults...
                         </p>
                     ) : null}
                     {!isLoading && vaults.length === 0 ? (
-                        <p className="type-body-sm text-fg-muted">
+                        <p className="text-sm text-fg-muted">
                             No vaults available.
                         </p>
                     ) : null}
@@ -259,7 +253,7 @@ export default function VaultHero() {
                     confirmDisabled={isSubmitting}
                 >
                     <label
-                        className="mb-2 block type-caption-strong text-fg-muted"
+                        className="mb-2 block text-xs font-semibold text-fg-muted"
                         htmlFor="vault-rename-input"
                     >
                         New name

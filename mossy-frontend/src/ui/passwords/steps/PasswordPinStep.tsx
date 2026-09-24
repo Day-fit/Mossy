@@ -74,13 +74,13 @@ export default function PasswordPinStep({
             animate="center"
             exit="exit"
             onSubmit={handleSubmit(onSubmit)}
-            className="bg-surface-card shadow-card rounded-xl w-170 flex flex-col p-8 gap-6"
+            className="bg-surface shadow-card rounded-xl w-170 flex flex-col p-8 gap-6"
         >
             <div>
-                <h1 className="type-section-title text-fg-primary">
+                <h1 className="text-3xl font-semibold">
                     Create a PIN for your vault
                 </h1>
-                <p className="type-body-sm text-fg-muted mt-2">
+                <p className="text-sm text-fg-muted mt-2">
                     This PIN will be used to protect your encryption key. You'll
                     need it every time you synchronize this vault to a new
                     device.
@@ -114,17 +114,17 @@ export default function PasswordPinStep({
                                             key={i}
                                             variants={childVariants}
                                             className={`
-                                                w-16 h-16 border-2 rounded-lg flex items-center justify-center type-dialog-title
+                                                w-16 h-16 border-2 rounded-lg flex items-center justify-center text-2xl font-semibold leading-[1.33]
 
                                                 ${
                                                     slot.isActive
-                                                        ? 'border-brand bg-brand-subtle shadow-brand-focus'
-                                                        : 'border-border bg-surface-card text-fg-secondary'
+                                                        ? 'border-brand bg-brand/5 ring-4 ring-brand/10'
+                                                        : 'border-border bg-surface text-fg-secondary'
                                                 }
                                             `}
                                         >
                                             {slot.char ?? (
-                                                <span className="type-component-title text-fg-disabled">
+                                                <span className="text-lg leading-[1.5] text-fg-disabled">
                                                     –
                                                 </span>
                                             )}
@@ -141,7 +141,7 @@ export default function PasswordPinStep({
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="type-body-sm text-danger bg-danger-subtle px-3 py-2 rounded-md"
+                        className="text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                     >
                         {errors.pin.message}
                     </motion.p>
@@ -149,15 +149,8 @@ export default function PasswordPinStep({
             </div>
 
             <div className="flex justify-center gap-3">
-                <Button className="text-fg-inverse" type="submit">
-                    Continue
-                </Button>
-                <Button
-                    variant="outline"
-                    className="box-border"
-                    type="reset"
-                    onClick={onCancel}
-                >
+                <Button type="submit">Continue</Button>
+                <Button variant="outline" type="reset" onClick={onCancel}>
                     Close
                 </Button>
             </div>

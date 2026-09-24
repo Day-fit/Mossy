@@ -33,24 +33,21 @@ export default function RecentActionEntry({
     const badge = actionBadges[actionType];
 
     return (
-        <article className="flex w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border border-border bg-surface-subtle px-4 py-3.5 hover:border-border hover:bg-surface-subtle">
+        <article className="flex w-full min-w-0 shrink-0 items-center gap-3 rounded-xl border border-border bg-surface-subtle px-4 py-3.5">
             <div className="min-w-0 flex-1">
-                <h3
-                    className="truncate type-label text-fg-primary"
-                    title={domain}
-                >
+                <h3 className="truncate text-sm font-medium" title={domain}>
                     {domain}
                 </h3>
                 <time
                     dateTime={date}
                     title={formatDateTime(date)}
-                    className="mt-1 block type-caption tabular-nums text-fg-muted"
+                    className="mt-1 block text-xs tabular-nums text-fg-muted"
                 >
                     {formatRelativeTime(date)}
                 </time>
             </div>
             <span
-                className={`inline-flex min-w-18 shrink-0 items-center justify-center rounded px-2.5 py-1 type-caption-strong ${badge.className}`}
+                className={`inline-flex min-w-18 shrink-0 items-center justify-center rounded px-2.5 py-1 text-xs font-semibold ${badge.className}`}
             >
                 {badge.label}
             </span>

@@ -1,17 +1,8 @@
 export const globalStyleTokens = {
-    brand: '--mossy-color-brand',
-    brandHover: '--mossy-color-brand-hover',
-    brandMuted: '--mossy-color-brand-muted',
-    border: '--mossy-color-border',
-    chartPrimary: '--mossy-color-chart-primary',
-    qrBackground: '--mossy-color-qr-background',
-    rippleDark: '--mossy-color-ripple-dark',
-    rippleInverse: '--mossy-color-ripple-inverse',
-    surfaceCard: '--mossy-color-surface-card',
-    tagUnlabeled: '--mossy-color-tag-unlabeled',
-    transparent: '--mossy-color-transparent',
-    brandFocusShadow: '--mossy-shadow-brand-focus',
-    cardShadow: '--mossy-shadow-card',
+    brand: '--color-brand',
+    border: '--color-border',
+    fgSecondary: '--color-fg-secondary',
+    surface: '--color-surface',
 } as const;
 
 export type GlobalStyleToken = keyof typeof globalStyleTokens;

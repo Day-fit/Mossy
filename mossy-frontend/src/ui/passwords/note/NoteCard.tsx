@@ -142,9 +142,7 @@ export default function NoteCard({
                 />
             )}
 
-            <div
-                className={`rounded-xl border border-border p-3 bg-surface-card`}
-            >
+            <div className={`rounded-xl border border-border p-3 bg-surface`}>
                 {!isError ? (
                     <>
                         <motion.textarea
@@ -162,9 +160,7 @@ export default function NoteCard({
                                 repeat: isLoaded ? 0 : Infinity,
                                 ease: 'easeInOut',
                             }}
-                            className={`min-h-28 w-full resize-none ${
-                                !isLoaded ? 'border-border-strong' : ''
-                            } bg-transparent type-body-sm outline-none placeholder:text-fg-subtle`}
+                            className="min-h-28 w-full resize-none text-sm outline-none placeholder:text-fg-subtle"
                         />
                         <div className="mt-2 flex justify-end">
                             <motion.button
@@ -179,7 +175,7 @@ export default function NoteCard({
                 ) : (
                     <div className={'flex flex-col items-center gap-2'}>
                         <RiErrorWarningLine size={64} />
-                        <h2 className="type-card-title text-center text-fg-muted">
+                        <h2 className="text-xl font-semibold text-center text-fg-muted">
                             An error occurred. Please try again later
                         </h2>
                     </div>

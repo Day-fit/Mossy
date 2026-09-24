@@ -102,7 +102,7 @@ function PasswordListCard({
     }, [fuse, query, filteredPasswordsByTags]);
 
     return (
-        <section className="rounded-md bg-surface-card p-5 shadow-card w-full">
+        <section className="rounded-md bg-surface p-5 shadow-card w-full">
             {actionModals}
 
             <div
@@ -110,7 +110,7 @@ function PasswordListCard({
                     'flex flex-wrap justify-between items-center w-full gap-3 relative mb-4'
                 }
             >
-                <h2 className="type-card-title text-brand">Passwords</h2>
+                <h2 className="text-xl font-semibold">Passwords</h2>
 
                 <div className="flex items-center gap-2">
                     <Button
@@ -119,7 +119,7 @@ function PasswordListCard({
                         type="button"
                         onClick={() => setIsAddingPassword(true)}
                         disabled={isAddingPassword || isSubmitting}
-                        className="inline-flex items-center gap-1 rounded-md border border-dashed border-border text-fg-muted hover:border-border-strong hover:bg-surface-subtle hover:text-fg-secondary disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center gap-1 border-dashed border-border text-fg-muted hover:border-border-strong hover:bg-surface-subtle hover:text-fg-secondary disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <MdAdd size={16} />
                         Add password
@@ -132,19 +132,15 @@ function PasswordListCard({
             <SearchBar />
 
             {status?.type === 'success' ? (
-                <p className="mt-2 type-body-sm text-success">
-                    {status.message}
-                </p>
+                <p className="mt-2 text-sm text-success">{status.message}</p>
             ) : null}
 
             {status?.type === 'error' ? (
-                <p className="mt-2 type-body-sm text-danger">
-                    {status.message}
-                </p>
+                <p className="mt-2 text-sm text-danger">{status.message}</p>
             ) : null}
 
             {(query || selectedTagsId.length > 0) && (
-                <p className={'type-body-sm text-fg-muted mt-1'}>
+                <p className={'text-sm text-fg-muted mt-1'}>
                     Showing {results.length} of {passwords.length} results.
                 </p>
             )}
@@ -210,14 +206,14 @@ function PasswordListCard({
                             );
                         })
                     ) : (
-                        <p className={'type-body-sm text-fg-muted'}>
+                        <p className={'text-sm text-fg-muted'}>
                             {query || selectedTagsId.length > 0
                                 ? 'No results found.'
                                 : 'No passwords for selected vault.'}
                         </p>
                     )
                 ) : (
-                    <p className="type-body-sm text-fg-muted">
+                    <p className="text-sm text-fg-muted">
                         Loading passwords...
                     </p>
                 )}

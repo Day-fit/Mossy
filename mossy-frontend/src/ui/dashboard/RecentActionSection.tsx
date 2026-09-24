@@ -41,18 +41,18 @@ export default function RecentActionSection({
 
     return (
         <motion.aside
-            className="flex flex-col min-h-100 lg:flex-1 lg:min-h-0 rounded-md bg-surface-card shadow-card"
+            className="flex flex-col min-h-100 lg:flex-1 lg:min-h-0 rounded-md bg-surface shadow-card"
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-            <h2 className="type-component-title text-fg-secondary mt-5 text-center shrink-0">
+            <h2 className="text-lg font-semibold leading-[1.5] text-fg-secondary mt-5 text-center shrink-0">
                 Recent actions
             </h2>
 
             <div className="flex flex-1 min-h-0 flex-col gap-2 px-4 py-4 overflow-y-auto items-center scrollbar">
                 {isLoading ? (
-                    <div className="w-full h-full flex items-center justify-center type-body-sm text-fg-muted">
+                    <div className="w-full h-full flex items-center justify-center text-sm text-fg-muted">
                         Loading recent actions...
                     </div>
                 ) : error || actions.length === 0 ? (
@@ -71,7 +71,7 @@ export default function RecentActionSection({
                                 />
                             ))}
                         </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center type-body-sm text-fg-secondary">
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center text-sm text-fg-secondary">
                             {error ? (
                                 <IoWarningOutline
                                     aria-hidden="true"
@@ -86,7 +86,7 @@ export default function RecentActionSection({
                             {overlayAction ? (
                                 <Button
                                     type="button"
-                                    className="px-4 py-2 type-button-sm"
+                                    className="text-sm"
                                     onClick={overlayAction.onClick}
                                 >
                                     {overlayAction.label}

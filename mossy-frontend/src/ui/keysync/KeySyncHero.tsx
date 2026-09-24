@@ -37,7 +37,8 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke={globalStyleVar('brandMuted')}
+                stroke={globalStyleVar('brand')}
+                strokeOpacity="0.15"
                 strokeWidth="7"
             />
             <motion.circle
@@ -83,7 +84,6 @@ function SlotBox({
     const isError = phase === 'error';
     const borderColor = resolveGlobalStyleToken('border');
     const brandColor = resolveGlobalStyleToken('brand');
-    const brandFocusShadow = resolveGlobalStyleToken('brandFocusShadow');
 
     return (
         <motion.div
@@ -92,7 +92,6 @@ function SlotBox({
                 isSuccess
                     ? {
                           borderColor: [borderColor, brandColor, borderColor],
-                          boxShadow: ['none', brandFocusShadow, 'none'],
                       }
                     : {}
             }
@@ -100,18 +99,18 @@ function SlotBox({
                 isSuccess ? { duration: 0.55, delay: (5 - index) * 0.07 } : {}
             }
             className={[
-                'type-pin w-16 h-16 border-2 rounded-2xl flex items-center justify-center select-none',
+                'font-mono text-2xl font-semibold w-16 h-16 border-2 rounded-2xl flex items-center justify-center select-none',
                 isError
-                    ? 'border-danger-border bg-danger-subtle text-danger'
+                    ? 'border-danger/20 bg-danger/5 text-danger'
                     : isSuccess
-                      ? 'border-brand/30 bg-brand-subtle text-brand'
+                      ? 'border-brand/30 bg-brand/5 text-brand'
                       : fromUrl
                         ? 'border-border bg-surface-muted text-fg-muted'
                         : slot.isActive
-                          ? 'border-brand bg-surface-card shadow-brand-focus'
+                          ? 'border-brand bg-surface ring-4 ring-brand/10'
                           : slot.char
-                            ? 'border-border bg-surface-card text-fg-secondary'
-                            : 'border-border bg-surface-card text-fg-disabled',
+                            ? 'border-border bg-surface text-fg-secondary'
+                            : 'border-border bg-surface text-fg-disabled',
             ].join(' ')}
         >
             {slot.char ?? <span className="text-fg-disabled">·</span>}
@@ -269,14 +268,14 @@ export default function KeySyncHero() {
                                 transition={{ duration: 0.22 }}
                                 className="flex flex-col items-center gap-2"
                             >
-                                <h1 className="type-page-title text-fg-primary">
+                                <h1 className="text-4xl font-bold leading-[1.1]">
                                     {isSuccess
                                         ? 'Key transferred successfully'
                                         : isError
                                           ? 'Synchronization failed'
                                           : 'Synchronize encryption key'}
                                 </h1>
-                                <p className="type-body text-fg-subtle max-w-sm">
+                                <p className="text-fg-subtle max-w-sm">
                                     {isSuccess
                                         ? 'The encryption key has been securely transferred to this device.'
                                         : isError
@@ -299,7 +298,7 @@ export default function KeySyncHero() {
                         className="flex flex-col items-center gap-3"
                     >
                         {!isSuccess && (
-                            <p className="type-overline text-fg-subtle">
+                            <p className="text-xs font-semibold tracking-[0.1em] uppercase text-fg-subtle">
                                 Sync code
                             </p>
                         )}
@@ -347,7 +346,7 @@ export default function KeySyncHero() {
                                                         fromUrl={fromUrl}
                                                     />
                                                 ))}
-                                            <span className="type-pin text-fg-disabled select-none px-1">
+                                            <span className="font-mono text-2xl font-semibold text-fg-disabled select-none px-1">
                                                 —
                                             </span>
                                             {slots.slice(3).map((slot, i) => (
@@ -380,7 +379,6 @@ export default function KeySyncHero() {
                                 <>
                                     <Button
                                         variant="outline"
-                                        className="box-border"
                                         onClick={() => navigate(-1)}
                                     >
                                         Cancel
@@ -397,7 +395,6 @@ export default function KeySyncHero() {
                                 <>
                                     <Button
                                         variant="outline"
-                                        className="box-border"
                                         onClick={() => navigate('/dashboard')}
                                         disabled={isBusy}
                                     >
@@ -416,7 +413,7 @@ export default function KeySyncHero() {
                             )}
                         </div>
 
-                        <p className="type-caption text-fg-disabled">
+                        <p className="text-xs text-fg-disabled">
                             Keys are end-to-end encrypted and never leave your
                             devices unencrypted.
                         </p>
