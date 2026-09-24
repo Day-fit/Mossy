@@ -27,22 +27,19 @@ function NavTab({
                 <MotionNavLink
                     to={url}
                     onClick={onClick}
-                    className={({ isActive }) =>
-                        (isActive ? 'font-bold' : 'font-normal') +
-                        ' text-justify text-l z-10 flex items-center justify-center h-full px-5'
-                    }
+                    className="flex items-center justify-center h-full px-5"
                 >
                     {({ isActive }) => (
                         <div className={'flex flex-col'}>
-                            <span>{name}</span>
+                            <h6>{name}</h6>
                             {badgeCount > 0 ? (
-                                <span className="text-center text-[10px] font-medium leading-3 text-amber-700">
+                                <span className="text-center text-xs font-semibold text-warning">
                                     {badgeCount} pending
                                 </span>
                             ) : null}
                             {isActive && (
                                 <motion.div
-                                    className="border-b-2 border-emerald-500"
+                                    className="border-b-2 border-brand"
                                     initial={{ scaleX: 0 }}
                                     animate={{ scaleX: 1 }}
                                     transition={{

@@ -41,7 +41,7 @@ export default function NoteCard({
 
         try {
             if (!(await isPinPresent(selectedVaultId))) {
-                setLastAction(() => (_: string) => {
+                setLastAction(() => () => {
                     void action();
                 });
                 setIsPinModalActive(true);
@@ -49,7 +49,7 @@ export default function NoteCard({
             }
         } catch (error) {
             if (error instanceof KeyNotFoundException) {
-                setLastAction(() => (_: string) => {
+                setLastAction(() => () => {
                     void action();
                 });
                 setIsKeySyncModalActive(true);
@@ -142,10 +142,10 @@ export default function NoteCard({
                 />
             )}
 
-            <div className={`rounded-xl border border-zinc-200 p-3 bg-zinc-50`}>
+            <div className={`rounded-xl border border-border p-3 bg-surface`}>
                 {!isError ? (
                     <>
-                        <textarea
+                        <motion.textarea
                             value={note}
                             onChange={(e) => {
                                 if (!isLoaded) return;
@@ -154,14 +154,18 @@ export default function NoteCard({
                             placeholder={
                                 isLoaded ? `Add note...` : 'Loading...'
                             }
-                            className={`min-h-28 w-full resize-none ${
-                                !isLoaded ? 'animate-pulse border-gray-500' : ''
-                            } bg-transparent text-sm outline-none placeholder:text-zinc-400`}
+                            animate={{ opacity: isLoaded ? 1 : [1, 0.55, 1] }}
+                            transition={{
+                                duration: 1.2,
+                                repeat: isLoaded ? 0 : Infinity,
+                                ease: 'easeInOut',
+                            }}
+                            className="min-h-28 w-full resize-none text-sm outline-none placeholder:text-fg-subtle"
                         />
                         <div className="mt-2 flex justify-end">
                             <motion.button
                                 whileTap={{ scale: 0.95 }}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-500 text-white"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-fg-inverse"
                                 onClick={handleSaveNote}
                             >
                                 <MdCheck size={18} />
@@ -171,7 +175,7 @@ export default function NoteCard({
                 ) : (
                     <div className={'flex flex-col items-center gap-2'}>
                         <RiErrorWarningLine size={64} />
-                        <h2 className={'text-center text-xl text-gray-600'}>
+                        <h2 className="text-xl text-center text-fg-muted">
                             An error occurred. Please try again later
                         </h2>
                     </div>

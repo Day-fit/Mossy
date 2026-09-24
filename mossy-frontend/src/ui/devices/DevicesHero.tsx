@@ -28,13 +28,11 @@ export default function DevicesHero() {
                 initial="hidden"
                 animate="show"
             >
-                <motion.div className="rounded-xl bg-white p-6 shadow-md">
+                <motion.div className="rounded-xl bg-surface p-6 shadow-card">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h2 className="mb-2 text-3xl font-semibold text-gray-900">
-                                Devices
-                            </h2>
-                            <p className="text-sm text-gray-600">
+                            <h2 className="mb-2 text-3xl">Devices</h2>
+                            <p className="text-sm text-fg-muted">
                                 Review enrollment requests and manage devices
                                 that can access your account.
                             </p>
@@ -42,7 +40,7 @@ export default function DevicesHero() {
                         <Button
                             type="button"
                             variant="outline"
-                            className="px-4 py-2 text-sm"
+                            className="text-sm"
                             disabled={isLoading}
                             onClick={() => void refreshDevices()}
                         >
@@ -50,7 +48,7 @@ export default function DevicesHero() {
                         </Button>
                     </div>
                     {error ? (
-                        <p role="alert" className="mt-4 text-sm text-red-600">
+                        <p role="alert" className="mt-4 text-sm text-danger">
                             {error}
                         </p>
                     ) : null}
@@ -59,10 +57,8 @@ export default function DevicesHero() {
                 {enrollments.length > 0 ? (
                     <motion.section className="space-y-4">
                         <div className="flex items-baseline gap-2">
-                            <h2 className="text-xl font-semibold text-gray-900">
-                                Pending enrollments
-                            </h2>
-                            <span className="text-sm text-gray-500">
+                            <h2 className="text-xl">Pending enrollments</h2>
+                            <span className="text-sm text-fg-muted">
                                 {enrollments.length}
                             </span>
                         </div>
@@ -78,16 +74,14 @@ export default function DevicesHero() {
                 ) : null}
 
                 <motion.section className="space-y-4">
-                    <h2 className="text-xl font-semibold text-gray-900">
-                        Existing devices
-                    </h2>
+                    <h2 className="text-xl">Existing devices</h2>
                     {isLoading && devices.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-fg-muted">
                             Loading devices...
                         </p>
                     ) : null}
                     {!isLoading && devices.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-fg-muted">
                             No devices available.
                         </p>
                     ) : null}

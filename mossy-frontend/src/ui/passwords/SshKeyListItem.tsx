@@ -51,17 +51,16 @@ function SshKeyListItem({
                 passwordType: 'SSH_KEY',
             }}
         >
-            <div className="flex items-center justify-between gap-3 rounded bg-gray-50 p-2">
-                <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-gray-700">
+            <div className="flex items-center justify-between gap-3 rounded bg-surface-subtle p-2">
+                <p className="max-w-full overflow-x-auto whitespace-nowrap font-mono text-sm text-fg-secondary">
                     SSH key file
                 </p>
 
                 <Button
                     type="button"
                     variant="outline"
-                    className="inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm"
+                    className="inline-flex items-center gap-1 rounded-sm text-sm"
                     disabled={phase !== undefined}
-                    rippleColor="rgb(0, 0, 0, 0.7)"
                     onClick={() => onDownloadSshKey(passwordDto)}
                 >
                     <MdDownload size={16} />

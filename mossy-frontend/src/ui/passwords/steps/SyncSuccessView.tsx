@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import { globalStyleVar } from '../../../theme/globalTokens.ts';
 
 export default function SyncSuccessView() {
     return (
@@ -14,7 +15,8 @@ export default function SyncSuccessView() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke="#e6f4ee"
+                    stroke={globalStyleVar('brand')}
+                    strokeOpacity="0.15"
                     strokeWidth="6"
                 />
                 <motion.circle
@@ -22,7 +24,7 @@ export default function SyncSuccessView() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke="#007735"
+                    stroke={globalStyleVar('brand')}
                     strokeWidth="6"
                     strokeLinecap="round"
                     transform="rotate(-90 40 40)"
@@ -33,7 +35,7 @@ export default function SyncSuccessView() {
                 <motion.polyline
                     points="24,41 35,52 56,30"
                     fill="none"
-                    stroke="#007735"
+                    stroke={globalStyleVar('brand')}
                     strokeWidth="5.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -46,16 +48,16 @@ export default function SyncSuccessView() {
                     }}
                 />
             </svg>
-            <motion.p
-                className="text-xl font-medium text-gray-900"
+            <motion.h2
+                className="text-xl"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 }}
             >
                 Key synchronized!
-            </motion.p>
+            </motion.h2>
             <motion.p
-                className="text-sm text-gray-500 text-center"
+                className="text-sm text-fg-muted text-center"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.85 }}
@@ -65,13 +67,13 @@ export default function SyncSuccessView() {
                 This window will close automatically.
             </motion.p>
             <motion.div
-                className="w-36 h-0.75 rounded-full bg-gray-100 overflow-hidden"
+                className="w-36 h-0.75 rounded-full bg-surface-muted overflow-hidden"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.9 }}
             >
                 <motion.div
-                    className="h-full bg-[#007735] rounded-full"
+                    className="h-full bg-brand rounded-full"
                     initial={{ width: '100%' }}
                     animate={{ width: '0%' }}
                     transition={{ duration: 2.5, delay: 1, ease: 'linear' }}

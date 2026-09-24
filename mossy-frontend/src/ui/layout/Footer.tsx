@@ -2,14 +2,14 @@ import { NavLink } from 'react-router-dom';
 
 export default function Footer() {
     return (
-        <footer className="flex border-t-2 border-gray-200 justify-around bg-white p-5">
+        <footer className="flex border-t-2 border-border justify-around bg-surface p-5">
             <section className="flex flex-col">
                 <h3 className="text-xl mb-1">Repository, bugs, ideas</h3>
                 <a
                     target="_blank"
                     href="https://github.com/Day-fit/Mossy"
                     rel="noopener noreferrer"
-                    className="text-gray-600"
+                    className="text-sm text-fg-muted"
                 >
                     Repository
                 </a>
@@ -17,7 +17,7 @@ export default function Footer() {
                     target="_blank"
                     href="https://github.com/Day-fit/Mossy/issues/new"
                     rel="noopener noreferrer"
-                    className="text-gray-600"
+                    className="text-sm text-fg-muted"
                 >
                     Report a bug
                 </a>
@@ -25,26 +25,26 @@ export default function Footer() {
                     target="_blank"
                     href="https://github.com/Day-fit/Mossy/issues/new"
                     rel="noopener noreferrer"
-                    className="text-gray-600"
+                    className="text-sm text-fg-muted"
                 >
                     Share your idea
                 </a>
             </section>
             <section className="flex flex-col">
                 <h3 className="text-xl mb-1">Site map</h3>
-                <NavLink to="/" className="text-gray-600">
+                <NavLink to="/" className="text-sm text-fg-muted">
                     Home
                 </NavLink>
-                <NavLink to="/register" className="text-gray-600">
+                <NavLink to="/register" className="text-sm text-fg-muted">
                     Sign up
                 </NavLink>
-                <NavLink to="/login" className="text-gray-600">
+                <NavLink to="/login" className="text-sm text-fg-muted">
                     Sign in
                 </NavLink>
-                <NavLink to="/dashboard" className="text-gray-600">
+                <NavLink to="/dashboard" className="text-sm text-fg-muted">
                     Dashboard
                 </NavLink>
-                <NavLink to="/passwords" className="text-gray-600">
+                <NavLink to="/passwords" className="text-sm text-fg-muted">
                     Passwords
                 </NavLink>
             </section>

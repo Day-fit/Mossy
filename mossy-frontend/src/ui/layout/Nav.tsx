@@ -52,10 +52,10 @@ function Nav() {
 
     return (
         <>
-            <nav className="grid grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-gray-200 sticky top-0 bg-white z-50">
-                <div className="col-start-1 justify-self-start self-stretch shrink-0">
+            <nav className="grid grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
+                <div className="col-start-1 justify-self-start self-stretch">
                     <img
-                        className="h-full w-auto max-w-none p-2 object-contain cursor-pointer"
+                        className="h-full max-w-none p-2 object-contain cursor-pointer"
                         alt="mossy-logo"
                         src="/mossy_logo.png"
                         onClick={() => {
@@ -87,7 +87,6 @@ function Nav() {
                             </Button>
                             <Button
                                 variant={'outline'}
-                                rippleColor="rgb(0, 0, 0, 0.7)"
                                 onClick={() => navigate('/login')}
                             >
                                 Sign In
@@ -108,7 +107,7 @@ function Nav() {
                             isOpen ? { rotate: 45, y: 6 } : { rotate: 0, y: 0 }
                         }
                         transition={{ duration: 0.2 }}
-                        className="block w-6 h-0.5 bg-gray-800 mb-1"
+                        className="w-6 h-0.5 bg-fg-secondary mb-1"
                     />
                     <motion.span
                         animate={
@@ -117,7 +116,7 @@ function Nav() {
                                 : { opacity: 1, scaleX: 1 }
                         }
                         transition={{ duration: 0.2 }}
-                        className="block w-6 h-0.5 bg-gray-800 mb-1"
+                        className="w-6 h-0.5 bg-fg-secondary mb-1"
                     />
                     <motion.span
                         animate={
@@ -126,7 +125,7 @@ function Nav() {
                                 : { rotate: 0, y: 0 }
                         }
                         transition={{ duration: 0.2 }}
-                        className="block w-6 h-0.5 bg-gray-800"
+                        className="w-6 h-0.5 bg-fg-secondary"
                     />
                 </button>
             </nav>
@@ -139,7 +138,7 @@ function Nav() {
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="lg:hidden overflow-hidden bg-white border-b-2 border-gray-200 sticky top-20 z-40 w-full"
+                        className="lg:hidden overflow-hidden bg-surface border-b-2 border-border sticky top-20 z-40 w-full"
                     >
                         <div className="flex flex-col items-start px-6 py-4 gap-4">
                             {navItems.map((item) => (
@@ -178,7 +177,6 @@ function Nav() {
                                     </Button>
                                     <Button
                                         variant={'outline'}
-                                        rippleColor="rgb(0, 0, 0, 0.7)"
                                         onClick={() => {
                                             navigate('/login');
                                             closeMenu();

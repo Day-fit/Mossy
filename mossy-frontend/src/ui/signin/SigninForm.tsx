@@ -101,7 +101,7 @@ export default function SigninForm({
                 />
 
                 <motion.h1
-                    className="text-4xl font-bold text-center text-emerald-800 mb-1"
+                    className="text-4xl text-center text-brand mb-1 leading-tight"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
@@ -109,7 +109,7 @@ export default function SigninForm({
                     Welcome back
                 </motion.h1>
 
-                <motion.p className="text-center text-gray-600 text-sm">
+                <motion.p className="text-center text-fg-muted text-sm">
                     Your passwords are waiting on your server.
                 </motion.p>
 
@@ -118,7 +118,7 @@ export default function SigninForm({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.4, duration: 0.5 }}
                 >
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">
                         Email / Username
                     </label>
                     <input
@@ -134,7 +134,7 @@ export default function SigninForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.identifier.message}
                             </motion.p>
@@ -147,7 +147,7 @@ export default function SigninForm({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.6, duration: 0.5 }}
                 >
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-fg-secondary mb-2">
                         Password
                     </label>
                     <input
@@ -163,7 +163,7 @@ export default function SigninForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.password.message}
                             </motion.p>
@@ -190,13 +190,13 @@ export default function SigninForm({
 
                 <NavLink
                     to="/register"
-                    className="text-sm text-gray-600 hover:text-gray-800 transition-colors duration-300"
+                    className="text-sm text-fg-muted hover:text-fg-secondary"
                 >
                     Don't have an account? Click here
                 </NavLink>
                 <NavLink
                     to="/verify-email"
-                    className="block text-sm text-emerald-700"
+                    className="block text-sm text-brand"
                 >
                     Resume email verification
                 </NavLink>

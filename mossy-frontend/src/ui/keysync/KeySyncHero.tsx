@@ -8,6 +8,10 @@ import { useDeviceStore } from '../../store/deviceStore.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { PinNotFoundException } from '../../exception/PinNotFoundException.ts';
 import Button from '../shared/Button.tsx';
+import {
+    globalStyleVar,
+    resolveGlobalStyleToken,
+} from '../../theme/globalTokens.ts';
 
 type SyncPhase = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -33,7 +37,8 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke="#d1fae5"
+                stroke={globalStyleVar('brand')}
+                strokeOpacity="0.15"
                 strokeWidth="7"
             />
             <motion.circle
@@ -41,7 +46,7 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke="#007735"
+                stroke={globalStyleVar('brand')}
                 strokeWidth="7"
                 strokeLinecap="round"
                 transform="rotate(-90 40 40)"
@@ -52,7 +57,7 @@ function SuccessCheckmark() {
             <motion.polyline
                 points="24,41 35,52 56,30"
                 fill="none"
-                stroke="#007735"
+                stroke={globalStyleVar('brand')}
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -77,6 +82,8 @@ function SlotBox({
 }) {
     const isSuccess = phase === 'success';
     const isError = phase === 'error';
+    const borderColor = resolveGlobalStyleToken('border');
+    const brandColor = resolveGlobalStyleToken('brand');
 
     return (
         <motion.div
@@ -84,12 +91,7 @@ function SlotBox({
             animate={
                 isSuccess
                     ? {
-                          borderColor: ['#e5e7eb', '#007735', '#e5e7eb'],
-                          boxShadow: [
-                              '0 0 0 0px #00773500',
-                              '0 0 0 5px #00773520',
-                              '0 0 0 0px #00773500',
-                          ],
+                          borderColor: [borderColor, brandColor, borderColor],
                       }
                     : {}
             }
@@ -97,21 +99,21 @@ function SlotBox({
                 isSuccess ? { duration: 0.55, delay: (5 - index) * 0.07 } : {}
             }
             className={[
-                'w-16 h-16 border-2 rounded-2xl flex items-center justify-center text-2xl font-semibold transition-all duration-150 select-none',
+                'font-mono text-2xl font-semibold w-16 h-16 border-2 rounded-2xl flex items-center justify-center select-none',
                 isError
-                    ? 'border-red-200 bg-red-50 text-red-400'
+                    ? 'border-danger/20 bg-danger/5 text-danger'
                     : isSuccess
-                      ? 'border-[#007735]/30 bg-[#f0faf4] text-[#007735]'
+                      ? 'border-brand/30 bg-brand/5 text-brand'
                       : fromUrl
-                        ? 'border-gray-200 bg-gray-100 text-gray-500'
+                        ? 'border-border bg-surface-muted text-fg-muted'
                         : slot.isActive
-                          ? 'border-[#007735] bg-white shadow-[0_0_0_4px_#00773518]'
+                          ? 'border-brand bg-surface ring-4 ring-brand/10'
                           : slot.char
-                            ? 'border-gray-300 bg-white text-gray-800'
-                            : 'border-gray-200 bg-white text-gray-200',
+                            ? 'border-border bg-surface text-fg-secondary'
+                            : 'border-border bg-surface text-fg-disabled',
             ].join(' ')}
         >
-            {slot.char ?? <span className="text-gray-200">·</span>}
+            {slot.char ?? <span className="text-fg-disabled">·</span>}
         </motion.div>
     );
 }
@@ -191,7 +193,7 @@ export default function KeySyncHero() {
     const isError = phase === 'error';
 
     return (
-        <div className="min-h-[82vh] bg-white flex flex-col">
+        <div className="min-h-[82vh] bg-surface-page flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
                 <motion.div
                     className="w-full max-w-lg flex flex-col items-center gap-12"
@@ -225,13 +227,13 @@ export default function KeySyncHero() {
                                     transition={{ duration: 0.25 }}
                                     className="relative"
                                 >
-                                    <div className="w-14 h-14 rounded-2xl bg-[#007735]/8 flex items-center justify-center">
+                                    <div className="w-14 h-14 rounded-2xl bg-brand/8 flex items-center justify-center">
                                         <svg
                                             width="26"
                                             height="26"
                                             viewBox="0 0 24 24"
                                             fill="none"
-                                            stroke="#007735"
+                                            stroke={globalStyleVar('brand')}
                                             strokeWidth="1.7"
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -241,7 +243,7 @@ export default function KeySyncHero() {
                                     </div>
                                     {isBusy && (
                                         <motion.div
-                                            className="absolute -inset-1.5 rounded-3xl border-2 border-[#007735]/25"
+                                            className="absolute -inset-1.5 rounded-3xl border-2 border-brand/25"
                                             animate={{
                                                 opacity: [0.7, 0.1, 0.7],
                                                 scale: [1, 1.12, 1],
@@ -266,14 +268,14 @@ export default function KeySyncHero() {
                                 transition={{ duration: 0.22 }}
                                 className="flex flex-col items-center gap-2"
                             >
-                                <h1 className="text-[2rem] font-bold text-gray-900 leading-tight">
+                                <h1 className="text-4xl leading-tight">
                                     {isSuccess
                                         ? 'Key transferred successfully'
                                         : isError
                                           ? 'Synchronization failed'
                                           : 'Synchronize encryption key'}
                                 </h1>
-                                <p className="text-base text-gray-400 max-w-sm leading-relaxed">
+                                <p className="text-fg-subtle max-w-sm">
                                     {isSuccess
                                         ? 'The encryption key has been securely transferred to this device.'
                                         : isError
@@ -288,7 +290,7 @@ export default function KeySyncHero() {
 
                     <motion.div
                         variants={itemVariants}
-                        className="w-full h-px bg-gray-100"
+                        className="w-full h-px bg-surface-muted"
                     />
 
                     <motion.div
@@ -296,7 +298,7 @@ export default function KeySyncHero() {
                         className="flex flex-col items-center gap-3"
                     >
                         {!isSuccess && (
-                            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                            <p className="text-xs font-semibold tracking-[0.1em] uppercase text-fg-subtle">
                                 Sync code
                             </p>
                         )}
@@ -344,7 +346,7 @@ export default function KeySyncHero() {
                                                         fromUrl={fromUrl}
                                                     />
                                                 ))}
-                                            <span className="text-gray-300 text-2xl font-light select-none px-1">
+                                            <span className="font-mono text-2xl font-semibold text-fg-disabled select-none px-1">
                                                 —
                                             </span>
                                             {slots.slice(3).map((slot, i) => (
@@ -365,7 +367,7 @@ export default function KeySyncHero() {
 
                     <motion.div
                         variants={itemVariants}
-                        className="w-full h-px bg-gray-100"
+                        className="w-full h-px bg-surface-muted"
                     />
 
                     <motion.div
@@ -377,30 +379,22 @@ export default function KeySyncHero() {
                                 <>
                                     <Button
                                         variant="outline"
-                                        className="box-border"
                                         onClick={() => navigate(-1)}
                                     >
                                         Cancel
                                     </Button>
-                                    <Button
-                                        className="text-white bg-[#007735] hover:bg-[#005f29]"
-                                        onClick={handleRetry}
-                                    >
+                                    <Button onClick={handleRetry}>
                                         Try again
                                     </Button>
                                 </>
                             ) : isSuccess ? (
-                                <Button
-                                    className="text-white bg-[#007735] hover:bg-[#005f29]"
-                                    onClick={() => navigate('/dashboard')}
-                                >
+                                <Button onClick={() => navigate('/dashboard')}>
                                     Done
                                 </Button>
                             ) : (
                                 <>
                                     <Button
                                         variant="outline"
-                                        className="box-border"
                                         onClick={() => navigate('/dashboard')}
                                         disabled={isBusy}
                                     >
@@ -408,7 +402,7 @@ export default function KeySyncHero() {
                                     </Button>
                                     {!fromUrl && (
                                         <Button
-                                            className="text-white bg-[#007735] hover:bg-[#005f29] disabled:opacity-40"
+                                            className="disabled:opacity-40"
                                             onClick={handleSubmit(onSubmit)}
                                             disabled={isBusy}
                                         >
@@ -419,7 +413,7 @@ export default function KeySyncHero() {
                             )}
                         </div>
 
-                        <p className="text-xs text-gray-300">
+                        <p className="text-xs text-fg-disabled">
                             Keys are end-to-end encrypted and never leave your
                             devices unencrypted.
                         </p>
