@@ -37,7 +37,7 @@ export default function VaultCard({
         >
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
-                    <h3 className="text-xl font-semibold">{vaultName}</h3>
+                    <h3 className="text-xl">{vaultName}</h3>
                     <p className={`text-sm ${statusClassName}`}>
                         {isOnline ? 'Online' : 'Offline'}
                     </p>

@@ -4,9 +4,7 @@ export default function Footer() {
     return (
         <footer className="flex border-t-2 border-border justify-around bg-surface p-5">
             <section className="flex flex-col">
-                <h3 className="text-xl font-semibold mb-1">
-                    Repository, bugs, ideas
-                </h3>
+                <h3 className="text-xl mb-1">Repository, bugs, ideas</h3>
                 <a
                     target="_blank"
                     href="https://github.com/Day-fit/Mossy"
@@ -33,7 +31,7 @@ export default function Footer() {
                 </a>
             </section>
             <section className="flex flex-col">
-                <h3 className="text-xl font-semibold mb-1">Site map</h3>
+                <h3 className="text-xl mb-1">Site map</h3>
                 <NavLink to="/" className="text-sm text-fg-muted">
                     Home
                 </NavLink>

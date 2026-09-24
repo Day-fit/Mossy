@@ -268,7 +268,7 @@ export default function KeySyncHero() {
                                 transition={{ duration: 0.22 }}
                                 className="flex flex-col items-center gap-2"
                             >
-                                <h1 className="text-4xl font-bold leading-[1.1]">
+                                <h1 className="text-4xl leading-tight">
                                     {isSuccess
                                         ? 'Key transferred successfully'
                                         : isError

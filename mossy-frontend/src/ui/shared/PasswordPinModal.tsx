@@ -68,7 +68,7 @@ export default function PasswordPinModal({
                 className="bg-surface shadow-card rounded-xl w-140 flex flex-col p-8 gap-6"
             >
                 <div>
-                    <h1 className="text-3xl font-semibold">
+                    <h1 className="text-3xl">
                         {header ?? 'Enter your vault PIN'}
                     </h1>
                     <p className="text-sm text-fg-muted mt-2">

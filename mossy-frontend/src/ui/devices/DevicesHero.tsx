@@ -31,9 +31,7 @@ export default function DevicesHero() {
                 <motion.div className="rounded-xl bg-surface p-6 shadow-card">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
-                            <h2 className="mb-2 text-3xl font-semibold">
-                                Devices
-                            </h2>
+                            <h2 className="mb-2 text-3xl">Devices</h2>
                             <p className="text-sm text-fg-muted">
                                 Review enrollment requests and manage devices
                                 that can access your account.
@@ -59,9 +57,7 @@ export default function DevicesHero() {
                 {enrollments.length > 0 ? (
                     <motion.section className="space-y-4">
                         <div className="flex items-baseline gap-2">
-                            <h2 className="text-xl font-semibold">
-                                Pending enrollments
-                            </h2>
+                            <h2 className="text-xl">Pending enrollments</h2>
                             <span className="text-sm text-fg-muted">
                                 {enrollments.length}
                             </span>
@@ -78,7 +74,7 @@ export default function DevicesHero() {
                 ) : null}
 
                 <motion.section className="space-y-4">
-                    <h2 className="text-xl font-semibold">Existing devices</h2>
+                    <h2 className="text-xl">Existing devices</h2>
                     {isLoading && devices.length === 0 ? (
                         <p className="text-sm text-fg-muted">
                             Loading devices...

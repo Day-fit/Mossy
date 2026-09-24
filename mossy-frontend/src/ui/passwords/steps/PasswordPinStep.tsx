@@ -77,9 +77,7 @@ export default function PasswordPinStep({
             className="bg-surface shadow-card rounded-xl w-170 flex flex-col p-8 gap-6"
         >
             <div>
-                <h1 className="text-3xl font-semibold">
-                    Create a PIN for your vault
-                </h1>
+                <h1 className="text-3xl">Create a PIN for your vault</h1>
                 <p className="text-sm text-fg-muted mt-2">
                     This PIN will be used to protect your encryption key. You'll
                     need it every time you synchronize this vault to a new

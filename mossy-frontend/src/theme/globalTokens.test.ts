@@ -87,6 +87,7 @@ describe('global design token contract', () => {
 
         expect(declaredTokens).toEqual([
             '--font-sans',
+            '--font-heading',
             '--color-brand',
             '--color-brand-hover',
             '--color-surface-page',

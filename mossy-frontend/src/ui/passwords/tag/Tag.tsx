@@ -17,7 +17,7 @@ export default function Tag({ name, color }: TagProps) {
                 style={{ background: color }}
             />
 
-            <h3 className="text-xs">{name}</h3>
+            <span className="text-xs">{name}</span>
         </div>
     );
 }

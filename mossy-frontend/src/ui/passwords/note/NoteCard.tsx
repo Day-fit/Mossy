@@ -175,7 +175,7 @@ export default function NoteCard({
                 ) : (
                     <div className={'flex flex-col items-center gap-2'}>
                         <RiErrorWarningLine size={64} />
-                        <h2 className="text-xl font-semibold text-center text-fg-muted">
+                        <h2 className="text-xl text-center text-fg-muted">
                             An error occurred. Please try again later
                         </h2>
                     </div>

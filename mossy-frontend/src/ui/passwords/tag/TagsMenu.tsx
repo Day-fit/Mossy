@@ -40,7 +40,7 @@ export default function TagsMenu() {
                 onClick={() => setIsOpen((v) => !v)}
             >
                 <FaTags />
-                <h3 className="select-none">Tags</h3>
+                <span className="select-none">Tags</span>
                 <motion.div animate={{ rotate: isOpen ? -180 : 0 }}>
                     <IoIosArrowDown className="text-fg-muted" />
                 </motion.div>
@@ -57,9 +57,9 @@ export default function TagsMenu() {
             >
                 <div className="p-4 flex flex-col gap-3 max-h-60 overflow-y-auto">
                     {error ? (
-                        <h3>{error}</h3>
+                        <span>{error}</span>
                     ) : loading ? (
-                        <h3>Loading...</h3>
+                        <span>Loading...</span>
                     ) : (
                         <>
                             {tags.map((tag) => (

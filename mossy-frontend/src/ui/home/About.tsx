@@ -17,7 +17,7 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h2 className="text-5xl md:text-6xl font-bold tracking-tight">
+                    <h2 className="text-5xl md:text-6xl leading-[1.1]">
                         Your passwords live on your server.
                     </h2>
                     <p className="text-xl md:text-2xl leading-[1.5] text-fg-muted">
@@ -35,7 +35,7 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h3 className="text-3xl font-semibold">What this is</h3>
+                    <h3 className="text-3xl">What this is</h3>
 
                     <p className="text-lg text-fg-secondary">
                         This is not a traditional secure password manager. It is
@@ -60,7 +60,7 @@ export default function About() {
                     variants={fadeUp}
                 >
                     <div className="space-y-6">
-                        <h3 className="text-3xl font-semibold">How it works</h3>
+                        <h3 className="text-3xl">How it works</h3>
 
                         <p className="text-lg text-fg-secondary">
                             The backend is intentionally minimal.
@@ -86,9 +86,7 @@ export default function About() {
                     </div>
 
                     <div className="space-y-6">
-                        <h4 className="text-xl font-semibold">
-                            What this guarantees
-                        </h4>
+                        <h4 className="text-xl">What this guarantees</h4>
 
                         <ul className="space-y-4 text-fg-secondary">
                             {[
@@ -124,11 +122,11 @@ export default function About() {
                     transition={{ duration: 0.6 }}
                     variants={fadeUp}
                 >
-                    <h3 className="text-3xl font-semibold">Is this for you?</h3>
+                    <h3 className="text-3xl">Is this for you?</h3>
 
                     <div className="grid md:grid-cols-2 gap-12">
                         <div>
-                            <h4 className="text-xl font-semibold mb-4">
+                            <h4 className="text-xl mb-4">
                                 Probably yes, if you:
                             </h4>
                             <ul className="space-y-3 text-fg-secondary">
@@ -151,7 +149,7 @@ export default function About() {
                         </div>
 
                         <div>
-                            <h4 className="text-xl font-semibold mb-4">
+                            <h4 className="text-xl mb-4">
                                 Probably not, if you:
                             </h4>
                             <ul className="space-y-3 text-fg-secondary">

@@ -164,7 +164,7 @@ export default function VaultHero() {
                 )}
 
                 <motion.div className="rounded-xl bg-surface p-6 shadow-card">
-                    <h2 className="mb-2 text-3xl font-semibold">Vaults</h2>
+                    <h2 className="mb-2 text-3xl">Vaults</h2>
                     <p className="mb-6 text-sm text-fg-muted">
                         Manage your existing vaults and create new vault
                         credentials.
