@@ -24,11 +24,12 @@ data class KeySyncRoom(
     val vaultId: UUID,
     @Indexed
     val userId: UUID,
-    val receiver: KeySyncPeer,
-    var sender: KeySyncPeer? = null
+    val receiver: Peer,
+    var sender: Peer? = null
 ) {
-    data class KeySyncPeer(
+    data class Peer(
         val id: UUID,
+        var location: String, //Replica queue id
         var diffieHellmanPk: String? = null,
         var signature: String? = null,
         var isPresent: Boolean = false,

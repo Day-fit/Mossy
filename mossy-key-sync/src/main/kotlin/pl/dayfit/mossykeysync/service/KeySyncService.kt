@@ -5,7 +5,7 @@ import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
 import pl.dayfit.mossykeysync.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
-import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.KeySyncPeer
+import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.Peer
 import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossykeysync.type.KeySyncRole
 import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
@@ -38,7 +38,7 @@ class KeySyncService(
             KeySyncRole.SENDER -> {
                 if (room.sender?.isPresent == true) throw RoleAlreadyInRoomException("Sender already in room")
 
-                room.sender = KeySyncPeer(
+                room.sender = Peer(
                     id = deviceId,
                     diffieHellmanPk = principal.publicDhKey.x(),
                     signature = signature,
@@ -168,7 +168,7 @@ class KeySyncService(
             code = code,
             vaultId = vaultId,
             userId = userId,
-            receiver = KeySyncPeer(id = deviceId)
+            receiver = Peer(id = deviceId)
         )
 
         keySyncRoomRepository.save(room)

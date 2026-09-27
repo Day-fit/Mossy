@@ -11,7 +11,7 @@ import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
-import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.KeySyncPeer
+import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.Peer
 import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossykeysync.type.KeySyncRole
 import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
@@ -38,7 +38,7 @@ class KeySyncServiceTest {
     @Test
     fun `first peer joins and waits without receiving peer details`() {
         val room = room().copy(
-            receiver = KeySyncPeer(id = RECEIVER_ID)
+            receiver = Peer(id = RECEIVER_ID)
         )
         val receiverSession = session()
         whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
@@ -159,7 +159,7 @@ class KeySyncServiceTest {
 
         val captor = argumentCaptor<KeySyncRoom>()
         verify(roomRepository).save(captor.capture())
-        assertEquals(KeySyncPeer(id = RECEIVER_ID), captor.firstValue.receiver)
+        assertEquals(Peer(id = RECEIVER_ID), captor.firstValue.receiver)
         assertNull(captor.firstValue.sender)
         assertEquals(SYNC_CODE, captor.firstValue.code)
         assertEquals(SYNC_CODE, response.code)
@@ -172,7 +172,7 @@ class KeySyncServiceTest {
 
         service.handlePeerDisconnected(session(KeySyncRole.RECEIVER))
 
-        assertEquals(KeySyncPeer(id = RECEIVER_ID), room.receiver)
+        assertEquals(Peer(id = RECEIVER_ID), room.receiver)
         verify(roomRepository).save(room)
 
         service.handleDeviceJoinedSync(
@@ -182,7 +182,7 @@ class KeySyncServiceTest {
             session(KeySyncRole.RECEIVER)
         )
 
-        assertEquals(KeySyncPeer(RECEIVER_ID, "new-dh", "new-signature", true), room.receiver)
+        assertEquals(Peer(RECEIVER_ID, "new-dh", "new-signature", true), room.receiver)
     }
 
     @Test
@@ -205,7 +205,7 @@ class KeySyncServiceTest {
             session(KeySyncRole.SENDER)
         )
 
-        assertEquals(KeySyncPeer(SENDER_ID, "new-dh", "new-signature", true), room.sender)
+        assertEquals(Peer(SENDER_ID, "new-dh", "new-signature", true), room.sender)
     }
 
     @Test
@@ -228,14 +228,14 @@ class KeySyncServiceTest {
         code = SYNC_CODE,
         vaultId = VAULT_ID,
         userId = USER_ID,
-        receiver = KeySyncPeer(
+        receiver = Peer(
             id = RECEIVER_ID,
             diffieHellmanPk = "receiver-dh",
             signature = "receiver-signature",
             isPresent = true,
             signatureAccepted = receiverAccepted
         ),
-        sender = if (senderPresent) KeySyncPeer(
+        sender = if (senderPresent) Peer(
             id = SENDER_ID,
             diffieHellmanPk = "sender-dh",
             signature = "sender-signature",
