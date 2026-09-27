@@ -1,5 +1,5 @@
 import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
-import { useState, useRef, type MouseEvent, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type MouseEvent, type ReactNode } from 'react';
 
 interface Ripple {
     id: number;
@@ -32,6 +32,16 @@ export default function Button({
 }: RippleButtonProps) {
     const [ripples, setRipples] = useState<Ripple[]>([]);
     const ref = useRef<HTMLButtonElement>(null);
+    const rippleTimers = useRef(new Set<number>());
+
+    useEffect(() => {
+        const timers = rippleTimers.current;
+        return () => {
+            timers.forEach((timer) => window.clearTimeout(timer));
+            timers.clear();
+        };
+    }, []);
+
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
         if (variant !== 'icon') {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -46,9 +56,11 @@ export default function Button({
 
             setRipples((prev) => [...prev, ripple]);
 
-            window.setTimeout(() => {
+            const timer = window.setTimeout(() => {
+                rippleTimers.current.delete(timer);
                 setRipples((prev) => prev.filter((r) => r.id !== ripple.id));
             }, 600);
+            rippleTimers.current.add(timer);
         }
 
         onClick?.(e);
