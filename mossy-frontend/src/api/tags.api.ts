@@ -26,13 +26,9 @@ export type UpdateTagRequestDto = {
 export async function executeGetTagsRequest(
     vaultId: string
 ): Promise<GetTagsResponseDto[]> {
-    try {
-        return await apiFetch(`/api/v1/passwords/vault/${vaultId}/tags`, {
-            method: 'GET',
-        }).then((res) => res.json());
-    } catch (e) {
-        throw e;
-    }
+    return await apiFetch(`/api/v1/passwords/vault/${vaultId}/tags`, {
+        method: 'GET',
+    }).then((res) => res.json());
 }
 
 export async function executeUpdateTagRequest({

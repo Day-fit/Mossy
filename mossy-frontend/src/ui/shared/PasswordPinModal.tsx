@@ -58,20 +58,20 @@ export default function PasswordPinModal({
 
     return (
         <div
-            className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+            className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-overlay p-4"
             onClick={(e) => {
                 if (e.target === e.currentTarget) setIsPinModalActive(false);
             }}
         >
             <form
                 onSubmit={handleSubmit(onSubmit)}
-                className="bg-white shadow-md rounded-xl w-140 flex flex-col p-8 gap-6"
+                className="bg-surface shadow-card rounded-xl w-140 flex flex-col p-8 gap-6"
             >
                 <div>
-                    <h1 className="text-3xl font-semibold text-gray-900">
+                    <h1 className="text-3xl">
                         {header ?? 'Enter your vault PIN'}
                     </h1>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-fg-muted mt-2">
                         This vault is protected by a PIN. Enter it to proceed.
                     </p>
                 </div>
@@ -103,17 +103,17 @@ export default function PasswordPinModal({
                                                 key={i}
                                                 variants={childVariants}
                                                 className={`
-                                                    w-16 h-16 border-2 rounded-lg flex items-center justify-center text-2xl font-semibold
-                                                    transition-colors duration-150
+                                                    w-16 h-16 border-2 rounded-lg flex items-center justify-center text-2xl font-semibold leading-[1.33]
+
                                                     ${
                                                         slot.isActive
-                                                            ? 'border-[#007735] bg-green-50 shadow-sm shadow-green-100'
-                                                            : 'border-gray-200 bg-white text-gray-800'
+                                                            ? 'border-brand bg-brand/5 ring-4 ring-brand/10'
+                                                            : 'border-border bg-surface text-fg-secondary'
                                                     }
                                                 `}
                                             >
                                                 {slot.char ?? (
-                                                    <span className="text-gray-300 text-lg">
+                                                    <span className="text-lg leading-[1.5] text-fg-disabled">
                                                         –
                                                     </span>
                                                 )}
@@ -130,7 +130,7 @@ export default function PasswordPinModal({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-md"
+                            className="text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
                         >
                             {errors.pin.message}
                         </motion.p>
@@ -138,12 +138,9 @@ export default function PasswordPinModal({
                 </div>
 
                 <div className="flex justify-center gap-3">
-                    <Button className="text-white" type="submit">
-                        Continue
-                    </Button>
+                    <Button type="submit">Continue</Button>
                     <Button
                         variant="outline"
-                        className="box-border"
                         type="reset"
                         onClick={() => setIsPinModalActive(false)}
                     >

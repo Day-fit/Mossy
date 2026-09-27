@@ -33,7 +33,7 @@ export default function KeySyncModal({
 
     return (
         <div
-            className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-black/30 p-4 overflow-hidden"
+            className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-overlay p-4 overflow-hidden"
             onClick={(e) => {
                 if (e.target === e.currentTarget)
                     setIsKeySyncModalActive(false);

@@ -163,11 +163,9 @@ export default function VaultHero() {
                     />
                 )}
 
-                <motion.div className="rounded-xl bg-white p-6 shadow-md">
-                    <h2 className="mb-2 text-3xl font-semibold text-gray-900">
-                        Vaults
-                    </h2>
-                    <p className="mb-6 text-sm text-gray-600">
+                <motion.div className="rounded-xl bg-surface p-6 shadow-card">
+                    <h2 className="mb-2 text-3xl">Vaults</h2>
+                    <p className="mb-6 text-sm text-fg-muted">
                         Manage your existing vaults and create new vault
                         credentials.
                     </p>
@@ -183,27 +181,23 @@ export default function VaultHero() {
                                 setVaultName(event.target.value)
                             }
                             placeholder="Vault name"
-                            className="rounded-md border border-gray-200 px-3 py-2"
+                            className="rounded-md border border-border px-3 py-2"
                             minLength={1}
                             maxLength={80}
                             required
                         />
-                        <Button
-                            type="submit"
-                            className="px-5 py-2 text-white"
-                            disabled={isSubmitting}
-                        >
+                        <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? 'Saving...' : 'Add vault'}
                         </Button>
                     </form>
 
                     {successMessage ? (
-                        <p className="mt-3 text-sm text-emerald-700">
+                        <p className="mt-3 text-sm text-success">
                             {successMessage}
                         </p>
                     ) : null}
                     {errorMessage ? (
-                        <p className="mt-3 text-sm text-red-600">
+                        <p className="mt-3 text-sm text-danger">
                             {errorMessage}
                         </p>
                     ) : null}
@@ -211,12 +205,12 @@ export default function VaultHero() {
 
                 <motion.div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {isLoading ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-fg-muted">
                             Loading vaults...
                         </p>
                     ) : null}
                     {!isLoading && vaults.length === 0 ? (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-fg-muted">
                             No vaults available.
                         </p>
                     ) : null}
@@ -259,7 +253,7 @@ export default function VaultHero() {
                     confirmDisabled={isSubmitting}
                 >
                     <label
-                        className="mb-2 block text-xs font-medium text-gray-600"
+                        className="mb-2 block text-xs font-semibold text-fg-muted"
                         htmlFor="vault-rename-input"
                     >
                         New name
@@ -269,7 +263,7 @@ export default function VaultHero() {
                         type="text"
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
-                        className="w-full rounded-md border border-gray-200 px-3 py-2"
+                        className="w-full rounded-md border border-border px-3 py-2"
                         minLength={1}
                         maxLength={80}
                         required

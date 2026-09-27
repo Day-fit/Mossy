@@ -1,7 +1,0 @@
-@import 'tailwindcss';
-@import '@fontsource/syne';
-
-body {
-    font-family: 'Syne', sans-serif;
-    background-color: #f6f6f6;
-}
