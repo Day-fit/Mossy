@@ -59,6 +59,22 @@
   ],
   "exchanges": [
     {
+      "name": "password.replica.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
+      "name": "key-sync.replica.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
       "name": "mossy.email.exchange",
       "vhost": "/",
       "type": "direct",

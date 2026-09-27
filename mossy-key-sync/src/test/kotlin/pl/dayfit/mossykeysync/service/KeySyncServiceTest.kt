@@ -3,6 +3,7 @@ package pl.dayfit.mossykeysync.service
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -10,6 +11,7 @@ import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
+import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.KeySyncPeer
 import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossykeysync.type.KeySyncRole
 import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
@@ -18,6 +20,7 @@ import pl.dayfit.mossykeysync.ws.principal.DevicePrincipal
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class KeySyncServiceTest {
@@ -35,9 +38,7 @@ class KeySyncServiceTest {
     @Test
     fun `first peer joins and waits without receiving peer details`() {
         val room = room().copy(
-            receiverDh = null,
-            receiverSignature = null,
-            receiverPresent = false
+            receiver = KeySyncPeer(id = RECEIVER_ID)
         )
         val receiverSession = session()
         whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
@@ -49,8 +50,8 @@ class KeySyncServiceTest {
             receiverSession
         )
 
-        assertTrue(room.receiverPresent)
-        assertEquals("receiver-signature", room.receiverSignature)
+        assertTrue(room.receiver.isPresent)
+        assertEquals("receiver-signature", room.receiver.signature)
         verify(roomRepository).save(room)
         verifyNoInteractions(notifier)
     }
@@ -71,8 +72,8 @@ class KeySyncServiceTest {
             senderSession
         )
 
-        assertTrue(room.senderPresent)
-        assertEquals("sender-signature", room.senderSignature)
+        assertEquals(true, room.sender?.isPresent)
+        assertEquals("sender-signature", room.sender?.signature)
         verify(notifier).send(
             receiverSession,
             WebSocketServerMessageDto.PeerDetails(
@@ -140,7 +141,7 @@ class KeySyncServiceTest {
             senderSession
         )
 
-        assertEquals(true, room.senderSignatureAccepted)
+        assertEquals(true, room.sender?.signatureAccepted)
         verify(roomRepository).save(room)
         verify(notifier).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(true))
         verify(notifier).send(senderSession, WebSocketServerMessageDto.SignatureStatus(true))
@@ -148,6 +149,75 @@ class KeySyncServiceTest {
         val message = WebSocketMessageDto.KeySync("ciphertext", "nonce", "signature", VAULT_ID)
         service.handleSync(message, senderSession)
         verify(notifier).send(receiverSession, message)
+    }
+
+    @Test
+    fun `initial room contains an absent receiver and no sender`() {
+        whenever(secureRandom.nextInt(1, 1_000_000)).thenReturn(123456)
+
+        val response = service.initKeySync(USER_ID, RECEIVER_ID, VAULT_ID)
+
+        val captor = argumentCaptor<KeySyncRoom>()
+        verify(roomRepository).save(captor.capture())
+        assertEquals(KeySyncPeer(id = RECEIVER_ID), captor.firstValue.receiver)
+        assertNull(captor.firstValue.sender)
+        assertEquals(SYNC_CODE, captor.firstValue.code)
+        assertEquals(SYNC_CODE, response.code)
+    }
+
+    @Test
+    fun `receiver disconnect clears handshake data and allows rejoin`() {
+        val room = room(receiverAccepted = true)
+        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
+
+        service.handlePeerDisconnected(session(KeySyncRole.RECEIVER))
+
+        assertEquals(KeySyncPeer(id = RECEIVER_ID), room.receiver)
+        verify(roomRepository).save(room)
+
+        service.handleDeviceJoinedSync(
+            SYNC_CODE,
+            DevicePrincipal(RECEIVER_ID, USER_ID, dhKey("new-dh")),
+            "new-signature",
+            session(KeySyncRole.RECEIVER)
+        )
+
+        assertEquals(KeySyncPeer(RECEIVER_ID, "new-dh", "new-signature", true), room.receiver)
+    }
+
+    @Test
+    fun `sender disconnect removes peer and rejoin starts with unaccepted signature`() {
+        val room = room(senderPresent = true)
+        room.sender!!.signatureAccepted = true
+        val receiverBefore = room.receiver.copy()
+        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
+
+        service.handlePeerDisconnected(session(KeySyncRole.SENDER))
+
+        assertNull(room.sender)
+        assertEquals(receiverBefore, room.receiver)
+        verify(roomRepository).save(room)
+
+        service.handleDeviceJoinedSync(
+            SYNC_CODE,
+            DevicePrincipal(SENDER_ID, USER_ID, dhKey("new-dh")),
+            "new-signature",
+            session(KeySyncRole.SENDER)
+        )
+
+        assertEquals(KeySyncPeer(SENDER_ID, "new-dh", "new-signature", true), room.sender)
+    }
+
+    @Test
+    fun `absent sender cannot accept signature`() {
+        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room()))
+
+        assertThrows<IllegalStateException> {
+            service.handleSignatureStatus(WebSocketMessageDto.SignatureStatus(true), session(KeySyncRole.SENDER))
+        }
+
+        verify(roomRepository, never()).save(any())
+        verifyNoInteractions(notifier)
     }
 
     private fun room(
@@ -158,15 +228,19 @@ class KeySyncServiceTest {
         code = SYNC_CODE,
         vaultId = VAULT_ID,
         userId = USER_ID,
-        receiverId = RECEIVER_ID,
-        receiverDh = "receiver-dh",
-        receiverSignature = "receiver-signature",
-        receiverPresent = true,
-        receiverSignatureAccepted = receiverAccepted,
-        senderId = if (senderPresent) SENDER_ID else null,
-        senderDh = if (senderPresent) "sender-dh" else null,
-        senderSignature = if (senderPresent) "sender-signature" else null,
-        senderPresent = senderPresent
+        receiver = KeySyncPeer(
+            id = RECEIVER_ID,
+            diffieHellmanPk = "receiver-dh",
+            signature = "receiver-signature",
+            isPresent = true,
+            signatureAccepted = receiverAccepted
+        ),
+        sender = if (senderPresent) KeySyncPeer(
+            id = SENDER_ID,
+            diffieHellmanPk = "sender-dh",
+            signature = "sender-signature",
+            isPresent = true
+        ) else null
     )
 
     private fun session(role: KeySyncRole? = null): WebSocketSession = mock<WebSocketSession>().also {

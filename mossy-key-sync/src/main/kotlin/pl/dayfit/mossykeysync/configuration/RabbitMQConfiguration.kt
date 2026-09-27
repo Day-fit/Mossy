@@ -1,14 +1,11 @@
-package pl.dayfit.mossypassword.configuration
+package pl.dayfit.mossykeysync.configuration
 
 import org.springframework.amqp.core.AnonymousQueue
 import org.springframework.amqp.core.Binding
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate
 import org.springframework.amqp.rabbit.core.RabbitTemplate
-import org.springframework.amqp.support.converter.JacksonJsonMessageConverter
-import org.springframework.amqp.support.converter.MessageConverter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-
 
 @Configuration
 class RabbitMQConfiguration {
@@ -20,19 +17,12 @@ class RabbitMQConfiguration {
         return Binding(
             replicaQueue.name,
             Binding.DestinationType.QUEUE,
-            "password.replica.exchange",
+            "key-sync.replica.exchange",
             replicaQueue.name,
             null
         )
     }
 
     @Bean
-    fun messageConverter(): MessageConverter {
-        return JacksonJsonMessageConverter()
-    }
-
-    @Bean
-    fun asyncRabbitTemplate(rabbitTemplate: RabbitTemplate): AsyncRabbitTemplate {
-        return AsyncRabbitTemplate(rabbitTemplate)
-    }
+    fun asyncRabbitTemplate(rabbitTemplate: RabbitTemplate) = AsyncRabbitTemplate(rabbitTemplate)
 }

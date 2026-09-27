@@ -65,6 +65,14 @@
       "internal": false
     },
     {
+      "name": "key-sync.replica.exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
       "name": "password.replica.exchange",
       "vhost": "/",
       "type": "direct",

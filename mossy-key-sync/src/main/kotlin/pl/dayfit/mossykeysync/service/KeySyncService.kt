@@ -5,6 +5,7 @@ import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
 import pl.dayfit.mossykeysync.exception.RoleAlreadyInRoomException
 import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
+import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.KeySyncPeer
 import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
 import pl.dayfit.mossykeysync.type.KeySyncRole
 import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
@@ -31,49 +32,55 @@ class KeySyncService(
         val deviceId = principal.deviceId
         val room = findRoom(principal.userId, syncCode)
 
-        val role = if (room.receiverId == deviceId) KeySyncRole.RECEIVER else KeySyncRole.SENDER
+        val role = if (room.receiver.id == deviceId) KeySyncRole.RECEIVER else KeySyncRole.SENDER
 
         when (role) {
             KeySyncRole.SENDER -> {
-                if (room.senderPresent) throw RoleAlreadyInRoomException("Sender already in room")
-                room.senderId = deviceId
-                room.senderPresent = true
-                room.senderDh = principal.publicDhKey.x()
-                room.senderSignature = signature
-                room.senderSignatureAccepted = null
+                if (room.sender?.isPresent == true) throw RoleAlreadyInRoomException("Sender already in room")
+
+                room.sender = KeySyncPeer(
+                    id = deviceId,
+                    diffieHellmanPk = principal.publicDhKey.x(),
+                    signature = signature,
+                    isPresent = true
+                )
             }
             KeySyncRole.RECEIVER -> {
-                if (room.receiverPresent) throw RoleAlreadyInRoomException("Receiver already in room")
-                room.receiverPresent = true
-                room.receiverDh = principal.publicDhKey.x()
-                room.receiverSignature = signature
-                room.receiverSignatureAccepted = null
+                val receiver = room.receiver
+                if (receiver.isPresent) throw RoleAlreadyInRoomException("Receiver already in room")
+
+                receiver.isPresent = true
+                receiver.diffieHellmanPk = principal.publicDhKey.x()
+                receiver.signature = signature
+                receiver.signatureAccepted = null
             }
         }
 
         webSocketSession.attributes["role"] = role
         keySyncRoomRepository.save(room)
 
-        if (room.senderPresent && room.receiverPresent) notifyPeerDetails(room)
+        if (room.receiver.isPresent && room.sender?.isPresent == true) notifyPeerDetails(room)
     }
 
     private fun notifyPeerDetails(room: KeySyncRoom) {
-        val senderId = requireNotNull(room.senderId)
-        val receiverSession = sessionService.getSession(room.receiverId)
-        val senderSession = sessionService.getSession(senderId)
+        val receiver = room.receiver
+        val sender = requireNotNull(room.sender)
+
+        val receiverSession = sessionService.getSession(receiver.id)
+        val senderSession = sessionService.getSession(sender.id)
         if (receiverSession == null || senderSession == null) return
 
         val receiverMessage = WebSocketServerMessageDto.PeerDetails(
-            peerDeviceId = senderId,
-            peerDhKey = requireNotNull(room.senderDh),
-            signature = requireNotNull(room.senderSignature),
+            peerDeviceId = sender.id,
+            peerDhKey = requireNotNull(sender.diffieHellmanPk),
+            signature = requireNotNull(sender.signature),
             vaultId = room.vaultId
         )
 
         val senderMessage = WebSocketServerMessageDto.PeerDetails(
-            peerDeviceId = room.receiverId,
-            peerDhKey = requireNotNull(room.receiverDh),
-            signature = requireNotNull(room.receiverSignature),
+            peerDeviceId = receiver.id,
+            peerDhKey = requireNotNull(receiver.diffieHellmanPk),
+            signature = requireNotNull(receiver.signature),
             vaultId = room.vaultId
         )
 
@@ -95,20 +102,21 @@ class KeySyncService(
         }
 
         when (session.attributes["role"] as KeySyncRole) {
-            KeySyncRole.RECEIVER -> room.receiverSignatureAccepted = true
-            KeySyncRole.SENDER -> room.senderSignatureAccepted = true
+            KeySyncRole.RECEIVER -> room.receiver.signatureAccepted = true
+            KeySyncRole.SENDER -> checkNotNull(room.sender) { "No sender in room" }.signatureAccepted = true
         }
+
         keySyncRoomRepository.save(room)
 
-        if (room.receiverSignatureAccepted == true && room.senderSignatureAccepted == true) {
+        if (room.receiver.signatureAccepted == true && room.sender?.signatureAccepted == true) {
             notifySignatureStatus(room, true)
         }
     }
 
     private fun notifySignatureStatus(room: KeySyncRoom, accepted: Boolean) {
         val message = WebSocketServerMessageDto.SignatureStatus(accepted)
-        sessionService.getSession(room.receiverId)?.let { notifier.send(it, message) }
-        room.senderId?.let(sessionService::getSession)?.let { notifier.send(it, message) }
+        sessionService.getSession(room.receiver.id)?.let { notifier.send(it, message) }
+        room.sender?.id?.let(sessionService::getSession)?.let { notifier.send(it, message) }
     }
 
     @Throws(IllegalStateException::class, NoSuchElementException::class)
@@ -118,14 +126,14 @@ class KeySyncService(
         check(session.attributes["role"] == KeySyncRole.SENDER) {
             "Only the sender can send key sync data"
         }
-        check(room.receiverSignatureAccepted == true && room.senderSignatureAccepted == true) {
+        check(room.receiver.signatureAccepted == true && room.sender?.signatureAccepted == true) {
             "Both peer signatures must be accepted before key sync"
         }
         check(message.vaultId == room.vaultId) {
             "Key sync message does not belong to this room's vault"
         }
 
-        val receiverSession = sessionService.getSession(room.receiverId)
+        val receiverSession = sessionService.getSession(room.receiver.id)
             ?: throw IllegalStateException("No session for receiver, but room says that receiver is present")
 
         notifier.send(receiverSession, message)
@@ -137,16 +145,13 @@ class KeySyncService(
         val room = runCatching { roomFor(webSocketSession) }.getOrNull() ?: return
 
         if (role == KeySyncRole.SENDER) {
-            room.senderPresent = false
-            room.senderId = null
-            room.senderDh = null
-            room.senderSignature = null
-            room.senderSignatureAccepted = null
+            room.sender = null
         } else {
-            room.receiverPresent = false
-            room.receiverDh = null
-            room.receiverSignature = null
-            room.receiverSignatureAccepted = null
+            val receiver = room.receiver
+            receiver.isPresent = false
+            receiver.diffieHellmanPk = null
+            receiver.signature = null
+            receiver.signatureAccepted = null
         }
 
         keySyncRoomRepository.save(room)
@@ -163,7 +168,7 @@ class KeySyncService(
             code = code,
             vaultId = vaultId,
             userId = userId,
-            receiverId = deviceId
+            receiver = KeySyncPeer(id = deviceId)
         )
 
         keySyncRoomRepository.save(room)
