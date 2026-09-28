@@ -1,5 +1,6 @@
 package pl.dayfit.mossykeysync.service
 
+import org.springframework.amqp.core.AnonymousQueue
 import org.springframework.stereotype.Service
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
@@ -18,8 +19,8 @@ import java.util.UUID
 class KeySyncService(
     private val keySyncRoomRepository: KeySyncRoomRepository,
     private val sessionService: WebSocketSessionService,
-    private val notifier: WebSocketPeerNotifier,
-    private val secureRandom: SecureRandom
+    private val secureRandom: SecureRandom,
+    private val replicaQueue: AnonymousQueue
 ) {
     @Throws(RoleAlreadyInRoomException::class)
     @Synchronized
@@ -42,7 +43,8 @@ class KeySyncService(
                     id = deviceId,
                     diffieHellmanPk = principal.publicDhKey.x(),
                     signature = signature,
-                    isPresent = true
+                    isPresent = true,
+                    location = replicaQueue.name
                 )
             }
             KeySyncRole.RECEIVER -> {
@@ -84,8 +86,8 @@ class KeySyncService(
             vaultId = room.vaultId
         )
 
-        notifier.send(receiverSession, receiverMessage)
-        notifier.send(senderSession, senderMessage)
+        sessionService.send(receiverSession, receiverMessage)
+        sessionService.send(senderSession, senderMessage)
     }
 
     @Synchronized
@@ -115,8 +117,8 @@ class KeySyncService(
 
     private fun notifySignatureStatus(room: KeySyncRoom, accepted: Boolean) {
         val message = WebSocketServerMessageDto.SignatureStatus(accepted)
-        sessionService.getSession(room.receiver.id)?.let { notifier.send(it, message) }
-        room.sender?.id?.let(sessionService::getSession)?.let { notifier.send(it, message) }
+        sessionService.getSession(room.receiver.id)?.let { sessionService.send(it, message) }
+        room.sender?.id?.let(sessionService::getSession)?.let { sessionService.send(it, message) }
     }
 
     @Throws(IllegalStateException::class, NoSuchElementException::class)
@@ -136,7 +138,7 @@ class KeySyncService(
         val receiverSession = sessionService.getSession(room.receiver.id)
             ?: throw IllegalStateException("No session for receiver, but room says that receiver is present")
 
-        notifier.send(receiverSession, message)
+        sessionService.send(receiverSession, message)
     }
 
     @Synchronized
@@ -168,7 +170,10 @@ class KeySyncService(
             code = code,
             vaultId = vaultId,
             userId = userId,
-            receiver = Peer(id = deviceId)
+            receiver = Peer(
+                id = deviceId,
+                location = replicaQueue.name
+            )
         )
 
         keySyncRoomRepository.save(room)

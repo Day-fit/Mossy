@@ -1,13 +1,13 @@
 package pl.dayfit.mossykeysync.service
 
 import org.junit.jupiter.api.Test
+import org.springframework.amqp.core.AnonymousQueue
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 import org.springframework.web.socket.WebSocketSession
 import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
@@ -26,19 +26,23 @@ import kotlin.test.assertTrue
 class KeySyncServiceTest {
     private val roomRepository: KeySyncRoomRepository = mock()
     private val sessionService: WebSocketSessionService = mock()
-    private val notifier: WebSocketPeerNotifier = mock()
+    private val replicaQueue: AnonymousQueue = mock()
     private val secureRandom: SecureRandom = mock()
     private val service = KeySyncService(
         roomRepository,
         sessionService,
-        notifier,
-        secureRandom
+        secureRandom,
+        replicaQueue
     )
+
+    init {
+        whenever(replicaQueue.name).thenReturn(REPLICA_QUEUE)
+    }
 
     @Test
     fun `first peer joins and waits without receiving peer details`() {
         val room = room().copy(
-            receiver = Peer(id = RECEIVER_ID)
+            receiver = Peer(id = RECEIVER_ID, location = REPLICA_QUEUE)
         )
         val receiverSession = session()
         whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
@@ -53,7 +57,7 @@ class KeySyncServiceTest {
         assertTrue(room.receiver.isPresent)
         assertEquals("receiver-signature", room.receiver.signature)
         verify(roomRepository).save(room)
-        verifyNoInteractions(notifier)
+        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
     }
 
     @Test
@@ -74,7 +78,7 @@ class KeySyncServiceTest {
 
         assertEquals(true, room.sender?.isPresent)
         assertEquals("sender-signature", room.sender?.signature)
-        verify(notifier).send(
+        verify(sessionService).send(
             receiverSession,
             WebSocketServerMessageDto.PeerDetails(
                 SENDER_ID,
@@ -83,7 +87,7 @@ class KeySyncServiceTest {
                 VAULT_ID
             )
         )
-        verify(notifier).send(
+        verify(sessionService).send(
             senderSession,
             WebSocketServerMessageDto.PeerDetails(
                 RECEIVER_ID,
@@ -109,8 +113,8 @@ class KeySyncServiceTest {
         )
 
         verify(roomRepository).delete(room)
-        verify(notifier).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(false))
-        verify(notifier).send(senderSession, WebSocketServerMessageDto.SignatureStatus(false))
+        verify(sessionService).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(false))
+        verify(sessionService).send(senderSession, WebSocketServerMessageDto.SignatureStatus(false))
     }
 
     @Test
@@ -124,7 +128,7 @@ class KeySyncServiceTest {
             service.handleSync(message, senderSession)
         }
 
-        verify(notifier, never()).send(any(), any())
+        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
     }
 
     @Test
@@ -143,12 +147,12 @@ class KeySyncServiceTest {
 
         assertEquals(true, room.sender?.signatureAccepted)
         verify(roomRepository).save(room)
-        verify(notifier).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(true))
-        verify(notifier).send(senderSession, WebSocketServerMessageDto.SignatureStatus(true))
+        verify(sessionService).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(true))
+        verify(sessionService).send(senderSession, WebSocketServerMessageDto.SignatureStatus(true))
 
         val message = WebSocketMessageDto.KeySync("ciphertext", "nonce", "signature", VAULT_ID)
         service.handleSync(message, senderSession)
-        verify(notifier).send(receiverSession, message)
+        verify(sessionService).send(receiverSession, message)
     }
 
     @Test
@@ -159,7 +163,7 @@ class KeySyncServiceTest {
 
         val captor = argumentCaptor<KeySyncRoom>()
         verify(roomRepository).save(captor.capture())
-        assertEquals(Peer(id = RECEIVER_ID), captor.firstValue.receiver)
+        assertEquals(Peer(id = RECEIVER_ID, location = REPLICA_QUEUE), captor.firstValue.receiver)
         assertNull(captor.firstValue.sender)
         assertEquals(SYNC_CODE, captor.firstValue.code)
         assertEquals(SYNC_CODE, response.code)
@@ -172,7 +176,7 @@ class KeySyncServiceTest {
 
         service.handlePeerDisconnected(session(KeySyncRole.RECEIVER))
 
-        assertEquals(Peer(id = RECEIVER_ID), room.receiver)
+        assertEquals(Peer(id = RECEIVER_ID, location = REPLICA_QUEUE), room.receiver)
         verify(roomRepository).save(room)
 
         service.handleDeviceJoinedSync(
@@ -182,7 +186,7 @@ class KeySyncServiceTest {
             session(KeySyncRole.RECEIVER)
         )
 
-        assertEquals(Peer(RECEIVER_ID, "new-dh", "new-signature", true), room.receiver)
+        assertEquals(Peer(RECEIVER_ID, REPLICA_QUEUE, "new-dh", "new-signature", true), room.receiver)
     }
 
     @Test
@@ -205,7 +209,7 @@ class KeySyncServiceTest {
             session(KeySyncRole.SENDER)
         )
 
-        assertEquals(Peer(SENDER_ID, "new-dh", "new-signature", true), room.sender)
+        assertEquals(Peer(SENDER_ID, REPLICA_QUEUE, "new-dh", "new-signature", true), room.sender)
     }
 
     @Test
@@ -217,7 +221,7 @@ class KeySyncServiceTest {
         }
 
         verify(roomRepository, never()).save(any())
-        verifyNoInteractions(notifier)
+        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
     }
 
     private fun room(
@@ -230,6 +234,7 @@ class KeySyncServiceTest {
         userId = USER_ID,
         receiver = Peer(
             id = RECEIVER_ID,
+            location = REPLICA_QUEUE,
             diffieHellmanPk = "receiver-dh",
             signature = "receiver-signature",
             isPresent = true,
@@ -237,6 +242,7 @@ class KeySyncServiceTest {
         ),
         sender = if (senderPresent) Peer(
             id = SENDER_ID,
+            location = REPLICA_QUEUE,
             diffieHellmanPk = "sender-dh",
             signature = "sender-signature",
             isPresent = true
@@ -261,6 +267,7 @@ class KeySyncServiceTest {
 
     private companion object {
         const val SYNC_CODE = "123456"
+        const val REPLICA_QUEUE = "replica.queue"
         val USER_ID: UUID = UUID.fromString("20000000-0000-0000-0000-000000000001")
         val RECEIVER_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000001")
         val SENDER_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000002")
