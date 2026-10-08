@@ -91,14 +91,14 @@ export default function DashboardHero() {
                     </div>
                 </motion.div>
 
-                <motion.div className="flex-1 min-h-0" variants={childVariants}>
-                    <div className="h-full rounded-md shadow-card bg-surface p-10 flex overflow-x-auto gap-5">
+                <motion.div className="shrink-0" variants={childVariants}>
+                    <div className="@container rounded-md shadow-card bg-surface p-4">
                         {areVaultsLoading ? (
-                            <div className="w-full h-full flex items-center justify-center text-sm text-fg-muted">
+                            <div className="min-h-28 w-full flex items-center justify-center text-sm text-fg-muted">
                                 Loading vaults...
                             </div>
                         ) : vaultsErrorOccurred && vaults.length === 0 ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-center text-sm text-fg-muted gap-3">
+                            <div className="min-h-28 w-full flex flex-col items-center justify-center text-center text-sm text-fg-muted gap-3">
                                 <p>Vaults could not be loaded.</p>
                                 <Button
                                     type="button"
@@ -109,7 +109,7 @@ export default function DashboardHero() {
                                 </Button>
                             </div>
                         ) : vaults.length === 0 ? (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-fg-muted text-sm gap-3">
+                            <div className="min-h-28 w-full flex flex-col items-center justify-center text-fg-muted text-sm gap-3">
                                 <p>No vaults yet.</p>
                                 <Button
                                     type="button"
@@ -120,25 +120,30 @@ export default function DashboardHero() {
                                 </Button>
                             </div>
                         ) : (
-                            vaults.map((vault) => {
-                                const vaultName =
-                                    vault.vaultName ?? vault.vaultId;
-                                return (
-                                    <VaultDashboardView
-                                        key={vault.vaultId}
-                                        passwordsCount={vault.passwordCount}
-                                        name={vaultName}
-                                        isOnline={vault.isOnline}
-                                        lastSeenAt={vault.lastSeenAt}
-                                        isSelected={
-                                            selectedVaultId === vault.vaultId
-                                        }
-                                        onSelect={() =>
-                                            setSelectedVaultId(vault.vaultId)
-                                        }
-                                    />
-                                );
-                            })
+                            <div className="grid gap-3 overflow-y-auto p-1 lg:max-h-80 @min-[32rem]:grid-cols-2 scrollbar">
+                                {vaults.map((vault) => {
+                                    const vaultName =
+                                        vault.vaultName ?? vault.vaultId;
+                                    return (
+                                        <VaultDashboardView
+                                            key={vault.vaultId}
+                                            passwordsCount={vault.passwordCount}
+                                            name={vaultName}
+                                            isOnline={vault.isOnline}
+                                            lastSeenAt={vault.lastSeenAt}
+                                            isSelected={
+                                                selectedVaultId ===
+                                                vault.vaultId
+                                            }
+                                            onSelect={() =>
+                                                setSelectedVaultId(
+                                                    vault.vaultId
+                                                )
+                                            }
+                                        />
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
                 </motion.div>

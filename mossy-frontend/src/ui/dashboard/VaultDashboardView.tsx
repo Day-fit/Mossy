@@ -1,6 +1,11 @@
 import { GoDotFill } from 'react-icons/go';
+import { MdOpenInNew } from 'react-icons/md';
 import Button from '../shared/Button.tsx';
 import VaultStatus from '../shared/VaultStatus.tsx';
+import {
+    formatDateTime,
+    formatRelativeTime,
+} from '../../helpers/DateFormatHelper.ts';
 
 type VaultDashboardViewProps = {
     passwordsCount: number;
@@ -19,47 +24,79 @@ export default function VaultDashboardView({
     isSelected,
     onSelect,
 }: VaultDashboardViewProps) {
-    const formattedLastSeenAt = lastSeenAt
-        ? new Date(lastSeenAt).toLocaleString()
-        : 'Never';
-
     return (
-        <Button
-            type="button"
-            variant="ghost"
-            onClick={onSelect}
-            aria-pressed={isSelected}
-            className={`border-2 h-full aspect-square flex flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
+        <article
+            className={`min-w-0 rounded-md border-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${
                 isSelected
                     ? 'border-brand bg-brand/5 ring-2 ring-brand/20'
                     : 'border-border bg-surface hover:border-brand/20 hover:bg-brand/5'
             }`}
         >
-            <div className="flex justify-around items-center">
-                <h3 className="text-3xl">{name}</h3>
-
-                <VaultStatus isOnline={isOnline} lastSeenAt={lastSeenAt} />
-            </div>
-
-            <p className="mt-3 text-xs font-normal text-fg-muted">
-                Last seen: {formattedLastSeenAt}
-            </p>
-
-            <div className="mt-auto flex items-end justify-between gap-3">
-                {isSelected && (
-                    <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-xs text-fg-inverse shadow-control">
-                        <GoDotFill
-                            className="text-fg-inverse/80"
-                            aria-hidden="true"
+            <Button
+                type="button"
+                variant="ghost"
+                padding="none"
+                onClick={onSelect}
+                aria-label={`Select ${name}`}
+                aria-pressed={isSelected}
+                className="flex w-full flex-col gap-1 px-4 pt-3 pb-1 text-left focus-visible:outline-none"
+            >
+                <div className="flex w-full min-w-0 items-center justify-between gap-3">
+                    <h3 className="truncate text-lg" title={name}>
+                        {name}
+                    </h3>
+                    <span className="shrink-0">
+                        <VaultStatus
+                            isOnline={isOnline}
+                            lastSeenAt={lastSeenAt}
                         />
-                        Selected
                     </span>
-                )}
+                </div>
 
-                <p className="text-8xl font-normal ml-auto text-right">
-                    {passwordsCount}
+                <div className="flex min-h-5 w-full items-center justify-between gap-3">
+                    <p className="text-sm font-normal text-fg-secondary">
+                        {passwordsCount}{' '}
+                        {passwordsCount === 1 ? 'password' : 'passwords'}
+                    </p>
+                    {isSelected && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-xs leading-4 text-fg-inverse">
+                            <GoDotFill
+                                className="text-fg-inverse/80"
+                                aria-hidden="true"
+                            />
+                            Selected
+                        </span>
+                    )}
+                </div>
+            </Button>
+
+            <div className="flex min-h-9 items-center justify-between gap-3 px-4 pb-3">
+                <p className="min-w-0 text-xs text-fg-muted">
+                    Last connected:{' '}
+                    {lastSeenAt ? (
+                        <time
+                            dateTime={lastSeenAt}
+                            title={formatDateTime(lastSeenAt)}
+                        >
+                            {formatRelativeTime(lastSeenAt)}
+                        </time>
+                    ) : (
+                        'Never'
+                    )}
                 </p>
+                {!isOnline && (
+                    <a
+                        href="https://github.com/Day-fit/Mossy#run-only-the-vault-probably-what-you-are-looking-for"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Go online: startup instructions for ${name}`}
+                        className="inline-flex min-h-6 shrink-0 items-center gap-1 rounded-sm text-xs font-semibold text-brand underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                    >
+                        Go online
+                        <MdOpenInNew size={14} aria-hidden="true" />
+                    </a>
+                )}
             </div>
-        </Button>
+        </article>
     );
 }
