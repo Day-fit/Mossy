@@ -23,7 +23,6 @@ class KeySyncService(
     private val replicaQueue: AnonymousQueue
 ) {
     @Throws(RoleAlreadyInRoomException::class)
-    @Synchronized
     fun handleDeviceJoinedSync(
         syncCode: String,
         principal: DevicePrincipal,
@@ -90,7 +89,6 @@ class KeySyncService(
         sessionService.send(senderSession, senderMessage)
     }
 
-    @Synchronized
     fun handleSignatureStatus(
         message: WebSocketMessageDto.SignatureStatus,
         session: WebSocketSession
