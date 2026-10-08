@@ -8,6 +8,7 @@ import { useDeviceStore } from '../../store/deviceStore.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { PinNotFoundException } from '../../exception/PinNotFoundException.ts';
 import Button from '../shared/Button.tsx';
+import KeySyncCodeGuide from './KeySyncCodeGuide.tsx';
 import {
     globalStyleVar,
     resolveGlobalStyleToken,
@@ -282,7 +283,7 @@ export default function KeySyncHero() {
                                           ? 'Could not reach the source device. Check the code and try again.'
                                           : fromUrl
                                             ? 'Code loaded from link — syncing automatically.'
-                                            : 'Enter the 6-digit code shown on the receiving device to transfer the encryption key.'}
+                                            : 'Enter the 6-digit code from the receiving device here, on the device that already has the key.'}
                                 </p>
                             </motion.div>
                         </AnimatePresence>
@@ -295,7 +296,7 @@ export default function KeySyncHero() {
 
                     <motion.div
                         variants={itemVariants}
-                        className="flex flex-col items-center gap-3"
+                        className="w-full flex flex-col items-center gap-3"
                     >
                         {!isSuccess && (
                             <p className="text-xs font-semibold tracking-[0.1em] uppercase text-fg-subtle">
@@ -363,6 +364,10 @@ export default function KeySyncHero() {
                                 />
                             )}
                         />
+
+                        {!fromUrl && !isSuccess && !isBusy && (
+                            <KeySyncCodeGuide />
+                        )}
                     </motion.div>
 
                     <motion.div
