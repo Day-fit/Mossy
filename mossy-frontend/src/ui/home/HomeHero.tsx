@@ -7,7 +7,7 @@ function HomeHero() {
     const { isAuthenticated } = useAuth();
 
     return (
-        <section className="mt-6 grid w-full items-center gap-8 bg-surface px-6 py-10 shadow-card sm:mt-10 sm:px-10 md:grid-cols-2 md:px-12 md:py-16 lg:px-20">
+        <section className="mt-5 grid w-full items-center gap-8 bg-surface px-6 py-10 shadow-card sm:px-10 md:grid-cols-2 md:px-12 md:py-16 lg:px-20">
             <div className="min-w-0">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl leading-tight mb-6">
                     An open-source password manager that never wants your
