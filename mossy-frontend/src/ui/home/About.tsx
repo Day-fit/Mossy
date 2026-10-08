@@ -1,71 +1,48 @@
-import { motion } from 'framer-motion';
-
-const fadeUp = {
-    hidden: { opacity: 0, y: 24 },
-    visible: { opacity: 1, y: 0 },
-};
+import { motion, useReducedMotion } from 'framer-motion';
+import Section from '../shared/Section.tsx';
 
 export default function About() {
+    const reducedMotion = useReducedMotion();
+
     return (
         <>
-            <section className="border-t border-border py-28 px-6">
-                <motion.div
-                    className="max-w-5xl mx-auto text-center space-y-6"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6 }}
-                    variants={fadeUp}
-                >
-                    <h2 className="text-5xl md:text-6xl leading-[1.1]">
-                        Your passwords live on your server.
-                    </h2>
-                    <p className="text-xl md:text-2xl leading-[1.5] text-fg-muted">
-                        Not ours. Not “encrypted with us”. Yours.
-                    </p>
-                </motion.div>
-            </section>
+            <Section
+                title="Your passwords live on your server."
+                variant="sprigs"
+                className="border-t border-border bg-surface"
+                contentClassName="max-w-5xl text-center"
+                titleClassName="text-5xl md:text-6xl leading-[1.1]"
+            >
+                <p className="text-xl md:text-2xl leading-[1.5] text-fg-muted">
+                    Not ours. Not “encrypted with us”. Yours.
+                </p>
+            </Section>
 
-            <section className="py-28 px-6">
-                <motion.div
-                    className="max-w-4xl mx-auto space-y-10"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    transition={{ duration: 0.6 }}
-                    variants={fadeUp}
-                >
-                    <h3 className="text-3xl">What this is</h3>
-
-                    <p className="text-lg text-fg-secondary">
+            <Section title="What this is" variant="canopy">
+                <div className="space-y-10 text-lg text-fg-secondary">
+                    <p>
                         This is not a traditional secure password manager. It is
                         a deliberate reduction of trust.
                     </p>
-
-                    <p className="text-lg text-fg-secondary">
+                    <p>
                         Mossy exists for one simple reason: passwords should be
                         stored only on infrastructure you control. No cloud
                         custody. No trust promises.
                     </p>
-                </motion.div>
-            </section>
+                </div>
+            </Section>
 
-            <section className="py-28 px-6 bg-surface-subtle">
-                <motion.div
-                    className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    transition={{ duration: 0.6 }}
-                    variants={fadeUp}
-                >
+            <Section
+                title="How it works"
+                variant="ferns"
+                className="bg-surface-subtle"
+                contentClassName="max-w-6xl"
+            >
+                <div className="grid gap-16 md:grid-cols-2">
                     <div className="space-y-6">
-                        <h3 className="text-3xl">How it works</h3>
-
                         <p className="text-lg text-fg-secondary">
                             The backend is intentionally minimal.
                         </p>
-
                         <ul className="text-lg space-y-4 text-fg-secondary">
                             {[
                                 'Data transport',
@@ -74,10 +51,18 @@ export default function About() {
                             ].map((item, i) => (
                                 <motion.li
                                     key={item}
-                                    initial={{ opacity: 0, x: -20 }}
+                                    initial={
+                                        reducedMotion
+                                            ? false
+                                            : { opacity: 0, x: -20 }
+                                    }
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
-                                    transition={{ delay: 0.2 + i * 0.1 }}
+                                    transition={
+                                        reducedMotion
+                                            ? { duration: 0 }
+                                            : { delay: 0.2 + i * 0.1 }
+                                    }
                                 >
                                     {item}
                                 </motion.li>
@@ -86,8 +71,7 @@ export default function About() {
                     </div>
 
                     <div className="space-y-6">
-                        <h4 className="text-xl">What this guarantees</h4>
-
+                        <h3 className="text-xl">What this guarantees</h3>
                         <ul className="space-y-4 text-fg-secondary">
                             {[
                                 <>
@@ -100,78 +84,87 @@ export default function About() {
                             ].map((item, i) => (
                                 <motion.li
                                     key={i}
-                                    initial={{ opacity: 0, x: 20 }}
+                                    initial={
+                                        reducedMotion
+                                            ? false
+                                            : { opacity: 0, x: 20 }
+                                    }
                                     whileInView={{ opacity: 1, x: 0 }}
                                     viewport={{ once: true }}
-                                    transition={{ delay: 0.3 + i * 0.1 }}
+                                    transition={
+                                        reducedMotion
+                                            ? { duration: 0 }
+                                            : { delay: 0.3 + i * 0.1 }
+                                    }
                                 >
                                     {item}
                                 </motion.li>
                             ))}
                         </ul>
                     </div>
-                </motion.div>
-            </section>
+                </div>
+            </Section>
 
-            <section className="py-28 px-6">
-                <motion.div
-                    className="max-w-4xl mx-auto space-y-12"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    transition={{ duration: 0.6 }}
-                    variants={fadeUp}
-                >
-                    <h3 className="text-3xl">Is this for you?</h3>
-
-                    <div className="grid md:grid-cols-2 gap-12">
-                        <div>
-                            <h4 className="text-xl mb-4">
-                                Probably yes, if you:
-                            </h4>
-                            <ul className="space-y-3 text-fg-secondary">
-                                {[
-                                    'run your own infrastructure',
-                                    'want a single trust boundary',
-                                    'prefer control over convenience',
-                                ].map((item, i) => (
-                                    <motion.li
-                                        key={item}
-                                        initial={{ opacity: 0, y: 12 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{ delay: 0.2 + i * 0.1 }}
-                                    >
-                                        {item}
-                                    </motion.li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h4 className="text-xl mb-4">
-                                Probably not, if you:
-                            </h4>
-                            <ul className="space-y-3 text-fg-secondary">
-                                {[
-                                    'don’t want to self-host',
-                                    'are looking for a managed service',
-                                ].map((item, i) => (
-                                    <motion.li
-                                        key={item}
-                                        initial={{ opacity: 0, y: 12 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
-                                        transition={{ delay: 0.2 + i * 0.1 }}
-                                    >
-                                        {item}
-                                    </motion.li>
-                                ))}
-                            </ul>
-                        </div>
+            <Section title="Is this for you?" variant="canopy">
+                <div className="grid md:grid-cols-2 gap-12">
+                    <div>
+                        <h3 className="text-xl mb-4">Probably yes, if you:</h3>
+                        <ul className="space-y-3 text-fg-secondary">
+                            {[
+                                'run your own infrastructure',
+                                'want a single trust boundary',
+                                'prefer control over convenience',
+                            ].map((item, i) => (
+                                <motion.li
+                                    key={item}
+                                    initial={
+                                        reducedMotion
+                                            ? false
+                                            : { opacity: 0, y: 12 }
+                                    }
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={
+                                        reducedMotion
+                                            ? { duration: 0 }
+                                            : { delay: 0.2 + i * 0.1 }
+                                    }
+                                >
+                                    {item}
+                                </motion.li>
+                            ))}
+                        </ul>
                     </div>
-                </motion.div>
-            </section>
+
+                    <div>
+                        <h3 className="text-xl mb-4">Probably not, if you:</h3>
+                        <ul className="space-y-3 text-fg-secondary">
+                            {[
+                                'don’t want to self-host',
+                                'are looking for a managed service',
+                            ].map((item, i) => (
+                                <motion.li
+                                    key={item}
+                                    initial={
+                                        reducedMotion
+                                            ? false
+                                            : { opacity: 0, y: 12 }
+                                    }
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
+                                    transition={
+                                        reducedMotion
+                                            ? { duration: 0 }
+                                            : { delay: 0.2 + i * 0.1 }
+                                    }
+                                >
+                                    {item}
+                                </motion.li>
+                            ))}
+                        </ul>
+                    </div>
+                </div>
+            </Section>
         </>
     );
 }
