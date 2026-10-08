@@ -41,7 +41,9 @@ export default function VaultOptionsMenu({
                 variant="ghost"
                 type="button"
                 padding="none"
-                aria-label="options"
+                aria-label="Vault options"
+                aria-expanded={isOpen}
+                title="Copy vault ID, rename or delete vault"
                 onClick={() => setIsOpen((prev) => !prev)}
             >
                 ⋯
