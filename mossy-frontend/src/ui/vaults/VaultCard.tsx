@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import VaultOptionsMenu from './VaultOptionsMenu.tsx';
 import Button from '../shared/Button.tsx';
+import VaultStatus from '../shared/VaultStatus.tsx';
 
 type VaultCardProps = {
     vaultId: string;
@@ -23,7 +24,6 @@ export default function VaultCard({
     onRename,
     onDelete,
 }: VaultCardProps) {
-    const statusClassName = isOnline ? 'text-success' : 'text-danger';
     const formattedLastSeenAt = lastSeenAt
         ? new Date(lastSeenAt).toLocaleString()
         : 'Never';
@@ -38,9 +38,7 @@ export default function VaultCard({
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                     <h3 className="text-xl">{vaultName}</h3>
-                    <p className={`text-sm ${statusClassName}`}>
-                        {isOnline ? 'Online' : 'Offline'}
-                    </p>
+                    <VaultStatus isOnline={isOnline} lastSeenAt={lastSeenAt} />
                     <p className="text-xs text-fg-muted">
                         Last seen: {formattedLastSeenAt}
                     </p>
