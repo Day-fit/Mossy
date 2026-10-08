@@ -7,7 +7,7 @@ function HomeHero() {
     const { isAuthenticated } = useAuth();
 
     return (
-        <section className="grid w-full items-center gap-8 bg-surface px-6 py-10 shadow-card sm:px-10 md:grid-cols-2 md:px-12 md:py-16 lg:px-20">
+        <section className="mt-6 grid w-full items-center gap-8 bg-surface px-6 py-10 shadow-card sm:mt-10 sm:px-10 md:grid-cols-2 md:px-12 md:py-16 lg:px-20">
             <div className="min-w-0">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl leading-tight mb-6">
                     An open-source password manager that never wants your
@@ -38,9 +38,12 @@ function HomeHero() {
                     )}
                 </div>
             </div>
-            <div
-                aria-hidden="true"
-                className="h-44 rounded-xl bg-[url('/hero.png')] bg-cover bg-right bg-no-repeat md:h-full md:min-h-72"
+            <img
+                src="/illustrations/mossy-vault.svg"
+                width="740"
+                height="520"
+                className="mx-auto block h-auto w-full max-w-xl"
+                alt="Your devices exchange encrypted messages through Mossy with the vault on your own server."
             />
         </section>
     );
