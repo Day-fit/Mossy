@@ -15,7 +15,7 @@ export default function SignupHero() {
     });
 
     return (
-        <section className="relative min-h-[90vh] w-full perspective-distant">
+        <section className="relative w-full perspective-distant">
             <ResponseToast
                 setResponseState={setResponseState}
                 message={responseState.message}

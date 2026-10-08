@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 
 export default function Footer() {
     return (
-        <footer className="flex border-t-2 border-border justify-around bg-surface p-5">
+        <footer className="flex shrink-0 border-t-2 border-border justify-around bg-surface p-5">
             <section className="flex flex-col">
                 <h3 className="text-xl mb-1">Repository, bugs, ideas</h3>
                 <a

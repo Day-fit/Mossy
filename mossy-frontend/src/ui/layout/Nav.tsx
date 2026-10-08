@@ -52,7 +52,7 @@ function Nav() {
 
     return (
         <>
-            <nav className="grid grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
+            <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
                 <div className="col-start-1 justify-self-start self-stretch">
                     <img
                         className="h-full max-w-none p-2 object-contain cursor-pointer"
@@ -138,7 +138,7 @@ function Nav() {
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="lg:hidden overflow-hidden bg-surface border-b-2 border-border sticky top-20 z-40 w-full"
+                        className="lg:hidden shrink-0 overflow-hidden bg-surface border-b-2 border-border sticky top-20 z-40 w-full"
                     >
                         <div className="flex flex-col items-start px-6 py-4 gap-4">
                             {navItems.map((item) => (
