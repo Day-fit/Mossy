@@ -1,5 +1,6 @@
 import { GoDotFill } from 'react-icons/go';
 import Button from '../shared/Button.tsx';
+import VaultStatus from '../shared/VaultStatus.tsx';
 
 type VaultDashboardViewProps = {
     passwordsCount: number;
@@ -37,14 +38,7 @@ export default function VaultDashboardView({
             <div className="flex justify-around items-center">
                 <h3 className="text-3xl">{name}</h3>
 
-                <div className={'flex items-center'}>
-                    <GoDotFill
-                        className={`text-xl sm:text-2xl ${isOnline ? 'text-success' : 'text-danger'}`}
-                    />
-                    <span className="text-sm font-normal">
-                        {isOnline ? 'Online' : 'Offline'}
-                    </span>
-                </div>
+                <VaultStatus isOnline={isOnline} lastSeenAt={lastSeenAt} />
             </div>
 
             <p className="mt-3 text-xs font-normal text-fg-muted">
