@@ -2,6 +2,7 @@ package pl.dayfit.mossydevicetrust.controller
 
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import pl.dayfit.mossydevicetrust.dto.request.BlockDeviceRequestDto
 import pl.dayfit.mossydevicetrust.dto.request.ConfirmDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.dto.request.CreateDeviceEnrollmentRequestDto
@@ -18,6 +20,7 @@ import pl.dayfit.mossydevicetrust.dto.response.CreateDeviceEnrollmentResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DeviceEnrollmentsResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DevicesResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.GenericServerResponseDto
+import pl.dayfit.mossydevicetrust.service.DeviceEventService
 import pl.dayfit.mossydevicetrust.service.DeviceInfoService
 import pl.dayfit.mossydevicetrust.service.IdempotencyService
 import pl.dayfit.mossydevicetrustshared.dto.request.RegisterDeviceRequestDto
@@ -28,6 +31,7 @@ import java.util.UUID
 @RestController
 class DeviceController(
     private val deviceInfoService: DeviceInfoService,
+    private val deviceEventService: DeviceEventService,
     private val idempotencyService: IdempotencyService
 ) {
     @PostMapping("/device/block")
@@ -107,6 +111,15 @@ class DeviceController(
 
             return@execute RegisterDeviceResponseDto(deviceId)
         }
+    }
+
+    @GetMapping("/device/enrollments/events", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    fun subscribeEnrollmentEvents(@AuthenticationPrincipal jwt: Jwt): SseEmitter {
+        return deviceEventService.subscribeNewEnrollmentEvent(
+            UUID.fromString(
+                jwt.subject
+            )
+        )
     }
 
     @GetMapping("/device/enrollments")

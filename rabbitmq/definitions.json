@@ -65,6 +65,14 @@
       "durable": true,
       "auto_delete": false,
       "internal": false
+    },
+    {
+      "name": "mossy.device-enrollment-events.fanout",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
     }
   ],
   "bindings": [

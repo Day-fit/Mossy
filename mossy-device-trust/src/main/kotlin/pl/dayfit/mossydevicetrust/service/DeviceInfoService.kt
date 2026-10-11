@@ -5,6 +5,7 @@ import com.nimbusds.jose.jwk.Curve
 import com.nimbusds.jose.util.Base64URL
 import nl.basjes.parse.useragent.UserAgent
 import nl.basjes.parse.useragent.UserAgentAnalyzer
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.LockedException
@@ -15,6 +16,7 @@ import pl.dayfit.mossydevicetrust.dto.response.CreateDeviceEnrollmentResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DeviceEnrollmentsResponseDto
 import pl.dayfit.mossydevicetrust.dto.response.DevicesResponseDto
 import pl.dayfit.mossydevicetrust.exception.SelfLockNotAllowedException
+import pl.dayfit.mossydevicetrust.messaging.DeviceEnrolledEvent
 import pl.dayfit.mossydevicetrust.model.DeviceEnrollmentRequest
 import pl.dayfit.mossydevicetrust.model.DeviceInfo
 import pl.dayfit.mossydevicetrust.model.redis.DeviceEnrollment
@@ -31,7 +33,8 @@ class DeviceInfoService(
     private val deviceInfoRepository: DeviceInfoRepository,
     private val deviceEnrollmentRepository: DeviceEnrollmentRepository,
     private val nonceChallengeService: NonceChallengeService,
-    private val deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository
+    private val deviceEnrollmentRequestRepository: DeviceEnrollmentRequestRepository,
+    private val applicationEventPublisher: ApplicationEventPublisher,
 ) {
     companion object {
         val userAgentAnalyzer: UserAgentAnalyzer = UserAgentAnalyzer.newBuilder()
@@ -94,12 +97,18 @@ class DeviceInfoService(
             throw BadCredentialsException("Challenge failed")
         }
 
+        val userAgent = userAgentAnalyzer.parse(enrollment.userAgent)
+        val deviceType = userAgent.getValue(UserAgent.DEVICE_CLASS)
+        val osName = userAgent.getValue(UserAgent.OPERATING_SYSTEM_NAME)
+
         val savedEnrollmentRequest = deviceEnrollmentRequestRepository.save(
             DeviceEnrollmentRequest(
                 userId = userId,
                 publicIdentityKey = enrollment.publicIdentityKey,
                 userAgent = enrollment.userAgent,
                 remoteAddr = enrollment.remoteAddr,
+                deviceType = deviceType,
+                osName = osName,
                 createdAt = Instant.now()
             )
         )
@@ -108,21 +117,30 @@ class DeviceInfoService(
             enrollment
         )
 
-        return savedEnrollmentRequest.id!!
+        val savedEnrollmentId = savedEnrollmentRequest.id!!
+        applicationEventPublisher.publishEvent(
+            DeviceEnrolledEvent(
+                userId,
+                DeviceEnrollmentsResponseDto.DeviceEnrollmentDto(
+                    savedEnrollmentId,
+                    osName,
+                    deviceType,
+                    remoteAddr = enrollment.remoteAddr,
+                    createdAt = Instant.now()
+                )
+            )
+        )
+
+        return savedEnrollmentId
     }
 
     fun getDeviceEnrollments(userId: UUID): DeviceEnrollmentsResponseDto {
         return DeviceEnrollmentsResponseDto(deviceEnrollmentRequestRepository.findByUserId(userId)
             .map {
-                val userAgent = userAgentAnalyzer.parse(it.userAgent)
-
-                val osName = userAgent.getValue(UserAgent.OPERATING_SYSTEM_NAME)
-                val deviceType = userAgent.getValue(UserAgent.DEVICE_CLASS)
-
                 return@map DeviceEnrollmentsResponseDto.DeviceEnrollmentDto(
                     it.id!!,
-                    osName,
-                    deviceType,
+                    it.osName,
+                    it.deviceType,
                     it.remoteAddr,
                     it.createdAt
                 )
