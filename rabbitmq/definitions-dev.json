@@ -15,7 +15,7 @@
     {
       "user": "guest",
       "vhost": "/",
-      "configure": ".*",
+      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?|mossy\\.device-enrollment-events\\.fanout)$",
       "write": ".*",
       "read": ".*"
     },

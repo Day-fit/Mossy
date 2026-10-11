@@ -17,7 +17,7 @@
     {
       "user": "mossyapp",
       "vhost": "/",
-      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?)$",
+      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?|mossy\\.device-enrollment-events\\.fanout)$",
       "write": ".*",
       "read": ".*"
     },
