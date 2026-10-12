@@ -12,6 +12,7 @@ type DeviceManagementState = {
     actionId: string | null;
     setDevices: (devices: DeviceDetails[]) => void;
     setEnrollments: (enrollments: DeviceEnrollment[]) => void;
+    upsertEnrollment: (enrollment: DeviceEnrollment) => void;
     setIsLoading: (isLoading: boolean) => void;
     setError: (error: string | null) => void;
     setActionId: (actionId: string | null) => void;
@@ -27,6 +28,16 @@ export const useDeviceManagementStore = create<DeviceManagementState>(
         actionId: null,
         setDevices: (devices) => set({ devices }),
         setEnrollments: (enrollments) => set({ enrollments }),
+        upsertEnrollment: (enrollment) =>
+            set((state) => ({
+                enrollments: state.enrollments.some(
+                    (item) => item.id === enrollment.id
+                )
+                    ? state.enrollments.map((item) =>
+                          item.id === enrollment.id ? enrollment : item
+                      )
+                    : [...state.enrollments, enrollment],
+            })),
         setIsLoading: (isLoading) => set({ isLoading }),
         setError: (error) => set({ error }),
         setActionId: (actionId) => set({ actionId }),

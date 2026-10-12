@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import type {
   DeviceRecord,
   ScenarioSettings,
@@ -34,12 +35,15 @@ export class RuntimeStore {
   readonly refreshTokens = new Map<string, TokenSession>();
   readonly challenges = new Map<string, ChallengeRecord>();
   readonly idempotency = new Map<string, unknown>();
+  readonly enrollmentEvents = new EventEmitter();
+  readonly confirmedEnrollments: Set<string>;
   readonly verifications = new Map<string, VerificationRecord>();
   readonly verificationDelivery = new Map<string, { id: string; lastSent: number; windowStart: number; sends: number }>();
 
   constructor(state: ScenarioState, settings: ScenarioSettings) {
     this.state = structuredClone(state);
     this.settings = structuredClone(settings);
+    this.confirmedEnrollments = new Set(state.enrollments.map((enrollment) => enrollment.id));
   }
 
   issueToken(type: TokenType, userId: string, deviceId: string | null): TokenSession {

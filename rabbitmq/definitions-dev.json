@@ -15,7 +15,7 @@
     {
       "user": "guest",
       "vhost": "/",
-      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?)$",
+      "configure": "^(spring\\.gen.*|password\\.replica\\.exchange(\\..*)?|mossy\\.device-enrollment-events\\.fanout)$",
       "write": ".*",
       "read": ".*"
     },
@@ -68,6 +68,14 @@
       "name": "password.replica.exchange",
       "vhost": "/",
       "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false
+    },
+    {
+      "name": "mossy.device-enrollment-events.fanout",
+      "vhost": "/",
+      "type": "fanout",
       "durable": true,
       "auto_delete": false,
       "internal": false

@@ -13,11 +13,13 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.security.authentication.LockedException
 import org.springframework.security.authentication.BadCredentialsException
 import pl.dayfit.mossydevicetrust.dto.request.CreateDeviceEnrollmentRequestDto
 import pl.dayfit.mossydevicetrust.exception.SelfLockNotAllowedException
+import pl.dayfit.mossydevicetrust.messaging.DeviceEnrolledEvent
 import pl.dayfit.mossydevicetrust.model.DeviceEnrollmentRequest
 import pl.dayfit.mossydevicetrust.helper.KeygenHelper.generateKeyPair
 import pl.dayfit.mossydevicetrust.model.DeviceInfo
@@ -48,6 +50,9 @@ class DeviceInfoServiceTest {
 
     @Mock
     lateinit var deviceInfoRepository: DeviceInfoRepository
+
+    @Mock
+    lateinit var applicationEventPublisher: ApplicationEventPublisher
 
     @InjectMocks
     lateinit var deviceInfoService: DeviceInfoService
@@ -501,6 +506,53 @@ class DeviceInfoServiceTest {
     }
 
     @Test
+    fun `confirming enrollment publishes saved enrollment metadata for authenticated user`() {
+        val userId = UUID.randomUUID()
+        val savedId = UUID.randomUUID()
+        val enrollmentId = "enrollment-id"
+        val challengeId = UUID.randomUUID()
+        val signature = "signed-nonce"
+        val enrollment = DeviceEnrollment(
+            enrollmentId = enrollmentId,
+            userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
+            remoteAddr = "192.0.2.10",
+            publicIdentityKey = ByteArray(32) { it.toByte() },
+        )
+        whenever(deviceEnrollmentRepository.findById(enrollmentId))
+            .thenReturn(Optional.of(enrollment))
+        whenever(
+            nonceChallengeService.isEnrollmentChallengeValid(
+                challengeId, signature, enrollmentId, enrollment.publicIdentityKey,
+            )
+        ).thenReturn(true)
+        whenever(deviceEnrollmentRequestRepository.save(any<DeviceEnrollmentRequest>()))
+            .thenAnswer { invocation ->
+                invocation.getArgument<DeviceEnrollmentRequest>(0).apply { id = savedId }
+            }
+
+        val startedAt = Instant.now()
+        val result = deviceInfoService.confirmDeviceEnrollmentChallenge(
+            enrollmentId, challengeId, signature, userId,
+        )
+        val completedAt = Instant.now()
+
+        val eventCaptor = argumentCaptor<DeviceEnrolledEvent>()
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
+        assertEquals(savedId, result)
+        with(eventCaptor.firstValue) {
+            assertEquals(userId, this.userId)
+            with(newEnrollment) {
+                assertEquals(savedId, id)
+                assertEquals("Linux", lastOsName)
+                assertEquals("Desktop", deviceType)
+                assertEquals(enrollment.remoteAddr, remoteAddr)
+                assertTrue(!createdAt.isBefore(startedAt))
+                assertTrue(!createdAt.isAfter(completedAt))
+            }
+        }
+    }
+
+    @Test
     fun `getting enrollments queries by user and maps request metadata`() {
         val userId = UUID.randomUUID()
         val ownRequest = DeviceEnrollmentRequest(
@@ -509,6 +561,8 @@ class DeviceInfoServiceTest {
             remoteAddr = "192.0.2.10",
             userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36",
             publicIdentityKey = ByteArray(32) { it.toByte() },
+            deviceType = "Desktop",
+            osName = "Linux",
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
 
@@ -540,6 +594,8 @@ class DeviceInfoServiceTest {
             remoteAddr = "192.0.2.30",
             userAgent = "Windows",
             publicIdentityKey = publicIdentityKey.decodedX,
+            deviceType = "Desktop",
+            osName = "Windows NT",
             createdAt = Instant.parse("2026-08-10T12:00:00Z"),
         )
 
@@ -755,6 +811,7 @@ class DeviceInfoServiceTest {
 
         verify(deviceInfoRepository, never()).save(any<DeviceInfo>())
         verify(deviceEnrollmentRepository, never()).delete(any<DeviceEnrollment>())
+        verify(applicationEventPublisher, never()).publishEvent(any<DeviceEnrolledEvent>())
     }
 
     @Test
@@ -784,6 +841,8 @@ class DeviceInfoServiceTest {
         remoteAddr = "192.0.2.30",
         userAgent = "Windows",
         publicIdentityKey = ByteArray(32) { it.toByte() },
+        deviceType = "Desktop",
+        osName = "Windows NT",
         createdAt = Instant.parse("2026-08-10T12:00:00Z"),
     )
 

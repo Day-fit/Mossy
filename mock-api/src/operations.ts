@@ -535,12 +535,21 @@ const confirmEnrollment: OperationHandler = (context) =>
             throw new AppError(401, "Invalid enrollment challenge");
         }
         context.store.challenges.delete(challenge.id);
+        enrollment.createdAt = now();
         if (context.store.settings.autoApproveEnrollments) {
             device.approved = true;
             device.lastSeen = now();
             context.store.state.enrollments = context.store.state.enrollments.filter(
                 (candidate) => candidate.id !== enrollment.id
             );
+        } else {
+            context.store.confirmedEnrollments.add(enrollment.id);
+            context.store.enrollmentEvents.emit(enrollment.userId, {
+                id: enrollment.id,
+                ...deviceDescription(enrollment.userAgent),
+                remoteAddr: enrollment.remoteAddr,
+                createdAt: enrollment.createdAt
+            });
         }
         return { body: { deviceId: device.id } };
     });
@@ -548,7 +557,8 @@ const confirmEnrollment: OperationHandler = (context) =>
 const listEnrollments: OperationHandler = (context) => ({
     body: {
         enrollments: context.store.state.enrollments
-            .filter((enrollment) => enrollment.userId === userId(context))
+            .filter((enrollment) => enrollment.userId === userId(context) &&
+                context.store.confirmedEnrollments.has(enrollment.id))
             .map((enrollment) => {
                 const description = deviceDescription(enrollment.userAgent);
                 return {
@@ -558,6 +568,32 @@ const listEnrollments: OperationHandler = (context) => ({
                     createdAt: enrollment.createdAt
                 };
             })
+    }
+});
+
+const enrollmentEvents: OperationHandler = (context) => ({
+    stream: () => {
+        const ownerId = userId(context);
+        const response = context.response;
+        const send = (enrollment: unknown) => {
+            if (!response.destroyed && !response.writableEnded) {
+                response.write(`data: ${JSON.stringify(enrollment)}\n\n`);
+            }
+        };
+        const timeout = setTimeout(() => response.end(), 10_000);
+        timeout.unref();
+        response.once("close", () => {
+            clearTimeout(timeout);
+            context.store.enrollmentEvents.off(ownerId, send);
+        });
+        context.store.enrollmentEvents.on(ownerId, send);
+        response.set({
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no"
+        });
+        response.flushHeaders();
+        response.write(": connected\n\n");
     }
 });
 
@@ -576,6 +612,7 @@ const approveEnrollment: OperationHandler = (context) => {
     context.store.state.enrollments = context.store.state.enrollments.filter(
         (candidate) => candidate.id !== enrollment.id
     );
+    context.store.confirmedEnrollments.delete(enrollment.id);
     return { body: { message: `Approved device for enrollment ${enrollment.id}` } };
 };
 
@@ -875,6 +912,7 @@ export const operationHandlers: Record<string, OperationHandler> = {
     "device.createEnrollment": createEnrollment,
     "device.confirmEnrollment": confirmEnrollment,
     "device.enrollments": listEnrollments,
+    "device.enrollmentEvents": enrollmentEvents,
     "device.approveEnrollment": approveEnrollment,
     "device.devices": listDevices,
     "device.block": (context) => changeBlocked(context, true),
