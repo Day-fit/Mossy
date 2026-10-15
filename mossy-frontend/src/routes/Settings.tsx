@@ -22,7 +22,7 @@ export default function Settings() {
 
     return (
         <div className="w-full px-4 py-5">
-            <div className="mx-auto w-full max-w-4xl rounded-xl bg-surface p-6 shadow-card sm:p-8">
+            <div className="mx-auto w-full max-w-7xl rounded-xl bg-surface p-6 shadow-card sm:p-8">
                 <header className="mb-8">
                     <h1 className="text-3xl">Settings</h1>
                     <p className="mt-2 text-sm text-fg-muted">
