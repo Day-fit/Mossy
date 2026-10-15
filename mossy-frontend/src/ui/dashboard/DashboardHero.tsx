@@ -7,6 +7,7 @@ import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
 import { useVaultStore } from '../../store/vaultStore.ts';
+import DashboardOnboarding from './DashboardOnboarding.tsx';
 
 export default function DashboardHero() {
     const { statistics, isLoading, error, reload } = useDashboardStatistics();
@@ -60,6 +61,17 @@ export default function DashboardHero() {
         hidden: { opacity: 0, x: -50 },
         show: { opacity: 1, x: 0 },
     };
+
+    if (
+        !isLoading &&
+        !areVaultsLoading &&
+        !error &&
+        !vaultsErrorOccurred &&
+        statistics.totalPasswords === 0 &&
+        vaults.every((vault) => vault.passwordCount === 0)
+    ) {
+        return <DashboardOnboarding vaults={vaults} />;
+    }
 
     return (
         <section className="flex flex-col lg:flex-row lg:h-[90vh] gap-8 px-4 py-2 overflow-x-hidden">
