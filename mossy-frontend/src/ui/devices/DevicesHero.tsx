@@ -36,7 +36,7 @@ export default function DevicesHero() {
                         Device not showing up? Try refreshing the page.
                     </p>
                     {error ? (
-                        <p role="alert" className="mt-4 text-sm text-danger">
+                        <p role="alert" className="mt-4 text-sm text-fg-danger">
                             {error}
                         </p>
                     ) : null}

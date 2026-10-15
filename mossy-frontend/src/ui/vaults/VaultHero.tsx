@@ -181,7 +181,7 @@ export default function VaultHero() {
                                 setVaultName(event.target.value)
                             }
                             placeholder="Vault name"
-                            className="rounded-md border border-border px-3 py-2"
+                            className="rounded-md border border-border-strong px-3 py-2"
                             minLength={1}
                             maxLength={80}
                             required
@@ -192,12 +192,12 @@ export default function VaultHero() {
                     </form>
 
                     {successMessage ? (
-                        <p className="mt-3 text-sm text-success">
+                        <p className="mt-3 text-sm text-fg-success">
                             {successMessage}
                         </p>
                     ) : null}
                     {errorMessage ? (
-                        <p className="mt-3 text-sm text-danger">
+                        <p className="mt-3 text-sm text-fg-danger">
                             {errorMessage}
                         </p>
                     ) : null}
@@ -263,7 +263,7 @@ export default function VaultHero() {
                         type="text"
                         value={renameValue}
                         onChange={(event) => setRenameValue(event.target.value)}
-                        className="w-full rounded-md border border-border px-3 py-2"
+                        className="w-full rounded-md border border-border-strong px-3 py-2"
                         minLength={1}
                         maxLength={80}
                         required

@@ -95,7 +95,7 @@ export default function SignupForm({
                 />
 
                 <motion.h1
-                    className="text-4xl text-center text-brand mb-1 leading-tight"
+                    className="text-4xl text-center text-fg-brand mb-1 leading-tight"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
@@ -128,7 +128,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.username.message}
                             </motion.p>
@@ -158,7 +158,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.email.message}
                             </motion.p>
@@ -187,7 +187,7 @@ export default function SignupForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.password.message}
                             </motion.p>

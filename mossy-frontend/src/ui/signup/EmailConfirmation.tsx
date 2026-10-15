@@ -213,7 +213,7 @@ export default function EmailConfirmation() {
                         alt="Mossy Logo"
                     />
                     <motion.h1
-                        className="text-4xl text-center text-brand mb-1 leading-tight"
+                        className="text-4xl text-center text-fg-brand mb-1 leading-tight"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.2, duration: 0.5 }}
@@ -230,8 +230,8 @@ export default function EmailConfirmation() {
                                 role={isError ? 'alert' : 'status'}
                                 className={
                                     isError
-                                        ? 'text-sm text-danger bg-danger/5 px-3 py-2 rounded-md'
-                                        : 'text-sm text-success bg-success/5 px-3 py-2 rounded-md'
+                                        ? 'text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md'
+                                        : 'text-sm text-fg-success bg-success/5 px-3 py-2 rounded-md'
                                 }
                             >
                                 {message}
@@ -284,7 +284,7 @@ export default function EmailConfirmation() {
                                             refs.current[index] = input;
                                         }}
                                         aria-label={`Code digit ${index + 1}`}
-                                        className="w-10 h-12 sm:w-12 sm:h-14 min-w-0 text-center font-mono text-2xl font-semibold border-2 border-border rounded-lg focus:border-brand focus:outline-none"
+                                        className="w-10 h-12 sm:w-12 sm:h-14 min-w-0 text-center font-mono text-2xl font-semibold border-2 border-border-strong rounded-lg focus:border-fg-brand focus:outline-none"
                                         inputMode="numeric"
                                         autoComplete={
                                             index === 0
@@ -401,7 +401,7 @@ export default function EmailConfirmation() {
                     )}
                     {(pending || link) && (
                         <button
-                            className="text-sm font-semibold w-full cursor-pointer text-brand hover:text-brand-hover disabled:cursor-not-allowed disabled:text-fg-muted"
+                            className="text-sm font-semibold w-full cursor-pointer text-fg-brand hover:text-fg-brand-hover disabled:cursor-not-allowed disabled:text-fg-muted"
                             disabled={busy || wait > 0}
                             onClick={resend}
                         >

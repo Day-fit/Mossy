@@ -1,10 +1,10 @@
 import NavTab from './NavTab.tsx';
 import Button from '../shared/Button.tsx';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth.ts';
-import { CgProfile } from 'react-icons/cg';
+import AccountMenu from './AccountMenu.tsx';
 import { useDeviceManagementStore } from '../../store/deviceManagementStore.ts';
 
 const menuVariants: Variants = {
@@ -41,8 +41,9 @@ const navItems = [
 
 function Nav() {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, userDetails, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
     const enrollmentCount = useDeviceManagementStore(
         (state) => state.enrollments.length
     );
@@ -50,20 +51,35 @@ function Nav() {
     const toggleMenu = () => setIsOpen((prev) => !prev);
     const closeMenu = () => setIsOpen(false);
 
+    const signOut = async () => {
+        if (signingOut) return;
+        setSigningOut(true);
+        try {
+            await logout();
+        } catch {
+            // The existing logout flow clears local credentials even if the request fails.
+        } finally {
+            closeMenu();
+            setSigningOut(false);
+            navigate('/', { replace: true });
+        }
+    };
+
     return (
         <>
             <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
-                <div className="col-start-1 justify-self-start self-stretch">
+                <Link
+                    to="/"
+                    aria-label="Mossy home"
+                    onClick={closeMenu}
+                    className="col-start-1 justify-self-start self-stretch rounded-sm"
+                >
                     <img
                         className="h-full max-w-none p-2 object-contain cursor-pointer"
                         alt="mossy-logo"
                         src="/mossy_logo.png"
-                        onClick={() => {
-                            navigate('/');
-                            closeMenu();
-                        }}
                     />
-                </div>
+                </Link>
 
                 <div className="hidden lg:flex gap-10 items-center h-full">
                     {navItems.map((item) => (
@@ -81,7 +97,13 @@ function Nav() {
 
                 <div className={'hidden lg:flex justify-self-end mr-4'}>
                     {!isAuthenticated ? (
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-2">
+                            <Link
+                                to="/settings"
+                                className="inline-flex min-h-11 items-center rounded-sm px-3 text-sm text-fg-secondary hover:text-fg-brand"
+                            >
+                                Settings
+                            </Link>
                             <Button onClick={() => navigate('/register')}>
                                 Sign Up
                             </Button>
@@ -93,14 +115,21 @@ function Nav() {
                             </Button>
                         </div>
                     ) : (
-                        <CgProfile className={'text-4xl mr-5'} />
+                        <AccountMenu
+                            username={userDetails?.username}
+                            signingOut={signingOut}
+                            onSignOut={signOut}
+                        />
                     )}
                 </div>
 
                 <button
                     className="lg:hidden mr-4 flex flex-col col-start-3 justify-self-end justify-center items-center w-10 h-10 cursor-pointer"
                     onClick={toggleMenu}
+                    type="button"
                     aria-label={isOpen ? 'Close menu' : 'Open menu'}
+                    aria-expanded={isOpen}
+                    aria-controls={isOpen ? 'mobile-navigation' : undefined}
                 >
                     <motion.span
                         animate={
@@ -134,6 +163,7 @@ function Nav() {
                 {isOpen && (
                     <motion.div
                         key="mobile-menu"
+                        id="mobile-navigation"
                         variants={menuVariants}
                         initial="hidden"
                         animate="visible"
@@ -162,6 +192,40 @@ function Nav() {
                                     />
                                 </motion.div>
                             ))}
+                            <motion.div
+                                variants={itemVariants}
+                                className="w-full"
+                            >
+                                <NavTab
+                                    name="Settings"
+                                    url="/settings"
+                                    requiresAuthentication={false}
+                                    onClick={closeMenu}
+                                />
+                            </motion.div>
+                            {isAuthenticated && (
+                                <motion.div
+                                    variants={itemVariants}
+                                    className="w-full border-t border-border pt-3"
+                                >
+                                    {userDetails?.username && (
+                                        <p className="mb-2 px-5 text-sm text-fg-muted">
+                                            {userDetails.username}
+                                        </p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => void signOut()}
+                                        disabled={signingOut}
+                                        aria-busy={signingOut}
+                                        className="min-h-11 w-full cursor-pointer rounded-sm px-5 text-left text-sm font-semibold text-fg-danger hover:bg-danger/5 disabled:cursor-wait"
+                                    >
+                                        {signingOut
+                                            ? 'Signing out…'
+                                            : 'Sign out'}
+                                    </button>
+                                </motion.div>
+                            )}
                             {!isAuthenticated && (
                                 <motion.div
                                     variants={itemVariants}

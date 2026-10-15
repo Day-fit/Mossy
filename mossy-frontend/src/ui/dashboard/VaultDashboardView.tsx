@@ -26,10 +26,10 @@ export default function VaultDashboardView({
 }: VaultDashboardViewProps) {
     return (
         <article
-            className={`min-w-0 rounded-md border-2 focus-within:ring-2 focus-within:ring-brand focus-within:ring-offset-2 ${
+            className={`min-w-0 rounded-md border-2 focus-within:ring-2 focus-within:ring-fg-brand focus-within:ring-offset-2 ring-offset-surface ${
                 isSelected
-                    ? 'border-brand bg-brand/5 ring-2 ring-brand/20'
-                    : 'border-border bg-surface hover:border-brand/20 hover:bg-brand/5'
+                    ? 'border-fg-brand bg-brand/5 ring-2 ring-fg-brand/20'
+                    : 'border-border bg-surface hover:border-fg-brand/20 hover:bg-brand/5'
             }`}
         >
             <Button
@@ -90,7 +90,7 @@ export default function VaultDashboardView({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={`Go online: startup instructions for ${name}`}
-                        className="inline-flex min-h-6 shrink-0 items-center gap-1 rounded-sm text-xs font-semibold text-brand underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                        className="inline-flex min-h-6 shrink-0 items-center gap-1 rounded-sm text-xs font-semibold text-fg-brand underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg-brand focus-visible:ring-offset-2 ring-offset-surface"
                     >
                         Go online
                         <MdOpenInNew size={14} aria-hidden="true" />

@@ -59,7 +59,7 @@ export default function SectionLeaves({
                     viewBox="0 0 120 120"
                     fill="none"
                     focusable="false"
-                    className={`absolute h-auto text-brand ${placements[index]}`}
+                    className={`absolute h-auto text-fg-brand ${placements[index]}`}
                     stroke="currentColor"
                     strokeWidth="1.5"
                     strokeLinecap="round"

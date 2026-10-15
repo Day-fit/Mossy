@@ -101,7 +101,7 @@ export default function SigninForm({
                 />
 
                 <motion.h1
-                    className="text-4xl text-center text-brand mb-1 leading-tight"
+                    className="text-4xl text-center text-fg-brand mb-1 leading-tight"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
@@ -134,7 +134,7 @@ export default function SigninForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.identifier.message}
                             </motion.p>
@@ -163,7 +163,7 @@ export default function SigninForm({
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-2 text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                                className="mt-2 text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                             >
                                 {errors.password.message}
                             </motion.p>
@@ -196,7 +196,7 @@ export default function SigninForm({
                 </NavLink>
                 <NavLink
                     to="/verify-email"
-                    className="block text-sm text-brand"
+                    className="block text-sm text-fg-brand"
                 >
                     Resume email verification
                 </NavLink>

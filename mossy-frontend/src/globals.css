@@ -5,12 +5,15 @@
 @import '@fontsource/syne/700.css';
 @import '@fontsource/geologica/500.css';
 
-@theme {
+/* Static tokens are also consumed by SVG, charts, and the QR renderer. */
+@theme static {
     --font-sans: 'Syne', sans-serif;
     --font-heading: 'Geologica', sans-serif;
 
+    /* Filled accents and QR colors are shared by both appearances. */
     --color-brand: #007735;
     --color-brand-hover: #005f29;
+    --color-qr-surface: #ffffff;
 
     --color-surface-page: #f6f6f6;
     --color-surface: #ffffff;
@@ -23,9 +26,15 @@
     --color-fg-subtle: #6b7280;
     --color-fg-disabled: #9ca3af;
     --color-fg-inverse: #ffffff;
+    --color-fg-on-strong: #ffffff;
+    --color-fg-brand: var(--color-brand);
+    --color-fg-brand-hover: var(--color-brand-hover);
+    --color-fg-success: var(--color-success);
+    --color-fg-danger: var(--color-danger);
+    --color-fg-warning: var(--color-warning);
 
     --color-border: #e5e7eb;
-    --color-border-strong: #9ca3af;
+    --color-border-strong: #828995;
 
     --color-success: #15803d;
     --color-danger: #b91c1c;
@@ -41,6 +50,59 @@
 @layer base {
     :root {
         color-scheme: light;
+    }
+
+    :root[data-theme='dark'] {
+        color-scheme: dark;
+        --color-surface-page: #181a17;
+        --color-surface: #21251e;
+        --color-surface-subtle: #292e26;
+        --color-surface-muted: #32372d;
+        --color-fg-primary: #ebeadf;
+        --color-fg-secondary: #d3d3c4;
+        --color-fg-muted: #aaaa97;
+        --color-fg-subtle: #a0a38f;
+        --color-fg-disabled: #747969;
+        --color-fg-on-strong: #181a17;
+        --color-fg-brand: #afc2a0;
+        --color-fg-brand-hover: #c2d0b4;
+        --color-fg-success: #b1c6a3;
+        --color-fg-danger: #d7a295;
+        --color-fg-warning: #d1bb84;
+        --color-border: #44483c;
+        --color-border-strong: #838a76;
+        --color-overlay: rgb(0 0 0 / 56%);
+        --shadow-control: 0 1px 3px rgb(0 0 0 / 18%);
+        --shadow-card: 0 4px 10px rgb(0 0 0 / 20%);
+        --shadow-modal: 0 24px 48px rgb(0 0 0 / 32%);
+    }
+
+    /* An explicit choice wins over the device preference. */
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']):not([data-theme='dark']) {
+            color-scheme: dark;
+            --color-surface-page: #181a17;
+            --color-surface: #21251e;
+            --color-surface-subtle: #292e26;
+            --color-surface-muted: #32372d;
+            --color-fg-primary: #ebeadf;
+            --color-fg-secondary: #d3d3c4;
+            --color-fg-muted: #aaaa97;
+            --color-fg-subtle: #a0a38f;
+            --color-fg-disabled: #747969;
+            --color-fg-on-strong: #181a17;
+            --color-fg-brand: #afc2a0;
+            --color-fg-brand-hover: #c2d0b4;
+            --color-fg-success: #b1c6a3;
+            --color-fg-danger: #d7a295;
+            --color-fg-warning: #d1bb84;
+            --color-border: #44483c;
+            --color-border-strong: #838a76;
+            --color-overlay: rgb(0 0 0 / 56%);
+            --shadow-control: 0 1px 3px rgb(0 0 0 / 18%);
+            --shadow-card: 0 4px 10px rgb(0 0 0 / 20%);
+            --shadow-modal: 0 24px 48px rgb(0 0 0 / 32%);
+        }
     }
 
     body {
@@ -61,5 +123,28 @@
         font-family: var(--font-heading), sans-serif;
         font-weight: 500;
         letter-spacing: -0.015em;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-fg-brand);
+        outline-offset: 3px;
+    }
+
+    /* Color fades belong to the theme layer. Motion owns component animation. */
+    :where(body, body *, body *::before, body *::after):not(
+        [data-motion-color]
+    ) {
+        transition-property:
+            color, background-color, border-color, fill, stroke, box-shadow;
+        transition-duration: 180ms;
+        transition-timing-function: ease-out;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        :where(body, body *, body *::before, body *::after):not(
+            [data-motion-color]
+        ) {
+            transition-duration: 0s;
+        }
     }
 }

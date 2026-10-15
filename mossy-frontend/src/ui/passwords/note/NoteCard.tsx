@@ -142,7 +142,9 @@ export default function NoteCard({
                 />
             )}
 
-            <div className={`rounded-xl border border-border p-3 bg-surface`}>
+            <div
+                className={`rounded-xl border border-border-strong p-3 bg-surface`}
+            >
                 {!isError ? (
                     <>
                         <motion.textarea

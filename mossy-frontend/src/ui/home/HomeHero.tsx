@@ -1,6 +1,8 @@
 import Button from '../shared/Button.tsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.ts';
+// Inline the bundled artwork so its labels inherit the active foreground color.
+import vaultIllustration from '../../../public/illustrations/mossy-vault.svg?raw';
 
 function HomeHero() {
     const navigate = useNavigate();
@@ -38,12 +40,11 @@ function HomeHero() {
                     )}
                 </div>
             </div>
-            <img
-                src="/illustrations/mossy-vault.svg"
-                width="740"
-                height="520"
-                className="mx-auto block h-auto w-full max-w-xl"
-                alt="Your devices exchange encrypted messages through Mossy with the vault on your own server."
+            <div
+                role="img"
+                aria-label="Your devices exchange encrypted messages through Mossy with the vault on your own server."
+                className="mx-auto w-full max-w-xl text-fg-secondary [&_svg]:block [&_svg]:h-auto [&_svg]:w-full"
+                dangerouslySetInnerHTML={{ __html: vaultIllustration }}
             />
         </section>
     );

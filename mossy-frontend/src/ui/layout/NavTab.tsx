@@ -33,13 +33,13 @@ function NavTab({
                         <div className={'flex flex-col'}>
                             <h6>{name}</h6>
                             {badgeCount > 0 ? (
-                                <span className="text-center text-xs font-semibold text-warning">
+                                <span className="text-center text-xs font-semibold text-fg-warning">
                                     {badgeCount} pending
                                 </span>
                             ) : null}
                             {isActive && (
                                 <motion.div
-                                    className="border-b-2 border-brand"
+                                    className="border-b-2 border-fg-brand"
                                     initial={{ scaleX: 0 }}
                                     animate={{ scaleX: 1 }}
                                     transition={{

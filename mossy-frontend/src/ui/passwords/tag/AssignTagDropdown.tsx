@@ -72,7 +72,7 @@ export default function AssignTagDropdown({
                 variant="icon"
                 type="button"
                 onClick={() => setIsOpen((v) => !v)}
-                className="border-2 border-brand"
+                className="border-2 border-fg-brand"
                 aria-label="Assign tag"
             >
                 <motion.div
@@ -93,7 +93,7 @@ export default function AssignTagDropdown({
             >
                 <div className="p-3 flex flex-col gap-1 max-h-48 overflow-y-auto">
                     {error ? (
-                        <p className="text-sm text-danger">{error}</p>
+                        <p className="text-sm text-fg-danger">{error}</p>
                     ) : loading ? (
                         <p className="text-sm text-fg-subtle">Loading...</p>
                     ) : tags.length === 0 ? (
@@ -112,7 +112,7 @@ export default function AssignTagDropdown({
                                     onClick={() => handleToggleTag(tag)}
                                     className={`text-sm font-semibold flex items-center gap-2 px-2 py-1.5 rounded-md text-left ${
                                         isAssigned
-                                            ? 'bg-brand/5 text-brand'
+                                            ? 'bg-brand/5 text-fg-brand'
                                             : 'hover:bg-surface-muted text-fg-secondary'
                                     }`}
                                 >

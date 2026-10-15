@@ -63,7 +63,7 @@ export default function PasswordHero() {
                     aria-labelledby="offline-vault-title"
                 >
                     <MdCloudOff
-                        className="mb-4 text-warning"
+                        className="mb-4 text-fg-warning"
                         size={32}
                         aria-hidden="true"
                     />
@@ -80,7 +80,7 @@ export default function PasswordHero() {
                             href="https://github.com/Day-fit/Mossy#run-only-the-vault-probably-what-you-are-looking-for"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 rounded-sm text-sm font-semibold text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                            className="inline-flex items-center gap-2 rounded-sm text-sm font-semibold text-fg-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg-brand focus-visible:ring-offset-2 ring-offset-surface"
                         >
                             How to start your vault
                             <MdOpenInNew size={16} aria-hidden="true" />
@@ -97,7 +97,7 @@ export default function PasswordHero() {
                         </Button>
                     </div>
                     {errorOccurred && (
-                        <p role="alert" className="mt-4 text-sm text-danger">
+                        <p role="alert" className="mt-4 text-sm text-fg-danger">
                             Could not refresh the vault status. Try again.
                         </p>
                     )}
