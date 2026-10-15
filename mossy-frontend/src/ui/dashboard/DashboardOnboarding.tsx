@@ -82,37 +82,32 @@ export default function DashboardOnboarding({
 
     return (
         <motion.section
-            className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:py-14"
+            className="mx-auto w-full max-w-lg px-4 py-6 sm:py-8"
             aria-labelledby="onboarding-title"
             initial={reducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
         >
-            <div className="grid overflow-hidden rounded-md border border-border bg-surface shadow-card md:grid-cols-[0.9fr_1.1fr]">
-                <div className="relative flex flex-col justify-between bg-brand/5 px-6 pt-7 pb-5 sm:px-10 sm:pt-12 sm:pb-6 md:border-r md:border-border">
-                    <SectionLeaves variant="sprigs" />
+            <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
+                <div className="relative border-b border-border bg-brand/5 px-6 py-7 sm:px-8 sm:py-8">
+                    <div className="pointer-events-none absolute inset-0 opacity-45">
+                        <SectionLeaves variant="sprigs" />
+                    </div>
                     <div className="relative">
                         <h1
                             id="onboarding-title"
-                            className="max-w-sm text-3xl leading-tight sm:text-4xl"
+                            className="max-w-sm text-3xl leading-tight"
                         >
                             Get started{' '}
                             <span className="block text-brand">with Mossy</span>
                         </h1>
-                        <p className="mt-5 max-w-sm text-base leading-relaxed text-fg-secondary">
+                        <p className="mt-4 max-w-sm text-sm leading-relaxed text-fg-secondary">
                             A home for your passwords, on your own server. Let’s
                             get your first vault ready.
                         </p>
                     </div>
-                    <img
-                        src="/hero.png"
-                        width="2048"
-                        height="600"
-                        alt=""
-                        className="relative mt-5 h-24 w-full rounded-md object-cover object-[72%_center] sm:mt-8 sm:h-44 md:mt-12 md:h-52"
-                    />
                 </div>
-                <div className="px-5 py-7 sm:p-9 lg:p-10">
+                <div className="px-5 py-6 sm:px-6 sm:py-7">
                     <div className="flex items-center justify-between gap-3">
                         <h2 className="text-lg">Your first steps</h2>
                         <p
@@ -139,7 +134,7 @@ export default function DashboardOnboarding({
                             />
                         ))}
                     </div>
-                    <ol className="mt-7 space-y-3">
+                    <ol className="mt-5 space-y-2">
                         {steps.map(
                             (
                                 { title, description, to, done, action, Icon },
@@ -154,7 +149,7 @@ export default function DashboardOnboarding({
                                             aria-current={
                                                 isNext ? 'step' : undefined
                                             }
-                                            className={`group flex gap-4 rounded-md border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none ${isNext ? 'border-brand/25 bg-brand/5 hover:bg-brand/10' : 'border-transparent hover:bg-surface-subtle'}`}
+                                            className={`group flex gap-4 rounded-md border p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${isNext ? 'border-brand/25 bg-brand/5 hover:bg-brand/10' : 'border-transparent hover:bg-surface-subtle'}`}
                                         >
                                             <span
                                                 className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${done ? 'bg-brand text-fg-inverse' : isNext ? 'bg-brand/10 text-brand' : 'bg-surface-muted text-fg-muted'}`}
