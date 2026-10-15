@@ -1,20 +1,22 @@
 # Web appearance screenshots
 
-Captured from the local mock API's `default` scenario using the `demo` account.
+Captured from local previews. Signed-in screens use the mock API's `default`
+scenario and `demo` account; public pages use guest sessions.
 Desktop captures use a 1440 × 1000 viewport; mobile captures use 375 × 812.
 Full-page captures extend below the viewport where needed.
 
-| Page               | Light                                | Dark                                |
-| ------------------ | ------------------------------------ | ----------------------------------- |
-| Home               | [Screenshot](home-light.png)         | [Screenshot](home-dark.png)         |
-| Dashboard          | [Screenshot](dashboard-light.png)    | [Screenshot](dashboard-dark.png)    |
-| Passwords          | [Screenshot](passwords-light.png)    | [Screenshot](passwords-dark.png)    |
-| Vaults             | [Screenshot](vaults-light.png)       | [Screenshot](vaults-dark.png)       |
-| Devices            | [Screenshot](devices-light.png)      | [Screenshot](devices-dark.png)      |
-| Settings           | [Screenshot](settings-light.png)     | [Screenshot](settings-dark.png)     |
-| Sign in            | [Screenshot](login-light.png)        | [Screenshot](login-dark.png)        |
-| Sign up            | [Screenshot](register-light.png)     | [Screenshot](register-dark.png)     |
-| Email verification | [Screenshot](verify-email-light.png) | [Screenshot](verify-email-dark.png) |
+| Page                | Light                                | Dark                                |
+| ------------------- | ------------------------------------ | ----------------------------------- |
+| Home                | [Screenshot](home-light.png)         | [Screenshot](home-dark.png)         |
+| Illustration detail | [Screenshot](illustration-light.png) | [Screenshot](illustration-dark.png) |
+| Dashboard           | [Screenshot](dashboard-light.png)    | [Screenshot](dashboard-dark.png)    |
+| Passwords           | [Screenshot](passwords-light.png)    | [Screenshot](passwords-dark.png)    |
+| Vaults              | [Screenshot](vaults-light.png)       | [Screenshot](vaults-dark.png)       |
+| Devices             | [Screenshot](devices-light.png)      | [Screenshot](devices-dark.png)      |
+| Settings            | [Screenshot](settings-light.png)     | [Screenshot](settings-dark.png)     |
+| Sign in             | [Screenshot](login-light.png)        | [Screenshot](login-dark.png)        |
+| Sign up             | [Screenshot](register-light.png)     | [Screenshot](register-dark.png)     |
+| Email verification  | [Screenshot](verify-email-light.png) | [Screenshot](verify-email-dark.png) |
 
 Additional states:
 

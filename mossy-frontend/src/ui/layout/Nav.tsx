@@ -1,11 +1,12 @@
 import NavTab from './NavTab.tsx';
 import Button from '../shared/Button.tsx';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth.ts';
 import AccountMenu from './AccountMenu.tsx';
 import { useDeviceManagementStore } from '../../store/deviceManagementStore.ts';
+import { MdSettings } from 'react-icons/md';
 
 const menuVariants: Variants = {
     hidden: { opacity: 0, height: 0 },
@@ -98,12 +99,19 @@ function Nav() {
                 <div className={'hidden lg:flex justify-self-end mr-4'}>
                     {!isAuthenticated ? (
                         <div className="flex items-center gap-2">
-                            <Link
+                            <NavLink
                                 to="/settings"
-                                className="inline-flex min-h-11 items-center rounded-sm px-3 text-sm text-fg-secondary hover:text-fg-brand"
+                                aria-label="Settings"
+                                title="Settings"
+                                className={({ isActive }) =>
+                                    `inline-flex h-11 w-11 items-center justify-center rounded-md border border-border-strong hover:bg-surface-subtle ${isActive ? 'bg-brand/5 text-fg-brand' : 'text-fg-secondary'}`
+                                }
                             >
-                                Settings
-                            </Link>
+                                <MdSettings
+                                    className="h-6 w-6"
+                                    aria-hidden="true"
+                                />
+                            </NavLink>
                             <Button onClick={() => navigate('/register')}>
                                 Sign Up
                             </Button>
