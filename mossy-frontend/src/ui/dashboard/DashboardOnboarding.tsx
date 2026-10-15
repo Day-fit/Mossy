@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MdCheckCircle, MdKey, MdLock, MdStorage } from 'react-icons/md';
+import {
+    MdArrowForward,
+    MdCheck,
+    MdKey,
+    MdLock,
+    MdStorage,
+} from 'react-icons/md';
+import { motion, useReducedMotion } from 'framer-motion';
+import SectionLeaves from '../shared/SectionLeaves.tsx';
 import { getDeviceDatabase } from '../../auth/deviceIdentity.ts';
 import type { UserVaultDto } from '../../api/vault.api.ts';
 
@@ -9,6 +17,7 @@ export default function DashboardOnboarding({
 }: {
     vaults: UserVaultDto[];
 }) {
+    const reducedMotion = useReducedMotion();
     const [keyVaultId, setKeyVaultId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -45,14 +54,17 @@ export default function DashboardOnboarding({
             description:
                 'Create a vault and follow its self-hosting instructions.',
             to: '/vaults',
+            action: 'Create your vault',
             done: hasVault,
             Icon: MdStorage,
         },
         {
             title: 'Sync key',
-            description:
-                'Sync your vault key from a trusted device. Creating a vault sets up its key on this device automatically.',
+            description: hasKey
+                ? 'Your vault key is ready on this device.'
+                : 'Bring your vault key over from a trusted device, or create one with a new vault.',
             to: '/key-sync',
+            action: 'Sync your key',
             done: hasKey,
             Icon: MdKey,
         },
@@ -61,64 +73,144 @@ export default function DashboardOnboarding({
             description:
                 'Bring your vault online, then save your first password.',
             to: '/passwords',
+            action: 'Add a password',
             done: false,
             Icon: MdLock,
         },
     ];
+    const nextStep = steps.findIndex((step) => !step.done);
 
     return (
-        <section
-            className="mx-4 my-2 rounded-md bg-surface p-6 shadow-card"
+        <motion.section
+            className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10 lg:py-14"
             aria-labelledby="onboarding-title"
+            initial={reducedMotion ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
         >
-            <h1 id="onboarding-title" className="text-2xl">
-                Get started with Mossy
-            </h1>
-            <p className="mt-2 text-sm text-fg-secondary">
-                Set up your vault to start securing your passwords.
-            </p>
-            <p className="mt-4 text-sm text-fg-muted">
-                {completed} of 3 steps complete
-            </p>
-            <progress
-                className="mt-2 h-2 w-full accent-brand"
-                value={completed}
-                max={3}
-                aria-label="Setup progress"
-            />
-            <ol className="mt-6 grid gap-6 sm:grid-cols-3">
-                {steps.map(({ title, description, to, done, Icon }) => (
-                    <li key={title}>
-                        {done ? (
-                            <MdCheckCircle
-                                className="text-brand"
-                                size={24}
-                                aria-hidden="true"
-                            />
-                        ) : (
-                            <Icon
-                                className="text-fg-muted"
-                                size={24}
-                                aria-hidden="true"
-                            />
-                        )}
-                        <Link
-                            to={to}
-                            className="mt-3 inline-block rounded-sm font-semibold text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            <div className="grid overflow-hidden rounded-md border border-border bg-surface shadow-card md:grid-cols-[0.9fr_1.1fr]">
+                <div className="relative flex flex-col justify-between bg-brand/5 px-6 pt-7 pb-5 sm:px-10 sm:pt-12 sm:pb-6 md:border-r md:border-border">
+                    <SectionLeaves variant="sprigs" />
+                    <div className="relative">
+                        <h1
+                            id="onboarding-title"
+                            className="max-w-sm text-3xl leading-tight sm:text-4xl"
                         >
-                            {title}
-                        </Link>
-                        {done && (
-                            <span className="ml-2 text-sm text-fg-muted">
-                                Complete
-                            </span>
-                        )}
-                        <p className="mt-2 text-sm text-fg-secondary">
-                            {description}
+                            Get started{' '}
+                            <span className="block text-brand">with Mossy</span>
+                        </h1>
+                        <p className="mt-5 max-w-sm text-base leading-relaxed text-fg-secondary">
+                            A home for your passwords, on your own server. Let’s
+                            get your first vault ready.
                         </p>
-                    </li>
-                ))}
-            </ol>
-        </section>
+                    </div>
+                    <img
+                        src="/hero.png"
+                        width="2048"
+                        height="600"
+                        alt=""
+                        className="relative mt-5 h-24 w-full rounded-md object-cover object-[72%_center] sm:mt-8 sm:h-44 md:mt-12 md:h-52"
+                    />
+                </div>
+                <div className="px-5 py-7 sm:p-9 lg:p-10">
+                    <div className="flex items-center justify-between gap-3">
+                        <h2 className="text-lg">Your first steps</h2>
+                        <p
+                            className="text-xs text-fg-muted sm:text-sm"
+                            aria-live="polite"
+                        >
+                            {completed} of 3 steps complete
+                        </p>
+                    </div>
+                    <progress
+                        className="sr-only"
+                        value={completed}
+                        max={3}
+                        aria-label="Setup progress"
+                    />
+                    <div
+                        className="mt-4 grid grid-cols-3 gap-2"
+                        aria-hidden="true"
+                    >
+                        {steps.map((step, index) => (
+                            <div
+                                key={step.title}
+                                className={`h-1.5 rounded-full ${step.done ? 'bg-brand' : index === nextStep ? 'bg-brand/30' : 'bg-border'}`}
+                            />
+                        ))}
+                    </div>
+                    <ol className="mt-7 space-y-3">
+                        {steps.map(
+                            (
+                                { title, description, to, done, action, Icon },
+                                index
+                            ) => {
+                                const isNext = index === nextStep;
+                                return (
+                                    <li key={title}>
+                                        <Link
+                                            to={to}
+                                            aria-label={title}
+                                            aria-current={
+                                                isNext ? 'step' : undefined
+                                            }
+                                            className={`group flex gap-4 rounded-md border p-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 motion-reduce:transition-none ${isNext ? 'border-brand/25 bg-brand/5 hover:bg-brand/10' : 'border-transparent hover:bg-surface-subtle'}`}
+                                        >
+                                            <span
+                                                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${done ? 'bg-brand text-fg-inverse' : isNext ? 'bg-brand/10 text-brand' : 'bg-surface-muted text-fg-muted'}`}
+                                            >
+                                                {done ? (
+                                                    <MdCheck
+                                                        size={20}
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : (
+                                                    <Icon
+                                                        size={20}
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="mb-1 flex items-center gap-2 text-xs text-fg-muted">
+                                                    Step 0{index + 1}
+                                                    {done && (
+                                                        <span className="text-brand">
+                                                            {' '}
+                                                            · Complete
+                                                        </span>
+                                                    )}
+                                                    {isNext && (
+                                                        <span className="text-brand">
+                                                            {' '}
+                                                            · Up next
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="block font-heading text-base leading-snug">
+                                                    {title}
+                                                </span>
+                                                <span className="mt-2 block text-sm leading-relaxed text-fg-secondary">
+                                                    {description}
+                                                </span>
+                                                {isNext && (
+                                                    <span className="mt-4 inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2.5 text-sm font-semibold text-fg-inverse group-hover:bg-brand-hover">
+                                                        {action}
+                                                        <MdArrowForward
+                                                            size={17}
+                                                            aria-hidden="true"
+                                                        />
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </Link>
+                                    </li>
+                                );
+                            }
+                        )}
+                    </ol>
+                </div>
+            </div>
+        </motion.section>
     );
 }

@@ -60,6 +60,11 @@ it('guides an empty account to all three setup pages', async () => {
         );
     }
     expect(screen.queryByText('No password history yet.')).toBeNull();
+    expect(
+        screen
+            .getByRole('link', { name: 'Install your vault' })
+            .getAttribute('aria-current')
+    ).toBe('step');
 });
 
 it.each([false, true])(
@@ -88,6 +93,13 @@ it.each([false, true])(
         expect(
             (screen.getByRole('progressbar') as HTMLProgressElement).value
         ).toBe(hasKey ? 2 : 1);
+        expect(
+            screen
+                .getByRole('link', {
+                    name: hasKey ? 'Add your first password' : 'Sync key',
+                })
+                .getAttribute('aria-current')
+        ).toBe('step');
     }
 );
 
