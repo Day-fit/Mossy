@@ -10,13 +10,16 @@ entryPoints:
     address: ":443"
 
 certificatesResolvers:
-  myresolver:
+  mossy-resolver:
     acme:
       email: xdayfit@gmail.com
-      storage: acme.json
+      storage: /etc/traefik/acme.json
       httpChallenge:
         entryPoint: web
 
 providers:
   docker:
     exposedByDefault: false
+  file:
+    filename: /etc/traefik/middlewares.yaml
+    watch: true
