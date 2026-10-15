@@ -107,8 +107,8 @@ export default function PasswordPinModal({
 
                                                     ${
                                                         slot.isActive
-                                                            ? 'border-brand bg-brand/5 ring-4 ring-brand/10'
-                                                            : 'border-border bg-surface text-fg-secondary'
+                                                            ? 'border-fg-brand bg-brand/5 ring-4 ring-fg-brand/10'
+                                                            : 'border-border-strong bg-surface text-fg-secondary'
                                                     }
                                                 `}
                                             >
@@ -130,7 +130,7 @@ export default function PasswordPinModal({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="text-sm text-danger bg-danger/5 px-3 py-2 rounded-md"
+                            className="text-sm text-fg-danger bg-danger/5 px-3 py-2 rounded-md"
                         >
                             {errors.pin.message}
                         </motion.p>

@@ -132,11 +132,11 @@ function PasswordListCard({
             <SearchBar />
 
             {status?.type === 'success' ? (
-                <p className="mt-2 text-sm text-success">{status.message}</p>
+                <p className="mt-2 text-sm text-fg-success">{status.message}</p>
             ) : null}
 
             {status?.type === 'error' ? (
-                <p className="mt-2 text-sm text-danger">{status.message}</p>
+                <p className="mt-2 text-sm text-fg-danger">{status.message}</p>
             ) : null}
 
             {(query || selectedTagsId.length > 0) && (

@@ -9,10 +9,7 @@ import PasswordPinModal from '../shared/PasswordPinModal.tsx';
 import { PinNotFoundException } from '../../exception/PinNotFoundException.ts';
 import Button from '../shared/Button.tsx';
 import KeySyncCodeGuide from './KeySyncCodeGuide.tsx';
-import {
-    globalStyleVar,
-    resolveGlobalStyleToken,
-} from '../../theme/globalTokens.ts';
+import { globalStyleVar } from '../../theme/globalTokens.ts';
 
 type SyncPhase = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -38,7 +35,7 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeOpacity="0.15"
                 strokeWidth="7"
             />
@@ -47,7 +44,7 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeWidth="7"
                 strokeLinecap="round"
                 transform="rotate(-90 40 40)"
@@ -58,7 +55,7 @@ function SuccessCheckmark() {
             <motion.polyline
                 points="24,41 35,52 56,30"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -83,11 +80,12 @@ function SlotBox({
 }) {
     const isSuccess = phase === 'success';
     const isError = phase === 'error';
-    const borderColor = resolveGlobalStyleToken('border');
-    const brandColor = resolveGlobalStyleToken('brand');
+    const borderColor = globalStyleVar('borderStrong');
+    const brandColor = globalStyleVar('fgBrand');
 
     return (
         <motion.div
+            data-motion-color
             variants={itemVariants}
             animate={
                 isSuccess
@@ -102,16 +100,16 @@ function SlotBox({
             className={[
                 'font-mono text-2xl font-semibold w-16 h-16 border-2 rounded-2xl flex items-center justify-center select-none',
                 isError
-                    ? 'border-danger/20 bg-danger/5 text-danger'
+                    ? 'border-fg-danger bg-danger/5 text-fg-danger'
                     : isSuccess
-                      ? 'border-brand/30 bg-brand/5 text-brand'
+                      ? 'border-fg-brand/30 bg-brand/5 text-fg-brand'
                       : fromUrl
-                        ? 'border-border bg-surface-muted text-fg-muted'
+                        ? 'border-border-strong bg-surface-muted text-fg-muted'
                         : slot.isActive
-                          ? 'border-brand bg-surface ring-4 ring-brand/10'
+                          ? 'border-fg-brand bg-surface ring-4 ring-fg-brand/10'
                           : slot.char
-                            ? 'border-border bg-surface text-fg-secondary'
-                            : 'border-border bg-surface text-fg-disabled',
+                            ? 'border-border-strong bg-surface text-fg-secondary'
+                            : 'border-border-strong bg-surface text-fg-disabled',
             ].join(' ')}
         >
             {slot.char ?? <span className="text-fg-disabled">·</span>}
@@ -234,7 +232,7 @@ export default function KeySyncHero() {
                                             height="26"
                                             viewBox="0 0 24 24"
                                             fill="none"
-                                            stroke={globalStyleVar('brand')}
+                                            stroke={globalStyleVar('fgBrand')}
                                             strokeWidth="1.7"
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -244,7 +242,7 @@ export default function KeySyncHero() {
                                     </div>
                                     {isBusy && (
                                         <motion.div
-                                            className="absolute -inset-1.5 rounded-3xl border-2 border-brand/25"
+                                            className="absolute -inset-1.5 rounded-3xl border-2 border-fg-brand/25"
                                             animate={{
                                                 opacity: [0.7, 0.1, 0.7],
                                                 scale: [1, 1.12, 1],

@@ -20,9 +20,9 @@ export default function VaultStatus({
     const tone = inverse
         ? 'text-fg-inverse'
         : isOnline
-          ? 'text-success'
+          ? 'text-fg-success'
           : hasConnected
-            ? 'text-warning'
+            ? 'text-fg-warning'
             : 'text-fg-muted';
     const hint = isOnline
         ? 'The vault is connected and ready to manage passwords.'

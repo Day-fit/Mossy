@@ -1,11 +1,20 @@
 import NavTab from './NavTab.tsx';
 import Button from '../shared/Button.tsx';
-import { useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth.ts';
-import { CgProfile } from 'react-icons/cg';
+import AccountMenu from './AccountMenu.tsx';
 import { useDeviceManagementStore } from '../../store/deviceManagementStore.ts';
+import {
+    MdDashboard,
+    MdDevices,
+    MdLockOutline,
+    MdLogout,
+    MdPersonOutline,
+    MdSettings,
+    MdStorage,
+} from 'react-icons/md';
 
 const menuVariants: Variants = {
     hidden: { opacity: 0, height: 0 },
@@ -33,16 +42,37 @@ const itemVariants = {
 };
 
 const navItems = [
-    { name: 'Dashboard', url: '/dashboard', requiresAuthentication: true },
-    { name: 'Passwords', url: '/passwords', requiresAuthentication: true },
-    { name: 'Vaults', url: '/vaults', requiresAuthentication: true },
-    { name: 'Devices', url: '/devices', requiresAuthentication: true },
+    {
+        name: 'Dashboard',
+        url: '/dashboard',
+        requiresAuthentication: true,
+        icon: MdDashboard,
+    },
+    {
+        name: 'Passwords',
+        url: '/passwords',
+        requiresAuthentication: true,
+        icon: MdLockOutline,
+    },
+    {
+        name: 'Vaults',
+        url: '/vaults',
+        requiresAuthentication: true,
+        icon: MdStorage,
+    },
+    {
+        name: 'Devices',
+        url: '/devices',
+        requiresAuthentication: true,
+        icon: MdDevices,
+    },
 ];
 
 function Nav() {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, userDetails, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
+    const [signingOut, setSigningOut] = useState(false);
     const enrollmentCount = useDeviceManagementStore(
         (state) => state.enrollments.length
     );
@@ -50,20 +80,35 @@ function Nav() {
     const toggleMenu = () => setIsOpen((prev) => !prev);
     const closeMenu = () => setIsOpen(false);
 
+    const signOut = async () => {
+        if (signingOut) return;
+        setSigningOut(true);
+        try {
+            await logout();
+        } catch {
+            // The existing logout flow clears local credentials even if the request fails.
+        } finally {
+            closeMenu();
+            setSigningOut(false);
+            navigate('/', { replace: true });
+        }
+    };
+
     return (
         <>
             <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
-                <div className="col-start-1 justify-self-start self-stretch">
+                <Link
+                    to="/"
+                    aria-label="Mossy home"
+                    onClick={closeMenu}
+                    className="col-start-1 justify-self-start self-stretch rounded-sm"
+                >
                     <img
                         className="h-full max-w-none p-2 object-contain cursor-pointer"
                         alt="mossy-logo"
                         src="/mossy_logo.png"
-                        onClick={() => {
-                            navigate('/');
-                            closeMenu();
-                        }}
                     />
-                </div>
+                </Link>
 
                 <div className="hidden lg:flex gap-10 items-center h-full">
                     {navItems.map((item) => (
@@ -81,7 +126,20 @@ function Nav() {
 
                 <div className={'hidden lg:flex justify-self-end mr-4'}>
                     {!isAuthenticated ? (
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-2">
+                            <NavLink
+                                to="/settings"
+                                aria-label="Settings"
+                                title="Settings"
+                                className={({ isActive }) =>
+                                    `inline-flex h-11 w-11 items-center justify-center rounded-md border border-border-strong hover:bg-surface-subtle ${isActive ? 'bg-brand/5 text-fg-brand' : 'text-fg-secondary'}`
+                                }
+                            >
+                                <MdSettings
+                                    className="h-6 w-6"
+                                    aria-hidden="true"
+                                />
+                            </NavLink>
                             <Button onClick={() => navigate('/register')}>
                                 Sign Up
                             </Button>
@@ -93,14 +151,21 @@ function Nav() {
                             </Button>
                         </div>
                     ) : (
-                        <CgProfile className={'text-4xl mr-5'} />
+                        <AccountMenu
+                            username={userDetails?.username}
+                            signingOut={signingOut}
+                            onSignOut={signOut}
+                        />
                     )}
                 </div>
 
                 <button
-                    className="lg:hidden mr-4 flex flex-col col-start-3 justify-self-end justify-center items-center w-10 h-10 cursor-pointer"
+                    className="lg:hidden mr-4 flex flex-col col-start-3 justify-self-end justify-center items-center w-11 h-11 cursor-pointer rounded-md border border-border-strong hover:bg-surface-subtle"
                     onClick={toggleMenu}
+                    type="button"
                     aria-label={isOpen ? 'Close menu' : 'Open menu'}
+                    aria-expanded={isOpen}
+                    aria-controls={isOpen ? 'mobile-navigation' : undefined}
                 >
                     <motion.span
                         animate={
@@ -134,13 +199,14 @@ function Nav() {
                 {isOpen && (
                     <motion.div
                         key="mobile-menu"
+                        id="mobile-navigation"
                         variants={menuVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="lg:hidden shrink-0 overflow-hidden bg-surface border-b-2 border-border sticky top-20 z-40 w-full"
+                        className="lg:hidden shrink-0 overflow-hidden bg-surface border-b border-border sticky top-20 z-40 w-full"
                     >
-                        <div className="flex flex-col items-start px-6 py-4 gap-4">
+                        <div className="mx-auto flex max-w-7xl flex-col gap-1 px-4 py-4 sm:px-6">
                             {navItems.map((item) => (
                                 <motion.div
                                     key={item.url}
@@ -148,6 +214,13 @@ function Nav() {
                                     className="w-full"
                                 >
                                     <NavTab
+                                        mobile
+                                        icon={
+                                            <item.icon
+                                                className="h-5 w-5 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                        }
                                         name={item.name}
                                         url={item.url}
                                         requiresAuthentication={
@@ -162,6 +235,57 @@ function Nav() {
                                     />
                                 </motion.div>
                             ))}
+                            <motion.div
+                                variants={itemVariants}
+                                className="w-full"
+                            >
+                                <NavTab
+                                    mobile
+                                    icon={
+                                        <MdSettings
+                                            className="h-5 w-5 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                    }
+                                    name="Settings"
+                                    url="/settings"
+                                    requiresAuthentication={false}
+                                    onClick={closeMenu}
+                                />
+                            </motion.div>
+                            {isAuthenticated && (
+                                <motion.div
+                                    variants={itemVariants}
+                                    className="mt-3 w-full border-t border-border pt-3"
+                                >
+                                    {userDetails?.username && (
+                                        <p className="flex min-h-11 items-center gap-3 px-3 text-sm text-fg-muted">
+                                            <MdPersonOutline
+                                                className="h-5 w-5 shrink-0"
+                                                aria-hidden="true"
+                                            />
+                                            <span className="min-w-0 break-words">
+                                                {userDetails.username}
+                                            </span>
+                                        </p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => void signOut()}
+                                        disabled={signingOut}
+                                        aria-busy={signingOut}
+                                        className="flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-md px-3 text-left text-sm font-semibold text-fg-danger hover:bg-danger/5 disabled:cursor-wait"
+                                    >
+                                        <MdLogout
+                                            className="h-5 w-5 shrink-0"
+                                            aria-hidden="true"
+                                        />
+                                        {signingOut
+                                            ? 'Signing out…'
+                                            : 'Sign out'}
+                                    </button>
+                                </motion.div>
+                            )}
                             {!isAuthenticated && (
                                 <motion.div
                                     variants={itemVariants}

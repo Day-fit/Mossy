@@ -14,13 +14,13 @@ export default function KeySyncCodeGuide() {
                 type="button"
                 variant="ghost"
                 padding="none"
-                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-fg-secondary hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-fg-secondary hover:bg-surface-subtle focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg-brand"
                 aria-expanded={isOpen}
                 aria-controls={contentId}
                 onClick={() => setIsOpen((prev) => !prev)}
             >
                 <MdInfoOutline
-                    className="shrink-0 text-brand"
+                    className="shrink-0 text-fg-brand"
                     size={18}
                     aria-hidden="true"
                 />

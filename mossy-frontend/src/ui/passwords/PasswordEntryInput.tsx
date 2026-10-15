@@ -168,7 +168,7 @@ export default function PasswordEntryInput({
                             onClick={() => handlePasswordTypeChange('PASSWORD')}
                             className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm font-semibold ${
                                 formState.passwordType === 'PASSWORD'
-                                    ? 'border-brand bg-brand/5 text-brand'
+                                    ? 'border-fg-brand bg-brand/5 text-fg-brand'
                                     : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'PASSWORD'}
@@ -182,7 +182,7 @@ export default function PasswordEntryInput({
                             onClick={() => handlePasswordTypeChange('SSH_KEY')}
                             className={`inline-flex items-center gap-1 rounded-sm border px-2 py-1 text-sm font-semibold ${
                                 formState.passwordType === 'SSH_KEY'
-                                    ? 'border-brand bg-brand/5 text-brand'
+                                    ? 'border-fg-brand bg-brand/5 text-fg-brand'
                                     : 'border-border text-fg-secondary hover:bg-surface-subtle'
                             }`}
                             aria-pressed={formState.passwordType === 'SSH_KEY'}
@@ -203,7 +203,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('identifier', event.target.value)
                     }
                     placeholder="Enter identifier (email/username)"
-                    className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
+                    className="border-b-2 border-border-strong p-2 focus:border-fg-brand focus:outline-none"
                     required
                     autoFocus
                 />
@@ -216,7 +216,7 @@ export default function PasswordEntryInput({
                         handleBaseChange('address', event.target.value)
                     }
                     placeholder="Enter address"
-                    className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
+                    className="border-b-2 border-border-strong p-2 focus:border-fg-brand focus:outline-none"
                     required
                 />
             </div>
@@ -239,7 +239,7 @@ export default function PasswordEntryInput({
                         placeholder={
                             isEditing ? 'Enter new password' : 'Enter password'
                         }
-                        className="border-b-2 border-border p-2 focus:border-brand focus:outline-none"
+                        className="border-b-2 border-border-strong p-2 focus:border-fg-brand focus:outline-none"
                         required
                     />
                     <StrengthMeter password={formState.password} />
@@ -247,7 +247,7 @@ export default function PasswordEntryInput({
             )}
 
             {submitError ? (
-                <p className="text-sm text-danger">{submitError}</p>
+                <p className="text-sm text-fg-danger">{submitError}</p>
             ) : null}
 
             <div className="flex items-center gap-2">

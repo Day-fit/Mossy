@@ -77,7 +77,7 @@ export default function TagListItem({
 
             <MdDelete
                 size={'1rem'}
-                className={'cursor-pointer text-danger'}
+                className={'cursor-pointer text-fg-danger'}
                 onClick={() => {
                     handleDeletion();
                 }}

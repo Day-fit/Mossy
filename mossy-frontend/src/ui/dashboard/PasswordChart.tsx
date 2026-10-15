@@ -95,9 +95,19 @@ export default function PasswordChart({
                 >
                     <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={chartData}>
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis dataKey="date" tickFormatter={formatDate} />
+                            <CartesianGrid
+                                stroke={globalStyleVar('border')}
+                                strokeDasharray="3 3"
+                            />
+                            <XAxis
+                                dataKey="date"
+                                tickFormatter={formatDate}
+                                stroke={globalStyleVar('borderStrong')}
+                                tick={{ fill: globalStyleVar('fgMuted') }}
+                            />
                             <YAxis
+                                stroke={globalStyleVar('borderStrong')}
+                                tick={{ fill: globalStyleVar('fgMuted') }}
                                 allowDecimals={false}
                                 domain={[
                                     (dataMin: number) =>
@@ -106,6 +116,19 @@ export default function PasswordChart({
                                 ]}
                             />
                             <Tooltip
+                                cursor={{
+                                    stroke: globalStyleVar('borderStrong'),
+                                }}
+                                contentStyle={{
+                                    backgroundColor: globalStyleVar('surface'),
+                                    borderColor: globalStyleVar('borderStrong'),
+                                    color: globalStyleVar('fgPrimary'),
+                                    boxShadow: globalStyleVar('shadowCard'),
+                                }}
+                                labelStyle={{
+                                    color: globalStyleVar('fgPrimary'),
+                                }}
+                                itemStyle={{ color: globalStyleVar('fgBrand') }}
                                 labelFormatter={(value) =>
                                     formatDate(value as string)
                                 }
@@ -115,7 +138,7 @@ export default function PasswordChart({
                                 type="monotone"
                                 dataKey={dataKey}
                                 name={lineName}
-                                stroke={globalStyleVar('brand')}
+                                stroke={globalStyleVar('fgBrand')}
                                 strokeWidth={3}
                             />
                         </LineChart>
@@ -126,7 +149,7 @@ export default function PasswordChart({
                         {error ? (
                             <IoWarningOutline
                                 aria-hidden="true"
-                                className="h-9 w-9 shrink-0 text-warning"
+                                className="h-9 w-9 shrink-0 text-fg-warning"
                             />
                         ) : null}
                         <p>

@@ -14,6 +14,7 @@ import Devices from './routes/Devices.tsx';
 import VerifyEmail from './routes/VerifyEmail.tsx';
 import AuthRoutes from './ui/auth/AuthTransition.tsx';
 import { useDevicesInit } from './hooks/useDevicesInit.ts';
+import Settings from './routes/Settings.tsx';
 
 function App() {
     useAuthInit();
@@ -27,6 +28,7 @@ function App() {
         <Routes>
             <Route element={<Layout />}>
                 <Route path="/" element={<Home />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path={'/key-sync'} element={<KeySync />} />
                 <Route path="/vaults" element={<Vaults />} />

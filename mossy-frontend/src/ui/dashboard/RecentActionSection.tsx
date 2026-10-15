@@ -75,7 +75,7 @@ export default function RecentActionSection({
                             {error ? (
                                 <IoWarningOutline
                                     aria-hidden="true"
-                                    className="h-9 w-9 shrink-0 text-warning"
+                                    className="h-9 w-9 shrink-0 text-fg-warning"
                                 />
                             ) : null}
                             <p>
