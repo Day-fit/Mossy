@@ -196,10 +196,10 @@
     <text id="text23" x="570" y="272" font-size="18">Your vault lives here.</text>
   </g>
   <path
-     d="M584 302Q552 322 494 282M501 277L494 282L499 290"
+     d="M584 302C552 322 528 282 494 282M502 276L494 282L502 288"
      fill="none"
      stroke="#879277"
-     stroke-width="1.5"
+     stroke-width="1.75"
      stroke-linecap="round"
      stroke-linejoin="round"
      id="path23" />
