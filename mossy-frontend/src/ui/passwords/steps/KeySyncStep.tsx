@@ -148,7 +148,7 @@ export default function KeySyncStep({
                         <div className="flex flex-col items-center gap-2">
                             <div
                                 ref={qrCodeRef}
-                                className="w-60 h-60 rounded-md bg-qr-surface flex justify-center items-center subpixel-antialiased"
+                                className="w-60 h-60 overflow-hidden rounded-xl bg-qr-surface flex justify-center items-center subpixel-antialiased"
                                 style={{
                                     transform: 'translateZ(0)',
                                     backfaceVisibility: 'hidden',

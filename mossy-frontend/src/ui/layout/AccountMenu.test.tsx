@@ -129,9 +129,14 @@ it('makes Settings available to guests in the header, footer, and mobile navigat
     expect(within(mobile).getByRole('link', { name: 'Settings' })).toBeTruthy();
 });
 
-it.each([false, true])(
-    'clears auth and returns home while keeping the theme when logout fails=%s',
-    async (fails) => {
+it.each([
+    { fails: false, mobile: false },
+    { fails: true, mobile: false },
+    { fails: false, mobile: true },
+    { fails: true, mobile: true },
+])(
+    'clears auth and returns home while keeping the theme (fails=$fails, mobile=$mobile)',
+    async ({ fails, mobile }) => {
         if (fails) executeLogoutRequest.mockRejectedValue(new Error('Offline'));
         else executeLogoutRequest.mockResolvedValue(undefined);
         useAuthStore.setState({
@@ -146,8 +151,24 @@ it.each([false, true])(
         tokenStorage.set('test-token');
         useThemeStore.getState().setPreference('dark');
         renderLayout();
-        fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
-        fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+        if (mobile) {
+            fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+            const menu = document.getElementById('mobile-navigation')!;
+            expect(within(menu).getByText('Mossy user')).toBeTruthy();
+            expect(
+                within(menu)
+                    .getByRole('link', { name: 'Settings' })
+                    .getAttribute('aria-current')
+            ).toBe('page');
+            fireEvent.click(
+                within(menu).getByRole('button', { name: 'Sign out' })
+            );
+        } else {
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Account menu' })
+            );
+            fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
+        }
         await screen.findByRole('heading', { name: 'Home fixture' });
         expect(executeLogoutRequest).toHaveBeenCalledTimes(1);
         expect(useAuthStore.getState().isAuthenticated).toBe(false);

@@ -22,7 +22,7 @@ Additional states:
 
 - [Account menu with keyboard focus](account-menu-dark.png)
 - [Mobile Settings](settings-mobile-dark.png)
-- [Mobile navigation](mobile-menu-dark.png)
+- [Signed-in mobile navigation](mobile-menu-dark.png)
 - [Password entry](password-entry-dark.png)
 - [PIN modal](pin-modal-dark.png)
 - [QR modal, Dark](qr-modal-dark.png) and [Light](qr-modal-light.png)
