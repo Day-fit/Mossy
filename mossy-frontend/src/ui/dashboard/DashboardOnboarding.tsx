@@ -82,14 +82,14 @@ export default function DashboardOnboarding({
 
     return (
         <motion.section
-            className="mx-auto w-full max-w-lg px-4 py-6 sm:py-8"
+            className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10"
             aria-labelledby="onboarding-title"
             initial={reducedMotion ? false : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
         >
-            <div className="overflow-hidden rounded-md border border-border bg-surface shadow-card">
-                <div className="relative border-b border-border bg-brand/5 px-6 py-7 sm:px-8 sm:py-8">
+            <div className="grid overflow-hidden rounded-md border border-border bg-surface shadow-card md:grid-cols-[2fr_3fr]">
+                <div className="relative flex items-center border-b border-border bg-brand/5 px-6 py-7 sm:px-8 sm:py-8 md:border-r md:border-b-0">
                     <div className="pointer-events-none absolute inset-0 opacity-45">
                         <SectionLeaves variant="sprigs" />
                     </div>
