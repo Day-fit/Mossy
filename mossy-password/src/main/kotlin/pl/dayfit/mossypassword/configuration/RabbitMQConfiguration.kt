@@ -2,8 +2,6 @@ package pl.dayfit.mossypassword.configuration
 
 import org.springframework.amqp.core.AnonymousQueue
 import org.springframework.amqp.core.Binding
-import org.springframework.amqp.core.BindingBuilder
-import org.springframework.amqp.core.DirectExchange
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate
 import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter
@@ -18,16 +16,14 @@ class RabbitMQConfiguration {
     fun replicaQueue() = AnonymousQueue()
 
     @Bean
-    fun replicaDirectExchange() = DirectExchange("password.replica.exchange")
-
-    @Bean
-    fun binding(): Binding {
-        val queue = replicaQueue()
-        val exchange = replicaDirectExchange()
-
-        return BindingBuilder.bind(queue)
-            .to(exchange)
-            .with(queue.name)
+    fun binding(replicaQueue: AnonymousQueue): Binding {
+        return Binding(
+            replicaQueue.name,
+            Binding.DestinationType.QUEUE,
+            "password.replica.exchange",
+            replicaQueue.name,
+            null
+        )
     }
 
     @Bean

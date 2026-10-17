@@ -11,9 +11,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingRequestHeaderException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import pl.dayfit.mossykeysync.dto.response.GenericServerResponseDto
 import pl.dayfit.mossykeysync.dto.response.ValidationResponseDto
+import pl.dayfit.mossykeysync.exception.InvalidKeyUploadedException
 
 
 @Order(2)
@@ -106,6 +108,17 @@ class GlobalControllerAdvice {
     fun handleNoSuchElementException(): ResponseEntity<Unit> {
         return ResponseEntity.notFound()
             .build()
+    }
+
+    @ExceptionHandler(InvalidKeyUploadedException::class)
+    fun handleInvalidKeyUploadedException(): ResponseEntity<GenericServerResponseDto> {
+        return ResponseEntity.unprocessableContent()
+            .body(GenericServerResponseDto("Invalid key uploaded by sender"))
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException::class)
+    fun handleDisconnectedClient() {
+        logger.debug("Client disconnected from the event stream")
     }
 
     @ExceptionHandler(Exception::class)

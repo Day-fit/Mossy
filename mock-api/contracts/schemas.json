@@ -238,14 +238,36 @@
   "initKeySyncRequest": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["vaultId"],
-    "properties": { "vaultId": { "$ref": "uuid" } }
+    "required": [
+      "vaultId",
+      "publicDh",
+      "signature"
+    ],
+    "properties": {
+      "vaultId": {
+        "$ref": "uuid"
+      },
+      "publicDh": {
+        "$ref": "x25519Jwk"
+      },
+      "signature": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
   },
   "initKeySyncResponse": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["code"],
-    "properties": { "code": { "type": "string", "pattern": "^[0-9]{6}$" } }
+    "required": [
+      "code"
+    ],
+    "properties": {
+      "code": {
+        "type": "string",
+        "pattern": "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$"
+      }
+    }
   },
   "vaultRequest": {
     "type": "object",
@@ -472,36 +494,110 @@
       }
     }
   },
-  "wsAuthFrame": {
+  "syncCodeParams": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["type", "accessToken", "signature", "jwkPublicDh"],
+    "required": [
+      "code"
+    ],
     "properties": {
-      "type": { "const": "AUTH_FRAME" },
-      "accessToken": { "type": "string", "minLength": 1 },
-      "signature": { "type": "string", "minLength": 1 },
-      "jwkPublicDh": { "$ref": "x25519Jwk" }
+      "code": {
+        "type": "string",
+        "pattern": "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$"
+      }
     }
   },
-  "wsSignatureStatus": {
+  "uploadVaultKeyRequest": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["type", "signatureAccepted"],
+    "required": [
+      "vaultId",
+      "ciphertext",
+      "publicDh"
+    ],
     "properties": {
-      "type": { "const": "SIGNATURE_STATUS" },
-      "signatureAccepted": { "type": "boolean" }
+      "vaultId": {
+        "$ref": "uuid"
+      },
+      "ciphertext": {
+        "type": "string",
+        "minLength": 1
+      },
+      "publicDh": {
+        "$ref": "x25519Jwk"
+      }
     }
   },
-  "wsKeySync": {
+  "vaultKeysResponse": {
     "type": "object",
     "additionalProperties": false,
-    "required": ["type", "ciphertext", "nonce", "signature", "vaultId"],
+    "required": [
+      "keys"
+    ],
     "properties": {
-      "type": { "const": "KEY_SYNC" },
-      "ciphertext": { "type": "string", "minLength": 1 },
-      "nonce": { "type": "string", "minLength": 1 },
-      "signature": { "type": "string", "minLength": 1 },
-      "vaultId": { "$ref": "uuid" }
+      "keys": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "vaultId",
+            "senderId",
+            "cipherText",
+            "senderPublicDh",
+            "code"
+          ],
+          "properties": {
+            "vaultId": {
+              "$ref": "uuid"
+            },
+            "senderId": {
+              "$ref": "uuid"
+            },
+            "cipherText": {
+              "type": "string"
+            },
+            "senderPublicDh": {
+              "type": "string"
+            },
+            "code": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "pendingReceiversResponse": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "receiverId",
+        "vaultId",
+        "publicDh",
+        "signature"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[0123456789ABCDEFGHJKMNPQRSTVWXYZ]{6}$"
+        },
+        "receiverId": {
+          "$ref": "uuid"
+        },
+        "vaultId": {
+          "$ref": "uuid"
+        },
+        "publicDh": {
+          "$ref": "x25519Jwk"
+        },
+        "signature": {
+          "type": "string"
+        }
+      }
     }
   },
   "scenarioState": {

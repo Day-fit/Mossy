@@ -1,13 +1,7 @@
-import {
-    type Dispatch,
-    type SetStateAction,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import Button from '../../shared/Button.tsx';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { useDeviceSync } from '../../../hooks/useDeviceSync.ts';
+import { useKeySyncReceiver } from '../../../hooks/useKeySyncReceiver.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
 import SyncSuccessView from './SyncSuccessView.tsx';
 import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
@@ -73,16 +67,16 @@ export default function KeySyncStep({
     pin,
     setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-    const { initializeKeySync, connect, disconnect } = useDeviceSync();
+    const receiver = useKeySyncReceiver(vaultId, pin);
     const qrCodeRef = useRef<HTMLDivElement>(null);
-    const [synced, setSynced] = useState(false);
-    const [syncCode, setSyncCode] = useState<string | undefined>(undefined);
+    const synced = receiver.phase === 'success';
+    const syncCode = receiver.code;
 
     useEffect(() => {
-        if (syncCode) return;
-
-        initializeKeySync(vaultId).then(setSyncCode);
-    }, [vaultId]);
+        if (!synced) return;
+        const timer = setTimeout(() => setIsKeySyncModalActive(false), 3500);
+        return () => clearTimeout(timer);
+    }, [synced, setIsKeySyncModalActive]);
 
     useEffect(() => {
         if (!syncCode) return;
@@ -98,11 +92,10 @@ export default function KeySyncStep({
 
         qr.append(el);
 
-        connect(`/api/v1/ws/key-sync`, 'RECEIVER', syncCode, pin).then(() => {
-            setSynced(true);
-            setTimeout(() => setIsKeySyncModalActive(false), 3500);
-        });
-    }, [syncCode, connect, pin, setIsKeySyncModalActive]);
+        return () => {
+            el.innerHTML = '';
+        };
+    }, [syncCode]);
 
     return (
         <motion.div
@@ -164,16 +157,37 @@ export default function KeySyncStep({
                             </p>
                             <input
                                 type="text"
-                                value={syncCode || 'Failed to get code'}
+                                aria-label="Sync code"
+                                value={syncCode || ''}
+                                placeholder={
+                                    receiver.phase === 'error'
+                                        ? 'No active sync code'
+                                        : 'Preparing secure transfer…'
+                                }
                                 readOnly
                                 className="font-mono text-sm w-full rounded-md border border-border-strong bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
                             />
+                            {receiver.phase === 'saving' && (
+                                <p role="status">Saving your vault key…</p>
+                            )}
+                            {receiver.error && (
+                                <p
+                                    role="alert"
+                                    className="text-sm text-fg-danger text-center"
+                                >
+                                    {receiver.error}
+                                </p>
+                            )}
                         </div>
                         <div className="flex gap-2 mt-5">
+                            {receiver.phase === 'error' && (
+                                <Button onClick={receiver.retry}>
+                                    Try again
+                                </Button>
+                            )}
                             <Button
                                 onClick={() => {
                                     setIsKeySyncModalActive(false);
-                                    disconnect();
                                 }}
                                 variant="outline"
                             >

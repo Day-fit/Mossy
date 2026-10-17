@@ -1,12 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useForm, Controller } from 'react-hook-form';
 import { OTPInput } from 'input-otp';
-import { useDeviceSync } from '../../hooks/useDeviceSync.ts';
+import { useKeySyncSender } from '../../hooks/useKeySyncSender.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
 import PasswordPinModal from '../shared/PasswordPinModal.tsx';
-import { PinNotFoundException } from '../../exception/PinNotFoundException.ts';
+import {
+    isSyncCode,
+    normalizeSyncCode,
+    SYNC_CODE_INPUT_PATTERN,
+} from '../../key-sync/code.ts';
 import Button from '../shared/Button.tsx';
 import KeySyncCodeGuide from './KeySyncCodeGuide.tsx';
 import { globalStyleVar } from '../../theme/globalTokens.ts';
@@ -118,74 +122,46 @@ function SlotBox({
 }
 
 export default function KeySyncHero() {
-    const [searchParams] = useSearchParams();
-    const urlCode = searchParams.get('code') ?? undefined;
-    const fromUrl = Boolean(urlCode?.match(/^[0-9]{6}$/));
+    const [searchParams, setSearchParams] = useSearchParams();
+    const urlCode = normalizeSyncCode(searchParams.get('code') ?? '');
+    const fromUrl = isSyncCode(urlCode);
     const navigate = useNavigate();
 
     const { control, handleSubmit, reset } = useForm<{
         code: string;
     }>({
-        defaultValues: { code: '' },
+        defaultValues: { code: fromUrl ? urlCode : '' },
     });
 
-    const { connect, resumeWithPin } = useDeviceSync();
-
-    const [phase, setPhase] = useState<SyncPhase>(() =>
-        fromUrl ? 'syncing' : 'idle'
-    );
-    const [vaultId, setVaultId] = useState<string | undefined>(undefined);
-    const [isPinModalActive, setIsPinModalActive] = useState(false);
+    const sender = useKeySyncSender();
+    const { send, reset: resetSender } = sender;
+    const phase: SyncPhase =
+        sender.phase === 'needs-pin' ? 'idle' : sender.phase;
 
     const deviceId = useDeviceStore((state) => state.deviceId);
 
-    const sync = useCallback(
-        (syncCode: string) => {
-            if (!deviceId) return;
-
-            connect('/api/v1/ws/key-sync', 'SENDER', syncCode)
-                .then(() => setPhase('success'))
-                .catch((ex) => {
-                    const isPinError =
-                        ex instanceof PinNotFoundException ||
-                        ex?.name === 'PinNotFoundException' ||
-                        ex?.isPinNotFoundException === true;
-
-                    if (isPinError) {
-                        setVaultId(ex.vaultId);
-                        setPhase('idle');
-                        setIsPinModalActive(true);
-                        return;
-                    }
-
-                    console.error('Error during sync:', ex);
-                    setPhase('error');
-                });
-        },
-        [deviceId, connect]
-    );
-
     const onSubmit = ({ code }: { code: string }) => {
-        if (code.length === 6 && phase !== 'syncing' && deviceId) {
-            setPhase('syncing');
-            sync(code);
+        if (isSyncCode(code) && sender.phase !== 'syncing' && deviceId) {
+            void send(code);
         }
     };
 
     const handleRetry = useCallback(() => {
-        setPhase('idle');
+        resetSender();
         reset({ code: '' });
-    }, [reset]);
-
-    const startedRef = useRef(false);
+        setSearchParams({}, { replace: true });
+    }, [reset, resetSender, setSearchParams]);
 
     useEffect(() => {
-        if (!fromUrl || !urlCode || !deviceId) return;
-        if (startedRef.current) return;
-
-        startedRef.current = true;
-        sync(urlCode);
-    }, [urlCode, deviceId, fromUrl, sync]);
+        if (!fromUrl || !deviceId) return;
+        let disposed = false;
+        queueMicrotask(() => {
+            if (!disposed) void send(urlCode);
+        });
+        return () => {
+            disposed = true;
+        };
+    }, [urlCode, deviceId, fromUrl, send]);
 
     const isBusy = phase === 'syncing';
     const isSuccess = phase === 'success';
@@ -276,12 +252,12 @@ export default function KeySyncHero() {
                                 </h1>
                                 <p className="text-fg-subtle max-w-sm">
                                     {isSuccess
-                                        ? 'The encryption key has been securely transferred to this device.'
+                                        ? 'The encryption key has been securely sent to the receiving device.'
                                         : isError
-                                          ? 'Could not reach the source device. Check the code and try again.'
+                                          ? sender.error
                                           : fromUrl
-                                            ? 'Code loaded from link — syncing automatically.'
-                                            : 'Enter the 6-digit code from the receiving device here, on the device that already has the key.'}
+                                            ? 'Code loaded from the receiving device.'
+                                            : 'Enter the six-character code from the receiving device here, on the device that already has the key.'}
                                 </p>
                             </motion.div>
                         </AnimatePresence>
@@ -309,7 +285,18 @@ export default function KeySyncHero() {
                                 <OTPInput
                                     {...field}
                                     maxLength={6}
-                                    disabled={fromUrl || isSuccess || isBusy}
+                                    inputMode="text"
+                                    autoCapitalize="characters"
+                                    autoComplete="off"
+                                    aria-label="Sync code"
+                                    pattern={SYNC_CODE_INPUT_PATTERN}
+                                    pasteTransformer={normalizeSyncCode}
+                                    disabled={
+                                        fromUrl ||
+                                        isSuccess ||
+                                        isBusy ||
+                                        sender.phase === 'needs-pin'
+                                    }
                                     containerClassName="flex gap-2"
                                     onChange={(val) => {
                                         if (isError && val.length < 6) {
@@ -317,10 +304,11 @@ export default function KeySyncHero() {
                                             return;
                                         }
 
-                                        field.onChange(val);
+                                        const code = normalizeSyncCode(val);
+                                        field.onChange(code);
 
                                         if (
-                                            val.length === 6 &&
+                                            isSyncCode(code) &&
                                             !isBusy &&
                                             !isSuccess
                                         ) {
@@ -399,19 +387,16 @@ export default function KeySyncHero() {
                                     <Button
                                         variant="outline"
                                         onClick={() => navigate('/dashboard')}
-                                        disabled={isBusy}
                                     >
                                         Cancel
                                     </Button>
-                                    {!fromUrl && (
-                                        <Button
-                                            className="disabled:opacity-40"
-                                            onClick={handleSubmit(onSubmit)}
-                                            disabled={isBusy}
-                                        >
-                                            {isBusy ? 'Syncing…' : 'Continue'}
-                                        </Button>
-                                    )}
+                                    <Button
+                                        className="disabled:opacity-40"
+                                        onClick={handleSubmit(onSubmit)}
+                                        disabled={isBusy || !deviceId}
+                                    >
+                                        {isBusy ? 'Syncing…' : 'Continue'}
+                                    </Button>
                                 </>
                             )}
                         </div>
@@ -424,18 +409,14 @@ export default function KeySyncHero() {
                 </motion.div>
             </div>
 
-            {isPinModalActive && (
+            {sender.phase === 'needs-pin' && (
                 <PasswordPinModal
-                    setIsPinModalActive={setIsPinModalActive}
-                    vaultId={vaultId}
-                    afterPinEntered={(pin) => {
-                        setIsPinModalActive(false);
-                        setPhase('syncing');
-
-                        resumeWithPin(pin)
-                            .then(() => setPhase('success'))
-                            .catch(() => setPhase('error'));
+                    setIsPinModalActive={(active) => {
+                        if (active === false) sender.cancelPin();
                     }}
+                    vaultId={sender.vaultId}
+                    error={sender.error}
+                    afterPinEntered={(pin) => send(sender.code, pin)}
                 />
             )}
         </div>

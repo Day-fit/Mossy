@@ -61,15 +61,15 @@ export default function KeySyncCodeGuide() {
                                     </li>
                                     <li>
                                         Keep the sync dialog open. Enter its
-                                        6-digit code here on the device that
-                                        already has the key.
+                                        six-character code here on the device
+                                        that already has the key.
                                     </li>
                                 </ol>
 
                                 <figure className="space-y-2">
                                     <img
                                         src="/key-sync-code-example.png"
-                                        alt="The receiving dialog shows the 6-digit sync code below the QR-code instructions."
+                                        alt="The receiving dialog shows the six-character sync code below the QR-code instructions."
                                         className="w-full rounded-md border border-border"
                                         width={330}
                                         height={123}

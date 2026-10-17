@@ -20,7 +20,11 @@
   { "id": "device.unblock", "method": "post", "path": "/api/v1/device-trust/device/unblock", "auth": "access", "request": { "body": "blockDeviceRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },
   { "id": "device.identity", "method": "get", "path": "/api/v1/device-trust/device/:deviceId/identity-key", "auth": "access", "request": { "params": "deviceIdParams" }, "responses": { "200": "ed25519Jwk", "default": "messageResponse" } },
 
-  { "id": "keySync.init", "method": "post", "path": "/api/v1/key-sync/init", "auth": "access", "request": { "body": "initKeySyncRequest" }, "responses": { "200": "initKeySyncResponse", "default": "messageResponse" } },
+  { "id": "keySync.init", "method": "post", "path": "/api/v1/key-sync", "auth": "access", "request": { "body": "initKeySyncRequest" }, "responses": { "200": "initKeySyncResponse", "default": "messageResponse" } },
+  { "id": "keySync.upload", "method": "post", "path": "/api/v1/key-sync/:code", "auth": "access", "request": { "params": "syncCodeParams", "body": "uploadVaultKeyRequest" }, "responses": { "200": null, "404": null, "default": "messageResponse" } },
+  { "id": "keySync.keys", "method": "get", "path": "/api/v1/key-sync/vault-keys", "auth": "access", "request": {}, "responses": { "200": "vaultKeysResponse", "default": "messageResponse" } },
+  { "id": "keySync.receivers", "method": "get", "path": "/api/v1/key-sync/receivers", "auth": "access", "request": {}, "responses": { "200": "pendingReceiversResponse", "default": "messageResponse" } },
+  { "id": "keySync.events", "method": "get", "path": "/api/v1/key-sync/receiver-events", "auth": "access", "request": {}, "responses": { "200": null, "default": "messageResponse" } },
 
   { "id": "vault.list", "method": "get", "path": "/api/v1/passwords/vault/vaults", "auth": "access", "request": {}, "responses": { "200": "vaultListResponse", "default": "messageResponse" } },
   { "id": "vault.create", "method": "post", "path": "/api/v1/passwords/vault", "auth": "access", "request": { "body": "vaultRequest" }, "responses": { "200": "vaultResponse", "default": "messageResponse" } },

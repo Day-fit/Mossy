@@ -1,4 +1,5 @@
 import { apiFetch } from './client.ts';
+import { readSseData } from './sse.ts';
 import type { PublicIdentityJwk } from './auth.api.ts';
 
 export type NonceChallenge = {
@@ -28,6 +29,16 @@ export type DeviceDetails = {
     current: boolean;
 };
 
+export async function executeGetDeviceIdentityKeyRequest(
+    deviceId: string,
+    signal: AbortSignal
+): Promise<PublicIdentityJwk> {
+    return apiFetch(
+        `/api/v1/device-trust/device/${encodeURIComponent(deviceId)}/identity-key`,
+        { signal }
+    ).then((response) => response.json());
+}
+
 // Use fetch so the stream carries the same bearer token as other API requests.
 export async function receiveEnrollmentEvents(
     signal: AbortSignal,
@@ -49,59 +60,31 @@ export async function receiveEnrollmentEvents(
         throw new Error('Enrollment event stream is unavailable.');
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let data: string[] = [];
-    const handleLine = (line: string) => {
-        if (line === '') {
-            if (data.length > 0) {
-                const payload = data.join('\n');
-                data = [];
-                // A malformed event must not disconnect the rest of the stream.
-                let enrollment: DeviceEnrollment;
-                try {
-                    enrollment = JSON.parse(payload);
-                } catch {
-                    return;
-                }
-                if (
-                    enrollment &&
-                    typeof enrollment.id === 'string' &&
-                    typeof enrollment.lastOsName === 'string' &&
-                    typeof enrollment.deviceType === 'string' &&
-                    typeof enrollment.remoteAddr === 'string' &&
-                    typeof enrollment.createdAt === 'string'
-                ) {
-                    onEnrollment(enrollment);
-                }
-            }
-        } else if (line === 'data' || line.startsWith('data:')) {
-            const value = line === 'data' ? '' : line.slice(5);
-            data.push(value.startsWith(' ') ? value.slice(1) : value);
-        }
-    };
-
     try {
         if (signal.aborted) return;
         onOpen();
-        while (!signal.aborted) {
-            const { value, done } = await reader.read();
-            if (done || signal.aborted) break;
-            buffer += decoder.decode(value, { stream: true });
-            let end: number;
-            while ((end = buffer.search(/[\r\n]/)) !== -1) {
-                // A CRLF delimiter can itself be split across network chunks.
-                if (buffer[end] === '\r' && end === buffer.length - 1) break;
-                const line = buffer.slice(0, end);
-                const length = buffer.slice(end, end + 2) === '\r\n' ? 2 : 1;
-                buffer = buffer.slice(end + length);
-                handleLine(line);
+        for await (const payload of readSseData(response)) {
+            if (signal.aborted) return;
+            // A malformed event must not disconnect the rest of the stream.
+            let enrollment: DeviceEnrollment;
+            try {
+                enrollment = JSON.parse(payload);
+            } catch {
+                continue;
+            }
+            if (
+                enrollment &&
+                typeof enrollment.id === 'string' &&
+                typeof enrollment.lastOsName === 'string' &&
+                typeof enrollment.deviceType === 'string' &&
+                typeof enrollment.remoteAddr === 'string' &&
+                typeof enrollment.createdAt === 'string'
+            ) {
+                onEnrollment(enrollment);
             }
         }
     } finally {
-        await reader.cancel().catch(() => undefined);
-        reader.releaseLock();
+        await response.body.cancel().catch(() => undefined);
     }
 }
 

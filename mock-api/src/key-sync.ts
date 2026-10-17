@@ -1,219 +1,91 @@
 import { randomInt } from "node:crypto";
-import type { Server as HttpServer } from "node:http";
-import sockjs, { type Connection } from "sockjs";
-import { RuntimeStore } from "./store.js";
-import type { ContractBundle } from "./types.js";
-import type { KeySyncRoomManager } from "./operations.js";
+import type { Response } from "express";
+import { AppError } from "./errors.js";
 
-type Role = "SENDER" | "RECEIVER";
+type PublicDhJwk = { kty: "OKP"; crv: "X25519"; x: string };
+type InitRequest = { vaultId: string; publicDh: PublicDhJwk; signature: string };
+type UploadRequest = { vaultId: string; ciphertext: string; publicDh: PublicDhJwk };
+type SyncInfo = InitRequest & { receiverId: string; expiresAt: number; expiry: ReturnType<typeof setTimeout> };
+type VaultKey = { code: string; vaultId: string; senderId: string; cipherText: string; senderPublicDh: string; expiresAt: number };
+type SyncEvent = { receiverId: string; code: string; result: "SUCCESS" | "FAILED"; errorMessage: string | null };
 
-type Peer = {
-  connection: Connection;
-  deviceId: string;
-  role: Role;
-  publicDhKey: string;
-  signature: string;
-  signatureAccepted: boolean | null;
-};
+export class KeySyncStore {
+  private readonly requests = new Map<string, SyncInfo>();
+  private readonly keys = new Map<string, VaultKey[]>();
+  private readonly subscribers = new Map<string, Set<Response>>();
 
-type Room = {
-  code: string;
-  userId: string;
-  receiverId: string;
-  vaultId: string;
-  peers: Partial<Record<Role, Peer>>;
-};
-
-function send(connection: Connection, value: unknown): void {
-  if (connection.readyState === 1) connection.write(JSON.stringify(value));
-}
-
-export class KeySyncServer implements KeySyncRoomManager {
-  private readonly rooms = new Map<string, Room>();
-  private readonly connections = new Map<Connection, { room: Room; peer: Peer }>();
-
-  constructor(
-    private readonly store: RuntimeStore,
-    private readonly contracts: ContractBundle,
-  ) {}
-
-  createRoom(userId: string, receiverId: string, vaultId: string): string {
+  initialize(userId: string, receiverId: string, request: InitRequest): string {
+    const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     let code: string;
-    do code = String(randomInt(1, 1_000_000)).padStart(6, "0");
-    while (this.rooms.has(code));
-    this.rooms.set(code, { code, userId, receiverId, vaultId, peers: {} });
+    do code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join("");
+    while (this.requests.has(`${userId}:${code}`));
+    const requestKey = `${userId}:${code}`;
+    const ttl = 15 * 60_000;
+    const expiry = setTimeout(() => this.requests.delete(requestKey), ttl);
+    expiry.unref();
+    this.requests.set(requestKey, { ...request, receiverId, expiresAt: Date.now() + ttl, expiry });
     return code;
   }
 
-  attach(server: HttpServer): void {
-    const endpoint = sockjs.createServer({
-      log: (severity, message) => {
-        if (severity === "error") console.error(`[sockjs] ${message}`);
-      },
+  upload(userId: string, senderId: string, code: string, request: UploadRequest): void {
+    const requestKey = `${userId}:${code}`;
+    const info = this.requests.get(requestKey);
+    this.requests.delete(requestKey);
+    if (info) clearTimeout(info.expiry);
+    if (!info || info.expiresAt <= Date.now()) throw new AppError(404, "Invalid code");
+    if (info.vaultId !== request.vaultId) {
+      this.publish({ receiverId: info.receiverId, code, result: "FAILED", errorMessage: "Invalid sender connected" });
+      throw new AppError(422, "Invalid key uploaded by sender");
+    }
+    if (typeof request.publicDh.x !== "string" || !request.publicDh.x) {
+      this.publish({ receiverId: info.receiverId, code, result: "FAILED", errorMessage: "DH public key is missing x" });
+      throw new AppError(422, "DH public key is missing x");
+    }
+    const keys = this.keys.get(info.receiverId) ?? [];
+    keys.push({
+      code,
+      vaultId: info.vaultId,
+      senderId,
+      cipherText: request.ciphertext,
+      senderPublicDh: request.publicDh.x,
+      expiresAt: Date.now() + 5 * 60_000,
     });
-    endpoint.on("connection", (connection) => this.handleConnection(connection));
-    endpoint.installHandlers(server, { prefix: "/api/v1/ws/key-sync" });
+    this.keys.set(info.receiverId, keys);
+    this.publish({ receiverId: info.receiverId, code, result: "SUCCESS", errorMessage: null });
   }
 
-  private handleConnection(connection: Connection): void {
-    const syncCode = new URL(connection.url, "http://localhost").searchParams.get("syncCode");
-    connection.on("data", (rawMessage) => this.handleData(connection, syncCode, rawMessage));
-    connection.on("close", () => this.handleClose(connection));
+  getKeys(receiverId: string) {
+    const keys = (this.keys.get(receiverId) ?? []).filter((key) => key.expiresAt > Date.now());
+    this.keys.set(receiverId, keys);
+    return keys.map(({ expiresAt: _expiresAt, ...key }) => key);
   }
 
-  private handleData(connection: Connection, syncCode: string | null, rawMessage: string): void {
-    let message: Record<string, unknown>;
-    try {
-      const parsed = JSON.parse(rawMessage) as unknown;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid JSON value");
-      message = parsed as Record<string, unknown>;
-    } catch {
-      send(connection, { message: "Invalid payload" });
-      return;
-    }
-
-    const existing = this.connections.get(connection);
-    if (!existing) {
-      this.authenticate(connection, syncCode, message);
-      return;
-    }
-
-    if (message.type === "SIGNATURE_STATUS") {
-      if (!this.validate("wsSignatureStatus", message)) return this.invalid(connection);
-      this.handleSignatureStatus(existing.room, existing.peer, message.signatureAccepted as boolean);
-      return;
-    }
-    if (message.type === "KEY_SYNC") {
-      if (!this.validate("wsKeySync", message)) return this.invalid(connection);
-      this.handleKeySync(existing.room, existing.peer, message);
-      return;
-    }
-    send(connection, { message: "Invalid message type" });
+  getPendingReceivers(userId: string) {
+    const prefix = `${userId}:`;
+    return [...this.requests.entries()]
+      .filter(([key, info]) => key.startsWith(prefix) && info.expiresAt > Date.now())
+      .map(([key, { expiresAt: _expiresAt, expiry: _expiry, ...info }]) => ({ code: key.slice(prefix.length), ...info }));
   }
 
-  private authenticate(
-    connection: Connection,
-    syncCode: string | null,
-    message: Record<string, unknown>,
-  ): void {
-    if (!syncCode || !/^[0-9]{6}$/.test(syncCode) || !this.validate("wsAuthFrame", message)) {
-      return this.reject(connection, "FAILED", "Invalid authentication frame");
-    }
-    const room = this.rooms.get(syncCode);
-    if (!room) return this.reject(connection, "NOT_FOUND", "No room with such join code");
-
-    const session = this.store.accessTokens.get(message.accessToken as string);
-    const device = session?.deviceId
-      ? this.store.state.devices.find((candidate) => candidate.id === session.deviceId)
-      : undefined;
-    if (
-      !session ||
-      session.type !== "ACCESS_TOKEN" ||
-      session.userId !== room.userId ||
-      !device?.approved ||
-      device.blocked
-    ) {
-      return this.reject(connection, "FAILED", "Unauthorized");
-    }
-
-    const role: Role = device.id === room.receiverId ? "RECEIVER" : "SENDER";
-    if (room.peers[role]) return this.reject(connection, "FAILED", `${role} already in room`);
-    const jwk = message.jwkPublicDh as { x: string };
-    const peer: Peer = {
-      connection,
-      deviceId: device.id,
-      role,
-      publicDhKey: jwk.x,
-      signature: message.signature as string,
-      signatureAccepted: null,
-    };
-    room.peers[role] = peer;
-    this.connections.set(connection, { room, peer });
-    send(connection, { status: "SUCCEEDED", message: null });
-    this.notifyPeerDetails(room);
-  }
-
-  private notifyPeerDetails(room: Room): void {
-    const sender = room.peers.SENDER;
-    const receiver = room.peers.RECEIVER;
-    if (!sender || !receiver) return;
-    send(receiver.connection, {
-      type: "PEER_DETAILS",
-      peerDeviceId: sender.deviceId,
-      peerDhKey: sender.publicDhKey,
-      signature: sender.signature,
-      vaultId: room.vaultId,
-    });
-    send(sender.connection, {
-      type: "PEER_DETAILS",
-      peerDeviceId: receiver.deviceId,
-      peerDhKey: receiver.publicDhKey,
-      signature: receiver.signature,
-      vaultId: room.vaultId,
+  subscribe(receiverId: string, response: Response): void {
+    const subscribers = this.subscribers.get(receiverId) ?? new Set<Response>();
+    subscribers.add(response);
+    this.subscribers.set(receiverId, subscribers);
+    response.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-cache" });
+    response.flushHeaders();
+    response.write(":connected\n\n");
+    const heartbeat = setInterval(() => response.write(":heartbeat\n\n"), 15_000);
+    heartbeat.unref();
+    response.on("close", () => {
+      clearInterval(heartbeat);
+      subscribers.delete(response);
+      if (!subscribers.size) this.subscribers.delete(receiverId);
     });
   }
 
-  private handleSignatureStatus(room: Room, peer: Peer, accepted: boolean): void {
-    peer.signatureAccepted = accepted;
-    if (!accepted) {
-      this.notifySignatureStatus(room, false);
-      this.rooms.delete(room.code);
-      return;
+  private publish(event: SyncEvent): void {
+    for (const response of this.subscribers.get(event.receiverId) ?? []) {
+      response.write(`data: ${JSON.stringify(event)}\n\n`);
     }
-    if (
-      room.peers.SENDER?.signatureAccepted === true &&
-      room.peers.RECEIVER?.signatureAccepted === true
-    ) {
-      this.notifySignatureStatus(room, true);
-    }
-  }
-
-  private notifySignatureStatus(room: Room, accepted: boolean): void {
-    const message = { type: "SIGNATURE_STATUS", signaturesAccepted: accepted };
-    if (room.peers.SENDER) send(room.peers.SENDER.connection, message);
-    if (room.peers.RECEIVER) send(room.peers.RECEIVER.connection, message);
-  }
-
-  private handleKeySync(room: Room, peer: Peer, message: Record<string, unknown>): void {
-    if (peer.role !== "SENDER") return send(peer.connection, { message: "Only the sender can send key sync data" });
-    if (
-      room.peers.SENDER?.signatureAccepted !== true ||
-      room.peers.RECEIVER?.signatureAccepted !== true
-    ) {
-      return send(peer.connection, { message: "Both peer signatures must be accepted before key sync" });
-    }
-    if (message.vaultId !== room.vaultId) {
-      return send(peer.connection, { message: "Key sync message does not belong to this room's vault" });
-    }
-    const receiver = room.peers.RECEIVER;
-    if (!receiver) return send(peer.connection, { message: "Receiver is not connected" });
-    send(receiver.connection, message);
-  }
-
-  private handleClose(connection: Connection): void {
-    const existing = this.connections.get(connection);
-    if (!existing) return;
-    if (existing.room.peers[existing.peer.role]?.connection === connection) {
-      delete existing.room.peers[existing.peer.role];
-    }
-    this.connections.delete(connection);
-
-    if (!existing.room.peers.SENDER && !existing.room.peers.RECEIVER) {
-      this.rooms.delete(existing.room.code);
-    }
-  }
-
-  private validate(schemaName: string, value: unknown): boolean {
-    const validator = this.contracts.validators.get(schemaName);
-    return Boolean(validator?.(value));
-  }
-
-  private invalid(connection: Connection): void {
-    send(connection, { message: "Invalid payload" });
-  }
-
-  private reject(connection: Connection, status: "FAILED" | "NOT_FOUND", message: string): void {
-    send(connection, { status, message });
-    connection.close();
   }
 }

@@ -99,7 +99,7 @@ export default function DashboardOnboarding({
                             className="max-w-sm text-3xl leading-tight"
                         >
                             Get started{' '}
-                            <span className="block text-brand">with Mossy</span>
+                            <span className="block text-fg-brand">with Mossy</span>
                         </h1>
                         <p className="mt-4 max-w-sm text-sm leading-relaxed text-fg-secondary">
                             A home for your passwords, on your own server. Let’s
@@ -152,7 +152,7 @@ export default function DashboardOnboarding({
                                             className={`group flex gap-4 rounded-md border p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${isNext ? 'border-brand/25 bg-brand/5 hover:bg-brand/10' : 'border-transparent hover:bg-surface-subtle'}`}
                                         >
                                             <span
-                                                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${done ? 'bg-brand text-fg-inverse' : isNext ? 'bg-brand/10 text-brand' : 'bg-surface-muted text-fg-muted'}`}
+                                                className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${done ? 'bg-brand text-fg-inverse' : isNext ? 'bg-brand/10 text-fg-brand' : 'bg-surface-muted text-fg-muted'}`}
                                             >
                                                 {done ? (
                                                     <MdCheck
@@ -170,13 +170,13 @@ export default function DashboardOnboarding({
                                                 <span className="mb-1 flex items-center gap-2 text-xs text-fg-muted">
                                                     Step 0{index + 1}
                                                     {done && (
-                                                        <span className="text-brand">
+                                                        <span className="text-fg-brand">
                                                             {' '}
                                                             · Complete
                                                         </span>
                                                     )}
                                                     {isNext && (
-                                                        <span className="text-brand">
+                                                        <span className="text-fg-brand">
                                                             {' '}
                                                             · Up next
                                                         </span>
