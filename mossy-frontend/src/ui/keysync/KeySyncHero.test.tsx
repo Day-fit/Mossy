@@ -24,9 +24,21 @@ vi.mock('../../hooks/useEncryptionHook.ts', () => ({
 }));
 
 describe('key sync sender page', () => {
-    afterEach(cleanup);
+    afterEach(() => {
+        cleanup();
+        vi.unstubAllGlobals();
+    });
     beforeEach(() => {
         vi.resetAllMocks();
+        // jsdom does not implement the layout observer used by the OTP inputs.
+        vi.stubGlobal(
+            'ResizeObserver',
+            class {
+                observe = vi.fn();
+                unobserve = vi.fn();
+                disconnect = vi.fn();
+            }
+        );
         document.documentElement.style.setProperty(
             globalStyleTokens.brand,
             '#a7bd71'
