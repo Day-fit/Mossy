@@ -6,4 +6,6 @@ data class VaultKeyResponseDto (
     val vaultId: UUID,
     val senderId: UUID,
     val cipherText: String,
+    val senderPublicDh: String,
+    val code: String,
 )

@@ -14,7 +14,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
 import pl.dayfit.mossykeysync.dto.request.UploadKeyDto
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
-import pl.dayfit.mossykeysync.dto.response.VaultKeyResponseDto
+import pl.dayfit.mossykeysync.dto.response.PendingReceiverResponseDto
+import pl.dayfit.mossykeysync.dto.response.VaultKeysResponseDto
 import pl.dayfit.mossykeysync.service.KeySyncEventService
 import pl.dayfit.mossykeysync.service.KeySyncService
 import java.util.UUID
@@ -33,7 +34,7 @@ class KeySyncController(
         val userId = UUID.fromString(jwt.subject)
         val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
         return ResponseEntity.ok(
-            keySyncService.initKeySync(userId, deviceId, dto.vaultId)
+            keySyncService.initKeySync(userId, deviceId, dto)
         )
     }
 
@@ -55,12 +56,17 @@ class KeySyncController(
     @GetMapping("/vault-keys")
     fun getVaultKeys(
         @AuthenticationPrincipal jwt: Jwt,
-    ): ResponseEntity<List<VaultKeyResponseDto>> {
+    ): ResponseEntity<VaultKeysResponseDto> {
         val deviceId = UUID.fromString(jwt.getClaimAsString("device_id"))
 
         return ResponseEntity.ok(keySyncService.getVaultKeys(
             deviceId,
         ))
+    }
+
+    @GetMapping("/receivers")
+    fun getPendingReceivers(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<List<PendingReceiverResponseDto>> {
+        return ResponseEntity.ok(keySyncService.getPendingReceivers(UUID.fromString(jwt.subject)))
     }
 
     @GetMapping("/receiver-events", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])

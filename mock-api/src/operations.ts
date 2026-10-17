@@ -7,6 +7,7 @@ import {
 import type { Request, Response } from "express";
 import { AppError, requireValue } from "./errors.js";
 import { RuntimeStore } from "./store.js";
+import type { KeySyncStore } from "./key-sync.js";
 import type {
     ActionType,
     AuthContext,
@@ -19,16 +20,12 @@ import type {
     VaultRecord
 } from "./types.js";
 
-export type KeySyncRoomManager = {
-    createRoom(userId: string, receiverId: string, vaultId: string): string;
-};
-
 export type OperationContext = {
     request: Request;
     response: Response;
     auth: AuthContext;
     store: RuntimeStore;
-    keySync: KeySyncRoomManager;
+    keySync: KeySyncStore;
 };
 
 export type OperationHandler = (context: OperationContext) => OperationResult | Promise<OperationResult>;
@@ -616,7 +613,26 @@ const deviceIdentity: OperationHandler = (context) => {
 const keySyncInit: OperationHandler = (context) => {
     const vaultId = body(context).vaultId as string;
     requireVault(context, vaultId);
-    return { body: { code: context.keySync.createRoom(userId(context), deviceId(context), vaultId) } };
+    return { body: { code: context.keySync.initialize(userId(context), deviceId(context),
+        context.request.body) } };
+};
+
+const keySyncUpload: OperationHandler = (context) => {
+    context.keySync.upload(userId(context), deviceId(context), param(context, "code"), context.request.body);
+    return {};
+};
+
+const keySyncKeys: OperationHandler = (context) => ({ body: {
+    keys: context.keySync.getKeys(deviceId(context)),
+} });
+
+const keySyncReceivers: OperationHandler = (context) => ({
+    body: context.keySync.getPendingReceivers(userId(context)),
+});
+
+const keySyncEvents: OperationHandler = (context) => {
+    context.keySync.subscribe(deviceId(context), context.response);
+    return { streaming: true };
 };
 
 const vaultList: OperationHandler = (context) => ({
@@ -881,6 +897,10 @@ export const operationHandlers: Record<string, OperationHandler> = {
     "device.unblock": (context) => changeBlocked(context, false),
     "device.identity": deviceIdentity,
     "keySync.init": keySyncInit,
+    "keySync.upload": keySyncUpload,
+    "keySync.keys": keySyncKeys,
+    "keySync.receivers": keySyncReceivers,
+    "keySync.events": keySyncEvents,
     "vault.list": vaultList,
     "vault.create": vaultCreate,
     "vault.update": vaultUpdate,

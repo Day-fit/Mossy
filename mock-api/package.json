@@ -17,14 +17,12 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "cookie-parser": "^1.4.7",
-    "express": "^5.2.1",
-    "sockjs": "^0.3.24"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "@types/node": "^26.4.0",
-    "@types/sockjs": "^0.3.36",
     "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vitest": "^3.2.4"

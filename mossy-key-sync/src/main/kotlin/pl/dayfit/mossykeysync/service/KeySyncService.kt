@@ -6,9 +6,12 @@ import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
+import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
 import pl.dayfit.mossykeysync.dto.request.UploadKeyDto
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
+import pl.dayfit.mossykeysync.dto.response.PendingReceiverResponseDto
 import pl.dayfit.mossykeysync.dto.response.VaultKeyResponseDto
+import pl.dayfit.mossykeysync.dto.response.VaultKeysResponseDto
 import pl.dayfit.mossykeysync.event.KeySyncEvent
 import pl.dayfit.mossykeysync.exception.InvalidKeyUploadedException
 import pl.dayfit.mossykeysync.model.redis.KeySyncInfo
@@ -37,16 +40,13 @@ class KeySyncService(
     fun initKeySync(
         userId: UUID,
         deviceId: UUID,
-        vaultId: UUID
+        dto: InitKeySyncRequestDto,
     ): InitKeySyncResponseDto {
         val code = generateSyncCode()
+        val info = KeySyncInfo(userId, dto.vaultId, deviceId, dto.publicDh, dto.signature)
 
-        redisTemplate.opsForValue()
-            .set(
-                "$userId:$code", KeySyncInfo(userId,
-                vaultId,
-                deviceId
-            ))
+        redisTemplate.opsForValue().set("$userId:$code", info)
+        redisTemplate.opsForHash<String, KeySyncInfo>().put("$userId:pending-key-sync", code, info)
 
         return InitKeySyncResponseDto(
             code
@@ -61,6 +61,7 @@ class KeySyncService(
         if (info == null) {
             throw NoSuchElementException("Invalid code")
         }
+        redisTemplate.opsForHash<String, KeySyncInfo>().delete("$userId:pending-key-sync", code)
 
         val receiverId = info.receiverId
 
@@ -95,7 +96,8 @@ class KeySyncService(
                 info.vaultId,
                 dto.ciphertext,
                 deviceId,
-                dto.publicDh.x()
+                dto.publicDh.x(),
+                code,
             )
         )
 
@@ -107,14 +109,26 @@ class KeySyncService(
         )
     }
 
-    fun getVaultKeys(deviceId: UUID): List<VaultKeyResponseDto> {
-        return vaultKeyRepository.findAllByReceiverId(deviceId)
+    fun getVaultKeys(deviceId: UUID): VaultKeysResponseDto {
+        val keys = vaultKeyRepository.findAllByReceiverId(deviceId)
             .map {
                 VaultKeyResponseDto(
                     it.vaultId,
                     it.senderId,
                     it.cipherText,
+                    it.senderPublicDh,
+                    it.code,
                 )
+            }
+        return VaultKeysResponseDto(keys)
+    }
+
+    fun getPendingReceivers(userId: UUID): List<PendingReceiverResponseDto> {
+        return redisTemplate.opsForHash<String, KeySyncInfo>()
+            .entries("$userId:pending-key-sync")
+            .filterValues { it.userId == userId }
+            .map { (code, info) ->
+                PendingReceiverResponseDto(code, info.receiverId, info.vaultId, info.publicDh, info.signature)
             }
     }
 

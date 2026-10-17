@@ -11,5 +11,6 @@ class VaultKey (
     val vaultId: UUID,
     val cipherText: String,
     val senderId: UUID,
-    val senderPublicDh: String
+    val senderPublicDh: String,
+    val code: String,
 )

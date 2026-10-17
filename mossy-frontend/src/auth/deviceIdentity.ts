@@ -6,9 +6,7 @@ export type KeyPair = {
     private: string;
 };
 
-export type CryptoPair =
-    | ({ type: 'Ed25519' } & KeyPair)
-    | ({ type: 'X25519' } & KeyPair);
+export type CryptoPair = { type: 'Ed25519' } & KeyPair;
 
 const CURRENT_IDENTITY_KEY = 'current-device';
 const DEVICE_ID_KEY_PREFIX = 'deviceId:';

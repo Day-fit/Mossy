@@ -13,6 +13,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
 import pl.dayfit.mossykeysync.dto.request.UploadKeyDto
 import pl.dayfit.mossykeysync.dto.response.InitKeySyncResponseDto
+import pl.dayfit.mossykeysync.dto.response.PendingReceiverResponseDto
+import pl.dayfit.mossykeysync.dto.response.VaultKeysResponseDto
 import pl.dayfit.mossykeysync.dto.response.VaultKeyResponseDto
 import pl.dayfit.mossykeysync.service.KeySyncEventService
 import pl.dayfit.mossykeysync.service.KeySyncService
@@ -38,16 +40,17 @@ class KeySyncControllerTest {
     fun `init key sync uses the authenticated user and receiver device`() {
         val request = InitKeySyncRequestDto(
             vaultId,
-            emptyMap(),
+            mapOf("x" to "receiver-dh-key"),
+            "receiver-signature",
         )
         val serviceResponse = InitKeySyncResponseDto("123456")
-        whenever(keySyncService.initKeySync(userId, deviceId, request.vaultId)).thenReturn(serviceResponse)
+        whenever(keySyncService.initKeySync(userId, deviceId, request)).thenReturn(serviceResponse)
 
         val response = controller.initKeySync(jwtFor(userId, deviceId), request)
 
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(serviceResponse, response.body)
-        verify(keySyncService).initKeySync(userId, deviceId, request.vaultId)
+        verify(keySyncService).initKeySync(userId, deviceId, request)
     }
 
     @Test
@@ -63,7 +66,7 @@ class KeySyncControllerTest {
     @Test
     fun `vault keys are requested for the authenticated device`() {
         val senderId = UUID.fromString("10000000-0000-0000-0000-000000000002")
-        val keys = listOf(VaultKeyResponseDto(vaultId, senderId, "encrypted-key"))
+        val keys = VaultKeysResponseDto(listOf(VaultKeyResponseDto(vaultId, senderId, "encrypted-key", "sender-dh-key", "ABC123")))
         whenever(keySyncService.getVaultKeys(deviceId)).thenReturn(keys)
 
         val response = controller.getVaultKeys(jwtFor(userId, deviceId))
@@ -71,6 +74,20 @@ class KeySyncControllerTest {
         assertEquals(HttpStatus.OK, response.statusCode)
         assertEquals(keys, response.body)
         verify(keySyncService).getVaultKeys(deviceId)
+    }
+
+    @Test
+    fun `pending receiver requests are requested for the authenticated user`() {
+        val pending = listOf(PendingReceiverResponseDto(
+            "ABC123", deviceId, vaultId, mapOf("x" to "receiver-dh-key"), "receiver-signature"
+        ))
+        whenever(keySyncService.getPendingReceivers(userId)).thenReturn(pending)
+
+        val response = controller.getPendingReceivers(jwtFor(userId, deviceId))
+
+        assertEquals(HttpStatus.OK, response.statusCode)
+        assertEquals(pending, response.body)
+        verify(keySyncService).getPendingReceivers(userId)
     }
 
     @Test

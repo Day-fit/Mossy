@@ -92,65 +92,14 @@ The key synchronization process looks like this:
 
 ### Key-sync under the hood
 
-1. The receiver calls:
+1. The receiver generates an ephemeral X25519 key pair and signs its device ID, vault ID, and public DH key with its Ed25519 identity key. It subscribes to authenticated SSE at `GET /api/v1/key-sync/receiver-events` before calling `POST /api/v1/key-sync` with `{ vaultId, publicDh, signature }`.
+2. Initialization stores the receiver details in Redis and returns a six-character code. The receiver displays that code and a QR link to `/key-sync?code=…`.
+3. The sender reads `GET /api/v1/key-sync/receivers`, finds the matching code among the signed-in user's pending receiver requests, and fetches the receiver's identity key from Device Trust. It verifies the receiver's signature before unlocking the vault key.
+4. The sender creates its own ephemeral X25519 key pair and derives a shared secret. It encrypts the vault key with a fresh secretbox nonce, then signs a transcript binding the code, vault, both devices, both DH public keys, nonce, and ciphertext.
+5. `POST /api/v1/key-sync/{code}` uploads `{ vaultId, ciphertext, publicDh }`. The ciphertext string contains the versioned encrypted envelope, nonce, and signature. The server consumes the code, removes its pending receiver details, stores the encrypted key and sender details, and publishes the receiver result over SSE.
+6. The receiver downloads `GET /api/v1/key-sync/vault-keys`, whose response is `{ keys: [...] }`. Each entry includes its code, vault ID, sender ID, sender public DH key, and ciphertext. The receiver selects its transfer, fetches the sender's identity key, verifies the transfer signature, decrypts the vault key, and stores it wrapped under the local vault PIN.
 
- ```jsonc
-{
-	// POST /api/v1/key-sync/init
-	"vaultId": "..."
-}
- ```
-This initializes a 15-minute room used for key synchronization.
-2. Each device generates an ephemeral X25519 key pair for the synchronization session. Only the public key is sent through the server.
-3. Each client constructs the following authentication transcript:
-
- ```
- mossy-key-sync-auth-v1
-  + role
-  + sync code
-  + device ID
-  + ephemeral X25519 public key
- ```
-
-Each client signs the transcript using the device's long-lived Ed25519 private identity key. This binds the ephemeral key to:
-
-- A particular registered device
-- A particular sync code
-- A particular role
-- This protocol version
-
-4. Both clients authenticate their WebSocket connections. The first WebSocket frame contains:
-
-```json
-  {
-    "type": "AUTH_FRAME",
-    "accessToken": "...",
-    "signature": "...",
-    "jwkPublicDh": {
-      "kty": "OKP",
-      "crv": "X25519",
-      "x": "..."
-    }
-  }
-```
-The server validates the JWT, while the Ed25519 signature is validated on the frontend by the client.
-5. Peers receive `PEER_DETAILS` containing the following information:
-```
-  - Device ID
-  - Ephemeral public key
-  - Signature
-  - Vault ID
-```
-6. Each device fetches the other device's public identity key (Ed25519).
-7. Both devices validate the peer's signature. If validation succeeds, they send:
-```json
-  {
-    "type": "SIGNATURE_STATUS",
-    "signatureAccepted": true
-  }
-```
-The server waits for both peers to accept each other's signatures.
-8. The peers calculate a shared secret, and the sender encrypts and signs the vault key before sending it through the backend.
+The receiver offer signature uses the `mossy-key-sync-receiver-v1` domain. The encrypted transfer signature uses `mossy-key-sync-transfer-v1`. Private identity keys, ephemeral private DH keys, and plaintext vault keys stay on the devices.
 
 ## Threat model
 
@@ -176,7 +125,7 @@ Mossy encrypts secret fields and notes in the browser with AES-256-GCM before th
     - Spring Security: Authentication and authorization starter
     - Spring OAuth2 Resource Server: Protecting API with JWT
     - Spring Validation: DTO validation
-    - Spring WebSocket: Provides a way to add WebSocket communication, the foundation for the key synchronization system
+    - Spring MVC: Provides HTTP key upload/download and server-sent receiver events for key synchronization
     - Spring Actuator: Health checks and metrics
 - DevOps
     - Docker: Containerization tool

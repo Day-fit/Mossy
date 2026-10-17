@@ -146,6 +146,7 @@ export type AuthContext = {
 };
 
 export type OperationResult = {
+  streaming?: boolean;
   status?: number;
   headers?: Record<string, string>;
   body?: unknown;

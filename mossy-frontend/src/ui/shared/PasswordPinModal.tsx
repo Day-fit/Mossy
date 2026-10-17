@@ -13,8 +13,9 @@ import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
 type PasswordPinModalProps = {
     setIsPinModalActive: React.Dispatch<React.SetStateAction<boolean>>;
     vaultId?: string;
-    afterPinEntered?: (pin: string) => void | Promise<void>;
+    afterPinEntered?: (pin: string) => boolean | void | Promise<boolean | void>;
     header?: string;
+    error?: string;
 };
 
 const containerVariants: Variants = {
@@ -39,6 +40,7 @@ export default function PasswordPinModal({
     vaultId,
     afterPinEntered,
     header,
+    error,
 }: PasswordPinModalProps) {
     const {
         handleSubmit,
@@ -52,7 +54,7 @@ export default function PasswordPinModal({
 
     const onSubmit = async ({ pin }: EncryptionPinSchema) => {
         if (vaultId) setPin(vaultId, pin);
-        if (afterPinEntered) await afterPinEntered(pin);
+        if (afterPinEntered && (await afterPinEntered(pin)) === false) return;
         setIsPinModalActive(false);
     };
 
@@ -83,6 +85,7 @@ export default function PasswordPinModal({
                         render={({ field }) => (
                             <OTPInput
                                 {...field}
+                                aria-label="Vault PIN"
                                 maxLength={4}
                                 containerClassName="flex gap-2"
                                 onChange={(val) => {
@@ -134,6 +137,11 @@ export default function PasswordPinModal({
                         >
                             {errors.pin.message}
                         </motion.p>
+                    )}
+                    {error && (
+                        <p role="alert" className="text-sm text-danger">
+                            {error}
+                        </p>
                     )}
                 </div>
 

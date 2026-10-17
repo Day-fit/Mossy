@@ -4,5 +4,6 @@ import java.util.UUID
 
 data class InitKeySyncRequestDto(
     val vaultId: UUID,
-    val publicDh: Map<Any, String>
+    val publicDh: Map<String, Any>,
+    val signature: String,
 )

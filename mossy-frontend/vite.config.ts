@@ -12,7 +12,6 @@ export default defineConfig(({ mode }) => {
             changeOrigin: true,
             secure: false,
             xfwd: true,
-            ws: true,
         },
     };
 
@@ -47,13 +46,6 @@ export default defineConfig(({ mode }) => {
             secure: false,
             xfwd: true,
         },
-        '/api/v1/ws/key-sync': {
-            target: 'http://localhost:8081',
-            changeOrigin: true,
-            secure: false,
-            xfwd: true,
-            ws: true,
-        },
         '/api/v1/statistics': {
             target: 'http://localhost:8085',
             changeOrigin: true,
@@ -77,9 +69,5 @@ export default defineConfig(({ mode }) => {
                 },
             }),
         ],
-
-        define: {
-            global: 'globalThis',
-        },
     };
 });

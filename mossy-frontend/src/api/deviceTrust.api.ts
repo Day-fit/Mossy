@@ -28,6 +28,16 @@ export type DeviceDetails = {
     current: boolean;
 };
 
+export async function executeGetDeviceIdentityKeyRequest(
+    deviceId: string,
+    signal: AbortSignal
+): Promise<PublicIdentityJwk> {
+    return apiFetch(
+        `/api/v1/device-trust/device/${encodeURIComponent(deviceId)}/identity-key`,
+        { signal }
+    ).then((response) => response.json());
+}
+
 export async function executeDeviceLoginChallengeRequest(
     deviceId: string
 ): Promise<DeviceLoginChallengeResult> {

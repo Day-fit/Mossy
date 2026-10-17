@@ -3,7 +3,7 @@ import cookieParser from "cookie-parser";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { describeValidationErrors, loadContracts } from "./contracts.js";
 import { AppError } from "./errors.js";
-import { KeySyncServer } from "./key-sync.js";
+import { KeySyncStore } from "./key-sync.js";
 import { operationHandlers } from "./operations.js";
 import { RuntimeStore } from "./store.js";
 import type {
@@ -19,7 +19,7 @@ export type MockRuntime = {
   app: express.Express;
   contracts: ContractBundle;
   store: RuntimeStore;
-  keySync: KeySyncServer;
+  keySync: KeySyncStore;
   createHttpServer(): Server;
 };
 
@@ -121,7 +121,7 @@ function sendResult(response: Response, result: OperationResult): void {
 export function createMockRuntime(options: { scenario?: string; rootDir?: string } = {}): MockRuntime {
   const contracts = loadContracts(options);
   const store = new RuntimeStore(contracts.state, contracts.settings);
-  const keySync = new KeySyncServer(store, contracts);
+  const keySync = new KeySyncStore();
   const app = express();
 
   app.disable("x-powered-by");
@@ -165,6 +165,7 @@ export function createMockRuntime(options: { scenario?: string; rootDir?: string
         } else {
           result = await handler({ request, response, auth, store, keySync });
         }
+        if (result.streaming) return;
         validateResponse(route, result, contracts);
         sendResult(response, result);
       } catch (error) {
@@ -195,9 +196,7 @@ export function createMockRuntime(options: { scenario?: string; rootDir?: string
     store,
     keySync,
     createHttpServer() {
-      const server = createServer(app);
-      keySync.attach(server);
-      return server;
+      return createServer(app);
     },
   };
 }

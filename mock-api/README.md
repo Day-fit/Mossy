@@ -12,7 +12,7 @@ npm --prefix mossy-frontend install
 npm --prefix mossy-frontend run dev:mock
 ```
 
-The command starts the API on `http://localhost:3001` and Vite in `mock` mode. Vite proxies all `/api` HTTP and SockJS traffic to the mock.
+The command starts the API on `http://localhost:3001` and Vite in `mock` mode. Vite proxies all `/api` HTTP and SSE traffic to the mock.
 
 To run only the API:
 
@@ -67,7 +67,7 @@ Overrides run after request validation and authentication, but before state muta
 ## Maintaining contracts and data
 
 - `contracts/routes.json` declares method, path, authentication mode, request schemas, and response schemas for every frontend operation.
-- `contracts/schemas.json` contains strict JSON Schemas for HTTP DTOs, SockJS frames, scenario state, and settings.
+- `contracts/schemas.json` contains strict JSON Schemas for HTTP DTOs, scenario state, and settings.
 - `scenarios/*/*.json` contains data and behavior switches.
 
 The server refuses to start when contracts, fixtures, relationships, or override responses are invalid. It also validates every request and generated success response at runtime. Unknown request-body fields are rejected intentionally.
@@ -76,14 +76,14 @@ Routine path, DTO, fixture, and failure-scenario maintenance should only require
 
 ## Key sync
 
-The mock hosts SockJS at `/api/v1/ws/key-sync` and uses the production room protocol. It pairs two authenticated browser contexts, exchanges their signed peer details, waits for both `SIGNATURE_STATUS` messages, and relays the opaque `KEY_SYNC` message. It never receives plaintext keys or mock private keys.
+The mock implements HTTP key synchronization with the same DTOs as the backend. `POST /api/v1/key-sync` stores the signed receiver details and creates a six-character code. `GET /api/v1/key-sync/receivers` lists pending receiver requests for the signed-in user. The sender uploads the opaque encrypted envelope through `POST /api/v1/key-sync/{code}`. The receiving device gets its result through authenticated SSE at `/api/v1/key-sync/receiver-events`, then downloads `{ keys: [...] }` from `/api/v1/key-sync/vault-keys`. Each key includes its code and sender details. The mock never receives plaintext keys or private device keys.
 
 To exercise the complete flow:
 
 1. Sign the same account into two separate browser profiles, completing the two-login enrollment flow in each.
 2. Create a vault in the source profile so that profile owns its local encryption key.
 3. Open that vault in the receiver profile and start key synchronization.
-4. Enter the generated six-digit code in the source profile's key-sync page.
+4. Enter the generated six-character code in the source profile's key-sync page.
 
 ## Verification
 
