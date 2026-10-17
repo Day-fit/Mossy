@@ -17,8 +17,11 @@ function errorMessage(error: unknown): string {
 export function useDevices() {
     const state = useDeviceManagementStore();
 
-    const refreshDevices = useCallback(async () => {
+    const refreshDevices = useCallback(async (signal?: AbortSignal) => {
         const store = useDeviceManagementStore.getState();
+        const initialEnrollmentIds = new Set(
+            store.enrollments.map((item) => item.id)
+        );
         store.setIsLoading(true);
         store.setError(null);
         try {
@@ -26,12 +29,23 @@ export function useDevices() {
                 executeGetDevicesRequest(),
                 executeGetEnrollmentsRequest(),
             ]);
+            if (signal?.aborted) return;
             store.setDevices(devices);
-            store.setEnrollments(enrollments);
+            // Preserve events received while the snapshot request was in flight.
+            const newEnrollments = useDeviceManagementStore
+                .getState()
+                .enrollments.filter(
+                    (item) =>
+                        !initialEnrollmentIds.has(item.id) &&
+                        !enrollments.some(
+                            (enrollment) => enrollment.id === item.id
+                        )
+                );
+            store.setEnrollments([...enrollments, ...newEnrollments]);
         } catch (error) {
-            store.setError(errorMessage(error));
+            if (!signal?.aborted) store.setError(errorMessage(error));
         } finally {
-            store.setIsLoading(false);
+            if (!signal?.aborted) store.setIsLoading(false);
         }
     }, []);
 

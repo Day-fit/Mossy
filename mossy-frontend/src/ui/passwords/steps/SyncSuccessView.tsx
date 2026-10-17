@@ -15,7 +15,7 @@ export default function SyncSuccessView() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke={globalStyleVar('brand')}
+                    stroke={globalStyleVar('fgBrand')}
                     strokeOpacity="0.15"
                     strokeWidth="6"
                 />
@@ -24,7 +24,7 @@ export default function SyncSuccessView() {
                     cy="40"
                     r="35"
                     fill="none"
-                    stroke={globalStyleVar('brand')}
+                    stroke={globalStyleVar('fgBrand')}
                     strokeWidth="6"
                     strokeLinecap="round"
                     transform="rotate(-90 40 40)"
@@ -35,7 +35,7 @@ export default function SyncSuccessView() {
                 <motion.polyline
                     points="24,41 35,52 56,30"
                     fill="none"
-                    stroke={globalStyleVar('brand')}
+                    stroke={globalStyleVar('fgBrand')}
                     strokeWidth="5.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"

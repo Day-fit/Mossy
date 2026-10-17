@@ -12,10 +12,8 @@ import {
     SYNC_CODE_INPUT_PATTERN,
 } from '../../key-sync/code.ts';
 import Button from '../shared/Button.tsx';
-import {
-    globalStyleVar,
-    resolveGlobalStyleToken,
-} from '../../theme/globalTokens.ts';
+import KeySyncCodeGuide from './KeySyncCodeGuide.tsx';
+import { globalStyleVar } from '../../theme/globalTokens.ts';
 
 type SyncPhase = 'idle' | 'syncing' | 'success' | 'error';
 
@@ -41,7 +39,7 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeOpacity="0.15"
                 strokeWidth="7"
             />
@@ -50,7 +48,7 @@ function SuccessCheckmark() {
                 cy="40"
                 r="35"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeWidth="7"
                 strokeLinecap="round"
                 transform="rotate(-90 40 40)"
@@ -61,7 +59,7 @@ function SuccessCheckmark() {
             <motion.polyline
                 points="24,41 35,52 56,30"
                 fill="none"
-                stroke={globalStyleVar('brand')}
+                stroke={globalStyleVar('fgBrand')}
                 strokeWidth="6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -86,11 +84,12 @@ function SlotBox({
 }) {
     const isSuccess = phase === 'success';
     const isError = phase === 'error';
-    const borderColor = resolveGlobalStyleToken('border');
-    const brandColor = resolveGlobalStyleToken('brand');
+    const borderColor = globalStyleVar('borderStrong');
+    const brandColor = globalStyleVar('fgBrand');
 
     return (
         <motion.div
+            data-motion-color
             variants={itemVariants}
             animate={
                 isSuccess
@@ -105,16 +104,16 @@ function SlotBox({
             className={[
                 'font-mono text-2xl font-semibold w-16 h-16 border-2 rounded-2xl flex items-center justify-center select-none',
                 isError
-                    ? 'border-danger/20 bg-danger/5 text-danger'
+                    ? 'border-fg-danger bg-danger/5 text-fg-danger'
                     : isSuccess
-                      ? 'border-brand/30 bg-brand/5 text-brand'
+                      ? 'border-fg-brand/30 bg-brand/5 text-fg-brand'
                       : fromUrl
-                        ? 'border-border bg-surface-muted text-fg-muted'
+                        ? 'border-border-strong bg-surface-muted text-fg-muted'
                         : slot.isActive
-                          ? 'border-brand bg-surface ring-4 ring-brand/10'
+                          ? 'border-fg-brand bg-surface ring-4 ring-fg-brand/10'
                           : slot.char
-                            ? 'border-border bg-surface text-fg-secondary'
-                            : 'border-border bg-surface text-fg-disabled',
+                            ? 'border-border-strong bg-surface text-fg-secondary'
+                            : 'border-border-strong bg-surface text-fg-disabled',
             ].join(' ')}
         >
             {slot.char ?? <span className="text-fg-disabled">·</span>}
@@ -169,7 +168,7 @@ export default function KeySyncHero() {
     const isError = phase === 'error';
 
     return (
-        <div className="min-h-[82vh] bg-surface-page flex flex-col">
+        <div className="flex-1 bg-surface-page flex flex-col">
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-16">
                 <motion.div
                     className="w-full max-w-lg flex flex-col items-center gap-12"
@@ -209,7 +208,7 @@ export default function KeySyncHero() {
                                             height="26"
                                             viewBox="0 0 24 24"
                                             fill="none"
-                                            stroke={globalStyleVar('brand')}
+                                            stroke={globalStyleVar('fgBrand')}
                                             strokeWidth="1.7"
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
@@ -219,7 +218,7 @@ export default function KeySyncHero() {
                                     </div>
                                     {isBusy && (
                                         <motion.div
-                                            className="absolute -inset-1.5 rounded-3xl border-2 border-brand/25"
+                                            className="absolute -inset-1.5 rounded-3xl border-2 border-fg-brand/25"
                                             animate={{
                                                 opacity: [0.7, 0.1, 0.7],
                                                 scale: [1, 1.12, 1],
@@ -258,7 +257,7 @@ export default function KeySyncHero() {
                                           ? sender.error
                                           : fromUrl
                                             ? 'Code loaded from the receiving device.'
-                                            : 'Enter the six-character code shown on the receiving device to transfer the encryption key.'}
+                                            : 'Enter the six-character code from the receiving device here, on the device that already has the key.'}
                                 </p>
                             </motion.div>
                         </AnimatePresence>
@@ -271,7 +270,7 @@ export default function KeySyncHero() {
 
                     <motion.div
                         variants={itemVariants}
-                        className="flex flex-col items-center gap-3"
+                        className="w-full flex flex-col items-center gap-3"
                     >
                         {!isSuccess && (
                             <p className="text-xs font-semibold tracking-[0.1em] uppercase text-fg-subtle">
@@ -351,6 +350,10 @@ export default function KeySyncHero() {
                                 />
                             )}
                         />
+
+                        {!fromUrl && !isSuccess && !isBusy && (
+                            <KeySyncCodeGuide />
+                        )}
                     </motion.div>
 
                     <motion.div

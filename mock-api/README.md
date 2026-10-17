@@ -85,6 +85,21 @@ To exercise the complete flow:
 3. Open that vault in the receiver profile and start key synchronization.
 4. Enter the generated six-character code in the source profile's key-sync page.
 
+## Enrollment events
+
+`GET /api/v1/device-trust/device/enrollments/events` requires an access-token
+bearer header and serves `text/event-stream`. Confirming a pending enrollment
+broadcasts an unnamed JSON `data` event to all streams for its owner. The payload
+matches an item from the enrollment snapshot. Unconfirmed challenges and
+automatically approved enrollments produce no pending event. Streams close after
+10 seconds, allowing the frontend's reconnection and snapshot refresh to run.
+Disconnecting a client removes its listener.
+
+To exercise live approval, start the `pending-enrollment` scenario and register
+a new account in one browser profile. Sign into that account in another profile.
+The first profile receives the pending request and navigation badge immediately;
+approve it there, then sign in again in the second profile.
+
 ## Verification
 
 ```sh

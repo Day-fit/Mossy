@@ -69,8 +69,55 @@ function contrastRatio(first: string, second: string): number {
     );
 }
 
+function declarations(block: string): Record<string, string> {
+    return Object.fromEntries(
+        [...block.matchAll(/^\s*(--[\w-]+):\s*(.+);/gm)].map(
+            ([, name, value]) => [name, value]
+        )
+    );
+}
+
+function color(tokens: Record<string, string>, name: string): string {
+    const value = tokens[`--color-${name}`];
+    const alias = value?.match(/^var\(--color-([\w-]+)\)$/);
+    if (alias) return color(tokens, alias[1]);
+    expect(value, `Missing hex color for ${name}`).toMatch(/^#[\da-f]{6}$/i);
+    return value;
+}
+
+function blend(
+    foreground: string,
+    background: string,
+    opacity: number
+): string {
+    const channels = (hex: string) =>
+        hex
+            .slice(1)
+            .match(/.{2}/g)!
+            .map((value) => Number.parseInt(value, 16));
+    const back = channels(background);
+    return (
+        '#' +
+        channels(foreground)
+            .map((channel, index) =>
+                Math.round(channel * opacity + back[index] * (1 - opacity))
+                    .toString(16)
+                    .padStart(2, '0')
+            )
+            .join('')
+    );
+}
+
 describe('global design token contract', () => {
     const globals = readFileSync(globalsPath, 'utf8');
+    const base = declarations(globals.match(/@theme static\s*\{([^}]+)\}/)![1]);
+    const dark = declarations(
+        globals.match(/:root\[data-theme='dark'\]\s*\{([^}]+)\}/)![1]
+    );
+    const themes = [
+        ['light', base],
+        ['dark', { ...base, ...dark }],
+    ] as const;
 
     it('uses globals.css as the only global stylesheet entry point', () => {
         const index = readFileSync(indexPath, 'utf8');
@@ -81,15 +128,14 @@ describe('global design token contract', () => {
     });
 
     it('defines only the approved global theme tokens', () => {
-        const declaredTokens = [...globals.matchAll(/^\s*(--[\w-]+):/gm)].map(
-            ([, token]) => token
-        );
+        const declaredTokens = Object.keys(base);
 
         expect(declaredTokens).toEqual([
             '--font-sans',
             '--font-heading',
             '--color-brand',
             '--color-brand-hover',
+            '--color-qr-surface',
             '--color-surface-page',
             '--color-surface',
             '--color-surface-subtle',
@@ -100,6 +146,12 @@ describe('global design token contract', () => {
             '--color-fg-subtle',
             '--color-fg-disabled',
             '--color-fg-inverse',
+            '--color-fg-on-strong',
+            '--color-fg-brand',
+            '--color-fg-brand-hover',
+            '--color-fg-success',
+            '--color-fg-danger',
+            '--color-fg-warning',
             '--color-border',
             '--color-border-strong',
             '--color-success',
@@ -114,6 +166,35 @@ describe('global design token contract', () => {
 
         expect(globals).not.toContain('--mossy-');
         expect(globals).not.toMatch(/^\s*\.type-[\w-]+/m);
+        expect(Object.keys(dark).every((name) => name in base)).toBe(true);
+    });
+
+    it('uses identical dark overrides for explicit Dark and the system media query', () => {
+        const system = declarations(
+            globals.match(
+                /:root:not\(\[data-theme='light'\]\):not\(\[data-theme='dark'\]\)\s*\{([^}]+)\}/
+            )![1]
+        );
+        expect(system).toEqual(dark);
+        expect(globals).toContain('@media (prefers-color-scheme: dark)');
+        expect(globals).toContain('@media (prefers-reduced-motion: reduce)');
+    });
+
+    it('keeps filled accents, inverse text, and QR colors constant', () => {
+        for (const name of [
+            'brand',
+            'brand-hover',
+            'success',
+            'danger',
+            'danger-hover',
+            'warning',
+            'fg-inverse',
+            'qr-surface',
+        ]) {
+            expect(dark).not.toHaveProperty(`--color-${name}`);
+        }
+        expect(color(base, 'brand')).toBe('#007735');
+        expect(color(base, 'qr-surface')).toBe('#ffffff');
     });
 
     it('keeps static colors and palette utilities out of component source', () => {
@@ -124,6 +205,8 @@ describe('global design token contract', () => {
             'g'
         );
         const frameworkShadow = /(?:drop-)?shadow-(?:sm|md|lg|xl|2xl)\b/g;
+        const filledColorAsText =
+            /\btext-(?:brand(?:-hover)?|success|danger|warning)\b/g;
         const violations: string[] = [];
 
         for (const path of sourceFiles(srcRoot)) {
@@ -132,6 +215,8 @@ describe('global design token contract', () => {
                 ...(source.match(rawColor) ?? []),
                 ...(source.match(rawPaletteUtility) ?? []),
                 ...(source.match(frameworkShadow) ?? []),
+                ...(source.match(filledColorAsText) ?? []),
+                ...(source.match(/\bdark:/g) ?? []),
             ];
 
             if (matches.length > 0) {
@@ -183,53 +268,79 @@ describe('global design token contract', () => {
         expect(violations).toEqual([]);
     });
 
-    it.each([
-        ['brand', 'fg-inverse'],
-        ['brand', 'surface'],
-        ['fg-primary', 'surface-page'],
-        ['fg-secondary', 'surface'],
-        ['fg-muted', 'surface'],
-        ['success', 'fg-inverse'],
-        ['danger', 'fg-inverse'],
-        ['warning', 'fg-inverse'],
-    ])('%s and %s meet WCAG AA contrast', (foreground, background) => {
-        const tokenValue = (name: string) => {
-            const match = globals.match(
-                new RegExp(`--color-${name}:\\s*(#[\\da-fA-F]{6});`)
-            );
+    describe.each(themes)('%s palette', (_theme, tokens) => {
+        it.each(['surface-page', 'surface', 'surface-subtle', 'surface-muted'])(
+            'keeps body text and control boundaries legible on %s',
+            (background) => {
+                for (const foreground of [
+                    'fg-primary',
+                    'fg-secondary',
+                    'fg-muted',
+                    'fg-brand',
+                    'fg-brand-hover',
+                    'fg-success',
+                    'fg-danger',
+                ]) {
+                    expect(
+                        contrastRatio(
+                            color(tokens, foreground),
+                            color(tokens, background)
+                        ),
+                        foreground
+                    ).toBeGreaterThanOrEqual(4.5);
+                }
+                expect(
+                    contrastRatio(
+                        color(tokens, 'border-strong'),
+                        color(tokens, background)
+                    )
+                ).toBeGreaterThanOrEqual(3);
+            }
+        );
 
-            expect(match, `Missing hex value for ${name}`).not.toBeNull();
-            return match![1];
-        };
-
-        expect(
-            contrastRatio(tokenValue(foreground), tokenValue(background))
-        ).toBeGreaterThanOrEqual(4.5);
-    });
-
-    it.each(['brand', 'success', 'danger', 'warning'])(
-        '%s remains legible on its derived subtle background',
-        (name) => {
-            const match = globals.match(
-                new RegExp(`--color-${name}:\\s*#([\\da-fA-F]{6});`)
-            );
-
-            expect(match, `Missing hex value for ${name}`).not.toBeNull();
-
-            const channels = match![1]
-                .match(/.{2}/g)!
-                .map((value) => Number.parseInt(value, 16));
-            const subtle = `#${channels
-                .map((channel) =>
-                    Math.round(channel * 0.05 + 255 * 0.95)
-                        .toString(16)
-                        .padStart(2, '0')
-                )
-                .join('')}`;
-
+        it.each([
+            'brand',
+            'brand-hover',
+            'success',
+            'danger',
+            'danger-hover',
+            'warning',
+        ])('keeps inverse text readable on filled %s', (background) => {
             expect(
-                contrastRatio(`#${match![1]}`, subtle)
+                contrastRatio(
+                    color(tokens, 'fg-inverse'),
+                    color(tokens, background)
+                )
             ).toBeGreaterThanOrEqual(4.5);
-        }
-    );
+        });
+
+        it.each(['brand', 'success', 'danger', 'warning'])(
+            'keeps %s text legible on its tinted surface',
+            (name) => {
+                const background = blend(
+                    color(tokens, name),
+                    color(tokens, 'surface'),
+                    0.05
+                );
+                expect(
+                    contrastRatio(color(tokens, `fg-${name}`), background)
+                ).toBeGreaterThanOrEqual(4.5);
+            }
+        );
+
+        it('keeps bright foreground fills and QR modules readable', () => {
+            expect(
+                contrastRatio(
+                    color(tokens, 'fg-on-strong'),
+                    color(tokens, 'fg-primary')
+                )
+            ).toBeGreaterThanOrEqual(4.5);
+            expect(
+                contrastRatio(
+                    color(tokens, 'brand'),
+                    color(tokens, 'qr-surface')
+                )
+            ).toBeGreaterThanOrEqual(4.5);
+        });
+    });
 });

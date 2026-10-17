@@ -165,8 +165,11 @@ export function createMockRuntime(options: { scenario?: string; rootDir?: string
         } else {
           result = await handler({ request, response, auth, store, keySync });
         }
-        if (result.streaming) return;
         validateResponse(route, result, contracts);
+        if (result.stream) {
+          result.stream();
+          return;
+        }
         sendResult(response, result);
       } catch (error) {
         next(error);

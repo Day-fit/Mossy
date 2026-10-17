@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="800"
+   height="540"
+   viewBox="0 0 800 540"
+   role="img"
+   aria-labelledby="title description"
+   style="font-family:Syne,sans-serif"
+   version="1.1"
+   id="svg24"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <style>
+    #message-flow { animation: mossy-message 12s linear infinite; }
+    @keyframes mossy-message { to { stroke-dashoffset: -120; } }
+    @media (prefers-reduced-motion: reduce) {
+      #message-flow { animation: none; }
+    }
+  </style>
+  <defs
+     id="defs24" />
+  <title
+     id="title">A little home for your passwords</title>
+  <desc
+     id="description">
+    Your devices exchange encrypted messages through Mossy with
+    the vault on your own server. Your server stays yours, with
+    no inbound ports to open.
+</desc>
+  <!-- An uneven patch of ground, like the silhouette of a leaf. -->
+  <path
+     d="M114 176C164 86 306 59 407 107C508 155 569 272 526 358C481 448 306 446 206 406C112 369 65 269 114 176Z"
+     fill="#e7e9d9"
+     id="path1" />
+  <path
+     d="M206 427C284 442 406 438 485 414"
+     fill="none"
+     stroke="#c4cbb4"
+     stroke-width="2"
+     stroke-linecap="round"
+     id="path2" />
+  <!-- Devices sit outside the patch; one loose thread joins them. -->
+  <g
+     fill="#faf8f1"
+     stroke="#465747"
+     stroke-width="2.3"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g8">
+    <path
+       d="M43 303L143 297L149 364L47 369Z"
+       id="path3" />
+    <path
+       d="M51 312L134 307L138 355L56 360Z"
+       fill="#e7e9d9"
+       stroke-width="1.4"
+       id="path4" />
+    <path
+       d="M47 369L30 382Q83 390 160 374L149 364"
+       id="path5" />
+    <path
+       d="M80 380L112 378"
+       stroke-width="1.4"
+       id="path6" />
+    <path
+       d="M155 348Q156 344 161 345L185 347Q190 347 190 352L187 395Q187 400 182 400L158 397Q153 397 154 391Z"
+       id="path7" />
+    <path
+       d="M168 352L179 353M167 392L176 393"
+       stroke-width="1.4"
+       id="path8" />
+  </g>
+  <path
+     id="message-flow"
+     fill="none"
+     stroke="#66784e"
+     stroke-width="2"
+     stroke-linecap="round"
+     stroke-dasharray="3 9"
+     class="mossy-message-path"
+     d="M155 322C217 331 241 309 220 272C201 239 164 215 174 187C179 173 188 169 198 169C225 169 259 168 275 191C290 214 281 244 302 256C315 264 330 266 346 261" />
+  <path
+     d="M337 256L347 261L339 269"
+     fill="none"
+     stroke="#66784e"
+     stroke-width="2"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="path9" />
+  <!-- The leaf sprite echoes Mossy's mascot, with no security costume. -->
+  <g
+     class="mossy-leaf-friend"
+     id="g12">
+    <path
+       d="M163 169C155 149 168 133 184 138C196 119 217 133 220 147C239 149 243 168 231 181C234 199 215 210 201 203C182 216 166 204 166 191C151 186 151 175 163 169Z"
+       fill="#a7bd71"
+       stroke="#52673d"
+       stroke-width="1.8"
+       stroke-linejoin="round"
+       id="path10" />
+    <path
+       d="M197 139C174 134 174 116 177 111C193 112 203 125 197 139ZM199 138C199 119 212 111 224 113C225 128 216 136 199 138Z"
+       fill="#91aa61"
+       stroke="#52673d"
+       stroke-width="1.8"
+       id="path11" />
+    <ellipse
+       cx="184"
+       cy="172"
+       rx="3.6"
+       ry="5"
+       fill="#314632"
+       id="ellipse11" />
+    <ellipse
+       cx="210"
+       cy="170"
+       rx="3.6"
+       ry="5"
+       fill="#314632"
+       id="ellipse12" />
+    <path
+       d="M193 183Q198 187 203 181"
+       fill="none"
+       stroke="#314632"
+       stroke-width="1.6"
+       stroke-linecap="round"
+       id="path12" />
+  </g>
+  <!-- The server has weight and a place, instead of floating in a card. -->
+  <g
+     stroke="#465747"
+     stroke-width="2.3"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g17">
+    <path
+       d="M344 215L459 200L485 219L483 376L372 396L347 376Z"
+       fill="#d2d8c2"
+       id="path13" />
+    <path
+       d="M344 215L371 236L485 219M371 236L372 396"
+       fill="none"
+       id="path14" />
+    <path
+       d="M389 253L465 241L465 270L389 282ZM389 294L465 282L465 311L389 324Z"
+       fill="#f7f5eb"
+       stroke-width="1.6"
+       id="path15" />
+    <path
+       d="M400 264L432 259M400 306L432 301"
+       stroke-width="1.4"
+       id="path16" />
+    <circle
+       cx="452"
+       cy="257"
+       r="3.2"
+       fill="#8a9b58"
+       stroke="none"
+       id="circle16" />
+    <circle
+       cx="452"
+       cy="299"
+       r="3.2"
+       fill="#8a9b58"
+       stroke="none"
+       id="circle17" />
+    <path
+       d="M389 350L421 345M389 356L421 351M389 362L421 357"
+       stroke-width="1.4"
+       id="path17" />
+  </g>
+  <!-- A small sprout makes the server feel settled in its own soil. -->
+  <g
+     fill="#a7bd71"
+     stroke="#66784e"
+     stroke-width="1.8"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="g20">
+    <path
+       d="M432 207Q430 186 421 174"
+       fill="none"
+       id="path18" />
+    <path
+       d="M427 188C407 190 399 181 400 169C415 168 426 176 427 188Z"
+       id="path19" />
+    <path
+       d="M430 194C448 192 454 180 450 170C436 173 429 183 430 194Z"
+       id="path20" />
+  </g>
+  <!-- Labels stay outside the pale artwork so one themed foreground works in both modes. -->
+  <g fill="currentColor" id="g23">
+    <text id="text20" x="110" y="448" text-anchor="middle" font-size="20">Your devices</text>
+    <text id="text21" x="196" y="64" text-anchor="middle" font-size="24" font-weight="600">Mossy</text>
+    <text id="text22" x="570" y="242" font-size="22" font-weight="600">Your own server</text>
+    <text id="text23" x="570" y="272" font-size="18">Your vault lives here.</text>
+  </g>
+  <path
+     d="M584 302C552 322 528 282 494 282M502 276L494 282L502 288"
+     fill="none"
+     stroke="#879277"
+     stroke-width="1.75"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     id="path23" />
+  <text id="text24" x="340" y="504" text-anchor="middle" font-size="18" fill="currentColor">A quiet connection. No open ports.</text>
+</svg>

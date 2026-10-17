@@ -18,5 +18,7 @@ class DeviceEnrollmentRequest (
     var userAgent: String,
     var publicIdentityKey: ByteArray,
 
+    var deviceType: String,
+    val osName: String,
     var createdAt: Instant
 )

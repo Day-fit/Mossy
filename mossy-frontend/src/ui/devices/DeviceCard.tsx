@@ -26,7 +26,7 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
                 transition={{ duration: 0.3 }}
             >
                 <div className="flex items-start gap-4">
-                    <div className="rounded-lg bg-brand/5 p-3 text-3xl text-brand">
+                    <div className="rounded-lg bg-brand/5 p-3 text-3xl text-fg-brand">
                         <DeviceIcon deviceType={device.deviceType} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -35,13 +35,13 @@ export default function DeviceCard({ device }: { device: DeviceDetails }) {
                                 {device.lastOsName || 'Unknown OS'}
                             </h3>
                             {device.current ? (
-                                <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">
+                                <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-fg-brand">
                                     Current device
                                 </span>
                             ) : null}
                         </div>
                         <p
-                            className={`mt-1 text-sm ${device.blocked ? 'text-danger' : 'text-success'}`}
+                            className={`mt-1 text-sm ${device.blocked ? 'text-fg-danger' : 'text-fg-success'}`}
                         >
                             {device.deviceType || 'Unknown device'} ·{' '}
                             {device.blocked ? 'Blocked' : 'Active'}

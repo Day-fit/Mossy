@@ -41,7 +41,9 @@ export default function VaultOptionsMenu({
                 variant="ghost"
                 type="button"
                 padding="none"
-                aria-label="options"
+                aria-label="Vault options"
+                aria-expanded={isOpen}
+                title="Copy vault ID, rename or delete vault"
                 onClick={() => setIsOpen((prev) => !prev)}
             >
                 ⋯
@@ -65,7 +67,7 @@ export default function VaultOptionsMenu({
                     </button>
                     <button
                         type="button"
-                        className="text-sm font-semibold block w-full rounded px-3 py-2 text-left text-danger hover:bg-danger/5"
+                        className="text-sm font-semibold block w-full rounded px-3 py-2 text-left text-fg-danger hover:bg-danger/5"
                         onClick={() => closeAndRun(onDelete)}
                     >
                         Delete vault

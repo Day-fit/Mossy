@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
+import { featureRequestUrl } from '../../helpers/projectLinks.ts';
 
 export default function Footer() {
     return (
-        <footer className="flex border-t-2 border-border justify-around bg-surface p-5">
+        <footer className="flex shrink-0 border-t-2 border-border justify-around bg-surface p-5">
             <section className="flex flex-col">
                 <h3 className="text-xl mb-1">Repository, bugs, ideas</h3>
                 <a
@@ -23,7 +24,7 @@ export default function Footer() {
                 </a>
                 <a
                     target="_blank"
-                    href="https://github.com/Day-fit/Mossy/issues/new"
+                    href={featureRequestUrl}
                     rel="noopener noreferrer"
                     className="text-sm text-fg-muted"
                 >
@@ -46,6 +47,9 @@ export default function Footer() {
                 </NavLink>
                 <NavLink to="/passwords" className="text-sm text-fg-muted">
                     Passwords
+                </NavLink>
+                <NavLink to="/settings" className="text-sm text-fg-muted">
+                    Settings
                 </NavLink>
             </section>
         </footer>

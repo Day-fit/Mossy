@@ -20,14 +20,14 @@ export default function EnrollmentCard({
             transition={{ duration: 0.3 }}
         >
             <div className="flex items-start gap-4">
-                <div className="rounded-lg bg-warning/5 p-3 text-3xl text-warning">
+                <div className="rounded-lg bg-warning/5 p-3 text-3xl text-fg-warning">
                     <DeviceIcon deviceType={enrollment.deviceType} />
                 </div>
                 <div className="min-w-0">
                     <h3 className="truncate text-lg/6">
                         {enrollment.lastOsName || 'Unknown OS'}
                     </h3>
-                    <p className="text-sm text-warning">
+                    <p className="text-sm text-fg-warning">
                         {enrollment.deviceType || 'Unknown device'} · Awaiting
                         approval
                     </p>

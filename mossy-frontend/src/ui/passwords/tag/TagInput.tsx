@@ -95,7 +95,7 @@ export default function TagInput({
     return (
         <div
             ref={ref}
-            className="inline-flex items-center rounded-md border border-border bg-surface px-1.5 py-0.5 shadow-control"
+            className="inline-flex items-center rounded-md border border-border-strong bg-surface px-1.5 py-0.5 shadow-control"
         >
             <label className="relative w-4 h-4 cursor-pointer shrink-0">
                 <span
@@ -123,7 +123,7 @@ export default function TagInput({
                 onClick={handleConfirm}
                 whileHover={{ opacity: 0.8 }}
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center w-5 h-5 rounded-full bg-fg-primary text-fg-inverse shrink-0"
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-fg-primary text-fg-on-strong shrink-0"
                 aria-label="add tag"
             >
                 <MdCheck size={12} />

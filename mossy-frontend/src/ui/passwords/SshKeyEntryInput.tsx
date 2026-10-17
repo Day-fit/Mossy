@@ -70,9 +70,9 @@ export default function SshKeyEntryInput({
 
     return (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border p-3">
+            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border-strong p-3">
                 <span className="text-sm font-medium text-fg-secondary">
-                    Private key <span className="text-danger">*</span>
+                    Private key <span className="text-fg-danger">*</span>
                 </span>
                 <textarea
                     name="privateKey"
@@ -80,7 +80,7 @@ export default function SshKeyEntryInput({
                     onChange={(event) =>
                         updateField('privateKey', event.target.value)
                     }
-                    className="min-h-40 flex-1 bg-surface-subtle p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-brand"
+                    className="min-h-40 flex-1 bg-surface-subtle p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-fg-brand"
                     required
                     spellCheck={false}
                 />
@@ -96,7 +96,7 @@ export default function SshKeyEntryInput({
                 </span>
             </label>
 
-            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border p-3">
+            <label className="flex min-h-56 flex-col gap-2 rounded-sm border border-border-strong p-3">
                 <span className="text-sm font-medium text-fg-secondary">
                     Public key
                 </span>
@@ -106,7 +106,7 @@ export default function SshKeyEntryInput({
                     onChange={(event) =>
                         updateField('publicKey', event.target.value)
                     }
-                    className="min-h-40 flex-1 bg-surface-subtle p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-brand"
+                    className="min-h-40 flex-1 bg-surface-subtle p-2 font-mono text-sm outline-none focus:ring-2 focus:ring-fg-brand"
                     spellCheck={false}
                 />
                 <span className="inline-flex items-center gap-2 text-sm text-fg-muted">
@@ -122,7 +122,7 @@ export default function SshKeyEntryInput({
             </label>
 
             {validationMessage ? (
-                <p className="inline-flex items-center gap-1 text-sm text-danger lg:col-span-2">
+                <p className="inline-flex items-center gap-1 text-sm text-fg-danger lg:col-span-2">
                     <MdErrorOutline size={16} />
                     {validationMessage}
                 </p>

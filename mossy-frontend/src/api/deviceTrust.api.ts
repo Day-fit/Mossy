@@ -1,4 +1,5 @@
 import { apiFetch } from './client.ts';
+import { readSseData } from './sse.ts';
 import type { PublicIdentityJwk } from './auth.api.ts';
 
 export type NonceChallenge = {
@@ -36,6 +37,55 @@ export async function executeGetDeviceIdentityKeyRequest(
         `/api/v1/device-trust/device/${encodeURIComponent(deviceId)}/identity-key`,
         { signal }
     ).then((response) => response.json());
+}
+
+// Use fetch so the stream carries the same bearer token as other API requests.
+export async function receiveEnrollmentEvents(
+    signal: AbortSignal,
+    onEnrollment: (enrollment: DeviceEnrollment) => void,
+    onOpen: () => void
+): Promise<void> {
+    const response = await apiFetch(
+        '/api/v1/device-trust/device/enrollments/events',
+        {
+            method: 'GET',
+            headers: { Accept: 'text/event-stream' },
+            signal,
+        }
+    );
+    if (
+        !response.headers.get('Content-Type')?.includes('text/event-stream') ||
+        !response.body
+    ) {
+        throw new Error('Enrollment event stream is unavailable.');
+    }
+
+    try {
+        if (signal.aborted) return;
+        onOpen();
+        for await (const payload of readSseData(response)) {
+            if (signal.aborted) return;
+            // A malformed event must not disconnect the rest of the stream.
+            let enrollment: DeviceEnrollment;
+            try {
+                enrollment = JSON.parse(payload);
+            } catch {
+                continue;
+            }
+            if (
+                enrollment &&
+                typeof enrollment.id === 'string' &&
+                typeof enrollment.lastOsName === 'string' &&
+                typeof enrollment.deviceType === 'string' &&
+                typeof enrollment.remoteAddr === 'string' &&
+                typeof enrollment.createdAt === 'string'
+            ) {
+                onEnrollment(enrollment);
+            }
+        }
+    } finally {
+        await response.body.cancel().catch(() => undefined);
+    }
 }
 
 export async function executeDeviceLoginChallengeRequest(

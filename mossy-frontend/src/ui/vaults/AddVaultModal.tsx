@@ -42,7 +42,7 @@ export default function AddVaultModal({
                                 type="text"
                                 value={vaultId}
                                 readOnly
-                                className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 font-mono text-xs text-fg-secondary"
+                                className="w-full rounded-md border border-border-strong bg-surface-subtle px-3 py-2 font-mono text-xs text-fg-secondary"
                             />
                             <Button
                                 type="button"
@@ -64,7 +64,7 @@ export default function AddVaultModal({
                                 type="text"
                                 value={apiKey}
                                 readOnly
-                                className="w-full rounded-md border border-border bg-surface-subtle px-3 py-2 font-mono text-xs text-fg-secondary"
+                                className="w-full rounded-md border border-border-strong bg-surface-subtle px-3 py-2 font-mono text-xs text-fg-secondary"
                             />
                             <Button
                                 type="button"

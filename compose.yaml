@@ -7,8 +7,9 @@ services:
     profiles:
       - 'prod'
     volumes:
-      - ./traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./data/acme.json:/etc/traefik/acme.json
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/middlewares.yaml:/etc/traefik/middlewares.yaml:ro
+      - ./traefik/data/acme.json:/etc/traefik/acme.json
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
   mossy-auth:
@@ -49,14 +50,14 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-auth.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/auth`)'
       - 'traefik.http.routers.mossy-auth.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-auth.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-auth.tls.certresolver=mossy-resolver'
       - 'traefik.http.services.mossy-auth.loadbalancer.server.port=8083'
       - 'traefik.http.routers.mossy-auth-verification.rule=Host(`mossy.dayfit.pl`) && (Path(`/api/v1/auth/user/confirm`) || PathPrefix(`/api/v1/auth/user/verification/`))'
       - 'traefik.http.routers.mossy-auth-verification.priority=100'
       - 'traefik.http.routers.mossy-auth-verification.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-auth-verification.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-auth-verification.tls.certresolver=mossy-resolver'
       - 'traefik.http.routers.mossy-auth-verification.service=mossy-auth'
-      - 'traefik.http.routers.mossy-auth-verification.middlewares=mossy-auth-verification-rate-limit'
+      - 'traefik.http.routers.mossy-auth-verification.middlewares=security-headers@file,mossy-auth-verification-rate-limit'
       - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.average=10'
       - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.period=1m'
       - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.burst=10'
@@ -94,13 +95,13 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-device-trust.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust`) && !PathPrefix(`/api/v1/device-trust/internal`)'
       - 'traefik.http.routers.mossy-device-trust.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-device-trust.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-device-trust.tls.certresolver=mossy-resolver'
       - 'traefik.http.routers.mossy-device-trust-nonce.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/device-trust/nonce/`)'
       - 'traefik.http.routers.mossy-device-trust-nonce.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-device-trust-nonce.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-device-trust-nonce.tls.certresolver=mossy-resolver'
       - 'traefik.http.routers.mossy-device-trust-nonce.priority=200'
       - 'traefik.http.routers.mossy-device-trust-nonce.service=mossy-device-trust'
-      - 'traefik.http.routers.mossy-device-trust-nonce.middlewares=mossy-device-trust-nonce-rate-limit'
+      - 'traefik.http.routers.mossy-device-trust-nonce.middlewares=security-headers@file,mossy-device-trust-nonce-rate-limit'
       - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.average=10'
       - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.period=1m'
       - 'traefik.http.middlewares.mossy-device-trust-nonce-rate-limit.ratelimit.burst=5'
@@ -141,11 +142,11 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-password.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/passwords`)'
       - 'traefik.http.routers.mossy-password.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-password.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-password.tls.certresolver=mossy-resolver'
       - 'traefik.http.services.mossy-password.loadbalancer.server.port=8082'
       - 'traefik.http.routers.mossy-password-ws.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/passwords/ws/vault-communication`)'
       - 'traefik.http.routers.mossy-password-ws.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-password-ws.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-password-ws.tls.certresolver=mossy-resolver'
       - 'traefik.http.routers.mossy-password-ws.service=mossy-password'
 
   mossy-key-sync:
@@ -175,11 +176,11 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-key-sync.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/key-sync`)'
       - 'traefik.http.routers.mossy-key-sync.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-key-sync.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-key-sync.tls.certresolver=mossy-resolver'
       - 'traefik.http.services.mossy-key-sync.loadbalancer.server.port=8081'
       - 'traefik.http.routers.mossy-key-sync-ws.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/ws/key-sync`)'
       - 'traefik.http.routers.mossy-key-sync-ws.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-key-sync-ws.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-key-sync-ws.tls.certresolver=mossy-resolver'
       - 'traefik.http.routers.mossy-key-sync-ws.service=mossy-key-sync'
 
   mossy-statistics:
@@ -213,7 +214,7 @@ services:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-statistics.rule=Host(`mossy.dayfit.pl`) && PathPrefix(`/api/v1/statistics`)'
       - 'traefik.http.routers.mossy-statistics.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-statistics.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-statistics.tls.certresolver=mossy-resolver'
       - 'traefik.http.services.mossy-statistics.loadbalancer.server.port=8085'
 
   mossy-frontend:
@@ -231,8 +232,9 @@ services:
     labels:
       - 'traefik.enable=true'
       - 'traefik.http.routers.mossy-frontend.rule=Host(`mossy.dayfit.pl`)'
+      - 'traefik.http.routers.mossy-frontend.middlewares=security-headers@file'
       - 'traefik.http.routers.mossy-frontend.entrypoints=websecure'
-      - 'traefik.http.routers.mossy-frontend.tls.certresolver=myresolver'
+      - 'traefik.http.routers.mossy-frontend.tls.certresolver=mossy-resolver'
       - 'traefik.http.services.mossy-frontend.loadbalancer.server.port=3000'
 
   postgres:

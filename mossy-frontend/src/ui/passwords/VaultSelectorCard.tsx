@@ -1,6 +1,7 @@
 import type { UserVaultDto } from '../../api/vault.api.ts';
 import { GoCheckCircleFill } from 'react-icons/go';
 import { motion } from 'framer-motion';
+import VaultStatus from '../shared/VaultStatus.tsx';
 
 type VaultSelectorProps = {
     vaults: UserVaultDto[];
@@ -18,13 +19,13 @@ function VaultSelectorCard({
             <div className="mb-5 flex items-center justify-between">
                 <h2 className="text-lg/6">Vaults</h2>
 
-                <span className="text-xs text-brand/70">
+                <span className="text-xs text-fg-muted">
                     {vaults.length} total
                 </span>
             </div>
 
             {vaults.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-brand/20 bg-surface p-4 text-sm text-brand/70">
+                <div className="rounded-lg border border-dashed border-fg-brand/20 bg-surface p-4 text-sm text-fg-muted">
                     No vaults available
                 </div>
             ) : (
@@ -41,12 +42,14 @@ function VaultSelectorCard({
                                 whileTap={{ scale: 0.99 }}
                                 transition={{ duration: 0.15 }}
                                 className={[
-                                    'relative w-full rounded-xl border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2',
+                                    'relative w-full rounded-xl border p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fg-brand focus-visible:ring-offset-2 ring-offset-surface',
                                     isSelected
-                                        ? 'border-brand bg-brand text-fg-inverse'
+                                        ? 'border-fg-brand bg-brand text-fg-inverse'
                                         : vault.isOnline
-                                          ? 'border-brand/20 bg-brand/5 text-brand hover:border-brand/20'
-                                          : 'border-danger/20 bg-danger/5 text-danger hover:border-danger/20',
+                                          ? 'border-fg-brand/20 bg-brand/5 text-fg-brand hover:border-fg-brand/20'
+                                          : vault.lastSeenAt
+                                            ? 'border-warning/20 bg-warning/5 text-fg-secondary hover:border-warning/40'
+                                            : 'border-border bg-surface text-fg-secondary hover:border-border-strong',
                                 ].join(' ')}
                             >
                                 <div className="flex items-start justify-between gap-3">
@@ -55,35 +58,25 @@ function VaultSelectorCard({
                                             {vault.vaultName}
                                         </p>
 
-                                        <p className="mt-1 text-xs opacity-70">
+                                        <p className="mt-1 text-xs">
                                             {vault.passwordCount} passwords
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="mt-3 flex items-center justify-between text-xs opacity-80">
-                                    <div className="flex items-center gap-2">
-                                        <span
-                                            className={[
-                                                'h-2.5 w-2.5 rounded-full',
-                                                vault.isOnline
-                                                    ? 'bg-success'
-                                                    : 'bg-danger',
-                                            ].join(' ')}
-                                        />
-                                        <span>
-                                            {vault.isOnline
-                                                ? 'Online'
-                                                : 'Offline'}
-                                        </span>
-                                    </div>
+                                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                                    <VaultStatus
+                                        isOnline={vault.isOnline}
+                                        lastSeenAt={vault.lastSeenAt}
+                                        inverse={isSelected}
+                                    />
 
                                     <span>
                                         {vault.lastSeenAt
                                             ? new Date(
                                                   vault.lastSeenAt
                                               ).toLocaleString()
-                                            : '—'}
+                                            : 'Never'}
                                     </span>
                                 </div>
 
