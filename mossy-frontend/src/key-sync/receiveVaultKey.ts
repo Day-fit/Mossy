@@ -41,7 +41,7 @@ export async function receiveVaultKey(
         );
         options.signal.throwIfAborted();
         options.onCode(code);
-        await waitForReceiverResult(events, options.receiverId);
+        await waitForReceiverResult(events, options.receiverId, code);
         options.signal.throwIfAborted();
         options.onReceiving();
         const { keys } = await executeGetVaultKeysRequest(options.signal);

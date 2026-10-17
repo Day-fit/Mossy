@@ -5,11 +5,11 @@ import java.util.UUID
 
 data class KeySyncEvent(
     val receiverId: UUID,
+    val code: String,
     val result: Result,
     @JsonIgnore val throwable: Throwable? = null,
+    val errorMessage: String? = throwable?.message,
 ) {
-    val errorMessage: String? = throwable?.message
-
     enum class Result {
         SUCCESS,
         FAILED,

@@ -10,11 +10,15 @@ import org.mockito.Spy
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.times
 import org.mockito.kotlin.whenever
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.redis.connection.RedisHashCommands.HashFieldSetOption
 import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.core.types.Expiration
 import org.springframework.security.access.AccessDeniedException
 import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
 import pl.dayfit.mossykeysync.dto.request.UploadKeyDto
@@ -26,9 +30,12 @@ import pl.dayfit.mossykeysync.model.redis.KeySyncInfo
 import pl.dayfit.mossykeysync.model.redis.VaultKey
 import pl.dayfit.mossykeysync.repository.redis.VaultKeyRepository
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 @ExtendWith(MockitoExtension::class)
@@ -57,7 +64,7 @@ class KeySyncServiceTest {
         val infoCaptor = argumentCaptor<KeySyncInfo>()
 
         verify(secureRandom).nextBytes(any())
-        verify(redisTemplate.opsForValue()).set(codeCaptor.capture(), infoCaptor.capture())
+        verify(redisTemplate.opsForValue()).set(codeCaptor.capture(), infoCaptor.capture(), eq(Duration.ofMinutes(15)))
 
         val saved = infoCaptor.firstValue
 
@@ -67,8 +74,11 @@ class KeySyncServiceTest {
         assertEquals(VAULT_ID, saved.vaultId)
         assertEquals(RECEIVER_PUBLIC_DH, saved.publicDh)
         assertEquals(RECEIVER_SIGNATURE, saved.signature)
-        verify(redisTemplate.opsForHash<String, KeySyncInfo>())
-            .put("$USER_ID:pending-key-sync", response.code, saved)
+        val expiration = argumentCaptor<Expiration>()
+        verify(redisTemplate.opsForHash<String, KeySyncInfo>()).putAndExpire(
+            eq("$USER_ID:pending-key-sync"), eq(mapOf(response.code to saved)), eq(HashFieldSetOption.UPSERT), expiration.capture(),
+        )
+        assertEquals(Duration.ofMinutes(15).toMillis(), expiration.firstValue.expirationTimeInMilliseconds)
         assertEquals(6, response.code.length)
         assertTrue(response.code.all { it in "0123456789ABCDEFGHJKMNPQRSTVWXYZ" })
     }
@@ -93,7 +103,63 @@ class KeySyncServiceTest {
         assertEquals(request.ciphertext, saved.cipherText)
         assertEquals(request.publicDh["x"], saved.senderPublicDh)
         assertEquals(SYNC_CODE, saved.code)
-        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS))
+        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, SYNC_CODE, KeySyncEvent.Result.SUCCESS))
+    }
+
+    @Test
+    fun `two uploads for the same receiver retain separate keys until retrieval`() {
+        val info = KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID, RECEIVER_PUBLIC_DH, RECEIVER_SIGNATURE)
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE")).thenReturn(info)
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:DEF456")).thenReturn(info)
+        val stored = mutableMapOf<UUID, VaultKey>()
+        whenever(vaultKeyRepository.save(any<VaultKey>())).thenAnswer {
+            val key = it.getArgument<VaultKey>(0)
+            stored[key.id] = key
+            key
+        }
+        whenever(vaultKeyRepository.findAllByReceiverId(RECEIVER_ID)).thenAnswer {
+            stored.values.filter { it.receiverId == RECEIVER_ID }.toMutableList()
+        }
+
+        service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
+        service.processKeyUpload(USER_ID, SENDER_ID, "DEF456", uploadRequest().copy(ciphertext = "second-key"))
+
+        val keys = service.getVaultKeys(RECEIVER_ID).keys
+        assertEquals(listOf(SYNC_CODE, "DEF456"), keys.map { it.code })
+        assertEquals(listOf("encrypted-vault-key", "second-key"), keys.map { it.cipherText })
+        assertNotEquals(stored.keys.first(), stored.keys.last())
+        verify(vaultKeyRepository, times(2)).save(any<VaultKey>())
+    }
+
+    @Test
+    fun `failed discovery cleanup after claiming a code notifies the receiver`() {
+        val info = KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID, RECEIVER_PUBLIC_DH, RECEIVER_SIGNATURE)
+        val failure = IllegalStateException("Redis unavailable")
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE")).thenReturn(info)
+        whenever(redisTemplate.opsForHash<String, KeySyncInfo>().delete("$USER_ID:pending-key-sync", SYNC_CODE))
+            .thenThrow(failure)
+
+        assertSame(failure, assertThrows<IllegalStateException> {
+            service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
+        })
+
+        verifyNoInteractions(vaultKeyRepository)
+        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, SYNC_CODE, KeySyncEvent.Result.FAILED, failure))
+    }
+
+    @Test
+    fun `failed field expiration cleans up the incomplete request`() {
+        whenever(redisTemplate.opsForHash<String, KeySyncInfo>().putAndExpire(any(), any(), any(), any()))
+            .thenThrow(IllegalStateException("Redis unavailable"))
+
+        assertThrows<IllegalStateException> {
+            service.initKeySync(USER_ID, RECEIVER_ID, InitKeySyncRequestDto(VAULT_ID, RECEIVER_PUBLIC_DH, RECEIVER_SIGNATURE))
+        }
+
+        val key = argumentCaptor<String>()
+        verify(redisTemplate).delete(key.capture())
+        val code = key.firstValue.substringAfterLast(':')
+        verify(redisTemplate.opsForHash<String, KeySyncInfo>()).delete("$USER_ID:pending-key-sync", code)
     }
 
     @Test
@@ -122,7 +188,8 @@ class KeySyncServiceTest {
         verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
         assertEquals(RECEIVER_ID, eventCaptor.firstValue.receiverId)
         assertEquals(KeySyncEvent.Result.FAILED, eventCaptor.firstValue.result)
-        assertIs<IllegalStateException>(eventCaptor.firstValue.throwable)
+        assertEquals(SYNC_CODE, eventCaptor.firstValue.code)
+        assertIs<AccessDeniedException>(eventCaptor.firstValue.throwable)
         verifyNoInteractions(vaultKeyRepository)
     }
 
@@ -140,16 +207,17 @@ class KeySyncServiceTest {
         verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
         assertEquals(RECEIVER_ID, eventCaptor.firstValue.receiverId)
         assertEquals(KeySyncEvent.Result.FAILED, eventCaptor.firstValue.result)
-        assertIs<IllegalStateException>(eventCaptor.firstValue.throwable)
+        assertEquals(SYNC_CODE, eventCaptor.firstValue.code)
+        assertIs<InvalidKeyUploadedException>(eventCaptor.firstValue.throwable)
         verifyNoInteractions(vaultKeyRepository)
     }
 
     @Test
-    fun `key upload without a DH public key does not save a key or publish success`() {
+    fun `key upload without a DH public key publishes a terminal failure`() {
         whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
             .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID, RECEIVER_PUBLIC_DH, RECEIVER_SIGNATURE))
 
-        assertThrows<IllegalArgumentException> {
+        val failure = assertThrows<IllegalArgumentException> {
             service.processKeyUpload(
                 USER_ID,
                 SENDER_ID,
@@ -158,20 +226,21 @@ class KeySyncServiceTest {
             )
         }
 
-        verifyNoInteractions(vaultKeyRepository, applicationEventPublisher)
+        verifyNoInteractions(vaultKeyRepository)
+        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, SYNC_CODE, KeySyncEvent.Result.FAILED, failure))
     }
 
     @Test
-    fun `failed key persistence does not publish a success event`() {
+    fun `failed key persistence publishes a terminal failure`() {
         whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
             .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID, RECEIVER_PUBLIC_DH, RECEIVER_SIGNATURE))
         whenever(vaultKeyRepository.save(any<VaultKey>())).thenThrow(IllegalStateException("Redis unavailable"))
 
-        assertThrows<IllegalStateException> {
+        val failure = assertThrows<IllegalStateException> {
             service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
         }
 
-        verifyNoInteractions(applicationEventPublisher)
+        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, SYNC_CODE, KeySyncEvent.Result.FAILED, failure))
     }
 
     @Test

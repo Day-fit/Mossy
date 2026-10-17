@@ -3,7 +3,9 @@ package pl.dayfit.mossykeysync.service
 import org.apache.commons.codec.binary.Base32
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.redis.connection.RedisHashCommands.HashFieldSetOption
 import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.data.redis.core.types.Expiration
 import org.springframework.security.access.AccessDeniedException
 import org.springframework.stereotype.Service
 import pl.dayfit.mossykeysync.dto.request.InitKeySyncRequestDto
@@ -19,6 +21,7 @@ import pl.dayfit.mossykeysync.model.redis.VaultKey
 import pl.dayfit.mossykeysync.repository.redis.VaultKeyRepository
 import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
+import java.time.Duration
 import java.util.UUID
 
 @Service
@@ -32,6 +35,7 @@ class KeySyncService(
 
     companion object {
         private const val ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+        private val REQUEST_TTL = Duration.ofMinutes(15)
         private val codec = Base32.builder()
             .setEncodeTable(*ALPHABET.toByteArray(StandardCharsets.US_ASCII))
             .get()
@@ -45,8 +49,21 @@ class KeySyncService(
         val code = generateSyncCode()
         val info = KeySyncInfo(userId, dto.vaultId, deviceId, dto.publicDh, dto.signature)
 
-        redisTemplate.opsForValue().set("$userId:$code", info)
-        redisTemplate.opsForHash<String, KeySyncInfo>().put("$userId:pending-key-sync", code, info)
+        redisTemplate.opsForValue().set("$userId:$code", info, REQUEST_TTL)
+        try {
+            val pending = redisTemplate.opsForHash<String, KeySyncInfo>()
+            // Store the field and its TTL atomically; newer requests cannot extend older ones.
+            pending.putAndExpire(
+                "$userId:pending-key-sync",
+                mapOf(code to info),
+                HashFieldSetOption.UPSERT,
+                Expiration.from(REQUEST_TTL),
+            )
+        } catch (ex: Exception) {
+            redisTemplate.delete("$userId:$code")
+            redisTemplate.opsForHash<String, KeySyncInfo>().delete("$userId:pending-key-sync", code)
+            throw ex
+        }
 
         return InitKeySyncResponseDto(
             code
@@ -61,49 +78,45 @@ class KeySyncService(
         if (info == null) {
             throw NoSuchElementException("Invalid code")
         }
-        redisTemplate.opsForHash<String, KeySyncInfo>().delete("$userId:pending-key-sync", code)
+        try {
+            redisTemplate.opsForHash<String, KeySyncInfo>().delete("$userId:pending-key-sync", code)
 
-        val receiverId = info.receiverId
+            // Should never happen as the Redis key is userId:code.
+            if (info.userId != userId) {
+                logger.error("User ID mismatch: {}", userId)
+                throw AccessDeniedException("User id '$userId' does not belong to this key upload")
+            }
 
-        //Should never happen as write key is userId:code
-        if (info.userId != userId) {
-            logger.error("User ID mismatch: {}", userId)
-            applicationEventPublisher.publishEvent(
-                KeySyncEvent(
-                    receiverId,
-                    KeySyncEvent.Result.FAILED,
-                    IllegalStateException("Invalid sender connected")
+            if (info.vaultId != dto.vaultId) {
+                throw InvalidKeyUploadedException()
+            }
+
+            vaultKeyRepository.save(
+                VaultKey(
+                    info.receiverId,
+                    info.vaultId,
+                    dto.ciphertext,
+                    deviceId,
+                    dto.publicDh.x(),
+                    code,
                 )
             )
-            throw AccessDeniedException("User id '$userId' does not belong to this key upload")
-        }
-
-        if (info.vaultId != dto.vaultId) {
-            val ex = InvalidKeyUploadedException()
+        } catch (ex: Exception) {
             applicationEventPublisher.publishEvent(
                 KeySyncEvent(
-                    receiverId,
+                    info.receiverId,
+                    code,
                     KeySyncEvent.Result.FAILED,
-                    IllegalStateException("Invalid sender connected")
+                    ex,
                 )
             )
             throw ex
         }
 
-        vaultKeyRepository.save(
-            VaultKey(
-                info.receiverId,
-                info.vaultId,
-                dto.ciphertext,
-                deviceId,
-                dto.publicDh.x(),
-                code,
-            )
-        )
-
         applicationEventPublisher.publishEvent(
             KeySyncEvent(
-                receiverId,
+                info.receiverId,
+                code,
                 KeySyncEvent.Result.SUCCESS,
             )
         )

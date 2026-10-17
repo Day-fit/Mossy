@@ -83,7 +83,7 @@ describe('HTTP vault key transfer', () => {
         const emit = (result: 'SUCCESS' | 'FAILED', errorMessage?: string) =>
             stream.enqueue(
                 new TextEncoder().encode(
-                    `data: ${JSON.stringify({ receiverId: options.receiverId, result, errorMessage })}\n\n`
+                    `data: ${JSON.stringify({ receiverId: options.receiverId, code: 'ABC123', result, errorMessage })}\n\n`
                 )
             );
         return { options, cancel, emit };

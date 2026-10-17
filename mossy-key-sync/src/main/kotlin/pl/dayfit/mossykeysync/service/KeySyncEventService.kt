@@ -28,17 +28,12 @@ class KeySyncEventService(
         sseEmitters[event.receiverId]?.forEach { emitter ->
             try {
                 emitter.send(event, MediaType.APPLICATION_JSON)
-                if (event.throwable == null) {
-                    emitter.complete()
-                } else {
-                    emitter.completeWithError(event.throwable)
-                }
             } catch (_: IOException) {
+                removeSubscription(event.receiverId, emitter)
                 logger.debug("Receiver {} disconnected during result delivery", event.receiverId)
             } catch (_: IllegalStateException) {
-                logger.debug("Receiver {} stream already closed during receiving event", event.receiverId)
-            } finally {
                 removeSubscription(event.receiverId, emitter)
+                logger.debug("Receiver {} stream already closed during receiving event", event.receiverId)
             }
         }
     }

@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockRuntime } from "../src/app.js";
+import { KeySyncStore } from "../src/key-sync.js";
 
 describe("HTTP key synchronization", () => {
   let runtime: ReturnType<typeof createMockRuntime>;
@@ -34,6 +35,7 @@ describe("HTTP key synchronization", () => {
   });
 
   afterEach(async () => {
+    vi.useRealTimers();
     if (!server.listening) return;
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -53,6 +55,17 @@ describe("HTTP key synchronization", () => {
     return (await response.json()) as { code: string };
   }
 
+  async function readEvent(reader: ReadableStreamDefaultReader<Uint8Array>) {
+    const decoder = new TextDecoder();
+    let text = "";
+    while (!text.includes("data: ")) {
+      const next = await reader.read();
+      if (next.done) throw new Error("Stream ended before a result");
+      text += decoder.decode(next.value, { stream: true });
+    }
+    return JSON.parse(text.split("data: ")[1].split("\n\n")[0]);
+  }
+
   it("discovers pending receivers separately, uploads once, and notifies the receiving device", async () => {
     const vaultId = runtime.store.state.vaults[0].id;
     const { code } = await initialize();
@@ -62,14 +75,44 @@ describe("HTTP key synchronization", () => {
       vaultId, publicDh: dh, signature: "receiver-signature" }]);
 
     const events = await request("/receiver-events", receiverToken);
+    const reader = events.body!.getReader();
     const uploaded = await request(`/${code}`, senderToken, { vaultId, ciphertext: "encrypted-key", publicDh: dh });
     expect(uploaded.status).toBe(200);
-    expect(await events.text()).toContain('"result":"SUCCESS"');
+    expect(await readEvent(reader)).toMatchObject({ code, result: "SUCCESS" });
+    await reader.cancel();
     expect(await request("/receivers", senderToken).then((response) => response.json())).toEqual([]);
     const response = await request("/vault-keys", receiverToken).then((result) => result.json());
     expect(response).toEqual({ keys: [{ code, vaultId, cipherText: "encrypted-key",
       senderId, senderPublicDh: dh.x }] });
     expect((await request(`/${code}`, senderToken, { vaultId, ciphertext: "replayed", publicDh: dh })).status).toBe(404);
+  });
+
+  it("keeps subscriptions open for a second attempt on the same receiver", async () => {
+    const { code: earlier } = await initialize();
+    const { code: current } = await initialize();
+    const events = await request("/receiver-events", receiverToken);
+    const reader = events.body!.getReader();
+    const vaultId = runtime.store.state.vaults[0].id;
+    for (const code of [earlier, current]) {
+      expect((await request(`/${code}`, senderToken, { vaultId, ciphertext: code, publicDh: dh })).status).toBe(200);
+      expect(await readEvent(reader)).toMatchObject({ code, result: "SUCCESS" });
+    }
+    await reader.cancel();
+  });
+
+  it("expires abandoned codes without discovery calls and leaves newer requests active", () => {
+    vi.useFakeTimers();
+    const store = new KeySyncStore();
+    const request = { vaultId: "vault", publicDh: dh, signature: "signature" };
+    const earlier = store.initialize("user", "receiver", request);
+    vi.advanceTimersByTime(10 * 60_000);
+    const current = store.initialize("user", "receiver", request);
+    vi.advanceTimersByTime(5 * 60_000);
+
+    expect(store.getPendingReceivers("user").map((info) => info.code)).toEqual([current]);
+    expect(() => store.upload("user", "sender", earlier, { ...request, ciphertext: "key" })).toThrow("Invalid code");
+    store.upload("user", "sender", current, { ...request, ciphertext: "key" });
+    expect(store.getKeys("receiver")).toHaveLength(1);
   });
 
   it("does not expose or consume another account's pending receiver requests", async () => {

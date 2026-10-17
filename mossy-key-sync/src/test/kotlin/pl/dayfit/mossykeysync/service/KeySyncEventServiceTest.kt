@@ -13,7 +13,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
-import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
@@ -41,7 +40,7 @@ class KeySyncEventServiceTest {
 
     @Test
     fun `local key sync events are published to every replica`() {
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
 
         service.publishKeySyncEvent(event)
 
@@ -53,15 +52,13 @@ class KeySyncEventServiceTest {
         val first = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val second = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val otherReceiver = service.handleKeySyncEventSubscription(OTHER_RECEIVER_ID)
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
 
         service.handleKeySyncEvent(event)
 
         for (emitter in listOf(first, second)) {
-            inOrder(emitter) {
-                verify(emitter).send(event, MediaType.APPLICATION_JSON)
-                verify(emitter).complete()
-            }
+            verify(emitter).send(event, MediaType.APPLICATION_JSON)
+            verify(emitter, never()).complete()
             verify(emitter, never()).completeWithError(any())
         }
         verify(otherReceiver, never()).send(any<Any>(), any<MediaType>())
@@ -70,17 +67,15 @@ class KeySyncEventServiceTest {
     }
 
     @Test
-    fun `failed key sync sends the failure event before completing with the original error`() {
+    fun `failed key sync sends a correlated failure and leaves completion to the receiver`() {
         val emitter = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val failure = IllegalStateException("Invalid sender connected")
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.FAILED, failure)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.FAILED, failure)
 
         service.handleKeySyncEvent(event)
 
-        inOrder(emitter) {
-            verify(emitter).send(event, MediaType.APPLICATION_JSON)
-            verify(emitter).completeWithError(failure)
-        }
+        verify(emitter).send(event, MediaType.APPLICATION_JSON)
+        verify(emitter, never()).completeWithError(any())
         verify(emitter, never()).complete()
     }
 
@@ -88,13 +83,13 @@ class KeySyncEventServiceTest {
     fun `a failed send does not prevent delivery to another subscription`() {
         val disconnected = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val active = service.handleKeySyncEventSubscription(RECEIVER_ID)
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
         doThrow(IOException("Connection closed")).whenever(disconnected).send(event, MediaType.APPLICATION_JSON)
 
         service.handleKeySyncEvent(event)
 
         verify(active).send(event, MediaType.APPLICATION_JSON)
-        verify(active).complete()
+        verify(active, never()).complete()
     }
 
     @Test
@@ -104,14 +99,14 @@ class KeySyncEventServiceTest {
         val third = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val completion = argumentCaptor<Runnable>()
         verify(first).onCompletion(completion.capture())
-        doAnswer { completion.firstValue.run(); null }.whenever(first).complete()
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
+        doAnswer { completion.firstValue.run(); null }.whenever(first).send(event, MediaType.APPLICATION_JSON)
 
         service.handleKeySyncEvent(event)
 
         for (emitter in listOf(first, second, third)) {
             verify(emitter).send(event, MediaType.APPLICATION_JSON)
-            verify(emitter).complete()
+            verify(emitter, never()).complete()
         }
     }
 
@@ -122,7 +117,7 @@ class KeySyncEventServiceTest {
         val third = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val error = argumentCaptor<Consumer<Throwable>>()
         verify(disconnected).onError(error.capture())
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
         doAnswer {
             val failure = IOException("Broken pipe")
             error.firstValue.accept(failure)
@@ -133,27 +128,30 @@ class KeySyncEventServiceTest {
 
         for (emitter in listOf(second, third)) {
             verify(emitter).send(event, MediaType.APPLICATION_JSON)
-            verify(emitter).complete()
+            verify(emitter, never()).complete()
         }
     }
 
     @Test
-    fun `failed sends and terminal results are removed before servlet callbacks arrive`() {
+    fun `a result for an earlier code leaves newer attempts subscribed to their own results`() {
         val disconnected = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val active = service.handleKeySyncEventSubscription(RECEIVER_ID)
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
-        doThrow(IOException("Broken pipe")).whenever(disconnected).send(event, MediaType.APPLICATION_JSON)
+        val earlier = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
+        val current = KeySyncEvent(RECEIVER_ID, "DEF456", KeySyncEvent.Result.FAILED)
+        doThrow(IOException("Broken pipe")).whenever(disconnected).send(earlier, MediaType.APPLICATION_JSON)
 
-        service.handleKeySyncEvent(event)
-        service.handleKeySyncEvent(event)
+        service.handleKeySyncEvent(earlier)
+        service.handleKeySyncEvent(current)
         service.sendHeartbeat()
 
-        verify(disconnected).send(event, MediaType.APPLICATION_JSON)
-        verify(active).send(event, MediaType.APPLICATION_JSON)
-        verify(active).complete()
-        // Only the initial connection comment was sent; neither closed stream is heartbeated.
+        verify(disconnected).send(earlier, MediaType.APPLICATION_JSON)
+        verify(disconnected, never()).send(current, MediaType.APPLICATION_JSON)
+        verify(active).send(earlier, MediaType.APPLICATION_JSON)
+        verify(active).send(current, MediaType.APPLICATION_JSON)
+        verify(active, never()).complete()
+        verify(active, never()).completeWithError(any())
         verify(disconnected).send(any<SseEmitter.SseEventBuilder>())
-        verify(active).send(any<SseEmitter.SseEventBuilder>())
+        verify(active, times(2)).send(any<SseEmitter.SseEventBuilder>())
     }
 
     @ParameterizedTest
@@ -161,7 +159,7 @@ class KeySyncEventServiceTest {
     fun `ended subscriptions are removed without removing other subscriptions for the device`(end: SubscriptionEnd) {
         val ended = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val active = service.handleKeySyncEventSubscription(RECEIVER_ID)
-        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        val event = KeySyncEvent(RECEIVER_ID, "ABC123", KeySyncEvent.Result.SUCCESS)
 
         when (end) {
             SubscriptionEnd.COMPLETION -> {
@@ -185,7 +183,7 @@ class KeySyncEventServiceTest {
 
         verify(ended, never()).send(event, MediaType.APPLICATION_JSON)
         verify(active).send(event, MediaType.APPLICATION_JSON)
-        verify(active).complete()
+        verify(active, never()).complete()
     }
 
     @Test

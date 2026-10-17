@@ -5,9 +5,9 @@ import { AppError } from "./errors.js";
 type PublicDhJwk = { kty: "OKP"; crv: "X25519"; x: string };
 type InitRequest = { vaultId: string; publicDh: PublicDhJwk; signature: string };
 type UploadRequest = { vaultId: string; ciphertext: string; publicDh: PublicDhJwk };
-type SyncInfo = InitRequest & { receiverId: string };
+type SyncInfo = InitRequest & { receiverId: string; expiresAt: number; expiry: ReturnType<typeof setTimeout> };
 type VaultKey = { code: string; vaultId: string; senderId: string; cipherText: string; senderPublicDh: string; expiresAt: number };
-type SyncEvent = { receiverId: string; result: "SUCCESS" | "FAILED"; errorMessage: string | null };
+type SyncEvent = { receiverId: string; code: string; result: "SUCCESS" | "FAILED"; errorMessage: string | null };
 
 export class KeySyncStore {
   private readonly requests = new Map<string, SyncInfo>();
@@ -19,7 +19,11 @@ export class KeySyncStore {
     let code: string;
     do code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join("");
     while (this.requests.has(`${userId}:${code}`));
-    this.requests.set(`${userId}:${code}`, { ...request, receiverId });
+    const requestKey = `${userId}:${code}`;
+    const ttl = 15 * 60_000;
+    const expiry = setTimeout(() => this.requests.delete(requestKey), ttl);
+    expiry.unref();
+    this.requests.set(requestKey, { ...request, receiverId, expiresAt: Date.now() + ttl, expiry });
     return code;
   }
 
@@ -27,10 +31,15 @@ export class KeySyncStore {
     const requestKey = `${userId}:${code}`;
     const info = this.requests.get(requestKey);
     this.requests.delete(requestKey);
-    if (!info) throw new AppError(404, "Invalid code");
+    if (info) clearTimeout(info.expiry);
+    if (!info || info.expiresAt <= Date.now()) throw new AppError(404, "Invalid code");
     if (info.vaultId !== request.vaultId) {
-      this.publish({ receiverId: info.receiverId, result: "FAILED", errorMessage: "Invalid sender connected" });
+      this.publish({ receiverId: info.receiverId, code, result: "FAILED", errorMessage: "Invalid sender connected" });
       throw new AppError(422, "Invalid key uploaded by sender");
+    }
+    if (typeof request.publicDh.x !== "string" || !request.publicDh.x) {
+      this.publish({ receiverId: info.receiverId, code, result: "FAILED", errorMessage: "DH public key is missing x" });
+      throw new AppError(422, "DH public key is missing x");
     }
     const keys = this.keys.get(info.receiverId) ?? [];
     keys.push({
@@ -42,7 +51,7 @@ export class KeySyncStore {
       expiresAt: Date.now() + 5 * 60_000,
     });
     this.keys.set(info.receiverId, keys);
-    this.publish({ receiverId: info.receiverId, result: "SUCCESS", errorMessage: null });
+    this.publish({ receiverId: info.receiverId, code, result: "SUCCESS", errorMessage: null });
   }
 
   getKeys(receiverId: string) {
@@ -54,8 +63,8 @@ export class KeySyncStore {
   getPendingReceivers(userId: string) {
     const prefix = `${userId}:`;
     return [...this.requests.entries()]
-      .filter(([key]) => key.startsWith(prefix))
-      .map(([key, info]) => ({ code: key.slice(prefix.length), ...info }));
+      .filter(([key, info]) => key.startsWith(prefix) && info.expiresAt > Date.now())
+      .map(([key, { expiresAt: _expiresAt, expiry: _expiry, ...info }]) => ({ code: key.slice(prefix.length), ...info }));
   }
 
   subscribe(receiverId: string, response: Response): void {
@@ -77,7 +86,6 @@ export class KeySyncStore {
   private publish(event: SyncEvent): void {
     for (const response of this.subscribers.get(event.receiverId) ?? []) {
       response.write(`data: ${JSON.stringify(event)}\n\n`);
-      response.end();
     }
   }
 }

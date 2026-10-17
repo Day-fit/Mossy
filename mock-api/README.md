@@ -78,6 +78,8 @@ Routine path, DTO, fixture, and failure-scenario maintenance should only require
 
 The mock implements HTTP key synchronization with the same DTOs as the backend. `POST /api/v1/key-sync` stores the signed receiver details and creates a six-character code. `GET /api/v1/key-sync/receivers` lists pending receiver requests for the signed-in user. The sender uploads the opaque encrypted envelope through `POST /api/v1/key-sync/{code}`. The receiving device gets its result through authenticated SSE at `/api/v1/key-sync/receiver-events`, then downloads `{ keys: [...] }` from `/api/v1/key-sync/vault-keys`. Each key includes its code and sender details. The mock never receives plaintext keys or private device keys.
 
+Codes are single-use, including when the claimed upload fails, and unused requests expire after 15 minutes. Result events include the code; receivers ignore other codes and close their SSE stream after their own result. Stored keys expire after five minutes, and separate uploads to the same device remain available together.
+
 To exercise the complete flow:
 
 1. Sign the same account into two separate browser profiles, completing the two-login enrollment flow in each.
