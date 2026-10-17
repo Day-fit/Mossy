@@ -46,6 +46,37 @@ describe('receiver lifecycle', () => {
         expect(attempts[0].signal.aborted).toBe(true);
     });
 
+    it('keeps the receiver connection open when device identity is reloaded with the same keys', () => {
+        renderHook(() => useKeySyncReceiver('vault-one', '1234'));
+
+        act(() =>
+            useDeviceStore.setState({
+                idKey: { ...useDeviceStore.getState().idKey! },
+            })
+        );
+
+        expect(attempts).toHaveLength(1);
+        expect(attempts[0].signal.aborted).toBe(false);
+    });
+
+    it('replaces the receiver connection when the actual device identity changes', () => {
+        renderHook(() => useKeySyncReceiver('vault-one', '1234'));
+
+        act(() =>
+            useDeviceStore.setState({
+                idKey: {
+                    type: 'Ed25519',
+                    public: 'new-public',
+                    private: 'new-private',
+                },
+            })
+        );
+
+        expect(attempts).toHaveLength(2);
+        expect(attempts[0].signal.aborted).toBe(true);
+        expect(attempts[1].signal.aborted).toBe(false);
+    });
+
     it('ends a stalled transfer and gives the receiver a retryable timeout error', async () => {
         vi.useFakeTimers();
         const { result } = renderHook(() =>

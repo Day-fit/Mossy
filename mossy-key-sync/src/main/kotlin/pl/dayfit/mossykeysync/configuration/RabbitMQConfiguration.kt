@@ -2,8 +2,8 @@ package pl.dayfit.mossykeysync.configuration
 
 import org.springframework.amqp.core.AnonymousQueue
 import org.springframework.amqp.core.Binding
-import org.springframework.amqp.rabbit.AsyncRabbitTemplate
-import org.springframework.amqp.rabbit.core.RabbitTemplate
+import org.springframework.amqp.support.converter.JacksonJsonMessageConverter
+import org.springframework.amqp.support.converter.MessageConverter
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -24,5 +24,7 @@ class RabbitMQConfiguration {
     }
 
     @Bean
-    fun asyncRabbitTemplate(rabbitTemplate: RabbitTemplate) = AsyncRabbitTemplate(rabbitTemplate)
+    fun messageConverter(): MessageConverter {
+        return JacksonJsonMessageConverter()
+    }
 }

@@ -11,13 +11,14 @@ import org.mockito.MockedConstruction
 import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.springframework.amqp.rabbit.AsyncRabbitTemplate
+import org.springframework.amqp.rabbit.core.RabbitTemplate
 import org.springframework.http.MediaType
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import pl.dayfit.mossykeysync.event.KeySyncEvent
@@ -29,7 +30,7 @@ import kotlin.test.assertEquals
 @ExtendWith(MockitoExtension::class)
 class KeySyncEventServiceTest {
     @Mock
-    lateinit var asyncRabbitTemplate: AsyncRabbitTemplate
+    lateinit var rabbitTemplate: RabbitTemplate
 
     // Mock connections created by the service so tests can simulate disconnects.
     @Mock
@@ -42,9 +43,9 @@ class KeySyncEventServiceTest {
     fun `local key sync events are published to every replica`() {
         val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
 
-        service.handleDeviceEnrolledEvent(event)
+        service.publishKeySyncEvent(event)
 
-        verify(asyncRabbitTemplate).convertAndSend("key-sync.replica.fanout", "", event)
+        verify(rabbitTemplate).convertAndSend("key-sync.replica.fanout", "", event)
     }
 
     @Test
@@ -96,6 +97,65 @@ class KeySyncEventServiceTest {
         verify(active).complete()
     }
 
+    @Test
+    fun `completion callbacks during delivery do not skip other subscriptions`() {
+        val first = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val second = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val third = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val completion = argumentCaptor<Runnable>()
+        verify(first).onCompletion(completion.capture())
+        doAnswer { completion.firstValue.run(); null }.whenever(first).complete()
+        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+
+        service.handleKeySyncEvent(event)
+
+        for (emitter in listOf(first, second, third)) {
+            verify(emitter).send(event, MediaType.APPLICATION_JSON)
+            verify(emitter).complete()
+        }
+    }
+
+    @Test
+    fun `disconnect callbacks during delivery do not interrupt other subscriptions`() {
+        val disconnected = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val second = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val third = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val error = argumentCaptor<Consumer<Throwable>>()
+        verify(disconnected).onError(error.capture())
+        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        doAnswer {
+            val failure = IOException("Broken pipe")
+            error.firstValue.accept(failure)
+            throw failure
+        }.whenever(disconnected).send(event, MediaType.APPLICATION_JSON)
+
+        service.handleKeySyncEvent(event)
+
+        for (emitter in listOf(second, third)) {
+            verify(emitter).send(event, MediaType.APPLICATION_JSON)
+            verify(emitter).complete()
+        }
+    }
+
+    @Test
+    fun `failed sends and terminal results are removed before servlet callbacks arrive`() {
+        val disconnected = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val active = service.handleKeySyncEventSubscription(RECEIVER_ID)
+        val event = KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS)
+        doThrow(IOException("Broken pipe")).whenever(disconnected).send(event, MediaType.APPLICATION_JSON)
+
+        service.handleKeySyncEvent(event)
+        service.handleKeySyncEvent(event)
+        service.sendHeartbeat()
+
+        verify(disconnected).send(event, MediaType.APPLICATION_JSON)
+        verify(active).send(event, MediaType.APPLICATION_JSON)
+        verify(active).complete()
+        // Only the initial connection comment was sent; neither closed stream is heartbeated.
+        verify(disconnected).send(any<SseEmitter.SseEventBuilder>())
+        verify(active).send(any<SseEmitter.SseEventBuilder>())
+    }
+
     @ParameterizedTest
     @EnumSource(SubscriptionEnd::class)
     fun `ended subscriptions are removed without removing other subscriptions for the device`(end: SubscriptionEnd) {
@@ -129,7 +189,7 @@ class KeySyncEventServiceTest {
     }
 
     @Test
-    fun `heartbeat comments are sent to subscriptions for every device`() {
+    fun `subscriptions open immediately and receive heartbeat comments for every device`() {
         val first = service.handleKeySyncEventSubscription(RECEIVER_ID)
         val second = service.handleKeySyncEventSubscription(OTHER_RECEIVER_ID)
 
@@ -137,8 +197,11 @@ class KeySyncEventServiceTest {
 
         for (emitter in listOf(first, second)) {
             val heartbeat = argumentCaptor<SseEmitter.SseEventBuilder>()
-            verify(emitter).send(heartbeat.capture())
-            assertEquals(":heartbeat\n\n", heartbeat.firstValue.build().single().data)
+            verify(emitter, times(2)).send(heartbeat.capture())
+            assertEquals(
+                listOf(":connected\n\n", ":heartbeat\n\n"),
+                heartbeat.allValues.map { it.build().single().data },
+            )
         }
     }
 
@@ -151,12 +214,12 @@ class KeySyncEventServiceTest {
 
         service.sendHeartbeat()
 
-        verify(active).send(any<SseEmitter.SseEventBuilder>())
+        verify(active, times(2)).send(any<SseEmitter.SseEventBuilder>())
 
         service.sendHeartbeat()
 
-        verify(disconnected).send(any<SseEmitter.SseEventBuilder>())
-        verify(active, times(2)).send(any<SseEmitter.SseEventBuilder>())
+        verify(disconnected, times(2)).send(any<SseEmitter.SseEventBuilder>())
+        verify(active, times(3)).send(any<SseEmitter.SseEventBuilder>())
     }
 
     enum class SubscriptionEnd {

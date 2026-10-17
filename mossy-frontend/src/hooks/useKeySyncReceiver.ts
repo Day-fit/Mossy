@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useDeviceStore } from '../store/deviceStore.ts';
 import { useEncryptionHook } from './useEncryptionHook.ts';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
@@ -11,7 +12,7 @@ type ReceiverState = {
 
 export function useKeySyncReceiver(vaultId: string, pin: string) {
     const receiverId = useDeviceStore((state) => state.deviceId);
-    const identity = useDeviceStore((state) => state.idKey);
+    const identity = useDeviceStore(useShallow((state) => state.idKey));
     const { saveRawKey, setPin } = useEncryptionHook();
     const [state, setState] = useState<ReceiverState>({ phase: 'preparing' });
     const [attempt, setAttempt] = useState(0);
