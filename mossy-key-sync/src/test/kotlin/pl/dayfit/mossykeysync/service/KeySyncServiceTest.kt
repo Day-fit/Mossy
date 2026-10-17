@@ -1,276 +1,200 @@
 package pl.dayfit.mossykeysync.service
 
 import org.junit.jupiter.api.Test
-import org.springframework.amqp.core.AnonymousQueue
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Answers
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.Spy
+import org.mockito.junit.jupiter.MockitoExtension
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
-import org.springframework.web.socket.WebSocketSession
-import pl.dayfit.mossykeysync.model.redis.KeySyncRoom
-import pl.dayfit.mossykeysync.model.redis.KeySyncRoom.Peer
-import pl.dayfit.mossykeysync.repository.redis.KeySyncRoomRepository
-import pl.dayfit.mossykeysync.type.KeySyncRole
-import pl.dayfit.mossykeysync.ws.dto.WebSocketMessageDto
-import pl.dayfit.mossykeysync.ws.dto.WebSocketServerMessageDto
-import pl.dayfit.mossykeysync.ws.principal.DevicePrincipal
+import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.redis.core.RedisTemplate
+import org.springframework.security.access.AccessDeniedException
+import pl.dayfit.mossykeysync.dto.request.UploadKeyDto
+import pl.dayfit.mossykeysync.dto.response.VaultKeyResponseDto
+import pl.dayfit.mossykeysync.event.KeySyncEvent
+import pl.dayfit.mossykeysync.exception.InvalidKeyUploadedException
+import pl.dayfit.mossykeysync.model.redis.KeySyncInfo
+import pl.dayfit.mossykeysync.model.redis.VaultKey
+import pl.dayfit.mossykeysync.repository.redis.VaultKeyRepository
 import java.security.SecureRandom
 import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
+@ExtendWith(MockitoExtension::class)
 class KeySyncServiceTest {
-    private val roomRepository: KeySyncRoomRepository = mock()
-    private val sessionService: WebSocketSessionService = mock()
-    private val replicaQueue: AnonymousQueue = mock()
-    private val secureRandom: SecureRandom = mock()
-    private val service = KeySyncService(
-        roomRepository,
-        sessionService,
-        secureRandom,
-        replicaQueue
-    )
+    @Mock
+    lateinit var vaultKeyRepository: VaultKeyRepository
+    @Mock
+    lateinit var applicationEventPublisher: ApplicationEventPublisher
+    @Spy
+    lateinit var secureRandom: SecureRandom
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
+    lateinit var redisTemplate: RedisTemplate<String, KeySyncInfo>
 
-    init {
-        whenever(replicaQueue.name).thenReturn(REPLICA_QUEUE)
+    @InjectMocks
+    lateinit var service: KeySyncService
+
+    @Test
+    fun `init key sync returns a six character code and saves receiver info under the user and code`() {
+        val response = service.initKeySync(
+            USER_ID,
+            RECEIVER_ID,
+            VAULT_ID,
+        )
+
+        val codeCaptor = argumentCaptor<String>()
+        val infoCaptor = argumentCaptor<KeySyncInfo>()
+
+        verify(secureRandom).nextBytes(any())
+        verify(redisTemplate.opsForValue()).set(codeCaptor.capture(), infoCaptor.capture())
+
+        val saved = infoCaptor.firstValue
+
+        assertEquals("$USER_ID:${response.code}", codeCaptor.firstValue)
+        assertEquals(USER_ID, saved.userId)
+        assertEquals(RECEIVER_ID, saved.receiverId)
+        assertEquals(VAULT_ID, saved.vaultId)
+        assertEquals(6, response.code.length)
+        assertTrue(response.code.all { it in "0123456789ABCDEFGHJKMNPQRSTVWXYZ" })
     }
 
     @Test
-    fun `first peer joins and waits without receiving peer details`() {
-        val room = room().copy(
-            receiver = Peer(id = RECEIVER_ID, location = REPLICA_QUEUE)
-        )
-        val receiverSession = session()
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
+    fun `key upload consumes the user code, saves the key for the receiver, and publishes success`() {
+        val request = uploadRequest()
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
+            .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID))
 
-        service.handleDeviceJoinedSync(
-            SYNC_CODE,
-            DevicePrincipal(RECEIVER_ID, USER_ID, dhKey("receiver-dh")),
-            "receiver-signature",
-            receiverSession
-        )
+        service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, request)
 
-        assertTrue(room.receiver.isPresent)
-        assertEquals("receiver-signature", room.receiver.signature)
-        verify(roomRepository).save(room)
-        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
+        val keyCaptor = argumentCaptor<VaultKey>()
+        verify(redisTemplate.opsForValue()).getAndDelete("$USER_ID:$SYNC_CODE")
+        verify(vaultKeyRepository).save(keyCaptor.capture())
+
+        val saved = keyCaptor.firstValue
+        assertEquals(RECEIVER_ID, saved.receiverId)
+        assertEquals(VAULT_ID, saved.vaultId)
+        assertEquals(SENDER_ID, saved.senderId)
+        assertEquals(request.ciphertext, saved.cipherText)
+        assertEquals(request.publicDh["x"], saved.senderPublicDh)
+        verify(applicationEventPublisher).publishEvent(KeySyncEvent(RECEIVER_ID, KeySyncEvent.Result.SUCCESS))
     }
 
     @Test
-    fun `second peer joins and both peers receive unverified peer details`() {
-        val room = room()
-        val receiverSession = session()
-        val senderSession = session()
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-        whenever(sessionService.getSession(RECEIVER_ID)).thenReturn(receiverSession)
-        whenever(sessionService.getSession(SENDER_ID)).thenReturn(senderSession)
+    fun `key upload with an unknown code does not save a key or publish an event`() {
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE")).thenReturn(null)
 
-        service.handleDeviceJoinedSync(
-            SYNC_CODE,
-            DevicePrincipal(SENDER_ID, USER_ID, dhKey("sender-dh")),
-            "sender-signature",
-            senderSession
-        )
-
-        assertEquals(true, room.sender?.isPresent)
-        assertEquals("sender-signature", room.sender?.signature)
-        verify(sessionService).send(
-            receiverSession,
-            WebSocketServerMessageDto.PeerDetails(
-                SENDER_ID,
-                "sender-dh",
-                "sender-signature",
-                VAULT_ID
-            )
-        )
-        verify(sessionService).send(
-            senderSession,
-            WebSocketServerMessageDto.PeerDetails(
-                RECEIVER_ID,
-                "receiver-dh",
-                "receiver-signature",
-                VAULT_ID
-            )
-        )
-    }
-
-    @Test
-    fun `rejected signature removes room and notifies both peers`() {
-        val room = room(senderPresent = true)
-        val receiverSession = session(KeySyncRole.RECEIVER)
-        val senderSession = session(KeySyncRole.SENDER)
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-        whenever(sessionService.getSession(RECEIVER_ID)).thenReturn(receiverSession)
-        whenever(sessionService.getSession(SENDER_ID)).thenReturn(senderSession)
-
-        service.handleSignatureStatus(
-            WebSocketMessageDto.SignatureStatus(false),
-            receiverSession
-        )
-
-        verify(roomRepository).delete(room)
-        verify(sessionService).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(false))
-        verify(sessionService).send(senderSession, WebSocketServerMessageDto.SignatureStatus(false))
-    }
-
-    @Test
-    fun `key sync remains blocked until both signatures are accepted`() {
-        val room = room(senderPresent = true, receiverAccepted = true)
-        val senderSession = session(KeySyncRole.SENDER)
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-        val message = WebSocketMessageDto.KeySync("ciphertext", "nonce", "signature", VAULT_ID)
-
-        assertThrows<IllegalStateException> {
-            service.handleSync(message, senderSession)
+        assertThrows<NoSuchElementException> {
+            service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
         }
 
-        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
+        verify(redisTemplate.opsForValue()).getAndDelete("$USER_ID:$SYNC_CODE")
+        verifyNoInteractions(vaultKeyRepository, applicationEventPublisher)
     }
 
     @Test
-    fun `both accepted signatures enable key sync and notify both peers`() {
-        val room = room(senderPresent = true, receiverAccepted = true)
-        val receiverSession = session(KeySyncRole.RECEIVER)
-        val senderSession = session(KeySyncRole.SENDER)
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-        whenever(sessionService.getSession(RECEIVER_ID)).thenReturn(receiverSession)
-        whenever(sessionService.getSession(SENDER_ID)).thenReturn(senderSession)
+    fun `key upload for a different user is denied and notifies the receiver of failure`() {
+        val otherUserId = UUID.fromString("7985807b-8385-40e8-9f58-7945aece4cb6")
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
+            .thenReturn(KeySyncInfo(otherUserId, VAULT_ID, RECEIVER_ID))
 
-        service.handleSignatureStatus(
-            WebSocketMessageDto.SignatureStatus(true),
-            senderSession
-        )
-
-        assertEquals(true, room.sender?.signatureAccepted)
-        verify(roomRepository).save(room)
-        verify(sessionService).send(receiverSession, WebSocketServerMessageDto.SignatureStatus(true))
-        verify(sessionService).send(senderSession, WebSocketServerMessageDto.SignatureStatus(true))
-
-        val message = WebSocketMessageDto.KeySync("ciphertext", "nonce", "signature", VAULT_ID)
-        service.handleSync(message, senderSession)
-        verify(sessionService).send(receiverSession, message)
-    }
-
-    @Test
-    fun `initial room contains an absent receiver and no sender`() {
-        whenever(secureRandom.nextInt(1, 1_000_000)).thenReturn(123456)
-
-        val response = service.initKeySync(USER_ID, RECEIVER_ID, VAULT_ID)
-
-        val captor = argumentCaptor<KeySyncRoom>()
-        verify(roomRepository).save(captor.capture())
-        assertEquals(Peer(id = RECEIVER_ID, location = REPLICA_QUEUE), captor.firstValue.receiver)
-        assertNull(captor.firstValue.sender)
-        assertEquals(SYNC_CODE, captor.firstValue.code)
-        assertEquals(SYNC_CODE, response.code)
-    }
-
-    @Test
-    fun `receiver disconnect clears handshake data and allows rejoin`() {
-        val room = room(receiverAccepted = true)
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-
-        service.handlePeerDisconnected(session(KeySyncRole.RECEIVER))
-
-        assertEquals(Peer(id = RECEIVER_ID, location = REPLICA_QUEUE), room.receiver)
-        verify(roomRepository).save(room)
-
-        service.handleDeviceJoinedSync(
-            SYNC_CODE,
-            DevicePrincipal(RECEIVER_ID, USER_ID, dhKey("new-dh")),
-            "new-signature",
-            session(KeySyncRole.RECEIVER)
-        )
-
-        assertEquals(Peer(RECEIVER_ID, REPLICA_QUEUE, "new-dh", "new-signature", true), room.receiver)
-    }
-
-    @Test
-    fun `sender disconnect removes peer and rejoin starts with unaccepted signature`() {
-        val room = room(senderPresent = true)
-        room.sender!!.signatureAccepted = true
-        val receiverBefore = room.receiver.copy()
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room))
-
-        service.handlePeerDisconnected(session(KeySyncRole.SENDER))
-
-        assertNull(room.sender)
-        assertEquals(receiverBefore, room.receiver)
-        verify(roomRepository).save(room)
-
-        service.handleDeviceJoinedSync(
-            SYNC_CODE,
-            DevicePrincipal(SENDER_ID, USER_ID, dhKey("new-dh")),
-            "new-signature",
-            session(KeySyncRole.SENDER)
-        )
-
-        assertEquals(Peer(SENDER_ID, REPLICA_QUEUE, "new-dh", "new-signature", true), room.sender)
-    }
-
-    @Test
-    fun `absent sender cannot accept signature`() {
-        whenever(roomRepository.getKeySyncRoomsByUserId(USER_ID)).thenReturn(mutableListOf(room()))
-
-        assertThrows<IllegalStateException> {
-            service.handleSignatureStatus(WebSocketMessageDto.SignatureStatus(true), session(KeySyncRole.SENDER))
+        assertThrows<AccessDeniedException> {
+            service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
         }
 
-        verify(roomRepository, never()).save(any())
-        verify(sessionService, never()).send(any<WebSocketSession>(), any<Any>())
+        val eventCaptor = argumentCaptor<KeySyncEvent>()
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
+        assertEquals(RECEIVER_ID, eventCaptor.firstValue.receiverId)
+        assertEquals(KeySyncEvent.Result.FAILED, eventCaptor.firstValue.result)
+        assertIs<IllegalStateException>(eventCaptor.firstValue.throwable)
+        verifyNoInteractions(vaultKeyRepository)
     }
 
-    private fun room(
-        senderPresent: Boolean = false,
-        receiverAccepted: Boolean? = null
-    ) = KeySyncRoom(
-        roomId = "room-id",
-        code = SYNC_CODE,
-        vaultId = VAULT_ID,
-        userId = USER_ID,
-        receiver = Peer(
-            id = RECEIVER_ID,
-            location = REPLICA_QUEUE,
-            diffieHellmanPk = "receiver-dh",
-            signature = "receiver-signature",
-            isPresent = true,
-            signatureAccepted = receiverAccepted
-        ),
-        sender = if (senderPresent) Peer(
-            id = SENDER_ID,
-            location = REPLICA_QUEUE,
-            diffieHellmanPk = "sender-dh",
-            signature = "sender-signature",
-            isPresent = true
-        ) else null
-    )
+    @Test
+    fun `key upload for a different vault is rejected and notifies the receiver of failure`() {
+        val otherVaultId = UUID.fromString("c2c13869-d6e0-4e25-9483-2ac0a7931bfa")
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
+            .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID))
 
-    private fun session(role: KeySyncRole? = null): WebSocketSession = mock<WebSocketSession>().also {
-        val attributes = mutableMapOf(
-            "syncCode" to SYNC_CODE,
-            "principal" to DevicePrincipal(
-                if (role == KeySyncRole.RECEIVER) RECEIVER_ID else SENDER_ID,
+        assertThrows<InvalidKeyUploadedException> {
+            service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest().copy(vaultId = otherVaultId))
+        }
+
+        val eventCaptor = argumentCaptor<KeySyncEvent>()
+        verify(applicationEventPublisher).publishEvent(eventCaptor.capture())
+        assertEquals(RECEIVER_ID, eventCaptor.firstValue.receiverId)
+        assertEquals(KeySyncEvent.Result.FAILED, eventCaptor.firstValue.result)
+        assertIs<IllegalStateException>(eventCaptor.firstValue.throwable)
+        verifyNoInteractions(vaultKeyRepository)
+    }
+
+    @Test
+    fun `key upload without a DH public key does not save a key or publish success`() {
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
+            .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID))
+
+        assertThrows<IllegalArgumentException> {
+            service.processKeyUpload(
                 USER_ID,
-                dhKey("session-dh")
+                SENDER_ID,
+                SYNC_CODE,
+                uploadRequest().copy(publicDh = emptyMap()),
             )
-        )
-        if (role != null) attributes["role"] = role
-        whenever(it.attributes).thenReturn(attributes)
+        }
+
+        verifyNoInteractions(vaultKeyRepository, applicationEventPublisher)
     }
 
-    private fun dhKey(x: String): Map<String, Any> =
-        mapOf("kty" to "OKP", "crv" to "X25519", "x" to x)
+    @Test
+    fun `failed key persistence does not publish a success event`() {
+        whenever(redisTemplate.opsForValue().getAndDelete("$USER_ID:$SYNC_CODE"))
+            .thenReturn(KeySyncInfo(USER_ID, VAULT_ID, RECEIVER_ID))
+        whenever(vaultKeyRepository.save(any<VaultKey>())).thenThrow(IllegalStateException("Redis unavailable"))
+
+        assertThrows<IllegalStateException> {
+            service.processKeyUpload(USER_ID, SENDER_ID, SYNC_CODE, uploadRequest())
+        }
+
+        verifyNoInteractions(applicationEventPublisher)
+    }
+
+    @Test
+    fun `vault keys are retrieved for the requesting device and include the sender and ciphertext`() {
+        val otherVaultId = UUID.fromString("c2c13869-d6e0-4e25-9483-2ac0a7931bfa")
+        val otherSenderId = UUID.fromString("bc4881b7-a4d2-49df-824f-dda2428333f2")
+        whenever(vaultKeyRepository.findAllByReceiverId(RECEIVER_ID)).thenReturn(mutableListOf(
+            VaultKey(RECEIVER_ID, VAULT_ID, "first-ciphertext", SENDER_ID, "first-dh-key"),
+            VaultKey(RECEIVER_ID, otherVaultId, "second-ciphertext", otherSenderId, "second-dh-key"),
+        ))
+
+        val response = service.getVaultKeys(RECEIVER_ID)
+
+        assertEquals(listOf(
+            VaultKeyResponseDto(VAULT_ID, SENDER_ID, "first-ciphertext"),
+            VaultKeyResponseDto(otherVaultId, otherSenderId, "second-ciphertext"),
+        ), response)
+        verify(vaultKeyRepository).findAllByReceiverId(RECEIVER_ID)
+    }
+
+    private fun uploadRequest() = UploadKeyDto(
+        VAULT_ID,
+        "encrypted-vault-key",
+        mapOf("kty" to "OKP", "crv" to "X25519", "x" to "sender-dh-key"),
+    )
 
     private companion object {
-        const val SYNC_CODE = "123456"
-        const val REPLICA_QUEUE = "replica.queue"
-        val USER_ID: UUID = UUID.fromString("20000000-0000-0000-0000-000000000001")
-        val RECEIVER_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000001")
-        val SENDER_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000002")
-        val VAULT_ID: UUID = UUID.fromString("30000000-0000-0000-0000-000000000001")
+        const val SYNC_CODE = "ABC123"
+        val USER_ID: UUID = UUID.fromString("7985807b-8385-40e8-9f58-7945aece4cb5")
+        val RECEIVER_ID: UUID = UUID.fromString("bc4881b7-a4d2-49df-824f-dda2428333f0")
+        val SENDER_ID: UUID = UUID.fromString("bc4881b7-a4d2-49df-824f-dda2428333f1")
+        val VAULT_ID: UUID = UUID.fromString("c2c13869-d6e0-4e25-9483-2ac0a7931bf9")
     }
 }

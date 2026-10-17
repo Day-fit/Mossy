@@ -17,7 +17,7 @@ class RabbitMQConfiguration {
         return Binding(
             replicaQueue.name,
             Binding.DestinationType.QUEUE,
-            "key-sync.replica.exchange",
+            "key-sync.replica.fanout",
             replicaQueue.name,
             null
         )
