@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction, useState } from 'react';
 import { useAuthStore } from '../../store/authStore.ts';
 import VaultAccessModal from '../shared/VaultAccessModal.tsx';
-import type { VaultKeyProtection } from '../../types/vaultKey.ts';
+import type { PreparedProtection } from '../../hooks/useEncryptionHook.ts';
 import KeySyncStep from './steps/KeySyncStep.tsx';
 
 type KeySyncModalProps = {
@@ -19,7 +19,7 @@ function KeySyncDialog({
     setIsKeySyncModalActive,
     vaultId,
 }: KeySyncModalProps) {
-    const [protection, setProtection] = useState<VaultKeyProtection | null>(
+    const [protection, setProtection] = useState<PreparedProtection | null>(
         null
     );
 

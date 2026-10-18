@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import Button from '../../shared/Button.tsx';
-import type { VaultKeyProtection } from '../../../types/vaultKey.ts';
+import type { PreparedProtection } from '../../../hooks/useEncryptionHook.ts';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useKeySyncReceiver } from '../../../hooks/useKeySyncReceiver.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
@@ -9,7 +9,7 @@ import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
 
 type KeySyncModalProps = {
     vaultId: string;
-    protection: VaultKeyProtection;
+    protection: PreparedProtection;
     setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
 };
 

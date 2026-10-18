@@ -1,8 +1,6 @@
-import { useAuthStore } from '../../store/authStore.ts';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { vaultKeyId } from '../../storage/keyIds.ts';
 import DashboardHero from './DashboardHero.tsx';
 import { useVaultStore } from '../../store/vaultStore.ts';
 
@@ -28,16 +26,6 @@ vi.mock('recharts', async (importOriginal) => ({
 }));
 
 beforeEach(() => {
-    useAuthStore.setState({
-        isAuthenticated: true,
-        userDetails: {
-            userId: 'user-one',
-            email: 'one@example.test',
-            username: 'One',
-            grantedAuthorities: [],
-        },
-    });
-
     getKey.mockReset();
     statisticsResult.statistics.totalPasswords = 0;
     statisticsResult.isLoading = false;
@@ -79,10 +67,9 @@ it('guides an empty account to all three setup pages', async () => {
     ).toBe('step');
 });
 
-it.each(['none', 'PRF', 'Text'] as const)(
+it.each([false, true])(
     'reflects vault and key progress (stored key: %s)',
-    async (keyType) => {
-        const hasKey = keyType !== 'none';
+    async (hasKey) => {
         useVaultStore.setState({
             vaults: [
                 {
@@ -96,23 +83,13 @@ it.each(['none', 'PRF', 'Text'] as const)(
         });
         getKey.mockResolvedValue(
             hasKey
-                ? {
-                      type: keyType,
-                      credentialId: 'Y3JlZA',
-                      prfSalt: new Uint8Array(32),
-                      wrappedKey: new Uint8Array([1]).buffer,
-                      salt: new Uint8Array([2]),
-                  }
+                ? { wrappedKey: new Uint8Array([1]), salt: new Uint8Array([2]) }
                 : undefined
         );
         renderDashboard();
         expect(
             await screen.findByText(`${hasKey ? 2 : 1} of 3 steps complete`)
         ).toBeTruthy();
-        expect(getKey).toHaveBeenCalledWith(
-            'keys',
-            vaultKeyId('user-one', 'vault-1')
-        );
         expect(
             (screen.getByRole('progressbar') as HTMLProgressElement).value
         ).toBe(hasKey ? 2 : 1);

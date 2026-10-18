@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '../../store/authStore.ts';
-import { vaultKeyId } from '../../storage/keyIds.ts';
 import { Link } from 'react-router-dom';
 import {
     MdArrowForward,
@@ -19,53 +17,36 @@ export default function DashboardOnboarding({
 }: {
     vaults: UserVaultDto[];
 }) {
-    const userId = useAuthStore((state) => state.userDetails?.userId);
     const reducedMotion = useReducedMotion();
-    const [keyVaultId, setKeyVaultId] = useState<{
-        userId: string;
-        vaultId: string | null;
-    } | null>(null);
+    const [keyVaultId, setKeyVaultId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!userId) return;
-
         let cancelled = false;
         void getDeviceDatabase()
             .then(async (db) => {
                 const records = await Promise.all(
                     vaults.map(async (vault) => ({
                         vaultId: vault.vaultId,
-                        key: await db.get(
-                            'keys',
-                            vaultKeyId(userId, vault.vaultId)
-                        ),
+                        key: await db.get('keys', vault.vaultId),
                     }))
                 );
                 if (!cancelled) {
-                    setKeyVaultId({
-                        userId,
-                        vaultId:
-                            records.find(
-                                ({ key }) =>
-                                    key?.type === 'PRF' || key?.type === 'Text'
-                            )?.vaultId ?? null,
-                    });
+                    setKeyVaultId(
+                        records.find(({ key }) => key?.wrappedKey && key?.salt)
+                            ?.vaultId ?? null
+                    );
                 }
             })
             .catch(() => {
-                if (!cancelled) setKeyVaultId({ userId, vaultId: null });
+                if (!cancelled) setKeyVaultId(null);
             });
         return () => {
             cancelled = true;
         };
-    }, [vaults, userId]);
+    }, [vaults]);
 
     const hasVault = vaults.length > 0;
-    const hasKey = vaults.some(
-        (vault) =>
-            keyVaultId?.userId === userId &&
-            vault.vaultId === keyVaultId?.vaultId
-    );
+    const hasKey = vaults.some((vault) => vault.vaultId === keyVaultId);
     const completed = Number(hasVault) + Number(hasKey);
     const steps = [
         {
@@ -118,9 +99,7 @@ export default function DashboardOnboarding({
                             className="max-w-sm text-3xl leading-tight"
                         >
                             Get started{' '}
-                            <span className="block text-fg-brand">
-                                with Mossy
-                            </span>
+                            <span className="block text-fg-brand">with Mossy</span>
                         </h1>
                         <p className="mt-4 max-w-sm text-sm leading-relaxed text-fg-secondary">
                             A home for your passwords, on your own server. Let’s

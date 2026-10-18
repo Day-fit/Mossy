@@ -1,4 +1,3 @@
-import { useAuthStore } from '../../store/authStore.ts';
 import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import {
@@ -9,28 +8,40 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReceiverDetails } from '../../api/keySync.api.ts';
+import type { CryptoPair } from '../../auth/deviceIdentity.ts';
+import { useAuthStore } from '../../store/authStore.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
-import { useEncryptionStore } from '../../store/encryptionStore.ts';
 import { globalStyleTokens } from '../../theme/globalTokens.ts';
 import KeySyncHero from './KeySyncHero.tsx';
 
 const services = vi.hoisted(() => ({
-    getVerifiedReceiver: vi.fn(),
-    sendVaultKey: vi.fn(),
+    getVerifiedReceiver: vi.fn<(
+        code: string,
+        senderId: string,
+        signal: AbortSignal
+    ) => Promise<ReceiverDetails>>(),
+    sendVaultKey: vi.fn<(
+        code: string,
+        receiver: ReceiverDetails,
+        senderId: string,
+        identity: CryptoPair,
+        key: CryptoKey,
+        signal: AbortSignal
+    ) => Promise<void>>(),
 }));
 const encryption = vi.hoisted(() => ({
-    loadKey: vi.fn(),
-    getKeyMetadata: vi.fn(),
+    isVaultUnlocked: vi.fn<(vaultId: string) => Promise<boolean>>(),
+    getUnlockedKey: vi.fn<(vaultId: string) => CryptoKey | undefined>(),
 }));
-
-const passkeys = vi.hoisted(() => ({
-    getPasskey: vi.fn(),
-    supportsPasskeys: () => true,
-}));
-vi.mock('../../auth/passkeys.ts', () => passkeys);
 vi.mock('../../key-sync/sendVaultKey.ts', () => services);
-vi.mock('../../storage/vaultKeys.ts', () => ({
-    keyStorage: encryption,
+vi.mock('../../hooks/useEncryptionHook.ts', () => ({
+    useEncryptionHook: () => encryption,
+}));
+vi.mock('../shared/VaultAccessModal.tsx', () => ({
+    default: ({ onSuccess }: { onSuccess?: () => void }) => (
+        <button type="button" onClick={onSuccess}>Unlock test vault</button>
+    ),
 }));
 
 describe('key sync sender page', () => {
@@ -39,24 +50,13 @@ describe('key sync sender page', () => {
         vi.unstubAllGlobals();
     });
     beforeEach(() => {
-        useAuthStore.setState({
-            isAuthenticated: true,
-            userDetails: {
-                userId: 'user-one',
-                email: 'one@example.test',
-                username: 'One',
-                grantedAuthorities: [],
-            },
-        });
-
         vi.resetAllMocks();
-        // jsdom does not implement the layout observer used by the OTP inputs.
         vi.stubGlobal(
             'ResizeObserver',
             class {
-                observe = vi.fn();
-                unobserve = vi.fn();
-                disconnect = vi.fn();
+                observe = vi.fn<() => void>();
+                unobserve = vi.fn<() => void>();
+                disconnect = vi.fn<() => void>();
             }
         );
         document.documentElement.style.setProperty(
@@ -67,59 +67,59 @@ describe('key sync sender page', () => {
             globalStyleTokens.border,
             '#dddddd'
         );
+        useAuthStore.setState({
+            isAuthenticated: true,
+            userDetails: {
+                userId: 'user-one',
+                email: 'one@example.test',
+                username: 'One',
+                grantedAuthorities: [],
+            },
+        });
         useDeviceStore.setState({
             deviceId: 'sender-device',
             idKey: { type: 'Ed25519', public: 'public', private: 'private' },
         });
-        useEncryptionStore.setState({ passkeys: {} });
         services.getVerifiedReceiver.mockResolvedValue({
             receiverId: 'receiver-device',
             vaultId: 'vault-one',
+            publicDh: { kty: 'OKP', crv: 'X25519', x: 'public' },
+            signature: 'signature',
         });
         services.sendVaultKey.mockResolvedValue(undefined);
-        encryption.loadKey.mockResolvedValue({});
-        encryption.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'Y3JlZA',
-            prfSalt: new Uint8Array(32),
+        encryption.isVaultUnlocked.mockResolvedValue(true);
+        encryption.getUnlockedKey.mockReturnValue({
+            algorithm: { name: 'AES-GCM' },
+            extractable: true,
+            type: 'secret',
+            usages: ['encrypt', 'decrypt'],
         });
-        passkeys.getPasskey.mockResolvedValue(new Uint8Array(32).fill(7));
     });
 
-    it('accepts letters in manually entered codes and uploads once after normalizing case', async () => {
-        useEncryptionStore
-            .getState()
-            .setPasskey('vault-one', new TextEncoder().encode('1234'));
+    it('normalizes a manually entered code and sends the unlocked key once', async () => {
         render(
             <MemoryRouter>
                 <KeySyncHero />
             </MemoryRouter>
         );
-
         fireEvent.change(screen.getByRole('textbox', { name: 'Sync code' }), {
             target: { value: 'abc123' },
         });
-
         await screen.findByRole('heading', {
             name: 'Key transferred successfully',
         });
-
         expect(services.getVerifiedReceiver).toHaveBeenCalledWith(
             'ABC123',
             'sender-device',
             expect.any(AbortSignal)
         );
         expect(services.sendVaultKey).toHaveBeenCalledOnce();
-        expect(encryption.loadKey).toHaveBeenCalledWith(
-            'vault-one',
-            new TextEncoder().encode('1234')
-        );
     });
 
-    it('handles a linked alphanumeric code in StrictMode and allows retrying a failed passkey unlock', async () => {
-        encryption.loadKey
-            .mockRejectedValueOnce(new Error('Invalid passkey'))
-            .mockResolvedValue({});
+    it('prompts to unlock a linked vault and resumes the transfer', async () => {
+        encryption.isVaultUnlocked
+            .mockResolvedValueOnce(false)
+            .mockResolvedValue(true);
         render(
             <StrictMode>
                 <MemoryRouter initialEntries={['/key-sync?code=ABC123']}>
@@ -127,21 +127,14 @@ describe('key sync sender page', () => {
                 </MemoryRouter>
             </StrictMode>
         );
-        await screen.findByRole('alert');
-
-        expect(services.getVerifiedReceiver).toHaveBeenCalledOnce();
-
-        expect(screen.getByRole('alert').textContent).toContain(
-            'Invalid passkey'
-        );
+        const unlock = await screen.findByRole('button', {
+            name: 'Unlock test vault',
+        });
         expect(services.sendVaultKey).not.toHaveBeenCalled();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-
+        fireEvent.click(unlock);
         await waitFor(() =>
             expect(services.sendVaultKey).toHaveBeenCalledOnce()
         );
-
         await screen.findByRole('heading', {
             name: 'Key transferred successfully',
         });

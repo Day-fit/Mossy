@@ -57,7 +57,7 @@ export default function KeySyncCodeGuide() {
                                     </li>
                                     <li>
                                         Try to add or reveal a password, then
-                                        create a PIN when prompted.
+                                        choose a passkey or vault password when prompted.
                                     </li>
                                     <li>
                                         Keep the sync dialog open. Enter its

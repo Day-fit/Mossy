@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { requireActiveUser } from '../auth/activeUser.ts';
-import { useAuthStore } from '../store/authStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import { keyStorage } from '../storage/vaultKeys.ts';
-import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
-import type { VaultKeyProtection } from '../types/vaultKey.ts';
+import {
+    useEncryptionHook,
+    type PreparedProtection,
+} from './useEncryptionHook.ts';
 
 type ReceiverState = {
     phase: 'preparing' | 'waiting' | 'saving' | 'success' | 'error';
@@ -16,97 +15,69 @@ type ReceiverState = {
 
 export function useKeySyncReceiver(
     vaultId: string,
-    protection: VaultKeyProtection
+    protection: PreparedProtection
 ) {
-    const { passkey, metadata, userId: owner } = protection;
-    const userId = useAuthStore((state) => state.userDetails?.userId);
-
     const receiverId = useDeviceStore((state) => state.deviceId);
     const identity = useDeviceStore(useShallow((state) => state.idKey));
-    const { saveRawKey } = keyStorage;
-    const setUnlocked = useEncryptionStore((state) => state.setUnlocked);
-
+    const { saveRawKey } = useEncryptionHook();
     const [state, setState] = useState<ReceiverState>({ phase: 'preparing' });
     const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
-        if (!receiverId || !identity || owner !== userId) return;
-
+        if (!receiverId || !identity) return;
         const controller = new AbortController();
         let disposed = false;
         const timer = setTimeout(
-            () =>
-                controller.abort(
-                    new Error(
-                        'Key synchronization timed out. Please generate a new code.'
-                    )
-                ),
+            () => controller.abort(
+                new Error('Key synchronization timed out. Please generate a new code.')
+            ),
             5 * 60_000
         );
 
-        void receiveVaultKey({
-            vaultId,
-            receiverId,
-            identity,
-            signal: controller.signal,
-            onCode: (code) => {
-                if (!disposed) setState({ phase: 'waiting', code });
-            },
-            onReceiving: () => {
-                if (!disposed)
-                    setState((current) => ({ ...current, phase: 'saving' }));
-            },
-            saveKey: async (key) => {
-                controller.signal.throwIfAborted();
-                requireActiveUser(owner);
-                const dataKey = await saveRawKey(
+        async function receive() {
+            if (!receiverId || !identity) return;
+            try {
+                await receiveVaultKey({
                     vaultId,
-                    passkey,
-                    key,
-                    metadata
-                );
-
-                if (!controller.signal.aborted)
-                    setUnlocked(vaultId, passkey, dataKey, owner);
-            },
-        })
-            .then(() => {
+                    receiverId,
+                    identity,
+                    signal: controller.signal,
+                    onCode: (code) => {
+                        if (!disposed) setState({ phase: 'waiting', code });
+                    },
+                    onReceiving: () => {
+                        if (!disposed)
+                            setState((current) => ({ ...current, phase: 'saving' }));
+                    },
+                    saveKey: async (rawKey) => {
+                        controller.signal.throwIfAborted();
+                        await saveRawKey(vaultId, protection, rawKey);
+                    },
+                });
                 if (!disposed) setState({ phase: 'success' });
-            })
-            .catch((error: unknown) => {
+            } catch (error) {
                 if (disposed) return;
-
-                const reason: unknown = controller.signal.aborted
+                const reason = controller.signal.aborted &&
+                    controller.signal.reason instanceof Error
                     ? controller.signal.reason
                     : error;
-
                 setState({
                     phase: 'error',
-                    error:
-                        reason instanceof Error
-                            ? reason.message
-                            : 'Key synchronization failed.',
+                    error: reason instanceof Error
+                        ? reason.message
+                        : 'Key synchronization failed.',
                 });
-            })
-            .finally(() => clearTimeout(timer));
-
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+        void receive();
         return () => {
             disposed = true;
             clearTimeout(timer);
             controller.abort();
         };
-    }, [
-        attempt,
-        owner,
-        userId,
-        identity,
-        metadata,
-        passkey,
-        receiverId,
-        saveRawKey,
-        setUnlocked,
-        vaultId,
-    ]);
+    }, [attempt, identity, protection, receiverId, saveRawKey, vaultId]);
 
     return {
         ...state,

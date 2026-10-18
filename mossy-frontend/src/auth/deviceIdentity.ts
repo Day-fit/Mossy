@@ -1,10 +1,5 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { openDB, type IDBPDatabase } from 'idb';
 import sodium from 'libsodium-wrappers-sumo';
-import type {
-    PasskeyReservation,
-    StoredUserPasskey,
-    StoredVaultKey,
-} from '../types/vaultKey.ts';
 
 export type KeyPair = {
     public: string;
@@ -13,36 +8,21 @@ export type KeyPair = {
 
 export type CryptoPair = { type: 'Ed25519' } & KeyPair;
 
-export interface DeviceDatabase extends DBSchema {
-    keys: {
-        key: string;
-        value:
-            | CryptoPair
-            | StoredVaultKey
-            | StoredUserPasskey
-            | PasskeyReservation;
-    };
-    device: { key: string; value: string };
-}
-
 const CURRENT_IDENTITY_KEY = 'current-device';
 const DEVICE_ID_KEY_PREFIX = 'deviceId:';
 const CURRENT_DEVICE_ACCOUNT_KEY = 'currentDeviceAccount';
 
-export const deviceDbRef: { current: IDBPDatabase<DeviceDatabase> | null } = {
+export const deviceDbRef: { current: IDBPDatabase | null } = {
     current: null,
 };
 
-let dbInitializationPromise: Promise<IDBPDatabase<DeviceDatabase>> | null =
-    null;
+let dbInitializationPromise: Promise<IDBPDatabase> | null = null;
 
-export async function getDeviceDatabase(): Promise<
-    IDBPDatabase<DeviceDatabase>
-> {
+export async function getDeviceDatabase(): Promise<IDBPDatabase> {
     if (deviceDbRef.current) return deviceDbRef.current;
 
     if (!dbInitializationPromise) {
-        dbInitializationPromise = openDB<DeviceDatabase>('mossy', 2, {
+        dbInitializationPromise = openDB('mossy', 2, {
             upgrade(db) {
                 if (!db.objectStoreNames.contains('keys')) {
                     db.createObjectStore('keys');
@@ -60,21 +40,42 @@ export async function getDeviceDatabase(): Promise<
     return dbInitializationPromise;
 }
 
-export async function loadDeviceIdentity(): Promise<CryptoPair | null> {
+export async function loadDeviceIdentity(
+    legacyUserId?: string
+): Promise<CryptoPair | null> {
     const db = await getDeviceDatabase();
-    const current = await db.get('keys', CURRENT_IDENTITY_KEY);
-    return current?.type === 'Ed25519' ? current : null;
+    const current = (await db.get('keys', CURRENT_IDENTITY_KEY)) as
+        | CryptoPair
+        | undefined;
+    if (current) return current;
+
+    const legacy = legacyUserId
+        ? ((await db.get('keys', legacyUserId)) as CryptoPair | undefined)
+        : undefined;
+    if (legacy) {
+        await db.put('keys', legacy, CURRENT_IDENTITY_KEY);
+        return legacy;
+    }
+
+    // Older builds keyed the only local identity by user id. Since the device id
+    // was global as well, a single legacy identity can be migrated unambiguously.
+    const legacyIdentities = (await db.getAll('keys')).filter(
+        (value): value is CryptoPair => value?.type === 'Ed25519'
+    );
+    if (legacyIdentities.length === 1) {
+        await db.put('keys', legacyIdentities[0], CURRENT_IDENTITY_KEY);
+        return legacyIdentities[0];
+    }
+
+    return null;
 }
 
 export async function ensureDeviceIdentity(): Promise<CryptoPair> {
     const stored = await loadDeviceIdentity();
-
     if (stored) return stored;
 
     await sodium.ready;
-
     const generated = sodium.crypto_sign_keypair();
-
     const identity: CryptoPair = {
         type: 'Ed25519',
         private: sodium.to_base64(
@@ -105,7 +106,6 @@ export async function loadStoredDeviceId(
         ((await db.get('device', CURRENT_DEVICE_ACCOUNT_KEY)) as
             | string
             | undefined);
-
     if (!account) return null;
 
     if (accountIdentifier) {
@@ -125,7 +125,6 @@ export async function storeDeviceId(
 ): Promise<void> {
     const db = await getDeviceDatabase();
     const transaction = db.transaction('device', 'readwrite');
-
     await Promise.all([
         transaction.store.put(deviceId, deviceIdKey(accountIdentifier)),
         transaction.store.put(accountIdentifier, CURRENT_DEVICE_ACCOUNT_KEY),
@@ -142,7 +141,6 @@ export async function signNonce(
     }
 
     await sodium.ready;
-
     const signature = sodium.crypto_sign_detached(
         sodium.from_base64(nonce, sodium.base64_variants.URLSAFE_NO_PADDING),
         sodium.from_base64(
@@ -150,7 +148,6 @@ export async function signNonce(
             sodium.base64_variants.URLSAFE_NO_PADDING
         )
     );
-
     return sodium.to_base64(
         signature,
         sodium.base64_variants.URLSAFE_NO_PADDING

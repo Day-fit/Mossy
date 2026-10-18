@@ -144,7 +144,7 @@ it.each([
             userDetails: {
                 userId: '1',
                 username: 'Mossy user',
-                email: 'mossy@example.test',
+                email: null,
                 grantedAuthorities: [],
             },
         });

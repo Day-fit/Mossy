@@ -3,7 +3,7 @@ import { apiFetch } from './client.ts';
 export type UserDetailsResponse = {
     userId: string;
     username: string;
-    email: string;
+    email: string | null;
     grantedAuthorities: string[];
 };
 

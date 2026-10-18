@@ -1,29 +1,27 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
+import type { SetStateAction } from 'react';
+import type { PreparedProtection } from '../../../hooks/useEncryptionHook.ts';
 import KeySyncStep from './KeySyncStep.tsx';
-import type { VaultKeyProtection } from '../../../types/vaultKey.ts';
 
-const protection: VaultKeyProtection = {
-    userId: 'user-one',
-    passkey: new TextEncoder().encode('a vault password'),
-    metadata: {
-        type: 'PRF',
-        credentialId: 'Y3JlZA',
-        prfSalt: new Uint8Array(32),
-    },
+type QrConfig = {
+    data: string;
+    backgroundOptions?: { color?: string };
+    dotsOptions?: { color?: string };
+    cornersSquareOptions?: { color?: string };
+    cornersDotOptions?: { color?: string };
 };
 
 const { qrConfig } = vi.hoisted(() => ({
-    qrConfig: vi.fn(),
+    qrConfig: vi.fn<(config: QrConfig) => void>(),
 }));
 
 vi.mock('../../../hooks/useKeySyncReceiver.ts', () => ({
     useKeySyncReceiver: () => ({ phase: 'waiting', code: 'ABC123' }),
 }));
-
 vi.mock('qr-code-styling', () => ({
     default: class {
-        constructor(config: unknown) {
+        constructor(config: QrConfig) {
             qrConfig(config);
         }
         append() {}
@@ -41,7 +39,18 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
     document.documentElement.style.setProperty('--color-qr-surface', '#ffffff');
     document.documentElement.style.setProperty('--color-surface', '#21251e');
     document.documentElement.dataset.theme = 'dark';
-    const close = vi.fn();
+    const close = vi.fn<(value: SetStateAction<boolean>) => void>();
+    const protection: PreparedProtection = {
+        userId: 'user-one',
+        type: 'Password',
+        salt: new Uint8Array(16),
+        wrappingKey: {
+            algorithm: { name: 'AES-KW' },
+            extractable: false,
+            type: 'secret',
+            usages: ['wrapKey', 'unwrapKey'],
+        },
+    };
     const { rerender } = render(
         <KeySyncStep
             vaultId="vault-1"
@@ -49,7 +58,6 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
             setIsKeySyncModalActive={close}
         />
     );
-
     await waitFor(() => expect(qrConfig).toHaveBeenCalledTimes(1));
     expect(qrConfig.mock.calls[0][0]).toMatchObject({
         data: expect.stringContaining('/key-sync?code=ABC123'),
@@ -58,7 +66,6 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
         cornersSquareOptions: { color: '#007735' },
         cornersDotOptions: { color: '#007735' },
     });
-
     document.documentElement.dataset.theme = 'light';
     rerender(
         <KeySyncStep
@@ -67,6 +74,5 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
             setIsKeySyncModalActive={close}
         />
     );
-
     expect(qrConfig).toHaveBeenCalledTimes(1);
 });
