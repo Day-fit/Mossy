@@ -1,6 +1,8 @@
+import { useAuthStore } from '../../store/authStore.ts';
 import { cleanup, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { vaultKeyId } from '../../storage/keyIds.ts';
 import DashboardHero from './DashboardHero.tsx';
 import { useVaultStore } from '../../store/vaultStore.ts';
 
@@ -26,6 +28,16 @@ vi.mock('recharts', async (importOriginal) => ({
 }));
 
 beforeEach(() => {
+    useAuthStore.setState({
+        isAuthenticated: true,
+        userDetails: {
+            userId: 'user-one',
+            email: 'one@example.test',
+            username: 'One',
+            grantedAuthorities: [],
+        },
+    });
+
     getKey.mockReset();
     statisticsResult.statistics.totalPasswords = 0;
     statisticsResult.isLoading = false;
@@ -83,13 +95,21 @@ it.each([false, true])(
         });
         getKey.mockResolvedValue(
             hasKey
-                ? { wrappedKey: new Uint8Array([1]), salt: new Uint8Array([2]) }
+                ? {
+                      type: 'Text',
+                      wrappedKey: new Uint8Array([1]).buffer,
+                      salt: new Uint8Array([2]),
+                  }
                 : undefined
         );
         renderDashboard();
         expect(
             await screen.findByText(`${hasKey ? 2 : 1} of 3 steps complete`)
         ).toBeTruthy();
+        expect(getKey).toHaveBeenCalledWith(
+            'keys',
+            vaultKeyId('user-one', 'vault-1')
+        );
         expect(
             (screen.getByRole('progressbar') as HTMLProgressElement).value
         ).toBe(hasKey ? 2 : 1);

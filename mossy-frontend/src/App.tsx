@@ -14,12 +14,15 @@ import Devices from './routes/Devices.tsx';
 import VerifyEmail from './routes/VerifyEmail.tsx';
 import AuthRoutes from './ui/auth/AuthTransition.tsx';
 import { useDevicesInit } from './hooks/useDevicesInit.ts';
+import { useDeviceKeys } from './hooks/useDeviceKeys.ts';
 import Settings from './routes/Settings.tsx';
 
 function App() {
     useAuthInit();
+    useDeviceKeys();
     useVaultInit();
     useDevicesInit();
+
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
     if (isAuthenticated === null) return null;

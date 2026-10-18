@@ -1,3 +1,4 @@
+import { useAuthStore } from '../../store/authStore.ts';
 import { StrictMode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import {
@@ -17,10 +18,14 @@ const services = vi.hoisted(() => ({
     getVerifiedReceiver: vi.fn(),
     sendVaultKey: vi.fn(),
 }));
-const encryption = vi.hoisted(() => ({ loadKey: vi.fn(), setPin: vi.fn() }));
+const encryption = vi.hoisted(() => ({
+    loadKey: vi.fn(),
+    getKeyMetadata: vi.fn(),
+}));
+
 vi.mock('../../key-sync/sendVaultKey.ts', () => services);
-vi.mock('../../hooks/useEncryptionHook.ts', () => ({
-    useEncryptionHook: () => encryption,
+vi.mock('../../hooks/useKeyStorage.ts', () => ({
+    useKeyStorage: () => encryption,
 }));
 
 describe('key sync sender page', () => {
@@ -29,6 +34,16 @@ describe('key sync sender page', () => {
         vi.unstubAllGlobals();
     });
     beforeEach(() => {
+        useAuthStore.setState({
+            isAuthenticated: true,
+            userDetails: {
+                userId: 'user-one',
+                email: 'one@example.test',
+                username: 'One',
+                grantedAuthorities: [],
+            },
+        });
+
         vi.resetAllMocks();
         // jsdom does not implement the layout observer used by the OTP inputs.
         vi.stubGlobal(
@@ -51,20 +66,20 @@ describe('key sync sender page', () => {
             deviceId: 'sender-device',
             idKey: { type: 'Ed25519', public: 'public', private: 'private' },
         });
-        useEncryptionStore.setState({ pins: {} });
+        useEncryptionStore.setState({ passkeys: {} });
         services.getVerifiedReceiver.mockResolvedValue({
             receiverId: 'receiver-device',
             vaultId: 'vault-one',
         });
         services.sendVaultKey.mockResolvedValue(undefined);
         encryption.loadKey.mockResolvedValue({});
-        encryption.setPin.mockImplementation((vaultId: string, pin: string) =>
-            useEncryptionStore.getState().setPin(vaultId, pin)
-        );
+        encryption.getKeyMetadata.mockResolvedValue({ type: 'Text' });
     });
 
     it('accepts letters in manually entered codes and uploads once after normalizing case', async () => {
-        useEncryptionStore.getState().setPin('vault-one', '1234');
+        useEncryptionStore
+            .getState()
+            .setPasskey('vault-one', new TextEncoder().encode('1234'));
         render(
             <MemoryRouter>
                 <KeySyncHero />
@@ -78,18 +93,22 @@ describe('key sync sender page', () => {
         await screen.findByRole('heading', {
             name: 'Key transferred successfully',
         });
+
         expect(services.getVerifiedReceiver).toHaveBeenCalledWith(
             'ABC123',
             'sender-device',
             expect.any(AbortSignal)
         );
         expect(services.sendVaultKey).toHaveBeenCalledOnce();
-        expect(encryption.loadKey).toHaveBeenCalledWith('vault-one', '1234');
+        expect(encryption.loadKey).toHaveBeenCalledWith(
+            'vault-one',
+            new TextEncoder().encode('1234')
+        );
     });
 
-    it('handles a linked alphanumeric code in StrictMode and allows retrying a wrong PIN', async () => {
+    it('handles a linked alphanumeric code in StrictMode and allows retrying a wrong vault password', async () => {
         encryption.loadKey
-            .mockRejectedValueOnce(new Error('Invalid pin'))
+            .mockRejectedValueOnce(new Error('Invalid passkey'))
             .mockResolvedValue({});
         render(
             <StrictMode>
@@ -98,20 +117,29 @@ describe('key sync sender page', () => {
                 </MemoryRouter>
             </StrictMode>
         );
-        const pin = await screen.findByRole('textbox', { name: 'Vault PIN' });
+        const password = await screen.findByLabelText('Vault password');
+
         expect(services.getVerifiedReceiver).toHaveBeenCalledOnce();
 
-        fireEvent.change(pin, { target: { value: '1111' } });
+        fireEvent.change(password, { target: { value: 'wrong password' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
+
         await screen.findByRole('alert');
-        expect(screen.getByRole('alert').textContent).toContain('Invalid pin');
+
+        expect(screen.getByRole('alert').textContent).toContain(
+            'Invalid passkey'
+        );
         expect(services.sendVaultKey).not.toHaveBeenCalled();
 
-        fireEvent.change(screen.getByRole('textbox', { name: 'Vault PIN' }), {
+        fireEvent.change(screen.getByLabelText('Vault password'), {
             target: { value: '1234' },
         });
+        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
+
         await waitFor(() =>
             expect(services.sendVaultKey).toHaveBeenCalledOnce()
         );
+
         await screen.findByRole('heading', {
             name: 'Key transferred successfully',
         });

@@ -15,7 +15,7 @@ import type {
 } from './index.ts';
 import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
 import { KeyNotFoundException } from '../../exception/KeyNotFoundException.ts';
-import PasswordPinModal from '../shared/PasswordPinModal.tsx';
+import VaultAccessModal from '../shared/VaultAccessModal.tsx';
 import KeySyncModal from './KeySyncModal.tsx';
 import { parseSecretPayload, serializeSecretPayload } from './secretPayload.ts';
 import { downloadTextFile, getSshKeyFilename } from './sshKeyDownload.ts';
@@ -35,7 +35,7 @@ export function usePasswordListActions({
     isVaultOnline,
     refreshVaults,
 }: UsePasswordListActionsOptions) {
-    const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
+    const { encrypt, decrypt, isVaultUnlocked } = useEncryptionHook();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [status, setStatus] = useState<StatusMessage>(null);
     const [refreshToken, setRefreshToken] = useState(0);
@@ -45,11 +45,10 @@ export function usePasswordListActions({
     const [loadingCiphertextPhase, setLoadingCiphertextPhase] = useState<
         Record<string, CiphertextPhase>
     >({});
-    const [isPinModalActive, setIsPinModalActive] = useState(false);
+    const [isVaultAccessModalActive, setIsVaultAccessModalActive] =
+        useState(false);
     const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
-    const [lastAction, setLastAction] = useState<
-        ((pin: string) => void) | undefined
-    >();
+    const [lastAction, setLastAction] = useState<(() => void) | undefined>();
 
     useEffect(() => {
         setStatus(null);
@@ -78,11 +77,11 @@ export function usePasswordListActions({
         | { type: 'deferred' }
     > => {
         try {
-            if (!(await isPinPresent(vaultId))) {
+            if (!(await isVaultUnlocked(vaultId))) {
                 setLastAction(() => () => {
                     void action();
                 });
-                setIsPinModalActive(true);
+                setIsVaultAccessModalActive(true);
                 return { type: 'deferred' };
             }
         } catch (error) {
@@ -338,11 +337,12 @@ export function usePasswordListActions({
         handleDownloadSshKey,
         actionModals: (
             <>
-                {isPinModalActive && (
-                    <PasswordPinModal
+                {isVaultAccessModalActive && (
+                    <VaultAccessModal
                         vaultId={vaultId}
-                        setIsPinModalActive={setIsPinModalActive}
-                        afterPinEntered={lastAction}
+                        mode="unlock"
+                        onClose={() => setIsVaultAccessModalActive(false)}
+                        onSuccess={lastAction}
                     />
                 )}
 

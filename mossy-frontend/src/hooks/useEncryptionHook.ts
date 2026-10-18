@@ -1,95 +1,31 @@
 import { useCallback } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
-import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
-import { useDeviceKeys } from './useDeviceKeys.ts';
+import { useKeyStorage } from './useKeyStorage.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
 
 export type UseEncryptionResult = {
     encrypt: (password: string, vaultId: string) => Promise<string>;
     decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
-    isPinPresent: (id: string) => Promise<boolean>;
-    saveKey: (id: string, pin: string) => Promise<void>;
-    saveRawKey: (
-        vaultId: string,
-        pin: string,
-        rawKey: Uint8Array<ArrayBuffer>
-    ) => Promise<void>;
-    loadKey: (id: string, pin: string) => Promise<CryptoKey>;
-    setPin: (vaultId: string, pin: string) => void;
+    isVaultUnlocked: (id: string) => Promise<boolean>;
 };
 
 export function useEncryptionHook(): UseEncryptionResult {
-    const deviceKeysHook = useDeviceKeys();
-    const dbRef = deviceKeysHook.dbRef;
-    const setPin = useEncryptionStore((state) => state.setPin);
-    const clearPin = useEncryptionStore((state) => state.clearPin);
-
-    const loadKey = useCallback(
-        async (id: string, pin: string) => {
-            const db = dbRef.current;
-
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
-            await sodium.ready;
-
-            const keyRecord = await db.get('keys', id);
-
-            if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-                throw new KeyNotFoundException('Key not found');
-            }
-
-            const { wrappedKey, salt } = keyRecord;
-
-            const pinBytes = sodium.crypto_pwhash(
-                32,
-                pin,
-                salt,
-                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-                sodium.crypto_pwhash_ALG_ARGON2ID13
-            );
-
-            const wrappingKey = await crypto.subtle.importKey(
-                'raw',
-                new Uint8Array(pinBytes),
-                { name: 'AES-KW', length: 256 },
-                false,
-                ['wrapKey', 'unwrapKey']
-            );
-
-            return await crypto.subtle
-                .unwrapKey(
-                    'raw',
-                    wrappedKey,
-                    wrappingKey,
-                    'AES-KW',
-                    { name: 'AES-GCM', length: 256 },
-                    true,
-                    ['encrypt', 'decrypt']
-                )
-                .catch(() => {
-                    clearPin(id);
-                    throw new Error('Invalid pin');
-                });
-        },
-        [clearPin, dbRef]
-    );
+    const { loadKey, getKeyMetadata } = useKeyStorage();
 
     const encrypt = useCallback(
-        async (rawData: string, vaultId: string) => {
-            const pin = useEncryptionStore.getState().pins[vaultId];
+        async (rawPassword: string, vaultId: string) => {
+            const passkey = useEncryptionStore.getState().getPasskey(vaultId);
 
-            if (!pin) {
-                throw new Error('Pin not found');
+            if (!passkey) {
+                throw new Error('Passkey not found');
             }
 
-            const iv = new Uint8Array(sodium.randombytes_buf(12));
+            const loadedKey = await loadKey(vaultId, passkey);
+            await sodium.ready;
 
-            const loadedKey = await loadKey(vaultId, pin);
+            const iv = new Uint8Array(sodium.randombytes_buf(12));
             const encoder = new TextEncoder();
-            const plaintext = encoder.encode(rawData);
+            const plaintext = encoder.encode(rawPassword);
 
             const ciphertext = new Uint8Array(
                 await crypto.subtle.encrypt(
@@ -110,13 +46,13 @@ export function useEncryptionHook(): UseEncryptionResult {
 
     const decrypt = useCallback(
         async (ciphertext: string, vaultId: string) => {
-            const pin = useEncryptionStore.getState().pins[vaultId];
+            const passkey = useEncryptionStore.getState().getPasskey(vaultId);
 
-            if (!pin) {
-                throw new Error('Pin not found');
+            if (!passkey) {
+                throw new Error('Passkey not found');
             }
 
-            const loadedKey = await loadKey(vaultId, pin);
+            const loadedKey = await loadKey(vaultId, passkey);
             const blob = new Uint8Array(
                 atob(ciphertext)
                     .split('')
@@ -137,105 +73,14 @@ export function useEncryptionHook(): UseEncryptionResult {
         [loadKey]
     );
 
-    const wrapAndStore = useCallback(
-        async (vaultId: string, pin: string, dataKey: CryptoKey) => {
-            const db = dbRef.current;
-
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
-            await sodium.ready;
-
-            const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
-
-            const pinBytes = sodium.crypto_pwhash(
-                32,
-                pin,
-                salt,
-                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-                sodium.crypto_pwhash_ALG_ARGON2ID13
-            );
-
-            const wrappingKey = await crypto.subtle.importKey(
-                'raw',
-                new Uint8Array(pinBytes),
-                { name: 'AES-KW', length: 256 },
-                false,
-                ['wrapKey', 'unwrapKey']
-            );
-
-            const wrappedKey = await crypto.subtle.wrapKey(
-                'raw',
-                dataKey,
-                wrappingKey,
-                'AES-KW'
-            );
-
-            await db.put('keys', { wrappedKey, salt }, vaultId);
-        },
-        [dbRef]
-    );
-
-    const saveKey = useCallback(
-        async (vaultId: string, pin: string) => {
-            const dataKey = await crypto.subtle.generateKey(
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt']
-            );
-
-            await wrapAndStore(vaultId, pin, dataKey);
-        },
-        [wrapAndStore]
-    );
-
-    const saveRawKey = useCallback(
-        async (
-            vaultId: string,
-            pin: string,
-            rawKey: Uint8Array<ArrayBuffer>
-        ) => {
-            const dataKey = await crypto.subtle.importKey(
-                'raw',
-                rawKey,
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt']
-            );
-
-            await wrapAndStore(vaultId, pin, dataKey);
-        },
-        [wrapAndStore]
-    );
-
-    const isPinPresent = useCallback(
+    const isVaultUnlocked = useCallback(
         async (id: string) => {
-            const db = dbRef.current;
+            await getKeyMetadata(id);
 
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
-            const keyRecord = await db.get('keys', id);
-
-            if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-                throw new KeyNotFoundException('Key not found');
-            }
-
-            return useEncryptionStore.getState().pins[id] !== undefined;
+            return useEncryptionStore.getState().getPasskey(id) !== undefined;
         },
-        [dbRef]
+        [getKeyMetadata]
     );
 
-    return {
-        encrypt,
-        decrypt,
-        isPinPresent,
-        saveKey,
-        saveRawKey,
-        loadKey,
-        setPin,
-    };
+    return { encrypt, decrypt, isVaultUnlocked };
 }

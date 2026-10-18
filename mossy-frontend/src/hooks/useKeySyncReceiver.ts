@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
+import { requireActiveUser } from '../auth/activeUser.ts';
+import { useAuthStore } from '../store/authStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import { useEncryptionHook } from './useEncryptionHook.ts';
+import { useKeyStorage } from './useKeyStorage.ts';
+import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
+import type { VaultKeyProtection } from '../types/vaultKey.ts';
 
 type ReceiverState = {
     phase: 'preparing' | 'waiting' | 'saving' | 'success' | 'error';
@@ -10,15 +14,24 @@ type ReceiverState = {
     error?: string;
 };
 
-export function useKeySyncReceiver(vaultId: string, pin: string) {
+export function useKeySyncReceiver(
+    vaultId: string,
+    protection: VaultKeyProtection
+) {
+    const { passkey, metadata, userId: owner } = protection;
+    const userId = useAuthStore((state) => state.userDetails?.userId);
+
     const receiverId = useDeviceStore((state) => state.deviceId);
     const identity = useDeviceStore(useShallow((state) => state.idKey));
-    const { saveRawKey, setPin } = useEncryptionHook();
+    const { saveRawKey } = useKeyStorage();
+    const setPasskey = useEncryptionStore((state) => state.setPasskey);
+
     const [state, setState] = useState<ReceiverState>({ phase: 'preparing' });
     const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
-        if (!receiverId || !identity) return;
+        if (!receiverId || !identity || owner !== userId) return;
+
         const controller = new AbortController();
         let disposed = false;
         const timer = setTimeout(
@@ -44,8 +57,12 @@ export function useKeySyncReceiver(vaultId: string, pin: string) {
                     setState((current) => ({ ...current, phase: 'saving' }));
             },
             saveKey: async (key) => {
-                await saveRawKey(vaultId, pin, key);
-                if (!controller.signal.aborted) setPin(vaultId, pin);
+                controller.signal.throwIfAborted();
+                requireActiveUser(owner);
+                await saveRawKey(vaultId, passkey, key, metadata);
+
+                if (!controller.signal.aborted)
+                    setPasskey(vaultId, passkey, owner);
             },
         })
             .then(() => {
@@ -53,9 +70,11 @@ export function useKeySyncReceiver(vaultId: string, pin: string) {
             })
             .catch((error: unknown) => {
                 if (disposed) return;
+
                 const reason: unknown = controller.signal.aborted
                     ? controller.signal.reason
                     : error;
+
                 setState({
                     phase: 'error',
                     error:
@@ -71,7 +90,18 @@ export function useKeySyncReceiver(vaultId: string, pin: string) {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [attempt, identity, pin, receiverId, saveRawKey, setPin, vaultId]);
+    }, [
+        attempt,
+        owner,
+        userId,
+        identity,
+        metadata,
+        passkey,
+        receiverId,
+        saveRawKey,
+        setPasskey,
+        vaultId,
+    ]);
 
     return {
         ...state,

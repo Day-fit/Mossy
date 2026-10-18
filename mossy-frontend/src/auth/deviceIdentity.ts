@@ -1,5 +1,6 @@
-import { openDB, type IDBPDatabase } from 'idb';
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import sodium from 'libsodium-wrappers-sumo';
+import type { StoredUserPasskey, StoredVaultKey } from '../types/vaultKey.ts';
 
 export type KeyPair = {
     public: string;
@@ -8,21 +9,32 @@ export type KeyPair = {
 
 export type CryptoPair = { type: 'Ed25519' } & KeyPair;
 
+export interface DeviceDatabase extends DBSchema {
+    keys: {
+        key: string;
+        value: CryptoPair | StoredVaultKey | StoredUserPasskey;
+    };
+    device: { key: string; value: string };
+}
+
 const CURRENT_IDENTITY_KEY = 'current-device';
 const DEVICE_ID_KEY_PREFIX = 'deviceId:';
 const CURRENT_DEVICE_ACCOUNT_KEY = 'currentDeviceAccount';
 
-export const deviceDbRef: { current: IDBPDatabase | null } = {
+export const deviceDbRef: { current: IDBPDatabase<DeviceDatabase> | null } = {
     current: null,
 };
 
-let dbInitializationPromise: Promise<IDBPDatabase> | null = null;
+let dbInitializationPromise: Promise<IDBPDatabase<DeviceDatabase>> | null =
+    null;
 
-export async function getDeviceDatabase(): Promise<IDBPDatabase> {
+export async function getDeviceDatabase(): Promise<
+    IDBPDatabase<DeviceDatabase>
+> {
     if (deviceDbRef.current) return deviceDbRef.current;
 
     if (!dbInitializationPromise) {
-        dbInitializationPromise = openDB('mossy', 2, {
+        dbInitializationPromise = openDB<DeviceDatabase>('mossy', 2, {
             upgrade(db) {
                 if (!db.objectStoreNames.contains('keys')) {
                     db.createObjectStore('keys');
@@ -44,15 +56,15 @@ export async function loadDeviceIdentity(
     legacyUserId?: string
 ): Promise<CryptoPair | null> {
     const db = await getDeviceDatabase();
-    const current = (await db.get('keys', CURRENT_IDENTITY_KEY)) as
-        | CryptoPair
-        | undefined;
-    if (current) return current;
+    const current = await db.get('keys', CURRENT_IDENTITY_KEY);
+
+    if (current?.type === 'Ed25519') return current;
 
     const legacy = legacyUserId
-        ? ((await db.get('keys', legacyUserId)) as CryptoPair | undefined)
+        ? await db.get('keys', legacyUserId)
         : undefined;
-    if (legacy) {
+
+    if (legacy?.type === 'Ed25519') {
         await db.put('keys', legacy, CURRENT_IDENTITY_KEY);
         return legacy;
     }
@@ -62,6 +74,7 @@ export async function loadDeviceIdentity(
     const legacyIdentities = (await db.getAll('keys')).filter(
         (value): value is CryptoPair => value?.type === 'Ed25519'
     );
+
     if (legacyIdentities.length === 1) {
         await db.put('keys', legacyIdentities[0], CURRENT_IDENTITY_KEY);
         return legacyIdentities[0];
@@ -72,10 +85,13 @@ export async function loadDeviceIdentity(
 
 export async function ensureDeviceIdentity(): Promise<CryptoPair> {
     const stored = await loadDeviceIdentity();
+
     if (stored) return stored;
 
     await sodium.ready;
+
     const generated = sodium.crypto_sign_keypair();
+
     const identity: CryptoPair = {
         type: 'Ed25519',
         private: sodium.to_base64(
@@ -106,6 +122,7 @@ export async function loadStoredDeviceId(
         ((await db.get('device', CURRENT_DEVICE_ACCOUNT_KEY)) as
             | string
             | undefined);
+
     if (!account) return null;
 
     if (accountIdentifier) {
@@ -125,6 +142,7 @@ export async function storeDeviceId(
 ): Promise<void> {
     const db = await getDeviceDatabase();
     const transaction = db.transaction('device', 'readwrite');
+
     await Promise.all([
         transaction.store.put(deviceId, deviceIdKey(accountIdentifier)),
         transaction.store.put(accountIdentifier, CURRENT_DEVICE_ACCOUNT_KEY),
@@ -141,6 +159,7 @@ export async function signNonce(
     }
 
     await sodium.ready;
+
     const signature = sodium.crypto_sign_detached(
         sodium.from_base64(nonce, sodium.base64_variants.URLSAFE_NO_PADDING),
         sodium.from_base64(
@@ -148,6 +167,7 @@ export async function signNonce(
             sodium.base64_variants.URLSAFE_NO_PADDING
         )
     );
+
     return sodium.to_base64(
         signature,
         sodium.base64_variants.URLSAFE_NO_PADDING

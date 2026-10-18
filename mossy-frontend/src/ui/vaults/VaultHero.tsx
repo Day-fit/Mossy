@@ -9,8 +9,7 @@ import {
 import VaultCard from './VaultCard.tsx';
 import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
-import PasswordPinModal from '../shared/PasswordPinModal.tsx';
-import { useEncryptionHook } from '../../hooks/useEncryptionHook.ts';
+import VaultAccessModal from '../shared/VaultAccessModal.tsx';
 import { useVaultStore } from '../../store/vaultStore.ts';
 
 type CreatedVaultState = {
@@ -30,7 +29,8 @@ type DeleteState = {
 
 export default function VaultHero() {
     const { vaults, refreshVaults, isLoading } = useVaultStore();
-    const [isPinModalActive, setIsPinModalActive] = useState(false);
+    const [isVaultAccessModalActive, setIsVaultAccessModalActive] =
+        useState(false);
     const [vaultName, setVaultName] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -39,7 +39,6 @@ export default function VaultHero() {
     const [renameState, setRenameState] = useState<RenameState>(null);
     const [renameValue, setRenameValue] = useState('');
     const [deleteState, setDeleteState] = useState<DeleteState>(null);
-    const { saveKey } = useEncryptionHook();
 
     const containerVariants: Variants = {
         hidden: { opacity: 0, y: 20 },
@@ -66,7 +65,7 @@ export default function VaultHero() {
                 vaultId: response.vaultId,
                 apiKey: response.apiKey,
             });
-            setIsPinModalActive(true);
+            setIsVaultAccessModalActive(true);
 
             setSuccessMessage('Vault created successfully');
             setVaultName('');
@@ -153,13 +152,11 @@ export default function VaultHero() {
                 initial="hidden"
                 animate="show"
             >
-                {isPinModalActive && createdVault?.vaultId && (
-                    <PasswordPinModal
-                        setIsPinModalActive={setIsPinModalActive}
+                {isVaultAccessModalActive && createdVault?.vaultId && (
+                    <VaultAccessModal
+                        mode="register"
                         vaultId={createdVault.vaultId}
-                        afterPinEntered={async (pin) =>
-                            await saveKey(createdVault.vaultId, pin)
-                        }
+                        onClose={() => setIsVaultAccessModalActive(false)}
                     />
                 )}
 
@@ -235,7 +232,7 @@ export default function VaultHero() {
                 </motion.div>
             </motion.section>
 
-            {createdVault && !isPinModalActive ? (
+            {createdVault && !isVaultAccessModalActive ? (
                 <AddVaultModal
                     vaultId={createdVault.vaultId}
                     apiKey={createdVault.apiKey}

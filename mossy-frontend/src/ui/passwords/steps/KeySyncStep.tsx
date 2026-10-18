@@ -1,5 +1,6 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import Button from '../../shared/Button.tsx';
+import type { VaultKeyProtection } from '../../../types/vaultKey.ts';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useKeySyncReceiver } from '../../../hooks/useKeySyncReceiver.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
@@ -8,7 +9,7 @@ import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
 
 type KeySyncModalProps = {
     vaultId: string;
-    pin: string;
+    protection: VaultKeyProtection;
     setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -64,10 +65,10 @@ const stepVariants: Variants = {
 
 export default function KeySyncStep({
     vaultId,
-    pin,
+    protection,
     setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-    const receiver = useKeySyncReceiver(vaultId, pin);
+    const receiver = useKeySyncReceiver(vaultId, protection);
     const qrCodeRef = useRef<HTMLDivElement>(null);
     const synced = receiver.phase === 'success';
     const syncCode = receiver.code;
