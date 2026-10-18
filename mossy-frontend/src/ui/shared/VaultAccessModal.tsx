@@ -1,4 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { MdErrorOutline, MdFingerprint, MdLockOutline } from 'react-icons/md';
 import {
     VAULT_PASSWORD_MIN_LENGTH,
     PrfNotSupportedError,
@@ -20,12 +22,8 @@ type VaultAccessModalProps = {
 
 export default function VaultAccessModal(props: VaultAccessModalProps) {
     const { vaultId, mode, onClose } = props;
-    const {
-        getKeyMetadata,
-        prepareProtection,
-        registerVaultKey,
-        unlockVault,
-    } = useEncryptionHook();
+    const { getKeyMetadata, prepareProtection, registerVaultKey, unlockVault } =
+        useEncryptionHook();
     const [metadata, setMetadata] = useState<VaultKeyMetadata | null>(null);
     const [method, setMethod] = useState<VaultMethod>(
         typeof PublicKeyCredential !== 'undefined' ? 'PRF' : 'Password'
@@ -35,11 +33,18 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const reducedMotion = useReducedMotion();
     const titleId = useId();
+    const descriptionId = useId();
+    const errorId = useId();
+    const passwordId = useId();
+    const confirmationId = useId();
+    const passwordHintId = useId();
     const isSetup = mode !== 'unlock';
     const showPassword = isSetup
         ? method === 'Password'
         : metadata?.type === 'Password';
+    const isPasskey = isSetup ? method === 'PRF' : metadata?.type === 'PRF';
 
     useEffect(() => {
         if (mode !== 'unlock') return;
@@ -115,102 +120,237 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
         }
     }
 
+    const description = isSetup
+        ? isPasskey
+            ? 'Use your Mossy passkey for this vault. We’ll create one if you haven’t set one up in this browser.'
+            : 'Choose a password of at least 12 characters to protect this vault.'
+        : !metadata
+          ? 'Loading vault protection…'
+          : isPasskey
+            ? 'Confirm with your device to unlock your vault.'
+            : 'Enter your vault password to continue.';
+    const primaryLabel = busy
+        ? isSetup
+            ? 'Saving…'
+            : 'Unlocking…'
+        : isSetup
+          ? isPasskey
+              ? 'Use passkey'
+              : 'Save password'
+          : 'Unlock vault';
+    const Icon = isPasskey ? MdFingerprint : MdLockOutline;
+
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
+        <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-overlay p-4"
+            initial={reducedMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18 }}
             onClick={(event) => {
                 if (event.target === event.currentTarget) onClose();
             }}
         >
-            <form
+            <motion.form
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
+                aria-describedby={descriptionId}
+                aria-busy={busy}
                 onSubmit={(event) => void submit(event)}
                 onKeyDown={(event) => {
                     if (event.key === 'Escape') onClose();
                 }}
-                className="w-full max-w-lg space-y-5 rounded-xl bg-surface p-6 text-fg-primary shadow-modal"
+                initial={
+                    reducedMotion ? false : { opacity: 0, y: 8, scale: 0.98 }
+                }
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-surface p-6 text-fg-primary shadow-modal outline-none"
             >
-                <div>
-                    <h2 id={titleId} className="text-2xl">
-                        {isSetup ? 'Protect your vault' : 'Unlock your vault'}
-                    </h2>
-                    <p className="mt-2 text-sm text-fg-muted">
-                        {isSetup
-                            ? 'Choose how to protect the vault key on this browser.'
-                            : metadata?.type === 'PRF'
-                              ? 'Confirm with your passkey to continue.'
-                              : 'Enter your vault password to continue.'}
-                    </p>
+                <header className="mb-6 flex items-start gap-3">
+                    <span
+                        className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-subtle text-fg-brand"
+                        aria-hidden="true"
+                    >
+                        <Icon size={23} />
+                    </span>
+                    <div>
+                        <h2 id={titleId} className="text-2xl leading-tight">
+                            {isSetup
+                                ? 'Protect your vault'
+                                : 'Unlock your vault'}
+                        </h2>
+                        <p
+                            id={descriptionId}
+                            className="mt-2 text-sm leading-6 text-fg-muted"
+                        >
+                            {description}
+                        </p>
+                    </div>
+                </header>
+
+                <div className="space-y-5">
+                    {isSetup && isPasskey && (
+                        <div className="rounded-lg border border-border bg-surface-subtle p-4">
+                            <p className="text-sm font-semibold text-fg-secondary">
+                                Unlock with your device
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-fg-muted">
+                                We’ll use your Mossy passkey for this vault.
+                            </p>
+                            <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => setMethod('Password')}
+                                className="mt-3 rounded-sm text-sm font-semibold text-fg-brand underline"
+                            >
+                                Use a password instead
+                            </button>
+                        </div>
+                    )}
+                    {isPasskey && !isSetup && (
+                        <div className="rounded-lg border border-border bg-surface-subtle p-4">
+                            <p className="text-sm font-semibold text-fg-secondary">
+                                Unlock with your device
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-fg-muted">
+                                Confirm with your Mossy passkey to continue.
+                            </p>
+                        </div>
+                    )}
+                    {showPassword && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label
+                                    htmlFor={passwordId}
+                                    className="block text-xs font-semibold text-fg-secondary"
+                                >
+                                    Vault password
+                                </label>
+                                <input
+                                    id={passwordId}
+                                    name="password"
+                                    type="password"
+                                    autoFocus
+                                    autoComplete={
+                                        isSetup
+                                            ? 'new-password'
+                                            : 'current-password'
+                                    }
+                                    value={password}
+                                    onChange={(event) =>
+                                        setPassword(event.target.value)
+                                    }
+                                    minLength={
+                                        isSetup
+                                            ? VAULT_PASSWORD_MIN_LENGTH
+                                            : undefined
+                                    }
+                                    aria-describedby={
+                                        isSetup
+                                            ? passwordHintId
+                                            : error
+                                              ? errorId
+                                              : undefined
+                                    }
+                                    aria-invalid={error ? true : undefined}
+                                    required
+                                    disabled={busy}
+                                    className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm"
+                                />
+                                {isSetup && (
+                                    <p
+                                        id={passwordHintId}
+                                        className="text-xs text-fg-muted"
+                                    >
+                                        At least {VAULT_PASSWORD_MIN_LENGTH}{' '}
+                                        characters.
+                                    </p>
+                                )}
+                            </div>
+                            {isSetup && (
+                                <div className="space-y-2">
+                                    <label
+                                        htmlFor={confirmationId}
+                                        className="block text-xs font-semibold text-fg-secondary"
+                                    >
+                                        Confirm vault password
+                                    </label>
+                                    <input
+                                        id={confirmationId}
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={confirmation}
+                                        onChange={(event) =>
+                                            setConfirmation(event.target.value)
+                                        }
+                                        aria-describedby={
+                                            error ? errorId : undefined
+                                        }
+                                        aria-invalid={error ? true : undefined}
+                                        required
+                                        disabled={busy}
+                                        className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm"
+                                    />
+                                </div>
+                            )}
+                            {isSetup && (
+                                <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => setMethod('PRF')}
+                                    className="rounded-sm text-sm font-semibold text-fg-brand underline"
+                                >
+                                    Use a passkey instead
+                                </button>
+                            )}
+                        </div>
+                    )}
+
+                    {notice && (
+                        <p
+                            role="status"
+                            className="text-sm leading-6 text-fg-muted"
+                        >
+                            {notice}
+                        </p>
+                    )}
+                    {error && (
+                        <div
+                            id={errorId}
+                            role="alert"
+                            className="flex items-start gap-2 rounded-md border border-fg-danger/20 bg-fg-danger/5 p-3 text-sm leading-6 text-fg-danger"
+                        >
+                            <MdErrorOutline
+                                size={18}
+                                className="mt-0.5 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <p>{error}</p>
+                        </div>
+                    )}
                 </div>
 
-                {isSetup && (
-                    <div className="flex gap-3">
-                        <Button
-                            type="button"
-                            variant={method === 'PRF' ? 'primary' : 'outline'}
-                            disabled={busy}
-                            onClick={() => setMethod('PRF')}
-                        >
-                            Passkey
-                        </Button>
-                        <Button
-                            type="button"
-                            variant={method === 'Password' ? 'primary' : 'outline'}
-                            disabled={busy}
-                            onClick={() => setMethod('Password')}
-                        >
-                            Password
-                        </Button>
-                    </div>
-                )}
-
-                {showPassword && (
-                    <div className="space-y-3">
-                        <label className="block text-sm font-medium">
-                            Vault password
-                            <input
-                                type="password"
-                                autoFocus
-                                autoComplete={isSetup ? 'new-password' : 'current-password'}
-                                value={password}
-                                onChange={(event) => setPassword(event.target.value)}
-                                disabled={busy}
-                                required
-                                minLength={isSetup ? VAULT_PASSWORD_MIN_LENGTH : undefined}
-                                className="mt-2 w-full rounded-md border border-border-strong bg-surface px-3 py-2"
-                            />
-                        </label>
-                        {isSetup && (
-                            <label className="block text-sm font-medium">
-                                Confirm password
-                                <input
-                                    type="password"
-                                    autoComplete="new-password"
-                                    value={confirmation}
-                                    onChange={(event) => setConfirmation(event.target.value)}
-                                    disabled={busy}
-                                    required
-                                    className="mt-2 w-full rounded-md border border-border-strong bg-surface px-3 py-2"
-                                />
-                            </label>
-                        )}
-                    </div>
-                )}
-
-                {notice && <p role="status" className="text-sm text-fg-muted">{notice}</p>}
-                {error && <p role="alert" className="text-sm text-fg-danger">{error}</p>}
-
-                <div className="flex justify-end gap-3">
-                    <Button type="button" variant="outline" onClick={onClose}>
+                <footer className="mt-6 flex flex-wrap justify-end gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        padding="medium"
+                        onClick={onClose}
+                        className="min-h-10 whitespace-nowrap text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    >
                         Cancel
                     </Button>
-                    <Button type="submit" disabled={busy || (mode === 'unlock' && !metadata)}>
-                        {busy ? 'Working…' : isSetup ? 'Continue' : 'Unlock vault'}
+                    <Button
+                        type="submit"
+                        padding="medium"
+                        disabled={busy || (mode === 'unlock' && !metadata)}
+                        className="min-h-10 whitespace-nowrap text-sm disabled:cursor-wait disabled:opacity-60"
+                    >
+                        {primaryLabel}
                     </Button>
-                </div>
-            </form>
-        </div>
+                </footer>
+            </motion.form>
+        </motion.div>
     );
 }
