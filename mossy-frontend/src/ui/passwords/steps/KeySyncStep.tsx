@@ -105,13 +105,13 @@ export default function KeySyncStep({
             initial="enter"
             animate="center"
             exit="exit"
-            className="bg-surface shadow-card rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
+            className={`bg-surface shadow-card rounded-md flex flex-col justify-between items-center overflow-hidden ${synced ? 'w-64 max-w-full p-4' : 'lg:w-2/3 md:w-full h-3/4 p-5'}`}
         >
             <AnimatePresence mode="wait">
                 {synced ? (
                     <motion.div
                         key="success"
-                        className="flex items-center justify-center w-full h-full"
+                        className="flex items-center justify-center w-full"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
