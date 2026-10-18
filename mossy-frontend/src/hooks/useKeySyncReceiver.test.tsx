@@ -9,8 +9,8 @@ import type { VaultKeyProtection } from '../types/vaultKey.ts';
 
 const encryption = vi.hoisted(() => ({ saveRawKey: vi.fn() }));
 
-vi.mock('./useKeyStorage.ts', () => ({
-    useKeyStorage: () => encryption,
+vi.mock('../storage/vaultKeys.ts', () => ({
+    keyStorage: encryption,
 }));
 
 vi.mock('../key-sync/receiveVaultKey.ts', () => ({ receiveVaultKey: vi.fn() }));
@@ -19,7 +19,11 @@ describe('receiver lifecycle', () => {
     const protection: VaultKeyProtection = {
         userId: 'user-one',
         passkey: new TextEncoder().encode('a vault password'),
-        metadata: { type: 'Text' },
+        metadata: {
+            type: 'PRF',
+            credentialId: 'Y3JlZA',
+            prfSalt: new Uint8Array(32),
+        },
     };
     const attempts: Parameters<typeof receiveVaultKey>[0][] = [];
 
@@ -82,7 +86,7 @@ describe('receiver lifecycle', () => {
             'vault-one',
             passkey,
             key,
-            { type: 'Text' }
+            { type: 'PRF', credentialId: 'Y3JlZA', prfSalt: new Uint8Array(32) }
         );
         expect(useEncryptionStore.getState().getPasskey('vault-one')).toEqual(
             passkey

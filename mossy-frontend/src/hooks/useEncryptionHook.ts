@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
-import { useKeyStorage } from './useKeyStorage.ts';
+import { keyStorage } from '../storage/vaultKeys.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
 
 export type UseEncryptionResult = {
@@ -10,7 +10,7 @@ export type UseEncryptionResult = {
 };
 
 export function useEncryptionHook(): UseEncryptionResult {
-    const { loadKey, getKeyMetadata } = useKeyStorage();
+    const { loadKey, getKeyMetadata } = keyStorage;
 
     const encrypt = useCallback(
         async (rawPassword: string, vaultId: string) => {

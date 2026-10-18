@@ -1,415 +1,350 @@
-import { useAuthStore } from '../store/authStore.ts';
+import { webcrypto } from 'node:crypto';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { useAuthStore } from '../store/authStore.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { PrfNotSupportedError, useVaultAccess } from './useVaultAccess.ts';
+import { useEncryptionHook } from './useEncryptionHook.ts';
+import { userPasskeyId, vaultKeyId } from '../storage/keyIds.ts';
+import type { DeviceDatabase } from '../auth/deviceIdentity.ts';
 
-const storage = vi.hoisted(() => ({
-    saveKey: vi.fn(),
-    loadKey: vi.fn(),
-    getKeyMetadata: vi.fn(),
-    getUserPasskey: vi.fn(),
-    saveUserPasskey: vi.fn(),
+const database = vi.hoisted(() => ({
+    get: vi.fn(),
+    add: vi.fn(),
+    put: vi.fn(),
 }));
-const prf = vi.hoisted(() => ({
-    registerPasskey: vi.fn(),
-    getPasskey: vi.fn(),
+vi.mock('../auth/deviceIdentity.ts', () => ({
+    getDeviceDatabase: async () => database,
 }));
-
-vi.mock('./useKeyStorage.ts', () => ({ useKeyStorage: () => storage }));
-
-vi.mock('./useVaultKey.ts', () => ({ useVaultKey: () => prf }));
-
-const credentials = new Map<
-    string,
-    { type: 'UserPRF'; credentialId: string }
->();
-
-function registered(credentialId = 'credential') {
-    const salt = new Uint8Array(32).fill(4);
-    return {
-        credential: {
-            id: credentialId,
-            getClientExtensionResults: () => ({
-                prf: { results: { first: new Uint8Array(32).fill(3) } },
-            }),
-        },
-        salt,
-        metadata: { type: 'PRF' as const, credentialId, prfSalt: salt },
-    };
+const records = new Map<string, DeviceDatabase['keys']['value']>();
+const create =
+    vi.fn<(options: CredentialCreationOptions) => Promise<Credential>>();
+const get = vi.fn<(options: CredentialRequestOptions) => Promise<Credential>>();
+class Credential {
+    id = btoa('credential');
+    response: { userHandle: ArrayBuffer | null } = { userHandle: null };
+    private output: AuthenticationExtensionsClientOutputs;
+    constructor(
+        output: AuthenticationExtensionsClientOutputs = {
+            prf: { enabled: true },
+        }
+    ) {
+        this.output = output;
+    }
+    getClientExtensionResults() {
+        return this.output;
+    }
 }
-
 function switchUser(userId: string) {
     act(() =>
         useAuthStore.setState({
+            isAuthenticated: true,
             userDetails: {
                 userId,
-                email: `${userId}@example.test`,
+                email: `${userId}@test.com`,
                 username: userId,
                 grantedAuthorities: [],
             },
         })
     );
 }
-
+let owner = '';
+let sequence = 0;
 beforeEach(() => {
-    useAuthStore.setState({
-        isAuthenticated: true,
-        userDetails: {
-            userId: 'user-one',
-            email: 'one@example.test',
-            username: 'One',
-            grantedAuthorities: [],
-        },
-    });
-
     vi.resetAllMocks();
-    credentials.clear();
-    storage.getUserPasskey.mockImplementation(async () =>
-        credentials.get(useAuthStore.getState().userDetails!.userId)
-    );
-    storage.saveUserPasskey.mockImplementation(async (credentialId: string) => {
-        credentials.set(useAuthStore.getState().userDetails!.userId, {
-            type: 'UserPRF',
-            credentialId,
-        });
-    });
-    prf.getPasskey.mockImplementation(async (_id, salt) => ({
-        prf: { results: { first: new Uint8Array(salt) } },
-    }));
-    useEncryptionStore.setState({ passkeys: {} });
-    vi.stubGlobal('PublicKeyCredential', class {});
+    owner = `user-${++sequence}`;
+    switchUser(owner);
+    useEncryptionStore.getState().clearPasskeys();
+    records.clear();
+    vi.stubGlobal('crypto', webcrypto);
+    vi.stubGlobal('PublicKeyCredential', Credential);
     Object.defineProperty(navigator, 'credentials', {
         configurable: true,
-        value: { create: vi.fn(), get: vi.fn() },
+        value: { create, get },
     });
-    storage.getKeyMetadata.mockRejectedValue(
-        new KeyNotFoundException('Key not found')
+    // Model the browser-wide exclusive lock, including queued cancellation.
+    let tail = Promise.resolve();
+    Object.defineProperty(navigator, 'locks', {
+        configurable: true,
+        value: {
+            request: vi.fn((_name, options, operation) => {
+                const result = tail.then(() => {
+                    options.signal?.throwIfAborted();
+                    return operation();
+                });
+                tail = result.then(
+                    () => {},
+                    () => {}
+                );
+                return result;
+            }),
+        },
+    });
+    database.get.mockImplementation(async (_store, id) => records.get(id));
+    database.add.mockImplementation(async (_store, value, id) => {
+        if (records.has(id))
+            throw new DOMException('Exists', 'ConstraintError');
+        records.set(id, value);
+    });
+    database.put.mockImplementation(async (_store, value, id) =>
+        records.set(id, value)
+    );
+    create.mockResolvedValue(new Credential());
+    get.mockResolvedValue(
+        new Credential({
+            prf: { results: { first: new Uint8Array(32).fill(7) } },
+        })
     );
 });
-
 afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, 'credentials');
+    Reflect.deleteProperty(navigator, 'locks');
 });
 
-describe('vault access', () => {
-    it('persists a text key before marking the vault as unlocked', async () => {
-        let finish!: () => void;
-        storage.saveKey.mockImplementation(
-            () =>
-                new Promise<void>((resolve) => {
-                    finish = resolve;
-                })
-        );
-        const { result } = renderHook(() => useVaultAccess());
+it('accepts enabled-only registration, reuses one credential for concurrent vaults, and caches the unlocked key', async () => {
+    const { result } = renderHook(() => ({
+        access: useVaultAccess(),
+        encryption: useEncryptionHook(),
+    }));
+    await Promise.all([
+        result.current.access.registerVaultKey('one', { type: 'PRF' }),
+        result.current.access.registerVaultKey('two', { type: 'PRF' }),
+    ]);
+    expect(create).toHaveBeenCalledOnce();
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(records.get(userPasskeyId(owner))).toEqual({
+        type: 'UserPRF',
+        credentialId: btoa('credential'),
+    });
+    const one = records.get(vaultKeyId(owner, 'one'));
+    const two = records.get(vaultKeyId(owner, 'two'));
+    expect(one).toMatchObject({
+        type: 'PRF',
+        credentialId: btoa('credential'),
+    });
+    expect(two).toMatchObject({
+        type: 'PRF',
+        credentialId: btoa('credential'),
+    });
+    expect(one).not.toEqual(two);
+    useEncryptionStore.getState().clearPasskeys();
+    const unwrap = vi.spyOn(crypto.subtle, 'unwrapKey');
+    await result.current.access.unlockVault('one');
+    const encrypted = await result.current.encryption.encrypt('secret', 'one');
+    expect(await result.current.encryption.decrypt(encrypted, 'one')).toBe(
+        'secret'
+    );
+    expect(unwrap).toHaveBeenCalledOnce();
+    unwrap.mockRestore();
+    switchUser('other');
+    expect(useEncryptionStore.getState().getKey('one')).toBeUndefined();
+    expect(useEncryptionStore.getState().getPasskey('one')).toBeUndefined();
+});
 
-        const registration = result.current.registerVaultKey('vault', {
+it('uses an immediate PRF output without a second native prompt', async () => {
+    create.mockResolvedValueOnce(
+        new Credential({
+            prf: { enabled: true, results: { first: new Uint8Array(32) } },
+        })
+    );
+    const { result } = renderHook(useVaultAccess);
+    await result.current.registerVaultKey('one', { type: 'PRF' });
+    expect(get).not.toHaveBeenCalled();
+});
+
+it('registers, unlocks, and encrypts with a vault password without creating a passkey', async () => {
+    const password = 'a long vault password';
+    const { result } = renderHook(() => ({
+        access: useVaultAccess(),
+        encryption: useEncryptionHook(),
+    }));
+
+    await expect(
+        result.current.access.registerVaultKey('password-vault', {
             type: 'Text',
-            password: 'a vault password',
-        });
-
-        await vi.waitFor(() => expect(storage.saveKey).toHaveBeenCalledOnce());
-        expect(
-            useEncryptionStore.getState().getPasskey('vault')
-        ).toBeUndefined();
-
-        finish();
-        await registration;
-
-        const bytes = new TextEncoder().encode('a vault password');
-
-        expect(storage.saveKey).toHaveBeenCalledWith('vault', bytes, {
-            type: 'Text',
-        });
-        expect(useEncryptionStore.getState().getPasskey('vault')).toEqual(
-            bytes
-        );
+            password: 'short',
+        })
+    ).rejects.toThrow('at least 12 characters');
+    await result.current.access.registerVaultKey('password-vault', {
+        type: 'Text',
+        password,
     });
+    expect(create).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+    expect(await result.current.access.getKeyMetadata('password-vault')).toEqual({ type: 'Text' });
 
-    it('does not replace an existing vault key', async () => {
-        storage.getKeyMetadata.mockResolvedValue({ type: 'Text' });
-        const { result } = renderHook(() => useVaultAccess());
+    useEncryptionStore.getState().clearPasskeys();
+    await expect(result.current.access.unlockVault('password-vault', 'wrong password')).rejects.toThrow(
+        'Invalid vault password'
+    );
+    await result.current.access.unlockVault('password-vault', password);
+    const ciphertext = await result.current.encryption.encrypt('secret', 'password-vault');
+    expect(await result.current.encryption.decrypt(ciphertext, 'password-vault')).toBe('secret');
+    expect(create).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalled();
+});
 
-        await expect(
-            result.current.registerVaultKey('vault', { type: 'PRF' })
-        ).rejects.toThrow('already has a key');
-        expect(prf.registerPasskey).not.toHaveBeenCalled();
-        expect(storage.saveKey).not.toHaveBeenCalled();
+it('retains the credential when saving its ID fails and retries without creating another', async () => {
+    database.put.mockRejectedValueOnce(new Error('Storage full'));
+    const { result } = renderHook(useVaultAccess);
+    await expect(
+        result.current.registerVaultKey('one', { type: 'PRF' })
+    ).rejects.toThrow('Storage full');
+    expect(records.get(userPasskeyId(owner))).toMatchObject({
+        type: 'PendingPRF',
+        userHandle: expect.any(Uint8Array),
     });
+    await result.current.registerVaultKey('one', { type: 'PRF' });
+    expect(create).toHaveBeenCalledOnce();
+    expect(get).toHaveBeenCalledOnce();
+});
 
-    it('does not cache a key when saving fails', async () => {
-        storage.saveKey.mockRejectedValue(new Error('Storage unavailable'));
-        const { result } = renderHook(() => useVaultAccess());
-
-        await expect(
-            result.current.registerVaultKey('vault', {
-                type: 'Text',
-                password: 'a vault password',
-            })
-        ).rejects.toThrow('Storage unavailable');
-        expect(
-            useEncryptionStore.getState().getPasskey('vault')
-        ).toBeUndefined();
-    });
-
-    it('uses the supplied PRF hook and saves only its returned metadata', async () => {
-        const bytes = new Uint8Array(32).fill(3);
-        const metadata = {
-            type: 'PRF',
-            credentialId: 'credential',
-            prfSalt: new Uint8Array(32).fill(4),
-        };
-        prf.registerPasskey.mockResolvedValue({
-            credential: {
-                id: 'credential',
-                getClientExtensionResults: () => ({
-                    prf: { results: { first: bytes.buffer } },
-                }),
-            },
-            salt: metadata.prfSalt,
-            metadata,
-        });
-        const { result } = renderHook(() => useVaultAccess());
-
-        await result.current.registerVaultKey('vault', { type: 'PRF' });
-
-        expect(prf.registerPasskey).toHaveBeenCalledWith();
-        expect(storage.saveKey).toHaveBeenCalledWith('vault', bytes, metadata);
-        expect(useEncryptionStore.getState().getPasskey('vault')).toEqual(
-            bytes
-        );
-    });
-
-    it('prepares sync protection without saving a new vault key or unlocking the vault', async () => {
-        const { result } = renderHook(() => useVaultAccess());
-
-        await expect(
-            result.current.prepareProtection('vault', {
-                type: 'Text',
-                password: 'a vault password',
-            })
-        ).resolves.toEqual({
-            userId: 'user-one',
-            passkey: new TextEncoder().encode('a vault password'),
-            metadata: { type: 'Text' },
-        });
-        expect(storage.saveKey).not.toHaveBeenCalled();
-        expect(
-            useEncryptionStore.getState().getPasskey('vault')
-        ).toBeUndefined();
-    });
-
-    it('validates a text password before caching it, and allows retrying a failed attempt', async () => {
-        storage.getKeyMetadata.mockResolvedValue({ type: 'Text' });
-        storage.loadKey
-            .mockRejectedValueOnce(new Error('Invalid passkey'))
-            .mockResolvedValue({});
-        const { result } = renderHook(() => useVaultAccess());
-
-        await expect(
-            result.current.unlockVault('vault', 'wrong')
-        ).rejects.toThrow('Invalid passkey');
-        expect(
-            useEncryptionStore.getState().getPasskey('vault')
-        ).toBeUndefined();
-
-        await result.current.unlockVault('vault', 'correct');
-
-        expect(useEncryptionStore.getState().getPasskey('vault')).toEqual(
-            new TextEncoder().encode('correct')
-        );
-    });
-
-    it('unlocks PRF records using the stored credential id and evaluation salt', async () => {
-        const salt = new Uint8Array(32).fill(1);
-        const bytes = new Uint8Array(32).fill(2);
-        storage.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'credential',
-            prfSalt: salt,
-        });
-        // Exercise a BufferSource view with a nonzero byte offset.
-        prf.getPasskey.mockResolvedValue({
-            prf: { results: { first: bytes.subarray(4, 20) } },
-        });
-        const { result } = renderHook(() => useVaultAccess());
-
-        await result.current.unlockVault('vault');
-
-        expect(prf.getPasskey).toHaveBeenCalledWith('credential', salt);
-        expect(storage.loadKey).toHaveBeenCalledWith(
-            'vault',
-            bytes.slice(4, 20)
-        );
-        expect(useEncryptionStore.getState().getPasskey('vault')).toEqual(
-            bytes.slice(4, 20)
-        );
-    });
-
-    it('offers fallback for unsupported PRF while preserving cancellation errors', async () => {
-        const { result } = renderHook(() => useVaultAccess());
-        prf.registerPasskey.mockRejectedValueOnce(
-            new Error('PRF is not supported')
-        );
-
-        await expect(
-            result.current.prepareProtection('vault', { type: 'PRF' })
-        ).rejects.toBeInstanceOf(PrfNotSupportedError);
-
-        prf.registerPasskey.mockRejectedValueOnce(
-            new DOMException('Cancelled', 'NotAllowedError')
-        );
-
-        await expect(
-            result.current.prepareProtection('vault', { type: 'PRF' })
-        ).rejects.toMatchObject({ name: 'NotAllowedError' });
-        expect(storage.saveKey).not.toHaveBeenCalled();
-    });
-
-    it('rejects short setup passwords and cancelled operations before saving', async () => {
-        const { result } = renderHook(() => useVaultAccess());
-
-        await expect(
-            result.current.prepareProtection('vault', {
-                type: 'Text',
-                password: 'short',
-            })
-        ).rejects.toThrow('at least 12 characters');
-
-        const controller = new AbortController();
-        controller.abort();
-
-        await expect(
-            result.current.registerVaultKey(
-                'vault',
-                { type: 'Text', password: 'a vault password' },
-                controller.signal
-            )
-        ).rejects.toMatchObject({ name: 'AbortError' });
-        expect(storage.saveKey).not.toHaveBeenCalled();
-    });
-    it('reuses the account credential after remounting and gives every vault a fresh salt', async () => {
-        prf.registerPasskey.mockResolvedValue(registered());
-        const firstHook = renderHook(() => useVaultAccess());
-        await firstHook.result.current.registerVaultKey('vault-one', {
-            type: 'PRF',
-        });
-        firstHook.unmount();
-
-        const { result } = renderHook(() => useVaultAccess());
-        await result.current.registerVaultKey('vault-two', { type: 'PRF' });
-        await result.current.prepareProtection('vault-three', { type: 'PRF' });
-
-        expect(prf.registerPasskey).toHaveBeenCalledOnce();
-        expect(storage.saveUserPasskey).toHaveBeenCalledExactlyOnceWith(
-            'credential'
-        );
-        expect(prf.getPasskey).toHaveBeenCalledTimes(2);
-        const firstSalt = storage.saveKey.mock.calls[0][2].prfSalt;
-        const secondSalt = storage.saveKey.mock.calls[1][2].prfSalt;
-        const thirdSalt = prf.getPasskey.mock.calls[1][1];
-        expect(secondSalt).toHaveLength(32);
-        expect(secondSalt).not.toEqual(firstSalt);
-        expect(thirdSalt).not.toEqual(secondSalt);
-        expect(storage.saveKey.mock.calls[1][2].credentialId).toBe(
-            'credential'
-        );
-    });
-
-    it('creates separate credentials for two accounts and reuses the first after switching back', async () => {
-        prf.registerPasskey
-            .mockResolvedValueOnce(registered('one'))
-            .mockResolvedValueOnce(registered('two'));
-        const { result } = renderHook(() => useVaultAccess());
-        await result.current.registerVaultKey('shared-vault', { type: 'PRF' });
-        expect(
-            useEncryptionStore.getState().getPasskey('shared-vault')
-        ).toBeDefined();
-
-        switchUser('user-two');
-        expect(
-            useEncryptionStore.getState().getPasskey('shared-vault')
-        ).toBeUndefined();
-        await result.current.prepareProtection('shared-vault', { type: 'PRF' });
-
-        switchUser('user-one');
-        await result.current.prepareProtection('another-vault', {
-            type: 'PRF',
-        });
-        expect(prf.registerPasskey).toHaveBeenCalledTimes(2);
-        expect(credentials.get('user-one')?.credentialId).toBe('one');
-        expect(credentials.get('user-two')?.credentialId).toBe('two');
-        expect(prf.getPasskey).toHaveBeenLastCalledWith(
-            'one',
-            expect.any(Uint8Array)
-        );
-    });
-
-    it('serializes simultaneous setup so only one credential is created', async () => {
-        prf.registerPasskey.mockResolvedValue(registered());
-        const { result } = renderHook(() => useVaultAccess());
-        const protections = await Promise.all([
-            result.current.prepareProtection('one', { type: 'PRF' }),
-            result.current.prepareProtection('two', { type: 'PRF' }),
-        ]);
-        expect(prf.registerPasskey).toHaveBeenCalledOnce();
-        expect(prf.getPasskey).toHaveBeenCalledOnce();
-        expect(protections[0].metadata).not.toEqual(protections[1].metadata);
-    });
-
-    it('keeps a registered credential for retry when saving the vault key fails', async () => {
-        prf.registerPasskey.mockResolvedValue(registered());
-        storage.saveKey.mockRejectedValueOnce(new Error('Storage full'));
-        const { result } = renderHook(() => useVaultAccess());
-        await expect(
-            result.current.registerVaultKey('one', { type: 'PRF' })
-        ).rejects.toThrow('Storage full');
-        await result.current.registerVaultKey('one', { type: 'PRF' });
-        expect(prf.registerPasskey).toHaveBeenCalledOnce();
-        expect(prf.getPasskey).toHaveBeenCalledOnce();
-    });
-
-    it('never replaces an existing credential after cancellation or a failed lookup', async () => {
-        credentials.set('user-one', { type: 'UserPRF', credentialId: 'saved' });
-        prf.getPasskey.mockRejectedValueOnce(
-            new DOMException('Cancelled', 'NotAllowedError')
-        );
-        const { result } = renderHook(() => useVaultAccess());
-        await expect(
-            result.current.prepareProtection('one', { type: 'PRF' })
-        ).rejects.toMatchObject({ name: 'NotAllowedError' });
-        storage.getUserPasskey.mockRejectedValueOnce(
-            new Error('Storage unavailable')
-        );
-        await expect(
-            result.current.prepareProtection('one', { type: 'PRF' })
-        ).rejects.toThrow('Storage unavailable');
-        expect(prf.registerPasskey).not.toHaveBeenCalled();
-        expect(storage.saveUserPasskey).not.toHaveBeenCalled();
-    });
-
-    it('rejects native prompt completion after the account changes', async () => {
-        let finish!: (value: ReturnType<typeof registered>) => void;
-        prf.registerPasskey.mockReturnValue(
+it('persists ownership for the initiating account when it changes during native creation', async () => {
+    let finish!: (value: Credential) => void;
+    create.mockImplementationOnce(
+        () =>
             new Promise((resolve) => {
                 finish = resolve;
             })
-        );
-        const { result } = renderHook(() => useVaultAccess());
-        const operation = result.current.registerVaultKey('one', {
-            type: 'PRF',
-        });
-        const rejected = expect(operation).rejects.toThrow('account changed');
-        await vi.waitFor(() =>
-            expect(prf.registerPasskey).toHaveBeenCalledOnce()
-        );
-        switchUser('user-two');
-        finish(registered());
-        await rejected;
-        expect(storage.saveUserPasskey).not.toHaveBeenCalled();
-        expect(storage.saveKey).not.toHaveBeenCalled();
-        expect(useEncryptionStore.getState().passkeys).toEqual({});
+    );
+    const { result } = renderHook(useVaultAccess);
+    const pending = result.current.registerVaultKey('one', { type: 'PRF' });
+    const rejected = expect(pending).rejects.toThrow('account changed');
+    await vi.waitFor(() => expect(create).toHaveBeenCalledOnce());
+    const originalOwner = owner;
+    switchUser('other');
+    finish(new Credential());
+    await rejected;
+    expect(records.get(userPasskeyId(originalOwner))).toMatchObject({
+        type: 'UserPRF',
     });
+    expect(records.has(vaultKeyId('other', 'one'))).toBe(false);
+    switchUser(originalOwner);
+    await result.current.registerVaultKey('one', { type: 'PRF' });
+    expect(create).toHaveBeenCalledOnce();
+});
+
+it('reuses the credential after vault storage or PRF evaluation fails', async () => {
+    get.mockRejectedValueOnce(new DOMException('Cancelled', 'NotAllowedError'));
+    const { result } = renderHook(useVaultAccess);
+    await expect(
+        result.current.registerVaultKey('one', { type: 'PRF' })
+    ).rejects.toThrow('Cancelled');
+    database.add.mockRejectedValueOnce(new Error('Storage full'));
+    await expect(
+        result.current.registerVaultKey('one', { type: 'PRF' })
+    ).rejects.toThrow('Storage full');
+    await result.current.registerVaultKey('one', { type: 'PRF' });
+    expect(create).toHaveBeenCalledOnce();
+});
+
+it.each(['create', 'get'] as const)(
+    'aborts native %s and releases the lock',
+    async (operation) => {
+        const controller = new AbortController();
+        if (operation === 'get')
+            records.set(userPasskeyId(owner), {
+                type: 'UserPRF',
+                credentialId: btoa('credential'),
+            });
+        const native = operation === 'create' ? create : get;
+        native.mockImplementationOnce(
+            (options) =>
+                new Promise((_resolve, reject) => {
+                    options.signal!.addEventListener(
+                        'abort',
+                        () => reject(options.signal!.reason),
+                        { once: true }
+                    );
+                })
+        );
+        const { result } = renderHook(useVaultAccess);
+        const pending = result.current.prepareProtection(
+            'one',
+            { type: 'PRF' },
+            controller.signal
+        );
+        const rejected = expect(pending).rejects.toMatchObject({
+            name: 'AbortError',
+        });
+        await vi.waitFor(() => expect(native).toHaveBeenCalledOnce());
+        expect(native.mock.calls[0][0].signal).toBe(controller.signal);
+        controller.abort();
+        await rejected;
+        // The lock is available after cancellation; creation remains blocked when
+        // the browser did not return enough information to recover its outcome.
+        const retry = result.current.prepareProtection('one', { type: 'PRF' });
+        if (operation === 'create')
+            await expect(retry).rejects.toThrow('earlier registration');
+        else await expect(retry).resolves.toHaveProperty('passkey');
+    }
+);
+
+it('does not create after an ambiguous reservation, unsupported PRF, failed lookup, or missing browser-wide locks', async () => {
+    const { result } = renderHook(useVaultAccess);
+    records.set(userPasskeyId(owner), {
+        type: 'PendingPRF',
+        userHandle: new Uint8Array(32),
+    });
+    await expect(
+        result.current.prepareProtection('one', { type: 'PRF' })
+    ).rejects.toThrow('earlier registration');
+    records.clear();
+    database.get.mockRejectedValueOnce(new Error('Storage unavailable'));
+    await expect(
+        result.current.prepareProtection('one', { type: 'PRF' })
+    ).rejects.toThrow('Storage unavailable');
+    expect(create).not.toHaveBeenCalled();
+    create.mockResolvedValueOnce(new Credential({}));
+    await expect(
+        result.current.prepareProtection('one', { type: 'PRF' })
+    ).rejects.toBeInstanceOf(PrfNotSupportedError);
+    await result.current.prepareProtection('one', { type: 'PRF' });
+    expect(create).toHaveBeenCalledOnce();
+    Reflect.deleteProperty(navigator, 'locks');
+    await expect(
+        result.current.prepareProtection('one', { type: 'PRF' })
+    ).rejects.toThrow('Web Locks');
+    expect(create).toHaveBeenCalledOnce();
+});
+
+it('recovers ownership from a durable reservation after losing the in-memory result', async () => {
+    const handle = new Uint8Array(32).fill(9);
+    records.set(userPasskeyId(owner), {
+        type: 'PendingPRF',
+        userHandle: handle,
+    });
+    const recovered = new Credential({
+        prf: { results: { first: new Uint8Array(32).fill(7) } },
+    });
+    recovered.response.userHandle = handle.buffer;
+    get.mockResolvedValueOnce(recovered);
+    const { result } = renderHook(useVaultAccess);
+    await result.current.registerVaultKey('one', { type: 'PRF' });
+    expect(create).not.toHaveBeenCalled();
+    expect(get.mock.calls[0][0].publicKey?.allowCredentials).toBeUndefined();
+    expect(records.get(userPasskeyId(owner))).toEqual({
+        type: 'UserPRF',
+        credentialId: recovered.id,
+    });
+    expect(useEncryptionStore.getState().getKey('one')).toBeDefined();
+});
+
+it('keeps credentials separate across accounts and reuses them after switching back', async () => {
+    const { result } = renderHook(useVaultAccess);
+    const originalOwner = owner;
+    await result.current.prepareProtection('one', { type: 'PRF' });
+    switchUser('another-account');
+    await result.current.prepareProtection('one', { type: 'PRF' });
+    switchUser(originalOwner);
+    await result.current.prepareProtection('two', { type: 'PRF' });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[0][0].publicKey!.user.id).not.toEqual(
+        create.mock.calls[1][0].publicKey!.user.id
+    );
+    expect(create.mock.calls[0][0].publicKey!.user.name).toBe(
+        `${originalOwner}@test.com`
+    );
 });

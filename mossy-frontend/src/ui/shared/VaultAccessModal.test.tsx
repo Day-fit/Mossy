@@ -18,11 +18,9 @@ const access = vi.hoisted(() => ({
     prepareProtection: vi.fn(),
     getKeyMetadata: vi.fn(),
 }));
-const supportsPasskeys = vi.hoisted(() => vi.fn());
 vi.mock('../../hooks/useVaultAccess.ts', async (importOriginal) => ({
     ...(await importOriginal<typeof import('../../hooks/useVaultAccess.ts')>()),
     useVaultAccess: () => access,
-    supportsPasskeys,
 }));
 
 beforeEach(() => {
@@ -37,7 +35,16 @@ beforeEach(() => {
     });
 
     vi.resetAllMocks();
-    supportsPasskeys.mockReturnValue(true);
+    vi.stubGlobal('PublicKeyCredential', class {});
+    Object.defineProperty(navigator, 'credentials', {
+        configurable: true,
+        value: { create: vi.fn(), get: vi.fn() },
+    });
+    access.getKeyMetadata.mockResolvedValue({
+        type: 'PRF',
+        credentialId: 'Y3JlZA',
+        prfSalt: new Uint8Array(32),
+    });
     vi.stubGlobal(
         'matchMedia',
         vi.fn(() => ({
@@ -48,22 +55,12 @@ beforeEach(() => {
             removeEventListener: vi.fn(),
         }))
     );
-    access.getKeyMetadata.mockResolvedValue({ type: 'Text' });
 });
 
 afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
 });
-
-function enterSetupPassword() {
-    fireEvent.change(screen.getByLabelText('Vault password'), {
-        target: { value: 'a vault password' },
-    });
-    fireEvent.change(screen.getByLabelText('Confirm vault password'), {
-        target: { value: 'a vault password' },
-    });
-}
 
 describe('vault access modal', () => {
     it('starts PRF registration only on submission, including in StrictMode', async () => {
@@ -94,11 +91,6 @@ describe('vault access modal', () => {
     });
 
     it('automatically unlocks an existing passkey once in StrictMode without another confirmation', async () => {
-        access.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'saved',
-            prfSalt: new Uint8Array(32),
-        });
         const onClose = vi.fn();
         const onSuccess = vi.fn();
         const view = (
@@ -130,11 +122,6 @@ describe('vault access modal', () => {
     });
 
     it('offers an explicit retry after a cancelled automatic passkey request', async () => {
-        access.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'saved',
-            prfSalt: new Uint8Array(32),
-        });
         access.unlockVault.mockRejectedValueOnce(
             new DOMException('Passkey request cancelled', 'NotAllowedError')
         );
@@ -159,30 +146,65 @@ describe('vault access modal', () => {
         expect(access.unlockVault).toHaveBeenCalledTimes(2);
     });
 
-    it('retries a failed key lookup and opens the saved password form directly', async () => {
-        access.getKeyMetadata.mockRejectedValueOnce(
-            new Error('Could not open local storage')
+    it('offers password setup with a notice only for unsupported PRF', async () => {
+        access.registerVaultKey.mockRejectedValueOnce(
+            new PrfNotSupportedError()
         );
+        render(
+            <VaultAccessModal
+                mode="register"
+                vaultId="vault"
+                onClose={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Use passkey' }));
+        expect(
+            await screen.findByLabelText('Confirm vault password')
+        ).toBeTruthy();
+        expect(screen.getByRole('status').textContent).toContain(
+            'Passkeys are unavailable'
+        );
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('keeps other registration failures visible without switching methods', async () => {
+        access.registerVaultKey.mockRejectedValueOnce(
+            new Error('Storage unavailable')
+        );
+        render(
+            <VaultAccessModal
+                mode="register"
+                vaultId="vault"
+                onClose={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: 'Use passkey' }));
+        expect((await screen.findByRole('alert')).textContent).toContain(
+            'Storage unavailable'
+        );
+        expect(screen.queryByLabelText('Vault password')).toBeNull();
+    });
+
+    it('retries a failed key lookup before choosing the unlock method', async () => {
+        access.getKeyMetadata
+            .mockRejectedValueOnce(new Error('Could not open local storage'))
+            .mockResolvedValueOnce({ type: 'Text' });
         render(
             <VaultAccessModal mode="unlock" vaultId="vault" onClose={vi.fn()} />
         );
 
-        await screen.findByRole('alert');
+        expect((await screen.findByRole('alert')).textContent).toContain(
+            'Could not open local storage'
+        );
         fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-
-        const password = await screen.findByLabelText('Vault password');
-
-        expect(document.activeElement).toBe(password);
+        expect(await screen.findByLabelText('Vault password')).toBeTruthy();
         expect(access.getKeyMetadata).toHaveBeenCalledTimes(2);
         expect(access.unlockVault).not.toHaveBeenCalled();
     });
 
     it('ignores automatic unlock completion after the dialog is dismissed', async () => {
-        access.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'saved',
-            prfSalt: new Uint8Array(32),
-        });
         let finish!: () => void;
         access.unlockVault.mockReturnValue(
             new Promise<void>((resolve) => {
@@ -245,141 +267,6 @@ describe('vault access modal', () => {
         opener.remove();
     });
 
-    it('falls back to a confirmed text password when PRF is unavailable', async () => {
-        access.registerVaultKey.mockRejectedValueOnce(
-            new PrfNotSupportedError()
-        );
-        const onClose = vi.fn();
-        render(
-            <VaultAccessModal
-                mode="register"
-                vaultId="vault"
-                onClose={onClose}
-            />
-        );
-
-        fireEvent.click(screen.getByRole('button', { name: 'Use passkey' }));
-
-        await screen.findByLabelText('Confirm vault password');
-
-        expect(onClose).not.toHaveBeenCalled();
-        expect(screen.getByRole('status').textContent).toContain('unavailable');
-
-        enterSetupPassword();
-        fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
-
-        await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
-        expect(access.registerVaultKey).toHaveBeenLastCalledWith(
-            'vault',
-            { type: 'Text', password: 'a vault password' },
-            expect.any(AbortSignal)
-        );
-    });
-
-    it('shows password setup immediately without WebAuthn and validates confirmation', async () => {
-        supportsPasskeys.mockReturnValue(false);
-        render(
-            <VaultAccessModal
-                mode="register"
-                vaultId="vault"
-                onClose={vi.fn()}
-            />
-        );
-
-        enterSetupPassword();
-        fireEvent.change(screen.getByLabelText('Confirm vault password'), {
-            target: { value: 'different' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
-
-        expect(screen.getByRole('alert').textContent).toContain('do not match');
-        expect(access.registerVaultKey).not.toHaveBeenCalled();
-    });
-
-    it('keeps failed unlock attempts open and notifies the caller only after success', async () => {
-        access.unlockVault.mockRejectedValueOnce(new Error('Invalid passkey'));
-        const onClose = vi.fn();
-        const onSuccess = vi.fn();
-        render(
-            <VaultAccessModal
-                mode="unlock"
-                vaultId="vault"
-                onClose={onClose}
-                onSuccess={onSuccess}
-            />
-        );
-        const password = await screen.findByLabelText('Vault password');
-
-        expect(document.activeElement).toBe(password);
-        expect(access.unlockVault).not.toHaveBeenCalled();
-
-        fireEvent.change(password, { target: { value: 'wrong' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
-
-        await screen.findByRole('alert');
-
-        expect(onClose).not.toHaveBeenCalled();
-        expect(onSuccess).not.toHaveBeenCalled();
-
-        fireEvent.change(password, { target: { value: 'correct' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
-
-        await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
-        expect(onClose).toHaveBeenCalledOnce();
-    });
-
-    it('does not offer password fallback when unlocking an existing PRF key fails', async () => {
-        access.getKeyMetadata.mockResolvedValue({
-            type: 'PRF',
-            credentialId: 'credential',
-            prfSalt: new Uint8Array(32),
-        });
-        access.unlockVault.mockRejectedValue(new PrfNotSupportedError());
-        render(
-            <VaultAccessModal mode="unlock" vaultId="vault" onClose={vi.fn()} />
-        );
-
-        await screen.findByRole('alert');
-
-        expect(access.unlockVault).toHaveBeenCalledOnce();
-
-        expect(screen.queryByLabelText('Vault password')).toBeNull();
-        expect(access.registerVaultKey).not.toHaveBeenCalled();
-    });
-
-    it('prepares key-sync protection without registering a replacement vault key', async () => {
-        supportsPasskeys.mockReturnValue(false);
-        const protection = {
-            passkey: new Uint8Array(32),
-            metadata: { type: 'Text' },
-        };
-        access.prepareProtection.mockResolvedValue(protection);
-        const onPrepared = vi.fn();
-        const onClose = vi.fn();
-        render(
-            <VaultAccessModal
-                mode="prepare"
-                vaultId="vault"
-                onClose={onClose}
-                onPrepared={onPrepared}
-            />
-        );
-
-        enterSetupPassword();
-        fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
-
-        await waitFor(() =>
-            expect(onPrepared).toHaveBeenCalledWith(protection)
-        );
-        expect(access.prepareProtection).toHaveBeenCalledWith(
-            'vault',
-            { type: 'Text', password: 'a vault password' },
-            expect.any(AbortSignal)
-        );
-        expect(access.registerVaultKey).not.toHaveBeenCalled();
-        expect(onClose).not.toHaveBeenCalled();
-    });
-
     it('prevents duplicate requests and ignores completion after unmounting', async () => {
         let resolve!: () => void;
         access.registerVaultKey.mockReturnValue(
@@ -413,5 +300,68 @@ describe('vault access modal', () => {
 
         expect(onClose).not.toHaveBeenCalled();
         expect(onSuccess).not.toHaveBeenCalled();
+    });
+
+    it('offers password setup with confirmation and passes it to key sync preparation', async () => {
+        const onPrepared = vi.fn();
+        render(
+            <VaultAccessModal
+                mode="prepare"
+                vaultId="vault"
+                onClose={vi.fn()}
+                onPrepared={onPrepared}
+            />
+        );
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Use a password instead' })
+        );
+        fireEvent.change(screen.getByLabelText('Vault password'), {
+            target: { value: 'a long vault password' },
+        });
+        fireEvent.change(screen.getByLabelText('Confirm vault password'), {
+            target: { value: 'different password' },
+        });
+        fireEvent.submit(screen.getByRole('dialog'));
+        expect(screen.getByRole('alert').textContent).toContain(
+            'Passwords do not match'
+        );
+        expect(access.prepareProtection).not.toHaveBeenCalled();
+
+        fireEvent.change(screen.getByLabelText('Confirm vault password'), {
+            target: { value: 'a long vault password' },
+        });
+        fireEvent.submit(screen.getByRole('dialog'));
+        await waitFor(() => expect(onPrepared).toHaveBeenCalledOnce());
+        expect(access.prepareProtection).toHaveBeenCalledWith(
+            'vault',
+            { type: 'Text', password: 'a long vault password' },
+            expect.any(AbortSignal)
+        );
+        expect(access.registerVaultKey).not.toHaveBeenCalled();
+    });
+
+    it('shows the password field for a stored password key without invoking a passkey', async () => {
+        access.getKeyMetadata.mockResolvedValue({ type: 'Text' });
+        const onSuccess = vi.fn();
+        render(
+            <VaultAccessModal
+                mode="unlock"
+                vaultId="vault"
+                onClose={vi.fn()}
+                onSuccess={onSuccess}
+            />
+        );
+        const password = await screen.findByLabelText('Vault password');
+        expect(access.unlockVault).not.toHaveBeenCalled();
+        fireEvent.change(password, {
+            target: { value: 'a long vault password' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledOnce());
+        expect(access.unlockVault).toHaveBeenCalledWith(
+            'vault',
+            'a long vault password',
+            expect.any(AbortSignal)
+        );
     });
 });

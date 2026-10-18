@@ -3,7 +3,7 @@ import { requireActiveUser } from '../auth/activeUser.ts';
 import { useAuthStore } from '../store/authStore.ts';
 import { useShallow } from 'zustand/react/shallow';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import { useKeyStorage } from './useKeyStorage.ts';
+import { keyStorage } from '../storage/vaultKeys.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
 import type { VaultKeyProtection } from '../types/vaultKey.ts';
@@ -23,8 +23,8 @@ export function useKeySyncReceiver(
 
     const receiverId = useDeviceStore((state) => state.deviceId);
     const identity = useDeviceStore(useShallow((state) => state.idKey));
-    const { saveRawKey } = useKeyStorage();
-    const setPasskey = useEncryptionStore((state) => state.setPasskey);
+    const { saveRawKey } = keyStorage;
+    const setUnlocked = useEncryptionStore((state) => state.setUnlocked);
 
     const [state, setState] = useState<ReceiverState>({ phase: 'preparing' });
     const [attempt, setAttempt] = useState(0);
@@ -59,10 +59,15 @@ export function useKeySyncReceiver(
             saveKey: async (key) => {
                 controller.signal.throwIfAborted();
                 requireActiveUser(owner);
-                await saveRawKey(vaultId, passkey, key, metadata);
+                const dataKey = await saveRawKey(
+                    vaultId,
+                    passkey,
+                    key,
+                    metadata
+                );
 
                 if (!controller.signal.aborted)
-                    setPasskey(vaultId, passkey, owner);
+                    setUnlocked(vaultId, passkey, dataKey, owner);
             },
         })
             .then(() => {
@@ -99,7 +104,7 @@ export function useKeySyncReceiver(
         passkey,
         receiverId,
         saveRawKey,
-        setPasskey,
+        setUnlocked,
         vaultId,
     ]);
 

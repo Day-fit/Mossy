@@ -79,9 +79,10 @@ it('guides an empty account to all three setup pages', async () => {
     ).toBe('step');
 });
 
-it.each([false, true])(
+it.each(['none', 'PRF', 'Text'] as const)(
     'reflects vault and key progress (stored key: %s)',
-    async (hasKey) => {
+    async (keyType) => {
+        const hasKey = keyType !== 'none';
         useVaultStore.setState({
             vaults: [
                 {
@@ -96,7 +97,9 @@ it.each([false, true])(
         getKey.mockResolvedValue(
             hasKey
                 ? {
-                      type: 'Text',
+                      type: keyType,
+                      credentialId: 'Y3JlZA',
+                      prfSalt: new Uint8Array(32),
                       wrappedKey: new Uint8Array([1]).buffer,
                       salt: new Uint8Array([2]),
                   }

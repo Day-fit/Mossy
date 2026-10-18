@@ -6,7 +6,7 @@ import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
 import { getVerifiedReceiver, sendVaultKey } from '../key-sync/sendVaultKey.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
-import { useKeyStorage } from './useKeyStorage.ts';
+import { keyStorage } from '../storage/vaultKeys.ts';
 
 type SenderState = {
     phase: 'idle' | 'syncing' | 'needs-unlock' | 'success' | 'error';
@@ -19,7 +19,7 @@ const idle: SenderState = { phase: 'idle', code: '' };
 
 export function useKeySyncSender() {
     const userId = useAuthStore((state) => state.userDetails?.userId);
-    const { loadKey } = useKeyStorage();
+    const { loadKey } = keyStorage;
 
     const [state, setState] = useState<SenderState>(idle);
     const activeRequest = useRef<AbortController | null>(null);
@@ -95,7 +95,8 @@ export function useKeySyncSender() {
 
                 setState({
                     phase:
-                        message === 'Invalid passkey'
+                        message === 'Invalid passkey' ||
+                        message === 'Invalid vault password'
                             ? 'needs-unlock'
                             : 'error',
                     code,

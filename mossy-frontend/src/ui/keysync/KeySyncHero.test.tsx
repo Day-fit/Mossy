@@ -23,9 +23,14 @@ const encryption = vi.hoisted(() => ({
     getKeyMetadata: vi.fn(),
 }));
 
+const passkeys = vi.hoisted(() => ({
+    getPasskey: vi.fn(),
+    supportsPasskeys: () => true,
+}));
+vi.mock('../../auth/passkeys.ts', () => passkeys);
 vi.mock('../../key-sync/sendVaultKey.ts', () => services);
-vi.mock('../../hooks/useKeyStorage.ts', () => ({
-    useKeyStorage: () => encryption,
+vi.mock('../../storage/vaultKeys.ts', () => ({
+    keyStorage: encryption,
 }));
 
 describe('key sync sender page', () => {
@@ -73,7 +78,12 @@ describe('key sync sender page', () => {
         });
         services.sendVaultKey.mockResolvedValue(undefined);
         encryption.loadKey.mockResolvedValue({});
-        encryption.getKeyMetadata.mockResolvedValue({ type: 'Text' });
+        encryption.getKeyMetadata.mockResolvedValue({
+            type: 'PRF',
+            credentialId: 'Y3JlZA',
+            prfSalt: new Uint8Array(32),
+        });
+        passkeys.getPasskey.mockResolvedValue(new Uint8Array(32).fill(7));
     });
 
     it('accepts letters in manually entered codes and uploads once after normalizing case', async () => {
@@ -106,7 +116,7 @@ describe('key sync sender page', () => {
         );
     });
 
-    it('handles a linked alphanumeric code in StrictMode and allows retrying a wrong vault password', async () => {
+    it('handles a linked alphanumeric code in StrictMode and allows retrying a failed passkey unlock', async () => {
         encryption.loadKey
             .mockRejectedValueOnce(new Error('Invalid passkey'))
             .mockResolvedValue({});
@@ -117,24 +127,16 @@ describe('key sync sender page', () => {
                 </MemoryRouter>
             </StrictMode>
         );
-        const password = await screen.findByLabelText('Vault password');
+        await screen.findByRole('alert');
 
         expect(services.getVerifiedReceiver).toHaveBeenCalledOnce();
-
-        fireEvent.change(password, { target: { value: 'wrong password' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
-
-        await screen.findByRole('alert');
 
         expect(screen.getByRole('alert').textContent).toContain(
             'Invalid passkey'
         );
         expect(services.sendVaultKey).not.toHaveBeenCalled();
 
-        fireEvent.change(screen.getByLabelText('Vault password'), {
-            target: { value: '1234' },
-        });
-        fireEvent.click(screen.getByRole('button', { name: 'Unlock vault' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
         await waitFor(() =>
             expect(services.sendVaultKey).toHaveBeenCalledOnce()

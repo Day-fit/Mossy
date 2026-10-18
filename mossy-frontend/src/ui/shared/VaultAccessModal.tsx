@@ -11,14 +11,13 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { MdErrorOutline, MdFingerprint, MdLockOutline } from 'react-icons/md';
 import {
     PrfNotSupportedError,
-    supportsPasskeys,
     useVaultAccess,
     VAULT_PASSWORD_MIN_LENGTH,
+    type VaultKeySetup,
 } from '../../hooks/useVaultAccess.ts';
-import type {
-    VaultKeyMetadata,
-    VaultKeyProtection,
-} from '../../types/vaultKey.ts';
+import { supportsPasskeys } from '../../auth/passkeys.ts';
+import type { VaultKeyMetadata } from '../../types/vaultKey.ts';
+import type { VaultKeyProtection } from '../../types/vaultKey.ts';
 import { useAuthStore } from '../../store/authStore.ts';
 import Button from './Button.tsx';
 
@@ -45,7 +44,7 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
     const { vaultId, onClose, mode } = props;
     const reducedMotion = useReducedMotion();
 
-    const { getKeyMetadata, registerVaultKey, unlockVault, prepareProtection } =
+    const { registerVaultKey, unlockVault, prepareProtection, getKeyMetadata } =
         useVaultAccess();
 
     const [metadata, setMetadata] = useState<VaultKeyMetadata | null>(null);
@@ -53,10 +52,8 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
     const [method, setMethod] = useState<'PRF' | 'Text'>(() =>
         supportsPasskeys() ? 'PRF' : 'Text'
     );
-
     const [password, setPassword] = useState('');
     const [confirmation, setConfirmation] = useState('');
-
     const [isBusy, setIsBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
@@ -65,18 +62,16 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
     const formRef = useRef<HTMLFormElement>(null);
     const titleId = useId();
     const descriptionId = useId();
-    const passwordId = useId();
-    const passwordHintId = useId();
-    const confirmationId = useId();
     const errorId = useId();
+    const passwordId = useId();
+    const confirmationId = useId();
+    const passwordHintId = useId();
 
     const isSetup = mode !== 'unlock';
     const showPassword = isSetup
         ? method === 'Text'
         : metadata?.type === 'Text';
     const isPasskeyUnlock = !isSetup && metadata?.type === 'PRF';
-    const canDismiss = !isBusy || !isSetup;
-
     async function accessVault() {
         if (request.current) return;
 
@@ -89,11 +84,10 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
             if (mode === 'unlock') {
                 await unlockVault(vaultId, password, controller.signal);
             } else {
-                const setup =
+                const setup: VaultKeySetup =
                     method === 'PRF'
-                        ? { type: 'PRF' as const }
-                        : { type: 'Text' as const, password };
-
+                        ? { type: 'PRF' }
+                        : { type: 'Text', password };
                 if (mode === 'prepare') {
                     const protection = await prepareProtection(
                         vaultId,
@@ -138,28 +132,21 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
 
     useEffect(() => {
         if (mode !== 'unlock') return;
-
         let disposed = false;
-
-        void getKeyMetadata(vaultId).then(
-            (value) => {
+        void getKeyMetadata(vaultId)
+            .then((value) => {
                 if (disposed) return;
-
                 setMetadata(value);
-
                 if (value.type === 'PRF') unlockSavedPasskey();
-            },
-            (reason: unknown) => {
-                if (!disposed) {
+            })
+            .catch((reason: unknown) => {
+                if (!disposed)
                     setError(
                         reason instanceof Error
                             ? reason.message
                             : 'Could not load the vault key.'
                     );
-                }
-            }
-        );
-
+            });
         return () => {
             disposed = true;
         };
@@ -183,8 +170,6 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
     }, []);
 
     function dismiss() {
-        if (!canDismiss) return;
-
         request.current?.abort();
         onClose();
     }
@@ -229,23 +214,34 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
             return;
         }
 
-        if (isSetup && showPassword && password !== confirmation) {
+        if (
+            isSetup &&
+            method === 'Text' &&
+            password.length < VAULT_PASSWORD_MIN_LENGTH
+        ) {
+            setError(
+                `Use at least ${VAULT_PASSWORD_MIN_LENGTH} characters for your vault password.`
+            );
+            return;
+        }
+        if (isSetup && method === 'Text' && password !== confirmation) {
             setError('Passwords do not match.');
             return;
         }
-
+        if (!isSetup && metadata?.type === 'Text' && !password) {
+            setError('Enter your vault password.');
+            return;
+        }
         void accessVault();
     }
 
     const description = isSetup
-        ? 'Choose how to unlock this vault on this device.'
+        ? method === 'PRF'
+            ? 'Use your Mossy passkey for this vault. We’ll create one if you haven’t set one up in this browser.'
+            : 'Choose a password of at least 12 characters to protect this vault.'
         : showPassword
           ? 'Enter your vault password to continue.'
           : 'Confirm with your device to unlock your vault.';
-    const Icon =
-        isPasskeyUnlock || (isSetup && method === 'PRF')
-            ? MdFingerprint
-            : MdLockOutline;
     const primaryLabel = isBusy
         ? isSetup
             ? 'Saving…'
@@ -254,9 +250,13 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
           ? method === 'PRF'
               ? 'Use passkey'
               : 'Save password'
-          : isPasskeyUnlock || !metadata
-            ? 'Try again'
-            : 'Unlock vault';
+          : showPassword
+            ? 'Unlock vault'
+            : 'Try again';
+    const Icon =
+        isPasskeyUnlock || (isSetup && method === 'PRF')
+            ? MdFingerprint
+            : MdLockOutline;
 
     return (
         <motion.div
@@ -308,32 +308,13 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                 </header>
 
                 <div className="space-y-5">
-                    {!isSetup && !metadata && !error && (
-                        <div
-                            role="status"
-                            className="space-y-2 rounded-lg border border-border bg-surface-subtle p-4"
-                        >
-                            <span className="sr-only">Loading vault key…</span>
-                            <div
-                                aria-hidden="true"
-                                className="h-3 w-32 rounded bg-surface-muted"
-                            />
-                            <div
-                                aria-hidden="true"
-                                className="h-3 w-3/4 rounded bg-surface-muted"
-                            />
-                        </div>
-                    )}
-
                     {isSetup && method === 'PRF' && (
                         <div className="rounded-lg border border-border bg-surface-subtle p-4">
                             <p className="text-sm font-semibold text-fg-secondary">
                                 Unlock with your device
                             </p>
                             <p className="mt-1 text-sm leading-6 text-fg-muted">
-                                Use your Mossy passkey for this vault. We’ll
-                                create one if you haven’t set one up in this
-                                browser.
+                                We’ll use your Mossy passkey for this vault.
                             </p>
                             <button
                                 type="button"
@@ -342,36 +323,17 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                                     setMethod('Text');
                                     setError(null);
                                 }}
-                                className="mt-3 rounded-sm text-sm font-semibold text-fg-brand underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                                className="mt-3 rounded-sm text-sm font-semibold text-fg-brand underline"
                             >
                                 Use a password instead
                             </button>
                         </div>
                     )}
-
                     {isPasskeyUnlock && !error && (
-                        <div
-                            role="status"
-                            className="rounded-lg border border-border bg-surface-subtle p-4"
-                        >
-                            <p className="text-sm font-semibold text-fg-secondary">
-                                Waiting for your passkey
-                            </p>
-                            <p className="mt-1 text-sm leading-6 text-fg-muted">
-                                Complete the prompt from your browser or device.
-                            </p>
-                        </div>
-                    )}
-
-                    {notice && (
-                        <p
-                            role="status"
-                            className="text-sm leading-6 text-fg-muted"
-                        >
-                            {notice}
+                        <p role="status" className="text-sm text-fg-muted">
+                            Complete the prompt from your browser or device.
                         </p>
                     )}
-
                     {showPassword && (
                         <div className="space-y-4">
                             <div className="space-y-2">
@@ -385,12 +347,12 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                                     id={passwordId}
                                     name="password"
                                     type="password"
+                                    autoFocus
                                     autoComplete={
                                         isSetup
                                             ? 'new-password'
                                             : 'current-password'
                                     }
-                                    autoFocus
                                     value={password}
                                     onChange={(event) =>
                                         setPassword(event.target.value)
@@ -410,19 +372,18 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                                     aria-invalid={error ? true : undefined}
                                     required
                                     disabled={isBusy}
-                                    className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm text-fg-primary focus:border-fg-brand focus:outline-none focus:ring-2 focus:ring-fg-brand/20 disabled:cursor-wait disabled:opacity-60"
+                                    className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm"
                                 />
                                 {isSetup && (
                                     <p
                                         id={passwordHintId}
-                                        className="text-xs leading-5 text-fg-muted"
+                                        className="text-xs text-fg-muted"
                                     >
                                         At least {VAULT_PASSWORD_MIN_LENGTH}{' '}
                                         characters.
                                     </p>
                                 )}
                             </div>
-
                             {isSetup && (
                                 <div className="space-y-2">
                                     <label
@@ -433,7 +394,6 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                                     </label>
                                     <input
                                         id={confirmationId}
-                                        name="confirmation"
                                         type="password"
                                         autoComplete="new-password"
                                         value={confirmation}
@@ -446,11 +406,20 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                                         aria-invalid={error ? true : undefined}
                                         required
                                         disabled={isBusy}
-                                        className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm text-fg-primary focus:border-fg-brand focus:outline-none focus:ring-2 focus:ring-fg-brand/20 disabled:cursor-wait disabled:opacity-60"
+                                        className="min-h-11 w-full rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm"
                                     />
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {notice && (
+                        <p
+                            role="status"
+                            className="text-sm leading-6 text-fg-muted"
+                        >
+                            {notice}
+                        </p>
                     )}
 
                     {error && (
@@ -474,7 +443,6 @@ function VaultAccessDialog(props: VaultAccessModalProps) {
                         type="button"
                         variant="outline"
                         padding="medium"
-                        disabled={!canDismiss}
                         onClick={dismiss}
                         className="min-h-10 whitespace-nowrap text-sm disabled:cursor-not-allowed disabled:opacity-60"
                     >

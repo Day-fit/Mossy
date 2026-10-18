@@ -6,7 +6,11 @@ import type { VaultKeyProtection } from '../../../types/vaultKey.ts';
 const protection: VaultKeyProtection = {
     userId: 'user-one',
     passkey: new TextEncoder().encode('a vault password'),
-    metadata: { type: 'Text' },
+    metadata: {
+        type: 'PRF',
+        credentialId: 'Y3JlZA',
+        prfSalt: new Uint8Array(32),
+    },
 };
 
 const { qrConfig } = vi.hoisted(() => ({

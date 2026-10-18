@@ -1,6 +1,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import sodium from 'libsodium-wrappers-sumo';
-import type { StoredUserPasskey, StoredVaultKey } from '../types/vaultKey.ts';
+import type {
+    PasskeyReservation,
+    StoredUserPasskey,
+    StoredVaultKey,
+} from '../types/vaultKey.ts';
 
 export type KeyPair = {
     public: string;
@@ -12,7 +16,11 @@ export type CryptoPair = { type: 'Ed25519' } & KeyPair;
 export interface DeviceDatabase extends DBSchema {
     keys: {
         key: string;
-        value: CryptoPair | StoredVaultKey | StoredUserPasskey;
+        value:
+            | CryptoPair
+            | StoredVaultKey
+            | StoredUserPasskey
+            | PasskeyReservation;
     };
     device: { key: string; value: string };
 }
@@ -52,35 +60,10 @@ export async function getDeviceDatabase(): Promise<
     return dbInitializationPromise;
 }
 
-export async function loadDeviceIdentity(
-    legacyUserId?: string
-): Promise<CryptoPair | null> {
+export async function loadDeviceIdentity(): Promise<CryptoPair | null> {
     const db = await getDeviceDatabase();
     const current = await db.get('keys', CURRENT_IDENTITY_KEY);
-
-    if (current?.type === 'Ed25519') return current;
-
-    const legacy = legacyUserId
-        ? await db.get('keys', legacyUserId)
-        : undefined;
-
-    if (legacy?.type === 'Ed25519') {
-        await db.put('keys', legacy, CURRENT_IDENTITY_KEY);
-        return legacy;
-    }
-
-    // Older builds keyed the only local identity by user id. Since the device id
-    // was global as well, a single legacy identity can be migrated unambiguously.
-    const legacyIdentities = (await db.getAll('keys')).filter(
-        (value): value is CryptoPair => value?.type === 'Ed25519'
-    );
-
-    if (legacyIdentities.length === 1) {
-        await db.put('keys', legacyIdentities[0], CURRENT_IDENTITY_KEY);
-        return legacyIdentities[0];
-    }
-
-    return null;
+    return current?.type === 'Ed25519' ? current : null;
 }
 
 export async function ensureDeviceIdentity(): Promise<CryptoPair> {
