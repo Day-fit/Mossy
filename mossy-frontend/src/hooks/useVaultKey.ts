@@ -1,14 +1,18 @@
+import { prfInput } from '@mossy/client-core';
 import { useAuthStore } from '../store/authStore.ts';
 
 export function useVaultKey() {
     const userDetails = useAuthStore((state) => state.userDetails);
     const encoder = new TextEncoder();
-    const userSalt = (userId: string) => encoder.encode(`mossy:encryption:v1:${userId}`);
+    const userSalt = prfInput;
 
     const registerPasskey = async () => {
         if (userDetails === null)
             throw new Error('User details not available.');
-        if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.create)
+        if (
+            typeof PublicKeyCredential === 'undefined' ||
+            !navigator.credentials?.create
+        )
             throw new DOMException('PRF is not supported', 'NotSupportedError');
 
         const cred = await navigator.credentials.create({
@@ -48,8 +52,7 @@ export function useVaultKey() {
         }
 
         const results = cred.getClientExtensionResults();
-        const isPrfNotSupported =
-            !(results.prf && results.prf.enabled);
+        const isPrfNotSupported = !(results.prf && results.prf.enabled);
 
         if (isPrfNotSupported) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
@@ -57,7 +60,9 @@ export function useVaultKey() {
 
         return {
             credential: cred,
-            results: results.prf?.results?.first ? results : await getPasskey(cred.rawId),
+            results: results.prf?.results?.first
+                ? results
+                : await getPasskey(cred.rawId),
             metadata: {
                 type: 'PRF',
             },
@@ -67,7 +72,10 @@ export function useVaultKey() {
     const getPasskey = async (credentialId?: BufferSource) => {
         if (userDetails === null)
             throw new Error('User details not available.');
-        if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.get)
+        if (
+            typeof PublicKeyCredential === 'undefined' ||
+            !navigator.credentials?.get
+        )
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         const cred = await navigator.credentials.get({
             publicKey: {

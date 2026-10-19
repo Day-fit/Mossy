@@ -5,15 +5,10 @@ import {
     type PublicIdentityJwk,
     type EmailVerification,
 } from '../api/auth.api.ts';
-import {
-    executeConfirmEnrollmentRequest,
-    executeCreateEnrollmentRequest,
-    executeDeviceLoginChallengeRequest,
-} from '../api/deviceTrust.api.ts';
-import { ApiError } from '../api/client.ts';
+import { executeDeviceLoginChallengeRequest } from '../api/deviceTrust.api.ts';
+import { signInWithSharedCore } from './sharedCoreAdapter.ts';
 import {
     ensureDeviceIdentity,
-    loadStoredDeviceId,
     signNonce,
     storeDeviceId,
     type CryptoPair,
@@ -76,37 +71,6 @@ async function loginKnownDevice(
     };
 }
 
-async function enrollDevice(
-    credentials: Credentials,
-    identity: CryptoPair
-): Promise<SignInResult> {
-    const enrollmentLogin = await executeLoginRequest({
-        ...credentials,
-        challengeDto: null,
-    });
-    const enrollmentToken = requireTokenType(
-        enrollmentLogin,
-        'DEVICE_ENROLLMENT_TOKEN'
-    );
-    const enrollment = await executeCreateEnrollmentRequest({
-        token: enrollmentToken,
-        idempotencyKey: crypto.randomUUID(),
-        userAgent: navigator.userAgent,
-        publicIdentityKey: publicJwk(identity),
-    });
-    const signature = await signNonce(enrollment.challenge.nonce, identity);
-    const confirmed = await executeConfirmEnrollmentRequest({
-        token: enrollmentToken,
-        idempotencyKey: crypto.randomUUID(),
-        enrollmentId: enrollment.enrollmentId,
-        challengeId: enrollment.challenge.challengeId,
-        signature,
-    });
-    await storeDeviceId(confirmed.deviceId, credentials.identifier);
-
-    return { status: 'enrollment-pending', deviceId: confirmed.deviceId };
-}
-
 export async function registerAndSignIn(data: {
     username: string;
     email: string;
@@ -145,20 +109,5 @@ export async function registerAndSignIn(data: {
 }
 
 export async function signIn(credentials: Credentials): Promise<SignInResult> {
-    const identity = await ensureDeviceIdentity();
-    const deviceId = await loadStoredDeviceId(credentials.identifier);
-    if (deviceId) {
-        try {
-            return await loginKnownDevice(credentials, deviceId, identity);
-        } catch (error) {
-            if (
-                !(error instanceof ApiError) ||
-                ![401, 404].includes(error.status)
-            ) {
-                throw error;
-            }
-        }
-    }
-
-    return enrollDevice(credentials, identity);
+    return signInWithSharedCore(credentials);
 }

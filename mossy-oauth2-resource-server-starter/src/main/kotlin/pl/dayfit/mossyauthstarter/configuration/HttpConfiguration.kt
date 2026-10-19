@@ -4,6 +4,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.HttpHeaders
 import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
@@ -64,6 +65,31 @@ class HttpConfiguration {
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration)
-        return urlBasedCorsConfigurationSource
+        val extensionOrigins = securityConfigurationProperties.extensionAllowedOrigins
+        require(extensionOrigins.all { Regex("chrome-extension://[a-p]{32}").matches(it) }) {
+            "Extension API origins must be exact chrome-extension:// origins with a 32-character extension ID"
+        }
+        val extensionConfiguration = CorsConfiguration().apply {
+            this.allowedOrigins = extensionOrigins
+            allowedMethods = corsConfiguration.allowedMethods
+            allowedHeaders = listOf("Authorization", "Content-Type", "Idempotency-Key", "Accept")
+            // These routes authenticate bearer tokens. Only the separate extension
+            // session controller accepts its own refresh cookie.
+            allowCredentials = false
+            maxAge = 300
+        }
+        val extensionSource = UrlBasedCorsConfigurationSource().apply {
+            securityConfigurationProperties.extensionAllowedPaths.forEach {
+                registerCorsConfiguration(it, extensionConfiguration)
+            }
+        }
+        val deniedExtension = CorsConfiguration()
+        return CorsConfigurationSource { request ->
+            if (request.getHeader(HttpHeaders.ORIGIN)?.startsWith("chrome-extension:") == true) {
+                extensionSource.getCorsConfiguration(request) ?: deniedExtension
+            } else {
+                urlBasedCorsConfigurationSource.getCorsConfiguration(request)
+            }
+        }
     }
 }

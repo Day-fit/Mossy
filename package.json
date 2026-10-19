@@ -1,0 +1,25 @@
+{
+    "name": "mossy",
+    "private": true,
+    "version": "0.0.0",
+    "type": "module",
+    "workspaces": [
+        "mossy-frontend",
+        "mossy-extension",
+        "packages/*"
+    ],
+    "scripts": {
+        "build": "npm run build --workspaces --if-present",
+        "test": "npm run test --workspaces --if-present",
+        "lint": "npm run lint --workspaces --if-present",
+        "typecheck": "npm run typecheck --workspaces --if-present",
+        "test:browser": "npm run test:browser -w mossy-extension",
+        "extension:zip": "npm run zip -w mossy-extension"
+    },
+    "devDependencies": {
+        "typescript": "~5.9.3",
+        "vitest": "^4.1.11",
+        "@types/node": "^24.10.1",
+        "@playwright/test": "^1.58.2"
+    }
+}

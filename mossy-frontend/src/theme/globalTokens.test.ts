@@ -109,7 +109,10 @@ function blend(
 }
 
 describe('global design token contract', () => {
-    const globals = readFileSync(globalsPath, 'utf8');
+    const globals = readFileSync(
+        join(srcRoot, '../../packages/ui/src/tokens.css'),
+        'utf8'
+    );
     const base = declarations(globals.match(/@theme static\s*\{([^}]+)\}/)![1]);
     const dark = declarations(
         globals.match(/:root\[data-theme='dark'\]\s*\{([^}]+)\}/)![1]

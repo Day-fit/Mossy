@@ -33,7 +33,7 @@ describe('auth flow', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         deviceIdentity.ensureDeviceIdentity.mockResolvedValue(identity);
-        deviceIdentity.signNonce.mockResolvedValue('signed-nonce');
+        deviceIdentity.signNonce.mockResolvedValue('c2lnbmVkLW5vbmNl');
         deviceIdentity.storeDeviceId.mockResolvedValue(undefined);
     });
 
@@ -42,7 +42,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
             status: 'challenge-ready',
             challenge: {
-                nonce: 'nonce-1',
+                nonce: 'bm9uY2UtMQ',
                 challengeId: 'challenge-1',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -57,7 +57,7 @@ describe('auth flow', () => {
             accessToken: 'access-token',
         });
         expect(deviceIdentity.signNonce).toHaveBeenCalledWith(
-            'nonce-1',
+            'bm9uY2UtMQ',
             identity
         );
         expect(deviceIdentity.loadStoredDeviceId).toHaveBeenCalledWith('mossy');
@@ -66,7 +66,7 @@ describe('auth flow', () => {
             challengeDto: {
                 deviceId: 'device-1',
                 challengeId: 'challenge-1',
-                signature: 'signed-nonce',
+                signature: 'c2lnbmVkLW5vbmNl',
             },
         });
         expect(
@@ -97,7 +97,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeCreateEnrollmentRequest.mockResolvedValue({
             enrollmentId: 'enrollment-1',
             challenge: {
-                nonce: 'enrollment-nonce',
+                nonce: 'ZW5yb2xsbWVudC1ub25jZQ',
                 challengeId: 'enrollment-challenge',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -121,7 +121,7 @@ describe('auth flow', () => {
                 token: 'enrollment-token',
                 enrollmentId: 'enrollment-1',
                 challengeId: 'enrollment-challenge',
-                signature: 'signed-nonce',
+                signature: 'c2lnbmVkLW5vbmNl',
             })
         );
         expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
@@ -142,7 +142,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeCreateEnrollmentRequest.mockResolvedValue({
             enrollmentId: 'replacement-enrollment',
             challenge: {
-                nonce: 'replacement-nonce',
+                nonce: 'cmVwbGFjZW1lbnQtbm9uY2U',
                 challengeId: 'replacement-challenge',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -173,7 +173,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
             status: 'challenge-ready',
             challenge: {
-                nonce: 'nonce-2',
+                nonce: 'bm9uY2UtMg',
                 challengeId: 'challenge-2',
                 expiresAt: '2026-08-11T00:00:00Z',
             },

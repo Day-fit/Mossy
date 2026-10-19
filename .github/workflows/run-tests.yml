@@ -2,8 +2,10 @@ name: Run tests
 
 on:
   pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
   detect-changes:
@@ -12,7 +14,7 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       changed: ${{ steps.set-matrix.outputs.changed }}
-      frontend_changed: ${{ steps.set-matrix.outputs.frontend_changed }}
+      client_changed: ${{ steps.set-matrix.outputs.client_changed }}
 
     steps:
       - name: Checkout
@@ -33,15 +35,15 @@ jobs:
           files="$(
             git diff \
               --name-only \
-              --diff-filter=ACMRT \
+              --diff-filter=ACDMRT \
               "$BASE_SHA" \
               "$HEAD_SHA"
           )"
 
-          if grep -q '^mossy-frontend/' <<< "$files"; then
-            echo "frontend_changed=true" >> "$GITHUB_OUTPUT"
+          if grep -Eq '^(mossy-frontend/|mossy-extension/|packages/|package(-lock)?\.json$|\.github/workflows/run-tests\.yml$)' <<< "$files"; then
+            echo "client_changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "frontend_changed=false" >> "$GITHUB_OUTPUT"
+            echo "client_changed=false" >> "$GITHUB_OUTPUT"
           fi
 
           mapfile -t candidates < <(
@@ -96,11 +98,11 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
-  frontend-test:
+  client-test:
     needs:
       - detect-changes
 
-    if: needs.detect-changes.outputs.frontend_changed == 'true'
+    if: needs.detect-changes.outputs.client_changed == 'true'
 
     runs-on: ubuntu-24.04
 
@@ -115,15 +117,53 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: mossy-frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        working-directory: mossy-frontend
         run: npm ci
 
-      - name: Run tests
-        working-directory: mossy-frontend
+      - name: Type check clients and shared packages
+        run: npm run typecheck
+
+      - name: Run client and shared crypto tests
         run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build clients
+        run: npm run build
+
+      - name: Install test browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Test the built extension in Chromium
+        run: npm run test:browser
+
+      - name: Package the extension
+        run: npm run extension:zip
+
+      - name: Upload extension build
+        uses: actions/upload-artifact@v7
+        with:
+          name: mossy-extension-chromium
+          path: |
+            mossy-extension/.output/chrome-mv3/
+            mossy-extension/.output/*-chrome.zip
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload browser test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mossy-extension-browser-diagnostics
+          path: |
+            mossy-extension/playwright-report/
+            mossy-extension/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   mvn-test:
     needs:
