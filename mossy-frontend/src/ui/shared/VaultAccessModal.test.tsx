@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 async function showRecovery() {
-    fireEvent.click(screen.getByRole('button', { name: 'Use passkey' }));
+    fireEvent.click(screen.getByRole('button', { name: /^(Register key|Use passkey)$/ }));
     return screen.findByRole('dialog', { name: 'No passkey selected' });
 }
 
@@ -47,31 +47,33 @@ it('offers retry and explicit creation after cancellation without saving a key',
         <VaultAccessModal mode="register" vaultId="vault" onClose={close} />
     );
     await showRecovery();
-    expect(screen.getByText(/may overwrite your existing Mossy/)).toBeTruthy();
+    expect(encryption.prepareProtection).toHaveBeenCalledWith('vault', 'vault', {
+        type: 'PRF', createNew: true,
+    });
     expect(encryption.registerVaultKey).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Try passkey again' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Register key' }));
     await waitFor(() =>
         expect(encryption.prepareProtection).toHaveBeenCalledTimes(2)
     );
-    expect(encryption.prepareProtection).toHaveBeenLastCalledWith({
+    expect(encryption.prepareProtection).toHaveBeenLastCalledWith('vault', 'vault', {
         type: 'PRF',
-        createNew: false,
+        createNew: true,
     });
     await waitFor(() =>
         expect(
             screen
-                .getByRole('button', { name: 'Create new passkey' })
+                .getByRole('button', { name: 'Register key' })
                 .hasAttribute('disabled')
         ).toBe(false)
     );
 
     const protection = { type: 'PRF', userId: 'user', wrappingKey: {} };
     encryption.prepareProtection.mockResolvedValue(protection);
-    fireEvent.click(screen.getByRole('button', { name: 'Create new passkey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Register key' }));
     await waitFor(() => expect(close).toHaveBeenCalledOnce());
-    expect(encryption.prepareProtection).toHaveBeenLastCalledWith({
+    expect(encryption.prepareProtection).toHaveBeenLastCalledWith('vault', 'vault', {
         type: 'PRF',
         createNew: true,
     });
@@ -113,7 +115,7 @@ it('lets the receiver prepare password protection from recovery without register
     encryption.prepareProtection.mockResolvedValue(protection);
     fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
     await waitFor(() => expect(prepared).toHaveBeenCalledWith(protection));
-    expect(encryption.prepareProtection).toHaveBeenLastCalledWith({
+    expect(encryption.prepareProtection).toHaveBeenLastCalledWith('vault', 'vault', {
         type: 'Password',
         password: 'correct horse battery',
     });
@@ -157,7 +159,7 @@ it('keeps keyboard focus inside recovery and cancels without preparing another k
     );
     fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
     expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: 'Try passkey again' })
+        screen.getByRole('button', { name: 'Register key' })
     );
     fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
     expect(document.activeElement).toBe(
@@ -180,7 +182,7 @@ it('keeps the dialog open while protection is being saved', async () => {
     render(
         <VaultAccessModal mode="register" vaultId="vault" onClose={close} />
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Use passkey' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Register key' }));
     const dialog = screen.getByRole('dialog');
     fireEvent.keyDown(dialog, { key: 'Escape' });
     fireEvent.click(dialog.parentElement!);

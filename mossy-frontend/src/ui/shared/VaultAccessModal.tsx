@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { MdErrorOutline, MdFingerprint, MdLockOutline } from 'react-icons/md';
 import {
@@ -11,9 +11,11 @@ import {
     type VaultKeySetup,
 } from '../../hooks/useEncryptionHook.ts';
 import Button from './Button.tsx';
+import { useVaultStore } from '../../store/vaultStore.ts';
 
 type VaultAccessModalProps = {
     vaultId: string;
+    vaultName?: string;
     onClose: () => void;
 } & (
     | { mode: 'register' | 'unlock'; onSuccess?: () => void }
@@ -22,6 +24,10 @@ type VaultAccessModalProps = {
 
 export default function VaultAccessModal(props: VaultAccessModalProps) {
     const { vaultId, mode, onClose } = props;
+    const storedVaultName = useVaultStore((state) =>
+        state.vaults.find((vault) => vault.vaultId === vaultId)?.vaultName
+    );
+    const vaultName = props.vaultName?.trim() || storedVaultName?.trim() || vaultId;
     const { getKeyMetadata, prepareProtection, registerVaultKey, unlockVault } =
         useEncryptionHook();
     const [metadata, setMetadata] = useState<VaultKeyMetadata | null>(null);
@@ -95,8 +101,8 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
     }, [getKeyMetadata, mode, vaultId]);
 
     async function submit(
-        event?: FormEvent<HTMLFormElement>,
-        createNew = false
+        event?: SubmitEvent<HTMLFormElement>,
+        createNew = mode === 'register'
     ) {
         event?.preventDefault();
         if (busy || (!isSetup && !metadata)) return;
@@ -125,7 +131,7 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                 method === 'PRF'
                     ? { type: 'PRF', createNew }
                     : { type: 'Password', password };
-            const protection = await prepareProtection(setup);
+            const protection = await prepareProtection(vaultId, vaultName, setup);
             if (props.mode === 'prepare') {
                 props.onPrepared(protection);
                 return;
@@ -160,7 +166,9 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
         ? 'Passkey selection was canceled or timed out. You can try again.'
         : isSetup
           ? isPasskey
-              ? 'Use your existing Mossy passkey to protect this vault.'
+              ? mode === 'register'
+                  ? 'Create a passkey for this vault.'
+                  : 'Use this vault’s passkey to protect it on this device.'
               : 'Choose a password of at least 12 characters to protect this vault.'
           : !metadata
             ? 'Loading vault protection…'
@@ -172,10 +180,14 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
             ? 'Saving…'
             : 'Unlocking…'
         : passkeyNotSelected
-          ? 'Try passkey again'
+          ? mode === 'register'
+              ? 'Register key'
+              : 'Try passkey again'
           : isSetup
             ? isPasskey
-                ? 'Use passkey'
+                ? mode === 'register'
+                    ? 'Register key'
+                    : 'Use passkey'
                 : 'Save password'
             : 'Unlock vault';
     const Icon = isPasskey ? MdFingerprint : MdLockOutline;
@@ -278,13 +290,19 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                         <div className="rounded-lg border border-border bg-surface-subtle p-4">
                             <p className="text-sm font-semibold text-fg-secondary">
                                 {passkeyNotSelected
-                                    ? 'Keep using your existing passkey'
+                                    ? mode === 'register'
+                                        ? 'Register this vault’s passkey'
+                                        : 'Keep using this vault’s passkey'
                                     : 'Unlock with your device'}
                             </p>
                             <p className="mt-1 text-sm leading-6 text-fg-muted">
                                 {passkeyNotSelected
-                                    ? 'If you already have a Mossy passkey, try selecting it again or choose another device in the passkey prompt.'
-                                    : 'We’ll use your Mossy passkey for this vault.'}
+                                    ? mode === 'register'
+                                        ? 'Try registering a passkey for this vault again.'
+                                        : 'Try selecting this vault’s passkey again or choose another device in the passkey prompt.'
+                                    : mode === 'register'
+                                      ? 'This passkey will protect only this vault.'
+                                      : 'We’ll use this vault’s passkey.'}
                             </p>
                             <button
                                 type="button"
@@ -296,15 +314,14 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                             </button>
                         </div>
                     )}
-                    {isSetup && isPasskey && passkeyNotSelected && (
+                    {isSetup && isPasskey && passkeyNotSelected && mode !== 'register' && (
                         <div className="border-l-2 border-fg-warning pl-4">
                             <p className="text-sm font-semibold text-fg-primary">
                                 Creating a new passkey?
                             </p>
                             <p className="mt-1 text-sm leading-6 text-fg-muted">
-                                A new passkey may overwrite your existing Mossy
-                                passkey and prevent access to vaults protected
-                                by it. Only continue if you need a new passkey.
+                                A new passkey may replace the existing key for
+                                this vault. Only continue if you need a new key.
                             </p>
                             <Button
                                 type="button"
