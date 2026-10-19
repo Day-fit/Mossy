@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { MdErrorOutline, MdFingerprint, MdLockOutline } from 'react-icons/md';
 import {
@@ -33,6 +33,9 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
+    const [passkeyNotSelected, setPasskeyNotSelected] = useState(false);
+    const formRef = useRef<HTMLFormElement>(null);
+    const titleRef = useRef<HTMLHeadingElement>(null);
     const reducedMotion = useReducedMotion();
     const titleId = useId();
     const descriptionId = useId();
@@ -45,6 +48,29 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
         ? method === 'Password'
         : metadata?.type === 'Password';
     const isPasskey = isSetup ? method === 'PRF' : metadata?.type === 'PRF';
+
+    useEffect(() => {
+        const previousFocus = document.activeElement;
+        formRef.current?.focus();
+        return () => {
+            if (previousFocus instanceof HTMLElement) previousFocus.focus();
+        };
+    }, []);
+
+    useEffect(() => {
+        if (passkeyNotSelected && !busy) titleRef.current?.focus();
+    }, [passkeyNotSelected, busy]);
+
+    useEffect(() => {
+        if (showPassword) formRef.current?.querySelector('input')?.focus();
+    }, [showPassword]);
+
+    function changeMethod(nextMethod: VaultMethod) {
+        setMethod(nextMethod);
+        setPasskeyNotSelected(false);
+        setError(null);
+        setNotice(null);
+    }
 
     useEffect(() => {
         if (mode !== 'unlock') return;
@@ -68,8 +94,11 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
         };
     }, [getKeyMetadata, mode, vaultId]);
 
-    async function submit(event: FormEvent<HTMLFormElement>) {
-        event.preventDefault();
+    async function submit(
+        event?: FormEvent<HTMLFormElement>,
+        createNew = false
+    ) {
+        event?.preventDefault();
         if (busy || (!isSetup && !metadata)) return;
         if (showPassword && isSetup) {
             if (password.length < VAULT_PASSWORD_MIN_LENGTH) {
@@ -94,7 +123,7 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
             }
             const setup: VaultKeySetup =
                 method === 'PRF'
-                    ? { type: 'PRF' }
+                    ? { type: 'PRF', createNew }
                     : { type: 'Password', password };
             const protection = await prepareProtection(setup);
             if (props.mode === 'prepare') {
@@ -105,7 +134,14 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
             onClose();
             props.onSuccess?.();
         } catch (reason) {
-            if (isSetup && reason instanceof PrfNotSupportedError) {
+            if (
+                isPasskey &&
+                reason instanceof DOMException &&
+                reason.name === 'NotAllowedError'
+            ) {
+                setPasskeyNotSelected(true);
+            } else if (isSetup && reason instanceof PrfNotSupportedError) {
+                setPasskeyNotSelected(false);
                 setMethod('Password');
                 setNotice(reason.message);
             } else {
@@ -120,24 +156,28 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
         }
     }
 
-    const description = isSetup
-        ? isPasskey
-            ? 'Use your existing Mossy passkey to protect this vault.'
-            : 'Choose a password of at least 12 characters to protect this vault.'
-        : !metadata
-          ? 'Loading vault protection…'
-          : isPasskey
-            ? 'Confirm with your device to unlock your vault.'
-            : 'Enter your vault password to continue.';
+    const description = passkeyNotSelected
+        ? 'Passkey selection was canceled or timed out. You can try again.'
+        : isSetup
+          ? isPasskey
+              ? 'Use your existing Mossy passkey to protect this vault.'
+              : 'Choose a password of at least 12 characters to protect this vault.'
+          : !metadata
+            ? 'Loading vault protection…'
+            : isPasskey
+              ? 'Confirm with your device to unlock your vault.'
+              : 'Enter your vault password to continue.';
     const primaryLabel = busy
         ? isSetup
             ? 'Saving…'
             : 'Unlocking…'
-        : isSetup
-          ? isPasskey
-              ? 'Use passkey'
-              : 'Save password'
-          : 'Unlock vault';
+        : passkeyNotSelected
+          ? 'Try passkey again'
+          : isSetup
+            ? isPasskey
+                ? 'Use passkey'
+                : 'Save password'
+            : 'Unlock vault';
     const Icon = isPasskey ? MdFingerprint : MdLockOutline;
 
     return (
@@ -147,10 +187,12 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.18 }}
             onClick={(event) => {
-                if (event.target === event.currentTarget) onClose();
+                if (!busy && event.target === event.currentTarget) onClose();
             }}
         >
             <motion.form
+                ref={formRef}
+                tabIndex={-1}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby={titleId}
@@ -158,7 +200,42 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                 aria-busy={busy}
                 onSubmit={(event) => void submit(event)}
                 onKeyDown={(event) => {
-                    if (event.key === 'Escape') onClose();
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        if (!busy) onClose();
+                    }
+                    if (event.key === 'Tab') {
+                        const controls = Array.from(
+                            event.currentTarget.querySelectorAll<HTMLElement>(
+                                'button:not(:disabled), input:not(:disabled)'
+                            )
+                        );
+                        const first = controls[0];
+                        const last = controls[controls.length - 1];
+                        if (!first) {
+                            event.preventDefault();
+                        } else if (
+                            event.shiftKey &&
+                            !controls.includes(
+                                document.activeElement as HTMLElement
+                            )
+                        ) {
+                            event.preventDefault();
+                            last.focus();
+                        } else if (
+                            event.shiftKey &&
+                            document.activeElement === first
+                        ) {
+                            event.preventDefault();
+                            last.focus();
+                        } else if (
+                            !event.shiftKey &&
+                            document.activeElement === last
+                        ) {
+                            event.preventDefault();
+                            first.focus();
+                        }
+                    }
                 }}
                 initial={
                     reducedMotion ? false : { opacity: 0, y: 8, scale: 0.98 }
@@ -175,10 +252,17 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                         <Icon size={23} />
                     </span>
                     <div>
-                        <h2 id={titleId} className="text-2xl leading-tight">
-                            {isSetup
-                                ? 'Protect your vault'
-                                : 'Unlock your vault'}
+                        <h2
+                            ref={titleRef}
+                            tabIndex={-1}
+                            id={titleId}
+                            className="text-2xl leading-tight outline-none"
+                        >
+                            {passkeyNotSelected
+                                ? 'No passkey selected'
+                                : isSetup
+                                  ? 'Protect your vault'
+                                  : 'Unlock your vault'}
                         </h2>
                         <p
                             id={descriptionId}
@@ -193,19 +277,45 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                     {isSetup && isPasskey && (
                         <div className="rounded-lg border border-border bg-surface-subtle p-4">
                             <p className="text-sm font-semibold text-fg-secondary">
-                                Unlock with your device
+                                {passkeyNotSelected
+                                    ? 'Keep using your existing passkey'
+                                    : 'Unlock with your device'}
                             </p>
                             <p className="mt-1 text-sm leading-6 text-fg-muted">
-                                We’ll use your Mossy passkey for this vault.
+                                {passkeyNotSelected
+                                    ? 'If you already have a Mossy passkey, try selecting it again or choose another device in the passkey prompt.'
+                                    : 'We’ll use your Mossy passkey for this vault.'}
                             </p>
                             <button
                                 type="button"
                                 disabled={busy}
-                                onClick={() => setMethod('Password')}
+                                onClick={() => changeMethod('Password')}
                                 className="mt-3 rounded-sm text-sm font-semibold text-fg-brand underline"
                             >
                                 Use a password instead
                             </button>
+                        </div>
+                    )}
+                    {isSetup && isPasskey && passkeyNotSelected && (
+                        <div className="border-l-2 border-fg-warning pl-4">
+                            <p className="text-sm font-semibold text-fg-primary">
+                                Creating a new passkey?
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-fg-muted">
+                                A new passkey may overwrite your existing Mossy
+                                passkey and prevent access to vaults protected
+                                by it. Only continue if you need a new passkey.
+                            </p>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                padding="medium"
+                                disabled={busy}
+                                onClick={() => void submit(undefined, true)}
+                                className="mt-3 min-h-11 text-sm disabled:cursor-wait disabled:opacity-60"
+                            >
+                                Create new passkey
+                            </Button>
                         </div>
                     )}
                     {isPasskey && !isSetup && (
@@ -231,7 +341,6 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                                     id={passwordId}
                                     name="password"
                                     type="password"
-                                    autoFocus
                                     autoComplete={
                                         isSetup
                                             ? 'new-password'
@@ -298,7 +407,7 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                                 <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => setMethod('PRF')}
+                                    onClick={() => changeMethod('PRF')}
                                     className="rounded-sm text-sm font-semibold text-fg-brand underline"
                                 >
                                     Use a passkey instead
@@ -337,6 +446,7 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                         variant="outline"
                         padding="medium"
                         onClick={onClose}
+                        disabled={busy}
                         className="min-h-10 whitespace-nowrap text-sm disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Cancel

@@ -101,22 +101,8 @@ export function useVaultKey() {
         return results;
     };
 
-    const getOrCreatePasskey = async () => {
-        try {
-            return await getPasskey();
-        } catch (error) {
-            if (!(error instanceof DOMException) || error.name !== 'NotAllowedError')
-                throw error;
-            if (!window.confirm(
-                'No passkey was selected. Creating a new passkey may overwrite your existing Mossy passkey and prevent access to vaults protected by it. Create a new passkey?'
-            )) throw error;
-            return (await registerPasskey()).results;
-        }
-    };
-
     return {
         registerPasskey,
         getPasskey,
-        getOrCreatePasskey,
     };
 }

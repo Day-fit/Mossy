@@ -15,7 +15,7 @@ export class PrfNotSupportedError extends Error {
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
 export type VaultMethod = 'PRF' | 'Password';
 export type VaultKeySetup =
-    | { type: 'PRF' }
+    | { type: 'PRF'; createNew?: boolean }
     | { type: 'Password'; password: string };
 export type VaultKeyMetadata = { type: VaultMethod };
 export type PreparedProtection = {
@@ -202,7 +202,7 @@ export async function decrypt(ciphertext: string, vaultId: string): Promise<stri
 
 export function useEncryptionHook() {
     useDeviceKeys();
-    const { getOrCreatePasskey, getPasskey } = useVaultKey();
+    const { registerPasskey, getPasskey } = useVaultKey();
 
     const prepareProtection = async (
         setup: VaultKeySetup
@@ -221,7 +221,9 @@ export function useEncryptionHook() {
 
         let results: AuthenticationExtensionsClientOutputs;
         try {
-            results = await getOrCreatePasskey();
+            results = setup.createNew
+                ? (await registerPasskey()).results
+                : await getPasskey();
         } catch (error) {
             if (error instanceof DOMException && error.name === 'NotSupportedError')
                 throw new PrfNotSupportedError();
