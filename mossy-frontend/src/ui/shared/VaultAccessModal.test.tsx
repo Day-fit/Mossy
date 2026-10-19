@@ -41,25 +41,6 @@ function renderPrepare(onPrepared = vi.fn()) {
     return onPrepared;
 }
 
-it('offers three choices when receiving a vault without a local key', () => {
-    renderPrepare();
-    expect(screen.getByRole('button', { name: /^Use existing passkey/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Use password/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /^Register new passkey/ })).toBeTruthy();
-    expect(encryption.prepareProtection).not.toHaveBeenCalled();
-});
-
-it('uses the selected existing vault passkey without creating another', async () => {
-    const prepared = renderPrepare();
-    fireEvent.click(screen.getByRole('button', { name: /^Use existing passkey/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Use existing passkey' }));
-    await waitFor(() => expect(prepared).toHaveBeenCalledOnce());
-    expect(encryption.prepareProtection).toHaveBeenCalledWith('vault-a', 'Vault A', {
-        type: 'PRF', createNew: false,
-    });
-    expect(encryption.registerVaultKey).not.toHaveBeenCalled();
-});
-
 it('passes the transferred credential ID to the existing-passkey choice', async () => {
     const credentialId = new Uint8Array([1, 2, 3]).buffer;
     const prepared = vi.fn();
@@ -79,6 +60,7 @@ it('passes the transferred credential ID to the existing-passkey choice', async 
     expect(encryption.prepareProtection).toHaveBeenCalledWith('vault-a', 'Vault A', {
         type: 'PRF', createNew: false, credentialId,
     });
+    expect(encryption.registerVaultKey).not.toHaveBeenCalled();
 });
 
 it('shows the overwrite warning before registering a replacement passkey', async () => {

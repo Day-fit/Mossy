@@ -57,23 +57,17 @@ it('registers a credential labelled and derived for its vault', async () => {
     expect(registered.credentialId).toBe(credentialId);
 });
 
-it('uses the vault salt and limits unlock to the saved credential ID', async () => {
-    const { result } = renderHook(useVaultKey);
-    await result.current.getPasskey('vault-a', credentialId);
-    const options = get.mock.calls[0][0].publicKey;
-    expect(options.allowCredentials[0].id).toBe(credentialId);
-    expect(new TextDecoder().decode(options.extensions.prf.eval.first))
-        .toBe('mossy:encryption:v1:vault:vault-a');
-});
-
-it('accepts the matching credential ID when the authenticator omits userHandle', async () => {
+it('uses the vault salt and saved credential ID even without a user handle', async () => {
     get.mockResolvedValueOnce(Object.assign(new TestCredential(), {
         response: { userHandle: null },
     }));
     const { result } = renderHook(useVaultKey);
-    await expect(result.current.getPasskey('vault-a', credentialId)).resolves.toMatchObject({
-        credentialId,
-    });
+    const selected = await result.current.getPasskey('vault-a', credentialId);
+    const options = get.mock.calls[0][0].publicKey;
+    expect(options.allowCredentials).toEqual([{ type: 'public-key', id: credentialId }]);
+    expect(new TextDecoder().decode(options.extensions.prf.eval.first))
+        .toBe('mossy:encryption:v1:vault:vault-a');
+    expect(selected.credentialId).toBe(credentialId);
 });
 
 it('rejects another vault credential when selecting one without a saved ID', async () => {

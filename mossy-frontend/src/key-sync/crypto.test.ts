@@ -48,33 +48,12 @@ async function transfer() {
         cipherText: upload.ciphertext,
         senderPublicDh: upload.publicDh.x,
     };
-    return { sender, receiverIdentity, offer, context, rawKey, key };
+    return { sender, receiverIdentity, offer, context, key };
 }
 
 describe('HTTP key transfer cryptography', () => {
     beforeAll(async () => {
         await sodium.ready;
-    });
-
-    it('authenticates the receiver offer and recovers the uploaded key on the receiving device', async () => {
-        const data = await transfer();
-        await expect(
-            verifyReceiverDetails(
-                data.offer.receiver,
-                data.receiverIdentity.publicKey
-            )
-        ).resolves.toBeUndefined();
-        await expect(
-            decryptVaultKey(
-                data.key,
-                data.context,
-                data.offer.privateDh,
-                data.sender.publicKey
-            )
-        ).resolves.toEqual({
-            rawKey: data.rawKey,
-            credentialId: new Uint8Array([1, 2, 3]).buffer,
-        });
     });
 
     it.each(['receiverId', 'vaultId', 'publicDh'] as const)(

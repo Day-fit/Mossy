@@ -48,6 +48,7 @@ it('stores the vault credential ID and requires it when unlocking', async () => 
     const protection = await result.current.prepareProtection('vault-a', 'Vault A', {
         type: 'PRF', createNew: true,
     });
+    expect(passkeys.registerPasskey).toHaveBeenCalledWith('vault-a', 'Vault A');
     await result.current.registerVaultKey('vault-a', protection);
     expect(add).toHaveBeenCalledWith('keys', expect.objectContaining({
         type: 'PRF', credentialId,
@@ -88,11 +89,10 @@ it('propagates canceled selection without automatically creating a passkey', asy
     expect(passkeys.registerPasskey).not.toHaveBeenCalled();
 });
 
-it('reuses an existing passkey by default and only registers on explicit creation', async () => {
+it('uses the transferred credential ID without registering another passkey', async () => {
     const results = { prf: { results: { first: new Uint8Array(32).buffer } } };
     const credentialId = new Uint8Array([1, 2, 3]).buffer;
     passkeys.getPasskey.mockResolvedValue({ results, credentialId });
-    passkeys.registerPasskey.mockResolvedValue({ results, credentialId });
     const { result } = renderHook(useEncryptionHook);
     await expect(
         result.current.prepareProtection('vault-a', 'Vault A', {
@@ -101,8 +101,4 @@ it('reuses an existing passkey by default and only registers on explicit creatio
     ).resolves.toMatchObject({ userId: 'user', type: 'PRF', credentialId });
     expect(passkeys.registerPasskey).not.toHaveBeenCalled();
     expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a', credentialId);
-    await result.current.prepareProtection('vault-b', 'Vault B', { type: 'PRF', createNew: true });
-    expect(passkeys.registerPasskey).toHaveBeenCalledOnce();
-    expect(passkeys.registerPasskey).toHaveBeenCalledWith('vault-b', 'Vault B');
-    expect(passkeys.getPasskey).toHaveBeenCalledOnce();
 });
