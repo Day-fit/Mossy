@@ -49,6 +49,26 @@ export function useKeySyncReceiver(vaultId: string) {
             5 * 60_000
         );
 
+        function chooseProtection(credentialId?: ArrayBuffer) {
+            controller.signal.throwIfAborted();
+            return new Promise<PreparedProtection>((resolve, reject) => {
+                const onAbort = () => reject(controller.signal.reason);
+                controller.signal.addEventListener('abort', onAbort, {
+                    once: true,
+                });
+                pendingSelection.current = {
+                    controller,
+                    select: (protection) => {
+                        controller.signal.removeEventListener('abort', onAbort);
+                        if (pendingSelection.current?.controller === controller)
+                            pendingSelection.current = null;
+                        resolve(protection);
+                    },
+                };
+                if (!disposed) setState({ phase: 'choosing', credentialId });
+            });
+        }
+
         async function receive() {
             if (!receiverId || !identity) return;
             try {
@@ -68,33 +88,7 @@ export function useKeySyncReceiver(vaultId: string) {
                             }));
                     },
                     saveKey: async (rawKey, credentialId) => {
-                        controller.signal.throwIfAborted();
-                        const protection =
-                            await new Promise<PreparedProtection>(
-                                (resolve, reject) => {
-                                    const onAbort = () =>
-                                        reject(controller.signal.reason);
-                                    controller.signal.addEventListener(
-                                        'abort',
-                                        onAbort,
-                                        { once: true }
-                                    );
-                                    pendingSelection.current = {
-                                        controller,
-                                        select: (selected) => {
-                                            controller.signal.removeEventListener('abort', onAbort);
-                                            if (pendingSelection.current?.controller === controller)
-                                                pendingSelection.current = null;
-                                            resolve(selected);
-                                        },
-                                    };
-                                    if (!disposed)
-                                        setState({
-                                            phase: 'choosing',
-                                            credentialId,
-                                        });
-                                }
-                            );
+                        const protection = await chooseProtection(credentialId);
                         controller.signal.throwIfAborted();
                         if (!disposed) setState({ phase: 'saving' });
                         await saveRawKey(vaultId, protection, rawKey);

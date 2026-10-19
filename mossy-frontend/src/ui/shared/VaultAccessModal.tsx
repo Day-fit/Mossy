@@ -17,27 +17,39 @@ type VaultAccessModalProps = {
     onClose: () => void;
 } & (
     | { mode: 'register' | 'unlock'; onSuccess?: () => void }
-    | { mode: 'prepare'; credentialId?: ArrayBuffer; onPrepared: (protection: PreparedProtection) => void }
+    | {
+          mode: 'prepare';
+          credentialId?: ArrayBuffer;
+          onPrepared: (protection: PreparedProtection) => void;
+      }
 );
 
 type AccessChoice = 'use-passkey' | 'use-password' | 'register-passkey';
 
+const passkeyCancellationMessages = {
+    prepare:
+        'The passkey prompt was closed. Try again or choose another method.',
+    register: 'The passkey prompt was closed. Try again or use a password.',
+    unlock: 'The passkey prompt was closed. Try again.',
+};
+
 export default function VaultAccessModal(props: VaultAccessModalProps) {
     const { vaultId, mode, onClose } = props;
-    const storedVaultName = useVaultStore((state) =>
-        state.vaults.find((vault) => vault.vaultId === vaultId)?.vaultName
+    const storedVaultName = useVaultStore(
+        (state) =>
+            state.vaults.find((vault) => vault.vaultId === vaultId)?.vaultName
     );
-    const vaultName = props.vaultName?.trim() || storedVaultName?.trim() || vaultId;
+    const vaultName =
+        props.vaultName?.trim() || storedVaultName?.trim() || vaultId;
     const { getKeyMetadata, prepareProtection, registerVaultKey, unlockVault } =
         useEncryptionHook();
     const [metadata, setMetadata] = useState<VaultKeyMetadata | null>(null);
-    const [choice, setChoice] = useState<AccessChoice | null>(
-        mode === 'register'
-            ? typeof PublicKeyCredential !== 'undefined'
-                ? 'register-passkey'
-                : 'use-password'
-            : null
-    );
+    const [choice, setChoice] = useState<AccessChoice | null>(() => {
+        if (mode !== 'register') return null;
+        return typeof PublicKeyCredential !== 'undefined'
+            ? 'register-passkey'
+            : 'use-password';
+    });
     const [password, setPassword] = useState('');
     const [confirmation, setConfirmation] = useState('');
     const [busy, setBusy] = useState(false);
@@ -122,17 +134,21 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                 props.onSuccess?.();
                 return;
             }
-            const setup: VaultKeySetup =
-                isPasskey
-                    ? {
-                        type: 'PRF',
-                        createNew: choice === 'register-passkey',
-                        credentialId: props.mode === 'prepare' && choice === 'use-passkey'
-                            ? props.credentialId
-                            : undefined,
-                    }
-                    : { type: 'Password', password };
-            const protection = await prepareProtection(vaultId, vaultName, setup);
+            const setup: VaultKeySetup = isPasskey
+                ? {
+                      type: 'PRF',
+                      createNew: choice === 'register-passkey',
+                      credentialId:
+                          props.mode === 'prepare' && choice === 'use-passkey'
+                              ? props.credentialId
+                              : undefined,
+                  }
+                : { type: 'Password', password };
+            const protection = await prepareProtection(
+                vaultId,
+                vaultName,
+                setup
+            );
             if (props.mode === 'prepare') {
                 props.onPrepared(protection);
                 return;
@@ -141,47 +157,50 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
             onClose();
             props.onSuccess?.();
         } catch (reason) {
-            setError(
-                isPasskey && reason instanceof DOMException &&
+            if (
+                isPasskey &&
+                reason instanceof DOMException &&
                 reason.name === 'NotAllowedError'
-                    ? mode === 'prepare'
-                        ? 'The passkey prompt was closed. Try again or choose another method.'
-                        : mode === 'register'
-                          ? 'The passkey prompt was closed. Try again or use a password.'
-                          : 'The passkey prompt was closed. Try again.'
-                    : reason instanceof Error
-                      ? reason.message
-                      : 'Could not access the vault.'
+            ) {
+                setError(passkeyCancellationMessages[mode]);
+                return;
+            }
+            setError(
+                reason instanceof Error
+                    ? reason.message
+                    : 'Could not access the vault.'
             );
         } finally {
             setBusy(false);
         }
     }
 
-    const description = mode === 'prepare' && !choice
-        ? 'Choose how to protect this vault on this browser.'
-        : isSetup
-          ? choice === 'register-passkey'
-              ? 'Register a new passkey for this vault.'
-              : choice === 'use-passkey'
-                ? 'Use this vault’s existing passkey.'
-                : 'Choose a password of at least 12 characters to protect this vault.'
-          : !metadata
-            ? 'Loading vault protection…'
-            : isPasskey
-              ? 'Confirm with your device to unlock your vault.'
-              : 'Enter your vault password to continue.';
-    const primaryLabel = busy
-        ? isSetup
-            ? 'Saving…'
-            : 'Unlocking…'
-        : mode === 'unlock'
-          ? 'Unlock vault'
-          : choice === 'register-passkey'
-            ? 'Register new passkey'
-            : choice === 'use-passkey'
-              ? 'Use existing passkey'
-              : 'Save password';
+    function getDescription() {
+        if (mode === 'unlock') {
+            if (!metadata) return 'Loading vault protection…';
+            return isPasskey
+                ? 'Confirm with your device to unlock your vault.'
+                : 'Enter your vault password to continue.';
+        }
+        if (mode === 'prepare' && !choice)
+            return 'Choose how to protect this vault on this browser.';
+        if (choice === 'register-passkey')
+            return 'Register a new passkey for this vault.';
+        if (choice === 'use-passkey')
+            return 'Use this vault’s existing passkey.';
+        return 'Choose a password of at least 12 characters to protect this vault.';
+    }
+
+    function getPrimaryLabel() {
+        if (busy) return isSetup ? 'Saving…' : 'Unlocking…';
+        if (mode === 'unlock') return 'Unlock vault';
+        if (choice === 'register-passkey') return 'Register new passkey';
+        if (choice === 'use-passkey') return 'Use existing passkey';
+        return 'Save password';
+    }
+
+    const description = getDescription();
+    const primaryLabel = getPrimaryLabel();
     const Icon = isPasskey ? MdFingerprint : MdLockOutline;
 
     return (
@@ -207,38 +226,35 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                     if (event.key === 'Escape') {
                         event.preventDefault();
                         if (!busy) onClose();
+                        return;
                     }
-                    if (event.key === 'Tab') {
-                        const controls = Array.from(
-                            event.currentTarget.querySelectorAll<HTMLElement>(
-                                'button:not(:disabled), input:not(:disabled)'
-                            )
-                        );
-                        const first = controls[0];
-                        const last = controls[controls.length - 1];
-                        if (!first) {
-                            event.preventDefault();
-                        } else if (
-                            event.shiftKey &&
+                    if (event.key !== 'Tab') return;
+                    const controls = Array.from(
+                        event.currentTarget.querySelectorAll<HTMLElement>(
+                            'button:not(:disabled), input:not(:disabled)'
+                        )
+                    );
+                    const first = controls[0];
+                    const last = controls[controls.length - 1];
+                    if (!first) {
+                        event.preventDefault();
+                        return;
+                    }
+                    if (
+                        event.shiftKey &&
+                        (document.activeElement === first ||
                             !controls.includes(
                                 document.activeElement as HTMLElement
-                            )
-                        ) {
-                            event.preventDefault();
-                            last.focus();
-                        } else if (
-                            event.shiftKey &&
-                            document.activeElement === first
-                        ) {
-                            event.preventDefault();
-                            last.focus();
-                        } else if (
-                            !event.shiftKey &&
-                            document.activeElement === last
-                        ) {
-                            event.preventDefault();
-                            first.focus();
-                        }
+                            ))
+                    ) {
+                        event.preventDefault();
+                        last.focus();
+                    } else if (
+                        !event.shiftKey &&
+                        document.activeElement === last
+                    ) {
+                        event.preventDefault();
+                        first.focus();
                     }
                 }}
                 initial={
@@ -260,7 +276,9 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                             id={titleId}
                             className="text-2xl leading-tight outline-none"
                         >
-                            {isSetup ? 'Protect your vault' : 'Unlock your vault'}
+                            {isSetup
+                                ? 'Protect your vault'
+                                : 'Unlock your vault'}
                         </h2>
                         <p
                             id={descriptionId}
@@ -273,16 +291,24 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
 
                 <div className="space-y-5">
                     {mode === 'prepare' && !choice && (
-                        <div role="group" className="space-y-3" aria-label="Vault protection method">
+                        <div
+                            role="group"
+                            className="space-y-3"
+                            aria-label="Vault protection method"
+                        >
                             <button
                                 type="button"
-                                disabled={busy || typeof PublicKeyCredential === 'undefined'}
+                                disabled={
+                                    busy ||
+                                    typeof PublicKeyCredential === 'undefined'
+                                }
                                 onClick={() => selectChoice('use-passkey')}
                                 className="min-h-14 w-full rounded-lg border border-border bg-surface-subtle p-4 text-left text-sm font-semibold text-fg-primary disabled:opacity-50"
                             >
                                 Use existing passkey
                                 <span className="mt-1 block font-normal text-fg-muted">
-                                    Select the passkey already registered for this vault.
+                                    Select the passkey already registered for
+                                    this vault.
                                 </span>
                             </button>
                             <button
@@ -298,7 +324,10 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                             </button>
                             <button
                                 type="button"
-                                disabled={busy || typeof PublicKeyCredential === 'undefined'}
+                                disabled={
+                                    busy ||
+                                    typeof PublicKeyCredential === 'undefined'
+                                }
                                 onClick={() => selectChoice('register-passkey')}
                                 className="min-h-14 w-full rounded-lg border border-border bg-surface-subtle p-4 text-left text-sm font-semibold text-fg-primary disabled:opacity-50"
                             >
@@ -340,8 +369,8 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                             </p>
                             <p className="mt-1 text-sm leading-6 text-fg-muted">
                                 Replacing this vault’s passkey can prevent other
-                                browsers or devices from unlocking copies of this
-                                vault that use the old passkey.
+                                browsers or devices from unlocking copies of
+                                this vault that use the old passkey.
                             </p>
                         </div>
                     )}
@@ -434,7 +463,9 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                                 <button
                                     type="button"
                                     disabled={busy}
-                                    onClick={() => selectChoice('register-passkey')}
+                                    onClick={() =>
+                                        selectChoice('register-passkey')
+                                    }
                                     className="rounded-sm text-sm font-semibold text-fg-brand underline"
                                 >
                                     Use a passkey instead
@@ -480,7 +511,9 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
                     >
                         Cancel
                     </Button>
-                    {(mode === 'unlock' ? Boolean(metadata) : Boolean(choice)) && (
+                    {(mode === 'unlock'
+                        ? Boolean(metadata)
+                        : Boolean(choice)) && (
                         <Button
                             type="submit"
                             padding="medium"

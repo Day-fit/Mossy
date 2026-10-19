@@ -1,15 +1,54 @@
 import { useAuthStore } from '../store/authStore.ts';
 
+const encoder = new TextEncoder();
+const vaultSalt = (vaultId: string) =>
+    encoder.encode(`mossy:encryption:v1:vault:${vaultId}`);
+
+function verifyVaultCredential(
+    credential: PublicKeyCredential,
+    vaultId: string,
+    credentialId?: BufferSource
+) {
+    if (credentialId) {
+        const expected =
+            credentialId instanceof ArrayBuffer
+                ? new Uint8Array(credentialId)
+                : new Uint8Array(
+                      credentialId.buffer,
+                      credentialId.byteOffset,
+                      credentialId.byteLength
+                  );
+        const actual = new Uint8Array(credential.rawId);
+        if (
+            actual.length !== expected.length ||
+            actual.some((byte, index) => byte !== expected[index])
+        )
+            throw new Error(
+                'The selected passkey does not match this vault’s saved passkey.'
+            );
+        return;
+    }
+
+    const { userHandle } =
+        credential.response as AuthenticatorAssertionResponse;
+    if (!userHandle)
+        throw new Error(
+            'Could not verify which vault this passkey belongs to.'
+        );
+    if (new TextDecoder().decode(userHandle) !== vaultId)
+        throw new Error('The selected passkey belongs to a different vault.');
+}
+
 export function useVaultKey() {
     const userDetails = useAuthStore((state) => state.userDetails);
-    const encoder = new TextEncoder();
-    const vaultSalt = (vaultId: string) =>
-        encoder.encode(`mossy:encryption:v1:vault:${vaultId}`);
 
     const registerPasskey = async (vaultId: string, vaultName: string) => {
         if (userDetails === null)
             throw new Error('User details not available.');
-        if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.create)
+        if (
+            typeof PublicKeyCredential === 'undefined' ||
+            !navigator.credentials?.create
+        )
             throw new DOMException('PRF is not supported', 'NotSupportedError');
 
         const cred = await navigator.credentials.create({
@@ -48,9 +87,7 @@ export function useVaultKey() {
         }
 
         const results = cred.getClientExtensionResults();
-        const isPrfNotSupported = !(results.prf && results.prf.enabled);
-
-        if (isPrfNotSupported) {
+        if (!results.prf?.enabled) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }
 
@@ -62,13 +99,13 @@ export function useVaultKey() {
         };
     };
 
-    const getPasskey = async (
-        vaultId: string,
-        credentialId?: BufferSource
-    ) => {
+    const getPasskey = async (vaultId: string, credentialId?: BufferSource) => {
         if (userDetails === null)
             throw new Error('User details not available.');
-        if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.get)
+        if (
+            typeof PublicKeyCredential === 'undefined' ||
+            !navigator.credentials?.get
+        )
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         const cred = await navigator.credentials.get({
             publicKey: {
@@ -92,29 +129,10 @@ export function useVaultKey() {
             throw new Error('Invalid credential');
         }
 
-        const response = cred.response as AuthenticatorAssertionResponse;
-        if (credentialId) {
-            const expected = new Uint8Array(
-                credentialId instanceof ArrayBuffer
-                    ? credentialId
-                    : credentialId.buffer,
-                credentialId instanceof ArrayBuffer ? 0 : credentialId.byteOffset,
-                credentialId.byteLength
-            );
-            const actual = new Uint8Array(cred.rawId);
-            if (actual.length !== expected.length ||
-                actual.some((byte, index) => byte !== expected[index]))
-                throw new Error('The selected passkey does not match this vault’s saved passkey.');
-        } else if (!response.userHandle) {
-            throw new Error('Could not verify which vault this passkey belongs to.');
-        } else if (new TextDecoder().decode(response.userHandle) !== vaultId) {
-            throw new Error('The selected passkey belongs to a different vault.');
-        }
+        verifyVaultCredential(cred, vaultId, credentialId);
 
         const results = cred.getClientExtensionResults();
-        const isPrfNotSupported = !results.prf?.results?.first;
-
-        if (isPrfNotSupported) {
+        if (!results.prf?.results?.first) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }
 
