@@ -2,14 +2,14 @@ import { useAuthStore } from '../store/authStore.ts';
 
 export function useVaultKey() {
     const userDetails = useAuthStore((state) => state.userDetails);
+    const encoder = new TextEncoder();
+    const userSalt = (userId: string) => encoder.encode(`mossy:encryption:v1:${userId}`);
 
     const registerPasskey = async () => {
         if (userDetails === null)
             throw new Error('User details not available.');
         if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.create)
             throw new DOMException('PRF is not supported', 'NotSupportedError');
-
-        const salt = crypto.getRandomValues(new Uint8Array(32));
 
         const cred = await navigator.credentials.create({
             publicKey: {
@@ -19,11 +19,13 @@ export function useVaultKey() {
                 },
                 challenge: crypto.getRandomValues(new Uint8Array(32)),
                 user: {
-                    // A new browser registration must not replace another
-                    // browser's credential for the same account.
-                    id: crypto.getRandomValues(new Uint8Array(32)),
+                    id: encoder.encode(userDetails.userId),
                     name: userDetails.email ?? userDetails.username,
                     displayName: userDetails.username,
+                },
+                authenticatorSelection: {
+                    residentKey: 'required',
+                    userVerification: 'required',
                 },
                 pubKeyCredParams: [
                     { type: 'public-key', alg: -8 },
@@ -33,7 +35,8 @@ export function useVaultKey() {
                 extensions: {
                     prf: {
                         eval: {
-                            first: salt,
+                            // Reusing the same passkey gives the same PRF output across browsers.
+                            first: userSalt(userDetails.userId),
                         },
                     },
                 },
@@ -44,10 +47,9 @@ export function useVaultKey() {
             throw new Error('Invalid credential');
         }
 
-        const results = cred?.getClientExtensionResults();
+        const results = cred.getClientExtensionResults();
         const isPrfNotSupported =
-            !(results.prf && results.prf.enabled) ||
-            !results.prf?.results?.first;
+            !(results.prf && results.prf.enabled);
 
         if (isPrfNotSupported) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
@@ -55,40 +57,30 @@ export function useVaultKey() {
 
         return {
             credential: cred,
-            salt: salt,
+            results: results.prf?.results?.first ? results : await getPasskey(cred.rawId),
             metadata: {
                 type: 'PRF',
-                credentialId: cred.id,
-                prfSalt: salt,
             },
         };
     };
 
-    const getPasskey = async (credentialId: string, salt: BufferSource) => {
+    const getPasskey = async (credentialId?: BufferSource) => {
+        if (userDetails === null)
+            throw new Error('User details not available.');
         if (typeof PublicKeyCredential === 'undefined' || !navigator.credentials?.get)
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         const cred = await navigator.credentials.get({
             publicKey: {
                 challenge: crypto.getRandomValues(new Uint8Array(32)),
-                allowCredentials: [
-                    {
-                        type: 'public-key',
-                        id: Uint8Array.from(
-                            atob(
-                                credentialId
-                                    .replace(/-/g, '+')
-                                    .replace(/_/g, '/')
-                            ),
-                            (char) => char.charCodeAt(0)
-                        ),
-                    },
-                ],
+                allowCredentials: credentialId
+                    ? [{ type: 'public-key', id: credentialId }]
+                    : undefined,
                 rpId: location.hostname,
                 userVerification: 'required',
                 extensions: {
                     prf: {
                         eval: {
-                            first: salt,
+                            first: userSalt(userDetails.userId),
                         },
                     },
                 },
@@ -109,8 +101,22 @@ export function useVaultKey() {
         return results;
     };
 
+    const getOrCreatePasskey = async () => {
+        try {
+            return await getPasskey();
+        } catch (error) {
+            if (!(error instanceof DOMException) || error.name !== 'NotAllowedError')
+                throw error;
+            if (!window.confirm(
+                'No passkey was selected. Creating a new passkey may overwrite your existing Mossy passkey and prevent access to vaults protected by it. Create a new passkey?'
+            )) throw error;
+            return (await registerPasskey()).results;
+        }
+    };
+
     return {
         registerPasskey,
         getPasskey,
+        getOrCreatePasskey,
     };
 }

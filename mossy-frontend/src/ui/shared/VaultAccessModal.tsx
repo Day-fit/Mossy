@@ -122,7 +122,7 @@ export default function VaultAccessModal(props: VaultAccessModalProps) {
 
     const description = isSetup
         ? isPasskey
-            ? 'Use your Mossy passkey for this vault. We’ll create one if you haven’t set one up in this browser.'
+            ? 'Use your existing Mossy passkey to protect this vault.'
             : 'Choose a password of at least 12 characters to protect this vault.'
         : !metadata
           ? 'Loading vault protection…'
