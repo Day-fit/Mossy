@@ -20,7 +20,7 @@ export function useVaultKey() {
                 challenge: crypto.getRandomValues(new Uint8Array(32)),
                 user: {
                     id: encoder.encode(userDetails.userId),
-                    name: userDetails.email ?? userDetails.username,
+                    name: userDetails.username,
                     displayName: userDetails.username,
                 },
                 authenticatorSelection: {
