@@ -31,6 +31,32 @@ const encode = (bytes: Uint8Array) =>
 const decode = (value: string) =>
     sodium.from_base64(value, sodium.base64_variants.URLSAFE_NO_PADDING);
 
+function decodeTransferredKey(plaintext: Uint8Array) {
+    const payload = transferredKeySchema.parse(
+        JSON.parse(sodium.to_string(plaintext))
+    );
+    const rawKey = decode(payload.rawKey);
+    let credentialId: Uint8Array | undefined;
+    try {
+        if (rawKey.length !== 32)
+            throw new Error('Received an invalid vault key.');
+        if (payload.credentialId !== null) {
+            credentialId = decode(payload.credentialId);
+            if (credentialId.length === 0)
+                throw new Error('Received an invalid passkey ID.');
+        }
+        return {
+            rawKey: new Uint8Array(rawKey),
+            credentialId: credentialId
+                ? new Uint8Array(credentialId).buffer
+                : undefined,
+        };
+    } finally {
+        sodium.memzero(rawKey);
+        if (credentialId) sodium.memzero(credentialId);
+    }
+}
+
 function receiverTranscript(
     receiver: Omit<ReceiverDetails, 'signature'>
 ): Uint8Array {
@@ -162,19 +188,29 @@ export async function encryptVaultKey(
         const nonce = sodium.randombytes_buf(
             sodium.crypto_secretbox_NONCEBYTES
         );
-        const payload = new Uint8Array(sodium.from_string(JSON.stringify({
-            rawKey: encode(key),
-            credentialId: credentialId
-                ? encode(new Uint8Array(credentialId))
-                : null,
-        })));
+        const payload = new Uint8Array(
+            sodium.from_string(
+                JSON.stringify({
+                    rawKey: encode(key),
+                    credentialId: credentialId
+                        ? encode(new Uint8Array(credentialId))
+                        : null,
+                })
+            )
+        );
         let ciphertext: string;
         try {
-            ciphertext = encode(sodium.crypto_secretbox_easy(payload, nonce, sharedSecret));
+            ciphertext = encode(
+                sodium.crypto_secretbox_easy(payload, nonce, sharedSecret)
+            );
         } finally {
             sodium.memzero(payload);
         }
-        const envelope = { version: 2 as const, nonce: encode(nonce), ciphertext };
+        const envelope = {
+            version: 2 as const,
+            nonce: encode(nonce),
+            ciphertext,
+        };
         const publicDh = encode(senderKeys.publicKey);
         const signature = sodium.crypto_sign_detached(
             transferTranscript(context, senderId, publicDh, envelope),
@@ -236,29 +272,7 @@ export async function decryptVaultKey(
             sharedSecret
         );
         try {
-            const payload = transferredKeySchema.parse(
-                JSON.parse(sodium.to_string(plaintext))
-            );
-            const rawKey = decode(payload.rawKey);
-            try {
-                if (rawKey.length !== 32)
-                    throw new Error('Received an invalid vault key.');
-                const id = payload.credentialId === null
-                    ? undefined
-                    : decode(payload.credentialId);
-                try {
-                    if (id && id.length === 0)
-                        throw new Error('Received an invalid passkey ID.');
-                    return {
-                        rawKey: new Uint8Array(rawKey),
-                        credentialId: id ? new Uint8Array(id).buffer : undefined,
-                    };
-                } finally {
-                    if (id) sodium.memzero(id);
-                }
-            } finally {
-                sodium.memzero(rawKey);
-            }
+            return decodeTransferredKey(plaintext);
         } finally {
             sodium.memzero(plaintext);
         }
