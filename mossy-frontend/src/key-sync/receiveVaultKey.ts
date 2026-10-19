@@ -16,7 +16,7 @@ type ReceiveVaultKeyOptions = {
     signal: AbortSignal;
     onCode: (code: string) => void;
     onReceiving: () => void;
-    saveKey: (key: Uint8Array<ArrayBuffer>) => Promise<void>;
+    saveKey: (key: Uint8Array<ArrayBuffer>, credentialId?: ArrayBuffer) => Promise<void>;
 };
 
 export async function receiveVaultKey(
@@ -57,7 +57,7 @@ export async function receiveVaultKey(
             key.senderId,
             options.signal
         );
-        const rawKey = await decryptVaultKey(
+        const { rawKey, credentialId } = await decryptVaultKey(
             key,
             { code, receiver },
             privateDh,
@@ -65,7 +65,7 @@ export async function receiveVaultKey(
         );
         try {
             options.signal.throwIfAborted();
-            await options.saveKey(rawKey);
+            await options.saveKey(rawKey, credentialId);
         } finally {
             sodium.memzero(rawKey);
         }

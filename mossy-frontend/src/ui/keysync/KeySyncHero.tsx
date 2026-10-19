@@ -4,8 +4,9 @@ import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useForm, Controller } from 'react-hook-form';
 import { OTPInput } from 'input-otp';
 import { useKeySyncSender } from '../../hooks/useKeySyncSender.ts';
+import { useAuthStore } from '../../store/authStore.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
-import PasswordPinModal from '../shared/PasswordPinModal.tsx';
+import VaultAccessModal from '../shared/VaultAccessModal.tsx';
 import {
     isSyncCode,
     normalizeSyncCode,
@@ -122,6 +123,12 @@ function SlotBox({
 }
 
 export default function KeySyncHero() {
+    const userId = useAuthStore((state) => state.userDetails?.userId);
+
+    return <KeySyncContent key={userId} />;
+}
+
+function KeySyncContent() {
     const [searchParams, setSearchParams] = useSearchParams();
     const urlCode = normalizeSyncCode(searchParams.get('code') ?? '');
     const fromUrl = isSyncCode(urlCode);
@@ -136,7 +143,7 @@ export default function KeySyncHero() {
     const sender = useKeySyncSender();
     const { send, reset: resetSender } = sender;
     const phase: SyncPhase =
-        sender.phase === 'needs-pin' ? 'idle' : sender.phase;
+        sender.phase === 'needs-unlock' ? 'idle' : sender.phase;
 
     const deviceId = useDeviceStore((state) => state.deviceId);
 
@@ -295,7 +302,7 @@ export default function KeySyncHero() {
                                         fromUrl ||
                                         isSuccess ||
                                         isBusy ||
-                                        sender.phase === 'needs-pin'
+                                        sender.phase === 'needs-unlock'
                                     }
                                     containerClassName="flex gap-2"
                                     onChange={(val) => {
@@ -409,14 +416,14 @@ export default function KeySyncHero() {
                 </motion.div>
             </div>
 
-            {sender.phase === 'needs-pin' && (
-                <PasswordPinModal
-                    setIsPinModalActive={(active) => {
-                        if (active === false) sender.cancelPin();
-                    }}
+            {sender.phase === 'needs-unlock' && sender.vaultId && (
+                <VaultAccessModal
+                    mode="unlock"
                     vaultId={sender.vaultId}
-                    error={sender.error}
-                    afterPinEntered={(pin) => send(sender.code, pin)}
+                    onClose={sender.cancelUnlock}
+                    onSuccess={() => {
+                        void send(sender.code);
+                    }}
                 />
             )}
         </div>

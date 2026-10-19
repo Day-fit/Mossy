@@ -9,7 +9,7 @@ import { RiErrorWarningLine } from 'react-icons/ri';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useEncryptionHook } from '../../../hooks/useEncryptionHook.ts';
 import { KeyNotFoundException } from '../../../exception/KeyNotFoundException.ts';
-import PasswordPinModal from '../../shared/PasswordPinModal.tsx';
+import VaultAccessModal from '../../shared/VaultAccessModal.tsx';
 import KeySyncModal from '../KeySyncModal.tsx';
 import * as React from 'react';
 
@@ -27,24 +27,23 @@ export default function NoteCard({
     const [note, setNote] = useState('');
     const [isLoaded, setIsLoaded] = useState(false);
     const [isError, setIsError] = useState(false);
-    const [isPinModalActive, setIsPinModalActive] = useState(false);
+    const [isVaultAccessModalActive, setIsVaultAccessModalActive] =
+        useState(false);
     const [isKeySyncModalActive, setIsKeySyncModalActive] = useState(false);
-    const [lastAction, setLastAction] = useState<
-        ((pin: string) => void) | undefined
-    >();
+    const [lastAction, setLastAction] = useState<(() => void) | undefined>();
 
     const { selectedVaultId } = useVaultStore();
-    const { encrypt, decrypt, isPinPresent } = useEncryptionHook();
+    const { encrypt, decrypt, isVaultUnlocked } = useEncryptionHook();
 
     const runWithVaultKeySync = async (action: () => Promise<void>) => {
         if (!selectedVaultId) return;
 
         try {
-            if (!(await isPinPresent(selectedVaultId))) {
+            if (!(await isVaultUnlocked(selectedVaultId))) {
                 setLastAction(() => () => {
                     void action();
                 });
-                setIsPinModalActive(true);
+                setIsVaultAccessModalActive(true);
                 return;
             }
         } catch (error) {
@@ -127,11 +126,12 @@ export default function NoteCard({
             }}
             className="overflow-hidden"
         >
-            {isPinModalActive && (
-                <PasswordPinModal
+            {isVaultAccessModalActive && selectedVaultId && (
+                <VaultAccessModal
                     vaultId={selectedVaultId}
-                    setIsPinModalActive={setIsPinModalActive}
-                    afterPinEntered={lastAction}
+                    mode="unlock"
+                    onClose={() => setIsVaultAccessModalActive(false)}
+                    onSuccess={lastAction}
                 />
             )}
 

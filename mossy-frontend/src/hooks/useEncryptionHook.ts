@@ -1,241 +1,350 @@
-import { useCallback } from 'react';
 import sodium from 'libsodium-wrappers-sumo';
+import { getDeviceDatabase } from '../auth/deviceIdentity.ts';
 import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
-import { useDeviceKeys } from './useDeviceKeys.ts';
+import { useAuthStore } from '../store/authStore.ts';
 import { useEncryptionStore } from '../store/encryptionStore.ts';
+import { useDeviceKeys } from './useDeviceKeys.ts';
+import { useVaultKey } from './useVaultKey.ts';
 
-export type UseEncryptionResult = {
-    encrypt: (password: string, vaultId: string) => Promise<string>;
-    decrypt: (ciphertext: string, vaultId: string) => Promise<string>;
-    isPinPresent: (id: string) => Promise<boolean>;
-    saveKey: (id: string, pin: string) => Promise<void>;
-    saveRawKey: (
+export class PrfNotSupportedError extends Error {
+    constructor() {
+        super(
+            'This passkey does not support PRF. Use a vault password instead.'
+        );
+    }
+}
+
+export const VAULT_PASSWORD_MIN_LENGTH = 12;
+export type VaultMethod = 'PRF' | 'Password';
+export type VaultKeySetup =
+    | { type: 'PRF'; createNew: boolean; credentialId?: ArrayBuffer }
+    | { type: 'Password'; password: string };
+export type VaultKeyMetadata = { type: VaultMethod };
+export type PreparedProtection = {
+    userId: string;
+    wrappingKey: CryptoKey;
+} & (
+    | { type: 'PRF'; credentialId: ArrayBuffer }
+    | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
+);
+
+type VaultKeyRecord = {
+    wrappedKey: ArrayBuffer;
+} & (
+    | { type: 'PRF'; credentialId: ArrayBuffer }
+    | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
+);
+
+function activeUser(): string {
+    const userId = useAuthStore.getState().userDetails?.userId;
+    if (!userId) throw new Error('User details not available.');
+    return userId;
+}
+
+function requireUser(userId: string): void {
+    if (activeUser() !== userId)
+        throw new Error('Account changed. Please try again.');
+}
+
+function isVaultKeyRecord(value: unknown): value is VaultKeyRecord {
+    if (!value || typeof value !== 'object') return false;
+    if (!('wrappedKey' in value) || !(value.wrappedKey instanceof ArrayBuffer))
+        return false;
+    if (!('type' in value)) return false;
+
+    switch (value.type) {
+        case 'PRF':
+            return (
+                'credentialId' in value &&
+                value.credentialId instanceof ArrayBuffer
+            );
+        case 'Password':
+            return 'salt' in value && value.salt instanceof Uint8Array;
+        default:
+            return false;
+    }
+}
+
+function prfBytes(
+    results: AuthenticationExtensionsClientOutputs
+): Uint8Array<ArrayBuffer> {
+    const first = results.prf?.results?.first;
+    if (!first || first.byteLength !== 32) throw new PrfNotSupportedError();
+    const bytes = new Uint8Array(32);
+    if (first instanceof ArrayBuffer) bytes.set(new Uint8Array(first));
+    else
+        bytes.set(
+            new Uint8Array(first.buffer, first.byteOffset, first.byteLength)
+        );
+    return bytes;
+}
+
+async function importWrappingKey(
+    bytes: Uint8Array<ArrayBuffer>
+): Promise<CryptoKey> {
+    return crypto.subtle.importKey(
+        'raw',
+        bytes,
+        { name: 'AES-KW', length: 256 },
+        false,
+        ['wrapKey', 'unwrapKey']
+    );
+}
+
+async function passwordWrappingKey(
+    password: string,
+    salt: Uint8Array<ArrayBuffer>
+): Promise<CryptoKey> {
+    await sodium.ready;
+    const bytes = sodium.crypto_pwhash(
+        32,
+        password,
+        salt,
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_ARGON2ID13
+    );
+    try {
+        return await importWrappingKey(new Uint8Array(bytes));
+    } finally {
+        sodium.memzero(bytes);
+    }
+}
+
+async function readVaultKey(vaultId: string): Promise<VaultKeyRecord> {
+    activeUser();
+    const db = await getDeviceDatabase();
+    const value = await db.get('keys', vaultId);
+    if (!isVaultKeyRecord(value))
+        throw new KeyNotFoundException('Vault key not found on this device.');
+    return value;
+}
+
+export async function getKeyMetadata(
+    vaultId: string
+): Promise<VaultKeyMetadata> {
+    const record = await readVaultKey(vaultId);
+    return { type: record.type };
+}
+
+export async function getVaultCredentialId(
+    vaultId: string
+): Promise<ArrayBuffer | undefined> {
+    const record = await readVaultKey(vaultId);
+    return record.type === 'PRF' ? record.credentialId : undefined;
+}
+
+async function saveWrappedKey(
+    vaultId: string,
+    protection: PreparedProtection,
+    dataKey: CryptoKey,
+    createOnly: boolean
+): Promise<void> {
+    requireUser(protection.userId);
+    const wrappedKey = await crypto.subtle.wrapKey(
+        'raw',
+        dataKey,
+        protection.wrappingKey,
+        'AES-KW'
+    );
+    const record: VaultKeyRecord =
+        protection.type === 'Password'
+            ? { type: 'Password', salt: protection.salt, wrappedKey }
+            : {
+                  type: 'PRF',
+                  credentialId: protection.credentialId,
+                  wrappedKey,
+              };
+    requireUser(protection.userId);
+    const db = await getDeviceDatabase();
+    if (createOnly) await db.add('keys', record, vaultId);
+    else await db.put('keys', record, vaultId);
+    useEncryptionStore.getState().setKey(vaultId, protection.userId, dataKey);
+}
+
+export async function registerVaultKey(
+    vaultId: string,
+    protection: PreparedProtection
+): Promise<void> {
+    const dataKey = await crypto.subtle.generateKey(
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
+    await saveWrappedKey(vaultId, protection, dataKey, true);
+}
+
+export async function saveRawKey(
+    vaultId: string,
+    protection: PreparedProtection,
+    rawKey: Uint8Array<ArrayBuffer>
+): Promise<void> {
+    const dataKey = await crypto.subtle.importKey(
+        'raw',
+        rawKey,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
+    await saveWrappedKey(vaultId, protection, dataKey, false);
+}
+
+export async function isVaultUnlocked(vaultId: string): Promise<boolean> {
+    await readVaultKey(vaultId);
+    return useEncryptionStore.getState().getKey(vaultId) !== undefined;
+}
+
+export function getUnlockedKey(vaultId: string): CryptoKey | undefined {
+    return useEncryptionStore.getState().getKey(vaultId);
+}
+
+function unlockedKey(vaultId: string): CryptoKey {
+    const key = getUnlockedKey(vaultId);
+    if (!key) throw new Error('Unlock this vault to continue.');
+    return key;
+}
+
+export async function encrypt(
+    rawData: string,
+    vaultId: string
+): Promise<string> {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = new Uint8Array(
+        await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            unlockedKey(vaultId),
+            new TextEncoder().encode(rawData)
+        )
+    );
+    const blob = new Uint8Array(iv.length + ciphertext.length);
+    blob.set(iv);
+    blob.set(ciphertext, iv.length);
+    return btoa(String.fromCharCode(...blob));
+}
+
+export async function decrypt(
+    ciphertext: string,
+    vaultId: string
+): Promise<string> {
+    const blob = Uint8Array.from(atob(ciphertext), (char) =>
+        char.charCodeAt(0)
+    );
+    const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: blob.slice(0, 12) },
+        unlockedKey(vaultId),
+        blob.slice(12)
+    );
+    return new TextDecoder().decode(plaintext);
+}
+
+export function useEncryptionHook() {
+    useDeviceKeys();
+    const { registerPasskey, getPasskey } = useVaultKey();
+
+    const prepareProtection = async (
         vaultId: string,
-        pin: string,
-        rawKey: Uint8Array<ArrayBuffer>
-    ) => Promise<void>;
-    loadKey: (id: string, pin: string) => Promise<CryptoKey>;
-    setPin: (vaultId: string, pin: string) => void;
-};
-
-export function useEncryptionHook(): UseEncryptionResult {
-    const deviceKeysHook = useDeviceKeys();
-    const dbRef = deviceKeysHook.dbRef;
-    const setPin = useEncryptionStore((state) => state.setPin);
-    const clearPin = useEncryptionStore((state) => state.clearPin);
-
-    const loadKey = useCallback(
-        async (id: string, pin: string) => {
-            const db = dbRef.current;
-
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
+        vaultName: string,
+        setup: VaultKeySetup
+    ): Promise<PreparedProtection> => {
+        const userId = activeUser();
+        if (setup.type === 'Password') {
+            if (setup.password.length < VAULT_PASSWORD_MIN_LENGTH)
+                throw new Error(
+                    'Use at least 12 characters for your vault password.'
+                );
             await sodium.ready;
-
-            const keyRecord = await db.get('keys', id);
-
-            if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-                throw new KeyNotFoundException('Key not found');
-            }
-
-            const { wrappedKey, salt } = keyRecord;
-
-            const pinBytes = sodium.crypto_pwhash(
-                32,
-                pin,
-                salt,
-                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-                sodium.crypto_pwhash_ALG_ARGON2ID13
+            const salt = crypto.getRandomValues(
+                new Uint8Array(sodium.crypto_pwhash_SALTBYTES)
             );
+            const wrappingKey = await passwordWrappingKey(setup.password, salt);
+            return { userId, type: 'Password', salt, wrappingKey };
+        }
 
-            const wrappingKey = await crypto.subtle.importKey(
+        let passkey: {
+            results: AuthenticationExtensionsClientOutputs;
+            credentialId: ArrayBuffer;
+        };
+        try {
+            passkey = setup.createNew
+                ? await registerPasskey(vaultId, vaultName)
+                : await getPasskey(vaultId, setup.credentialId);
+        } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === 'NotSupportedError'
+            )
+                throw new PrfNotSupportedError();
+            throw error;
+        }
+        requireUser(userId);
+        const wrappingKey = await importWrappingKey(prfBytes(passkey.results));
+        return {
+            userId,
+            type: 'PRF',
+            credentialId: passkey.credentialId,
+            wrappingKey,
+        };
+    };
+
+    const getWrappingKey = async (
+        vaultId: string,
+        record: VaultKeyRecord,
+        password?: string
+    ): Promise<CryptoKey> => {
+        if (record.type === 'Password') {
+            if (!password) throw new Error('Enter your vault password.');
+            return passwordWrappingKey(password, record.salt);
+        }
+
+        try {
+            const passkey = await getPasskey(vaultId, record.credentialId);
+            return await importWrappingKey(prfBytes(passkey.results));
+        } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === 'NotSupportedError'
+            )
+                throw new PrfNotSupportedError();
+            throw error;
+        }
+    };
+
+    const unlockVault = async (
+        vaultId: string,
+        password?: string
+    ): Promise<void> => {
+        const userId = activeUser();
+        const record = await readVaultKey(vaultId);
+        const wrappingKey = await getWrappingKey(vaultId, record, password);
+        let dataKey: CryptoKey;
+        try {
+            dataKey = await crypto.subtle.unwrapKey(
                 'raw',
-                new Uint8Array(pinBytes),
-                { name: 'AES-KW', length: 256 },
-                false,
-                ['wrapKey', 'unwrapKey']
-            );
-
-            return await crypto.subtle
-                .unwrapKey(
-                    'raw',
-                    wrappedKey,
-                    wrappingKey,
-                    'AES-KW',
-                    { name: 'AES-GCM', length: 256 },
-                    true,
-                    ['encrypt', 'decrypt']
-                )
-                .catch(() => {
-                    clearPin(id);
-                    throw new Error('Invalid pin');
-                });
-        },
-        [clearPin, dbRef]
-    );
-
-    const encrypt = useCallback(
-        async (rawData: string, vaultId: string) => {
-            const pin = useEncryptionStore.getState().pins[vaultId];
-
-            if (!pin) {
-                throw new Error('Pin not found');
-            }
-
-            const iv = new Uint8Array(sodium.randombytes_buf(12));
-
-            const loadedKey = await loadKey(vaultId, pin);
-            const encoder = new TextEncoder();
-            const plaintext = encoder.encode(rawData);
-
-            const ciphertext = new Uint8Array(
-                await crypto.subtle.encrypt(
-                    { name: 'AES-GCM', iv },
-                    loadedKey,
-                    plaintext
-                )
-            );
-
-            const blob = new Uint8Array(iv.length + ciphertext.length);
-            blob.set(iv, 0);
-            blob.set(ciphertext, 12);
-
-            return btoa(String.fromCharCode(...blob));
-        },
-        [loadKey]
-    );
-
-    const decrypt = useCallback(
-        async (ciphertext: string, vaultId: string) => {
-            const pin = useEncryptionStore.getState().pins[vaultId];
-
-            if (!pin) {
-                throw new Error('Pin not found');
-            }
-
-            const loadedKey = await loadKey(vaultId, pin);
-            const blob = new Uint8Array(
-                atob(ciphertext)
-                    .split('')
-                    .map((c) => c.charCodeAt(0))
-            );
-
-            const iv = blob.slice(0, 12);
-            const ciphertextBytes = blob.slice(12);
-
-            const decryptedBytes = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv: new Uint8Array(iv) },
-                loadedKey,
-                ciphertextBytes
-            );
-
-            return new TextDecoder().decode(decryptedBytes);
-        },
-        [loadKey]
-    );
-
-    const wrapAndStore = useCallback(
-        async (vaultId: string, pin: string, dataKey: CryptoKey) => {
-            const db = dbRef.current;
-
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
-            await sodium.ready;
-
-            const salt = sodium.randombytes_buf(sodium.crypto_pwhash_SALTBYTES);
-
-            const pinBytes = sodium.crypto_pwhash(
-                32,
-                pin,
-                salt,
-                sodium.crypto_pwhash_OPSLIMIT_MODERATE,
-                sodium.crypto_pwhash_MEMLIMIT_MODERATE,
-                sodium.crypto_pwhash_ALG_ARGON2ID13
-            );
-
-            const wrappingKey = await crypto.subtle.importKey(
-                'raw',
-                new Uint8Array(pinBytes),
-                { name: 'AES-KW', length: 256 },
-                false,
-                ['wrapKey', 'unwrapKey']
-            );
-
-            const wrappedKey = await crypto.subtle.wrapKey(
-                'raw',
-                dataKey,
+                record.wrappedKey,
                 wrappingKey,
-                'AES-KW'
-            );
-
-            await db.put('keys', { wrappedKey, salt }, vaultId);
-        },
-        [dbRef]
-    );
-
-    const saveKey = useCallback(
-        async (vaultId: string, pin: string) => {
-            const dataKey = await crypto.subtle.generateKey(
+                'AES-KW',
                 { name: 'AES-GCM', length: 256 },
                 true,
                 ['encrypt', 'decrypt']
             );
-
-            await wrapAndStore(vaultId, pin, dataKey);
-        },
-        [wrapAndStore]
-    );
-
-    const saveRawKey = useCallback(
-        async (
-            vaultId: string,
-            pin: string,
-            rawKey: Uint8Array<ArrayBuffer>
-        ) => {
-            const dataKey = await crypto.subtle.importKey(
-                'raw',
-                rawKey,
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt']
+        } catch {
+            throw new Error(
+                'Could not unlock the vault. Check your password or passkey.'
             );
-
-            await wrapAndStore(vaultId, pin, dataKey);
-        },
-        [wrapAndStore]
-    );
-
-    const isPinPresent = useCallback(
-        async (id: string) => {
-            const db = dbRef.current;
-
-            if (!db) {
-                throw new Error('Database not initialized');
-            }
-
-            const keyRecord = await db.get('keys', id);
-
-            if (!keyRecord?.wrappedKey || !keyRecord?.salt) {
-                throw new KeyNotFoundException('Key not found');
-            }
-
-            return useEncryptionStore.getState().pins[id] !== undefined;
-        },
-        [dbRef]
-    );
+        }
+        requireUser(userId);
+        useEncryptionStore.getState().setKey(vaultId, userId, dataKey);
+    };
 
     return {
+        prepareProtection,
+        unlockVault,
+        registerVaultKey,
+        saveRawKey,
+        getKeyMetadata,
+        isVaultUnlocked,
+        getUnlockedKey,
         encrypt,
         decrypt,
-        isPinPresent,
-        saveKey,
-        saveRawKey,
-        loadKey,
-        setPin,
     };
 }

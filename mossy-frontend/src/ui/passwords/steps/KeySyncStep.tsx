@@ -1,5 +1,7 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Button from '../../shared/Button.tsx';
+import VaultAccessModal from '../../shared/VaultAccessModal.tsx';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useKeySyncReceiver } from '../../../hooks/useKeySyncReceiver.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
@@ -8,7 +10,6 @@ import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
 
 type KeySyncModalProps = {
     vaultId: string;
-    pin: string;
     setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -64,10 +65,9 @@ const stepVariants: Variants = {
 
 export default function KeySyncStep({
     vaultId,
-    pin,
     setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-    const receiver = useKeySyncReceiver(vaultId, pin);
+    const receiver = useKeySyncReceiver(vaultId);
     const qrCodeRef = useRef<HTMLDivElement>(null);
     const synced = receiver.phase === 'success';
     const syncCode = receiver.code;
@@ -104,13 +104,13 @@ export default function KeySyncStep({
             initial="enter"
             animate="center"
             exit="exit"
-            className="bg-surface shadow-card rounded-md lg:w-2/3 md:w-full h-3/4 flex flex-col justify-between items-center p-5 overflow-hidden"
+            className={`bg-surface shadow-card rounded-md flex flex-col justify-between items-center overflow-hidden ${synced ? 'w-64 max-w-full p-4' : 'lg:w-2/3 md:w-full h-3/4 p-5'}`}
         >
             <AnimatePresence mode="wait">
                 {synced ? (
                     <motion.div
                         key="success"
-                        className="flex items-center justify-center w-full h-full"
+                        className="flex items-center justify-center w-full"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
@@ -167,6 +167,9 @@ export default function KeySyncStep({
                                 readOnly
                                 className="font-mono text-sm w-full rounded-md border border-border-strong bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
                             />
+                            {receiver.phase === 'receiving' && (
+                                <p role="status">Receiving your vault key…</p>
+                            )}
                             {receiver.phase === 'saving' && (
                                 <p role="status">Saving your vault key…</p>
                             )}
@@ -197,6 +200,16 @@ export default function KeySyncStep({
                     </motion.div>
                 )}
             </AnimatePresence>
+            {receiver.phase === 'choosing' && createPortal(
+                <VaultAccessModal
+                    mode="prepare"
+                    vaultId={vaultId}
+                    credentialId={receiver.credentialId}
+                    onClose={() => setIsKeySyncModalActive(false)}
+                    onPrepared={receiver.selectProtection}
+                />,
+                document.body
+            )}
         </motion.div>
     );
 }

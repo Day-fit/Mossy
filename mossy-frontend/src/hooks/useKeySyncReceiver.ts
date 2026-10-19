@@ -1,21 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import { useEncryptionHook } from './useEncryptionHook.ts';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
+import {
+    useEncryptionHook,
+    type PreparedProtection,
+} from './useEncryptionHook.ts';
 
 type ReceiverState = {
-    phase: 'preparing' | 'waiting' | 'saving' | 'success' | 'error';
+    phase:
+        | 'preparing'
+        | 'waiting'
+        | 'receiving'
+        | 'choosing'
+        | 'saving'
+        | 'success'
+        | 'error';
     code?: string;
     error?: string;
+    credentialId?: ArrayBuffer;
 };
 
-export function useKeySyncReceiver(vaultId: string, pin: string) {
+export function useKeySyncReceiver(vaultId: string) {
     const receiverId = useDeviceStore((state) => state.deviceId);
     const identity = useDeviceStore(useShallow((state) => state.idKey));
-    const { saveRawKey, setPin } = useEncryptionHook();
+    const { saveRawKey } = useEncryptionHook();
     const [state, setState] = useState<ReceiverState>({ phase: 'preparing' });
     const [attempt, setAttempt] = useState(0);
+    const pendingSelection = useRef<{
+        controller: AbortController;
+        select: (protection: PreparedProtection) => void;
+    } | null>(null);
+    const selectProtection = useCallback((protection: PreparedProtection) => {
+        pendingSelection.current?.select(protection);
+    }, []);
 
     useEffect(() => {
         if (!receiverId || !identity) return;
@@ -31,31 +49,59 @@ export function useKeySyncReceiver(vaultId: string, pin: string) {
             5 * 60_000
         );
 
-        void receiveVaultKey({
-            vaultId,
-            receiverId,
-            identity,
-            signal: controller.signal,
-            onCode: (code) => {
-                if (!disposed) setState({ phase: 'waiting', code });
-            },
-            onReceiving: () => {
-                if (!disposed)
-                    setState((current) => ({ ...current, phase: 'saving' }));
-            },
-            saveKey: async (key) => {
-                await saveRawKey(vaultId, pin, key);
-                if (!controller.signal.aborted) setPin(vaultId, pin);
-            },
-        })
-            .then(() => {
+        function chooseProtection(credentialId?: ArrayBuffer) {
+            controller.signal.throwIfAborted();
+            return new Promise<PreparedProtection>((resolve, reject) => {
+                const onAbort = () => reject(controller.signal.reason);
+                controller.signal.addEventListener('abort', onAbort, {
+                    once: true,
+                });
+                pendingSelection.current = {
+                    controller,
+                    select: (protection) => {
+                        controller.signal.removeEventListener('abort', onAbort);
+                        if (pendingSelection.current?.controller === controller)
+                            pendingSelection.current = null;
+                        resolve(protection);
+                    },
+                };
+                if (!disposed) setState({ phase: 'choosing', credentialId });
+            });
+        }
+
+        async function receive() {
+            if (!receiverId || !identity) return;
+            try {
+                await receiveVaultKey({
+                    vaultId,
+                    receiverId,
+                    identity,
+                    signal: controller.signal,
+                    onCode: (code) => {
+                        if (!disposed) setState({ phase: 'waiting', code });
+                    },
+                    onReceiving: () => {
+                        if (!disposed)
+                            setState((current) => ({
+                                ...current,
+                                phase: 'receiving',
+                            }));
+                    },
+                    saveKey: async (rawKey, credentialId) => {
+                        const protection = await chooseProtection(credentialId);
+                        controller.signal.throwIfAborted();
+                        if (!disposed) setState({ phase: 'saving' });
+                        await saveRawKey(vaultId, protection, rawKey);
+                    },
+                });
                 if (!disposed) setState({ phase: 'success' });
-            })
-            .catch((error: unknown) => {
+            } catch (error) {
                 if (disposed) return;
-                const reason: unknown = controller.signal.aborted
-                    ? controller.signal.reason
-                    : error;
+                const reason =
+                    controller.signal.aborted &&
+                    controller.signal.reason instanceof Error
+                        ? controller.signal.reason
+                        : error;
                 setState({
                     phase: 'error',
                     error:
@@ -63,18 +109,25 @@ export function useKeySyncReceiver(vaultId: string, pin: string) {
                             ? reason.message
                             : 'Key synchronization failed.',
                 });
-            })
-            .finally(() => clearTimeout(timer));
-
+            } finally {
+                if (pendingSelection.current?.controller === controller)
+                    pendingSelection.current = null;
+                clearTimeout(timer);
+            }
+        }
+        void receive();
         return () => {
             disposed = true;
+            if (pendingSelection.current?.controller === controller)
+                pendingSelection.current = null;
             clearTimeout(timer);
             controller.abort();
         };
-    }, [attempt, identity, pin, receiverId, saveRawKey, setPin, vaultId]);
+    }, [attempt, identity, receiverId, saveRawKey, vaultId]);
 
     return {
         ...state,
+        selectProtection,
         retry: () => {
             setState({ phase: 'preparing' });
             setAttempt((current) => current + 1);

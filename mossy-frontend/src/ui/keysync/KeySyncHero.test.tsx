@@ -8,19 +8,43 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ReceiverDetails } from '../../api/keySync.api.ts';
+import type { CryptoPair } from '../../auth/deviceIdentity.ts';
+import { useAuthStore } from '../../store/authStore.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
-import { useEncryptionStore } from '../../store/encryptionStore.ts';
 import { globalStyleTokens } from '../../theme/globalTokens.ts';
 import KeySyncHero from './KeySyncHero.tsx';
 
 const services = vi.hoisted(() => ({
-    getVerifiedReceiver: vi.fn(),
-    sendVaultKey: vi.fn(),
+    getVerifiedReceiver: vi.fn<(
+        code: string,
+        senderId: string,
+        signal: AbortSignal
+    ) => Promise<ReceiverDetails>>(),
+    sendVaultKey: vi.fn<(
+        code: string,
+        receiver: ReceiverDetails,
+        senderId: string,
+        identity: CryptoPair,
+        key: CryptoKey,
+        credentialId: ArrayBuffer | undefined,
+        signal: AbortSignal
+    ) => Promise<void>>(),
 }));
-const encryption = vi.hoisted(() => ({ loadKey: vi.fn(), setPin: vi.fn() }));
+const encryption = vi.hoisted(() => ({
+    isVaultUnlocked: vi.fn<(vaultId: string) => Promise<boolean>>(),
+    getUnlockedKey: vi.fn<(vaultId: string) => CryptoKey | undefined>(),
+    getVaultCredentialId: vi.fn<(vaultId: string) => Promise<ArrayBuffer | undefined>>(),
+}));
 vi.mock('../../key-sync/sendVaultKey.ts', () => services);
 vi.mock('../../hooks/useEncryptionHook.ts', () => ({
     useEncryptionHook: () => encryption,
+    getVaultCredentialId: encryption.getVaultCredentialId,
+}));
+vi.mock('../shared/VaultAccessModal.tsx', () => ({
+    default: ({ onSuccess }: { onSuccess?: () => void }) => (
+        <button type="button" onClick={onSuccess}>Unlock test vault</button>
+    ),
 }));
 
 describe('key sync sender page', () => {
@@ -30,13 +54,12 @@ describe('key sync sender page', () => {
     });
     beforeEach(() => {
         vi.resetAllMocks();
-        // jsdom does not implement the layout observer used by the OTP inputs.
         vi.stubGlobal(
             'ResizeObserver',
             class {
-                observe = vi.fn();
-                unobserve = vi.fn();
-                disconnect = vi.fn();
+                observe = vi.fn<() => void>();
+                unobserve = vi.fn<() => void>();
+                disconnect = vi.fn<() => void>();
             }
         );
         document.documentElement.style.setProperty(
@@ -47,34 +70,45 @@ describe('key sync sender page', () => {
             globalStyleTokens.border,
             '#dddddd'
         );
+        useAuthStore.setState({
+            isAuthenticated: true,
+            userDetails: {
+                userId: 'user-one',
+                email: 'one@example.test',
+                username: 'One',
+                grantedAuthorities: [],
+            },
+        });
         useDeviceStore.setState({
             deviceId: 'sender-device',
             idKey: { type: 'Ed25519', public: 'public', private: 'private' },
         });
-        useEncryptionStore.setState({ pins: {} });
         services.getVerifiedReceiver.mockResolvedValue({
             receiverId: 'receiver-device',
             vaultId: 'vault-one',
+            publicDh: { kty: 'OKP', crv: 'X25519', x: 'public' },
+            signature: 'signature',
         });
         services.sendVaultKey.mockResolvedValue(undefined);
-        encryption.loadKey.mockResolvedValue({});
-        encryption.setPin.mockImplementation((vaultId: string, pin: string) =>
-            useEncryptionStore.getState().setPin(vaultId, pin)
-        );
+        encryption.isVaultUnlocked.mockResolvedValue(true);
+        encryption.getVaultCredentialId.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
+        encryption.getUnlockedKey.mockReturnValue({
+            algorithm: { name: 'AES-GCM' },
+            extractable: true,
+            type: 'secret',
+            usages: ['encrypt', 'decrypt'],
+        });
     });
 
-    it('accepts letters in manually entered codes and uploads once after normalizing case', async () => {
-        useEncryptionStore.getState().setPin('vault-one', '1234');
+    it('normalizes a manually entered code and sends the unlocked key once', async () => {
         render(
             <MemoryRouter>
                 <KeySyncHero />
             </MemoryRouter>
         );
-
         fireEvent.change(screen.getByRole('textbox', { name: 'Sync code' }), {
             target: { value: 'abc123' },
         });
-
         await screen.findByRole('heading', {
             name: 'Key transferred successfully',
         });
@@ -84,13 +118,21 @@ describe('key sync sender page', () => {
             expect.any(AbortSignal)
         );
         expect(services.sendVaultKey).toHaveBeenCalledOnce();
-        expect(encryption.loadKey).toHaveBeenCalledWith('vault-one', '1234');
+        expect(services.sendVaultKey).toHaveBeenCalledWith(
+            'ABC123',
+            expect.objectContaining({ vaultId: 'vault-one' }),
+            'sender-device',
+            expect.any(Object),
+            expect.any(Object),
+            new Uint8Array([1, 2, 3]).buffer,
+            expect.any(AbortSignal)
+        );
     });
 
-    it('handles a linked alphanumeric code in StrictMode and allows retrying a wrong PIN', async () => {
-        encryption.loadKey
-            .mockRejectedValueOnce(new Error('Invalid pin'))
-            .mockResolvedValue({});
+    it('prompts to unlock a linked vault and resumes the transfer', async () => {
+        encryption.isVaultUnlocked
+            .mockResolvedValueOnce(false)
+            .mockResolvedValue(true);
         render(
             <StrictMode>
                 <MemoryRouter initialEntries={['/key-sync?code=ABC123']}>
@@ -98,17 +140,11 @@ describe('key sync sender page', () => {
                 </MemoryRouter>
             </StrictMode>
         );
-        const pin = await screen.findByRole('textbox', { name: 'Vault PIN' });
-        expect(services.getVerifiedReceiver).toHaveBeenCalledOnce();
-
-        fireEvent.change(pin, { target: { value: '1111' } });
-        await screen.findByRole('alert');
-        expect(screen.getByRole('alert').textContent).toContain('Invalid pin');
-        expect(services.sendVaultKey).not.toHaveBeenCalled();
-
-        fireEvent.change(screen.getByRole('textbox', { name: 'Vault PIN' }), {
-            target: { value: '1234' },
+        const unlock = await screen.findByRole('button', {
+            name: 'Unlock test vault',
         });
+        expect(services.sendVaultKey).not.toHaveBeenCalled();
+        fireEvent.click(unlock);
         await waitFor(() =>
             expect(services.sendVaultKey).toHaveBeenCalledOnce()
         );

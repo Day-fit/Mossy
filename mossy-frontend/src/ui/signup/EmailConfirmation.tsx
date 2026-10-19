@@ -3,7 +3,7 @@ import {
     useRef,
     useState,
     type ClipboardEvent,
-    type FormEvent,
+    type SubmitEvent,
     type KeyboardEvent,
 } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -118,7 +118,7 @@ export default function EmailConfirmation() {
         }
     }
 
-    function confirm(event?: FormEvent) {
+    function confirm(event?: SubmitEvent<HTMLFormElement>) {
         event?.preventDefault();
         void perform(async () => {
             if (link) await executeConfirmEmailRequest(link);
@@ -146,7 +146,7 @@ export default function EmailConfirmation() {
         }, true);
     }
 
-    function recover(event: FormEvent) {
+    function recover(event: SubmitEvent<HTMLFormElement>) {
         event.preventDefault();
         void perform(async () => {
             try {
