@@ -417,6 +417,9 @@ test('forged content IPC and stale action windows cannot claim privileged action
         `chrome-extension://${extensionId}/action.html#${crypto.randomUUID()}`
     );
     await expect(unrelated.getByRole('alert')).toContainText('expired');
+    await unrelated
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-action-error.png' });
     const result = await popup.evaluate(() =>
         chrome.runtime.sendMessage({
             kind: 'fetch',
@@ -474,6 +477,9 @@ test(
         expect(await popup.locator('body').innerText()).not.toContain(
             'captured-password'
         );
+        await popup
+            .locator('main')
+            .screenshot({ path: '/tmp/mossy-v2-capture.png' });
         const windowPromise = context.waitForEvent('page');
         await popup
             .getByRole('button', { name: 'Authorize save', exact: true })
@@ -481,6 +487,9 @@ test(
         const action = await windowPromise;
         await action.waitForLoadState();
         await expect(action.getByRole('timer')).toBeVisible();
+        await action
+            .locator('main')
+            .screenshot({ path: '/tmp/mossy-v2-save-action.png' });
         await authorize(action);
         await expect.poll(() => saved).toBeTruthy();
         expect(saved).toMatchObject({
@@ -786,6 +795,9 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
     await expect(
         action.getByLabel('Protect with a vault password')
     ).toBeVisible();
+    await action
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-receive-action.png' });
     expect(order).toEqual(['events', 'init', 'keys']);
     const readWrapped = () =>
         popup.evaluate(async () => {
@@ -947,3 +959,149 @@ test(
         expect(saved).toBeUndefined();
     }
 );
+
+test('frontend themes, search recovery, settings and key-sync controls stay usable in the compact popup', async () => {
+    await signIn();
+    await popup.emulateMedia({ reducedMotion: 'reduce' });
+    for (const theme of ['light', 'dark'] as const) {
+        await pageRpc(popup, { kind: 'settings', instance, theme });
+        await popup.reload();
+        await expect(
+            popup.getByRole('heading', { name: 'Passwords', exact: true })
+        ).toBeVisible();
+        await expect(popup.locator('body')).toHaveCSS(
+            'font-family',
+            'Syne, sans-serif'
+        );
+        await expect(
+            popup.getByRole('heading', { name: 'Passwords', exact: true })
+        ).toHaveCSS('font-family', /^Geologica,/);
+        await popup.getByRole('searchbox').fill('no-such-login');
+        await expect(
+            popup.getByRole('heading', { name: 'No matching passwords' })
+        ).toBeVisible();
+        await expect(popup.locator('.entry')).toHaveCount(0);
+        await popup
+            .locator('main')
+            .screenshot({ path: `/tmp/mossy-v2-empty-${theme}.png` });
+        await popup.getByRole('searchbox').fill('  ALICE  ');
+        await expect(popup.locator('.entry')).toHaveCount(1);
+        await popup
+            .getByRole('button', { name: 'Sync vault keys', exact: true })
+            .click();
+        await expect(
+            popup.getByRole('heading', {
+                name: 'Sync a vault key',
+                exact: true,
+            })
+        ).toBeFocused();
+        await expect(
+            popup.getByRole('button', {
+                name: 'Receive · passkey',
+                exact: true,
+            })
+        ).toBeEnabled();
+        await expect(
+            popup.getByRole('button', {
+                name: 'Receive · password',
+                exact: true,
+            })
+        ).toBeEnabled();
+        await popup
+            .locator('main')
+            .screenshot({ path: `/tmp/mossy-v2-sync-${theme}.png` });
+        await popup
+            .getByRole('button', { name: 'Settings', exact: true })
+            .click();
+        await expect(
+            popup.getByRole('heading', { name: 'Settings', exact: true })
+        ).toBeFocused();
+        await expect(popup.getByLabel('Mossy instance')).toHaveValue(instance);
+        await expect(popup.getByLabel('Appearance')).toHaveValue(theme);
+        await popup
+            .locator('main')
+            .screenshot({ path: `/tmp/mossy-v2-settings-${theme}.png` });
+        await popup
+            .getByRole('button', { name: 'Close settings', exact: true })
+            .click();
+    }
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    await popup.getByLabel('Appearance').selectOption('system');
+    await popup
+        .getByRole('button', { name: 'Save settings', exact: true })
+        .click();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    await popup.reload();
+    for (const colorScheme of ['light', 'dark'] as const) {
+        await popup.emulateMedia({ colorScheme });
+        await expect(popup.locator('body')).toHaveCSS(
+            'background-color',
+            colorScheme === 'dark' ? 'rgb(24, 26, 23)' : 'rgb(246, 246, 246)'
+        );
+    }
+    // Long metadata and many records must scroll vertically inside the list.
+    await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+        route.fulfill({
+            json: Array.from({ length: 12 }, (_, index) => ({
+                passwordId: `long-${index}`,
+                identifier:
+                    'a-long-username-without-spaces@example.example.example',
+                address:
+                    'https://a-long-domain.example/long/path/without/spaces/for-a-saved-login',
+                passwordType: 'PASSWORD',
+                lastModified: '2026-01-01',
+            })),
+        })
+    );
+    await popup.setViewportSize({ width: 320, height: 600 });
+    await popup.reload();
+    await expect(popup.locator('.entry')).toHaveCount(12);
+    expect(
+        await popup.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth
+        )
+    ).toBe(true);
+    expect(
+        await popup
+            .locator('.scroll')
+            .evaluate((element) => element.scrollHeight > element.clientHeight)
+    ).toBe(true);
+    await popup
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-narrow.png' });
+    await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.reload();
+    await expect(
+        popup.getByRole('heading', { name: 'No passwords yet' })
+    ).toBeVisible();
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.reload();
+    await expect(
+        popup.getByRole('link', { name: 'Create a vault in Mossy' })
+    ).toBeVisible();
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({
+            status: 503,
+            json: { message: 'Vault service unavailable' },
+        })
+    );
+    await popup.reload();
+    await expect(popup.getByRole('alert')).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Dismiss error' })
+    ).toHaveCount(0);
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(
+        popup.getByRole('link', { name: 'Create a vault in Mossy' })
+    ).toBeVisible();
+    await expect(popup.getByRole('alert')).toHaveCount(0);
+});

@@ -1,4 +1,4 @@
 import { createRoot } from 'react-dom/client';
 import Action from '../../src/Action';
-import '../../src/styles.css';
+import '../../src/globals.css';
 createRoot(document.getElementById('root')!).render(<Action />);

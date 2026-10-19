@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@mossy/ui';
-import { MdVerifiedUser } from 'react-icons/md';
+import {
+    MdVerifiedUser,
+    MdLockOutline,
+    MdFingerprint,
+    MdCheckCircleOutline,
+    MdErrorOutline,
+} from 'react-icons/md';
+import { AppHeader, LoadingState, SecurityNotice } from './components';
 import { ActionWorker } from './action-lifecycle';
 import { ActionPort } from './rpc';
 import { authorizePrf } from './prf';
@@ -228,7 +235,9 @@ export default function Action() {
                             }>('ciphertext');
                             let existing = await currentWorker.call<string>(
                                 'read',
-                                { ciphertext: encrypted.ciphertext }
+                                {
+                                    ciphertext: encrypted.ciphertext,
+                                }
                             );
                             unchanged = existing === candidate;
                             existing = '';
@@ -293,138 +302,211 @@ export default function Action() {
         if (offer.current) return offer.current;
         return value.receiver;
     }
+    const AuthorizationIcon =
+        phase === 'done'
+            ? MdCheckCircleOutline
+            : phase === 'error'
+              ? MdErrorOutline
+              : method === 'PRF'
+                ? MdFingerprint
+                : MdLockOutline;
     return (
         <main className="action">
-            <header>
-                <h1>
-                    <img src="/mossy_logo.png" width="30" height="30" alt="" />
-                    Mossy
-                </h1>
-                <MdVerifiedUser size={24} aria-hidden />
-            </header>
-            <h2>
-                {action ? titles[action.operation] : 'Preparing secure action…'}
-            </h2>
-            {action && (
-                <>
-                    <p className="site">
-                        {action.candidateOrigin ??
-                            action.entry?.address ??
-                            new URL(action.scope.instance).hostname}
-                    </p>
-                    {(action.entry?.identifier ||
-                        action.candidateIdentifier) && (
-                        <p>
-                            {action.entry?.identifier ??
-                                action.candidateIdentifier}
-                        </p>
-                    )}
-                    <p className="notice">
-                        <MdVerifiedUser />
-                        This authorization applies to this action only.
-                    </p>
-                    {action.candidateDeadline && (
-                        <p role="timer">
-                            Save expires in{' '}
-                            {Math.max(
-                                0,
-                                Math.ceil(
-                                    (action.candidateDeadline - now) / 1000
-                                )
-                            )}{' '}
-                            seconds
-                        </p>
-                    )}
-                </>
-            )}
-            {phase === 'loading' && (
-                <p role="status">Preparing secure action…</p>
-            )}
-            {phase === 'waiting' && (
-                <>
-                    <p>
-                        Open Sync on the device that holds this vault key and
-                        enter this code.
-                    </p>
-                    {code ? (
-                        <output className="code" aria-label="Receiving code">
-                            {code}
-                        </output>
-                    ) : (
-                        <p role="status">Creating a receiving code…</p>
-                    )}
-                    <p className="muted">
-                        No vault key is unlocked while waiting. Local protection
-                        is requested when the transfer arrives.
-                    </p>
-                </>
-            )}
-            {phase === 'authorize' && (
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        void authorize();
-                    }}
+            <AppHeader>
+                <MdVerifiedUser
+                    size={22}
+                    className="field-icon"
+                    aria-label="Secure action"
+                />
+            </AppHeader>
+            <div className="page-content">
+                <section
+                    className="panel action-panel"
+                    aria-labelledby="action-title"
+                    aria-busy={phase === 'loading' || phase === 'busy'}
                 >
-                    {method === 'Password' ? (
-                        <>
-                            <label htmlFor="vault-password">
-                                {action?.operation === 'sync-receive'
-                                    ? 'Protect with a vault password'
-                                    : 'Vault password'}
-                            </label>
-                            <input
-                                ref={password}
-                                id="vault-password"
-                                type="password"
-                                required
-                                autoComplete="off"
-                                autoFocus
-                                minLength={
-                                    action?.operation === 'sync-receive'
-                                        ? 12
-                                        : undefined
-                                }
-                            />
-                        </>
-                    ) : (
-                        <p>
-                            Use your existing Mossy passkey to authorize this
-                            action.
-                        </p>
-                    )}
-                    <div className="actions">
-                        <Button type="submit" padding="medium">
-                            {method === 'PRF'
-                                ? 'Authorize with passkey'
-                                : 'Authorize action'}
-                        </Button>
+                    <div className="auth-heading">
+                        <span className="auth-symbol" aria-hidden="true">
+                            <AuthorizationIcon size={24} />
+                        </span>
+                        <div>
+                            <h2 id="action-title">
+                                {action
+                                    ? titles[action.operation]
+                                    : 'Secure action'}
+                            </h2>
+                            <p>
+                                {phase === 'done'
+                                    ? 'All set. You can close this window.'
+                                    : phase === 'error'
+                                      ? 'This action could not be completed.'
+                                      : 'Confirm this action with your vault.'}
+                            </p>
+                        </div>
                     </div>
-                </form>
-            )}
-            {phase === 'busy' && (
-                <p role="status">Authorizing and completing this action…</p>
-            )}
-            {message && (
-                <div
-                    role={phase === 'error' ? 'alert' : 'status'}
-                    className={`status ${phase === 'error' ? 'error' : ''}`}
-                >
-                    {message}
-                </div>
-            )}
-            <div className="actions">
-                <Button
-                    variant="outline"
-                    padding="medium"
-                    onClick={() => {
-                        worker.current?.stop();
-                        port.current?.close();
-                        window.close();
-                    }}
-                >
-                    {phase === 'done' ? 'Close' : 'Cancel'}
-                </Button>
+                    {action && (
+                        <>
+                            <div className="action-context">
+                                <p className="site">
+                                    {action.candidateOrigin ??
+                                        action.entry?.address ??
+                                        new URL(action.scope.instance).hostname}
+                                </p>
+                                {(action.entry?.identifier ||
+                                    action.candidateIdentifier) && (
+                                    <p>
+                                        {action.entry?.identifier ??
+                                            action.candidateIdentifier}
+                                    </p>
+                                )}
+                            </div>
+                            {action.candidateDeadline &&
+                                phase !== 'done' &&
+                                phase !== 'error' && (
+                                    <p className="expiry" role="timer">
+                                        Save expires in{' '}
+                                        {Math.max(
+                                            0,
+                                            Math.ceil(
+                                                (action.candidateDeadline -
+                                                    now) /
+                                                    1000
+                                            )
+                                        )}{' '}
+                                        seconds
+                                    </p>
+                                )}
+                        </>
+                    )}
+                    {phase === 'loading' && (
+                        <LoadingState>Preparing secure action…</LoadingState>
+                    )}
+                    {phase === 'waiting' && (
+                        <>
+                            <p>
+                                Open Sync on the device that holds this vault
+                                key and enter this code.
+                            </p>
+                            {code ? (
+                                <output
+                                    className="code"
+                                    aria-label="Receiving code"
+                                >
+                                    {code}
+                                </output>
+                            ) : (
+                                <LoadingState>
+                                    Creating a receiving code…
+                                </LoadingState>
+                            )}
+                            <p className="muted">
+                                No vault key is unlocked while waiting. Local
+                                protection is requested when the transfer
+                                arrives.
+                            </p>
+                        </>
+                    )}
+                    {phase === 'authorize' && (
+                        <form
+                            id="authorize-form"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                void authorize();
+                            }}
+                        >
+                            {method === 'Password' ? (
+                                <>
+                                    <label htmlFor="vault-password">
+                                        {action?.operation === 'sync-receive'
+                                            ? 'Protect with a vault password'
+                                            : 'Vault password'}
+                                    </label>
+                                    <input
+                                        ref={password}
+                                        id="vault-password"
+                                        type="password"
+                                        required
+                                        autoComplete="off"
+                                        autoFocus
+                                        aria-describedby="vault-password-hint"
+                                        minLength={
+                                            action?.operation === 'sync-receive'
+                                                ? 12
+                                                : undefined
+                                        }
+                                    />
+                                    <p
+                                        id="vault-password-hint"
+                                        className="muted field-hint"
+                                    >
+                                        {action?.operation === 'sync-receive'
+                                            ? 'Use at least 12 characters to protect this vault on this browser.'
+                                            : 'Use your vault password to authorize this action.'}
+                                    </p>
+                                </>
+                            ) : (
+                                <div className="passkey-prompt">
+                                    <MdFingerprint
+                                        size={22}
+                                        aria-hidden="true"
+                                    />
+                                    <p>
+                                        Use your existing Mossy passkey to
+                                        authorize this action.
+                                    </p>
+                                </div>
+                            )}
+                        </form>
+                    )}
+                    {phase === 'busy' && (
+                        <LoadingState>
+                            Authorizing and completing this action…
+                        </LoadingState>
+                    )}
+                    {message && (
+                        <div
+                            role={phase === 'error' ? 'alert' : 'status'}
+                            className={`status ${phase === 'error' ? 'error' : 'success'}`}
+                        >
+                            {phase === 'error' ? (
+                                <MdErrorOutline size={18} aria-hidden="true" />
+                            ) : (
+                                <MdCheckCircleOutline
+                                    size={18}
+                                    aria-hidden="true"
+                                />
+                            )}
+                            <span>{message}</span>
+                        </div>
+                    )}
+                    <div className="action-footer">
+                        <Button
+                            variant="outline"
+                            padding="medium"
+                            onClick={() => {
+                                worker.current?.stop();
+                                port.current?.close();
+                                window.close();
+                            }}
+                        >
+                            {phase === 'done' ? 'Close' : 'Cancel'}
+                        </Button>
+                        {phase === 'authorize' && (
+                            <Button
+                                type="submit"
+                                form="authorize-form"
+                                padding="medium"
+                            >
+                                {method === 'PRF'
+                                    ? 'Authorize with passkey'
+                                    : 'Authorize action'}
+                            </Button>
+                        )}
+                    </div>
+                </section>
+                <SecurityNotice>
+                    This authorization applies to this action only.
+                </SecurityNotice>
             </div>
         </main>
     );
