@@ -22,6 +22,7 @@ import {
 } from './components';
 import { rpc } from './rpc';
 import SignIn from './SignIn';
+import { useTheme, type Theme } from './theme';
 import { matchesSite, normalizeInstance, type Target } from './security';
 import type { Entry, Vault, Operation } from './models';
 import type { PendingMetadata } from './pending';
@@ -50,6 +51,8 @@ const usePopup = create<{
     ) => void;
 }>((set) => ({ loading: true, set }));
 export default function Popup() {
+    const theme = useTheme();
+    const [savingTheme, setSavingTheme] = useState(false);
     const { view, error, loading, set } = usePopup();
     const [settings, setSettings] = useState(false);
     const [enrollmentPending, setEnrollmentPending] = useState(false);
@@ -98,9 +101,6 @@ export default function Popup() {
             port.disconnect();
         };
     }, [load]);
-    useEffect(() => {
-        if (view) document.documentElement.dataset.theme = view.theme;
-    }, [view]);
     useEffect(() => {
         if (settings) document.getElementById('settings-title')?.focus();
         else if (sync) document.getElementById('sync-heading')?.focus();
@@ -256,8 +256,19 @@ export default function Popup() {
                         <select
                             id="theme"
                             name="theme"
-                            defaultValue={view.theme}
-                            disabled={loading}
+                            value={theme}
+                            disabled={loading || savingTheme}
+                            onChange={(event) => {
+                                const next = event.target.value as Theme;
+                                setSavingTheme(true);
+                                void rpc({ kind: 'theme', theme: next })
+                                    .catch((error: unknown) => {
+                                        set({ error: error instanceof Error
+                                            ? error.message
+                                            : 'Could not save appearance.' });
+                                    })
+                                    .finally(() => setSavingTheme(false));
+                            }}
                         >
                             <option value="system">System</option>
                             <option value="light">Light</option>
@@ -265,6 +276,7 @@ export default function Popup() {
                         </select>
                         <p className="muted">
                             Follow your device or choose a light or dark theme.
+                            Changes save automatically.
                         </p>
                         <div className="settings-divider">
                             <h3>Website access</h3>
@@ -336,7 +348,7 @@ export default function Popup() {
                         <Button
                             type="submit"
                             padding="medium"
-                            disabled={loading}
+                            disabled={loading || savingTheme}
                             className="settings-save"
                         >
                             Save settings

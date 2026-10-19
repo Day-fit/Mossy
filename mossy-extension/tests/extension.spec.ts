@@ -164,7 +164,7 @@ test.beforeEach(async ({}, testInfo) => {
             executablePath: process.env.CHROMIUM_PATH,
             channel: 'chromium',
             headless: true,
-            viewport: { width: 440, height: 620 },
+            viewport: { width: 520, height: 620 },
             args: [
                 `--disable-extensions-except=${resolve('.output/chrome-mv3')}`,
                 `--load-extension=${resolve('.output/chrome-mv3')}`,
@@ -1090,7 +1090,7 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
             })),
         })
     );
-    await popup.setViewportSize({ width: 320, height: 600 });
+    await popup.setViewportSize({ width: 520, height: 600 });
     await popup.reload();
     await expect(popup.locator('.entry')).toHaveCount(12);
     expect(
@@ -1105,7 +1105,7 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
     ).toBe(true);
     await popup
         .locator('main')
-        .screenshot({ path: '/tmp/mossy-v2-narrow.png' });
+        .screenshot({ path: '/tmp/mossy-v2-password-list.png' });
     await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
         route.fulfill({ json: [] })
     );
@@ -1180,7 +1180,7 @@ test('sign-in explains registration and device approval, and clears passwords af
             .locator('main')
             .screenshot({ path: `/tmp/mossy-v2-sign-in-${theme}.png` });
     }
-    await popup.setViewportSize({ width: 320, height: 600 });
+    await popup.setViewportSize({ width: 520, height: 600 });
     expect(
         await popup.evaluate(
             () => document.documentElement.scrollWidth <= window.innerWidth
@@ -1195,7 +1195,7 @@ test('sign-in explains registration and device approval, and clears passwords af
             (element) => element.getBoundingClientRect().bottom
         )
     ).toBeLessThanOrEqual(600);
-    await popup.setViewportSize({ width: 400, height: 600 });
+    await popup.setViewportSize({ width: 520, height: 600 });
     await seed(popup);
     await popup.getByLabel('Email or username').fill('alice');
     const passwordInput = popup.getByLabel('Account password', { exact: true });
@@ -1261,4 +1261,93 @@ test('sign-in explains registration and device approval, and clears passwords af
     await expect(
         popup.getByRole('heading', { name: 'Passwords', exact: true })
     ).toBeVisible();
+});
+
+// A tab has a fixed viewport and cannot catch toolbar popup auto-sizing loops.
+test('native toolbar popup expands to its intended width', async () => {
+    const cdp = await context.newCDPSession(popup);
+    // Leave room for the popup and browser chrome around the toolbar anchor.
+    const { windowId } = await cdp.send('Browser.getWindowForTarget');
+    await cdp.send('Browser.setWindowBounds', {
+        windowId,
+        bounds: { width: 1100, height: 900 },
+    });
+    const worker =
+        context.serviceWorkers()[0] ?? await context.waitForEvent('serviceworker');
+    await worker.evaluate(() => chrome.action.openPopup());
+    let targetId: string | undefined;
+    await expect.poll(async () => {
+        const { targetInfos } = await cdp.send('Target.getTargets');
+        targetId = targetInfos.find(
+            (target) => target.url.endsWith('/popup.html') && !target.attached
+        )?.targetId;
+        return targetId;
+    }).toBeTruthy();
+    const { sessionId } = await cdp.send('Target.attachToTarget', {
+        targetId: targetId!,
+        flatten: false,
+    });
+    let requestId = 0;
+    const measure = async () => {
+        const id = ++requestId;
+        const response = new Promise<string>((resolve, reject) => {
+            const listener = (event: { sessionId: string; message: string }) => {
+                if (event.sessionId !== sessionId) return;
+                const message = JSON.parse(event.message);
+                if (message.id !== id) return;
+                cdp.off('Target.receivedMessageFromTarget', listener);
+                if (message.error) reject(new Error(message.error.message));
+                else resolve(message.result.result.value);
+            };
+            cdp.on('Target.receivedMessageFromTarget', listener);
+        });
+        await cdp.send('Target.sendMessageToTarget', {
+            sessionId,
+            message: JSON.stringify({
+                id,
+                method: 'Runtime.evaluate',
+                params: {
+                    expression: `JSON.stringify({
+                        viewport: innerWidth,
+                        content: document.querySelector('main')?.getBoundingClientRect().width,
+                        scroll: document.documentElement.scrollWidth
+                    })`,
+                    returnByValue: true,
+                },
+            }),
+        });
+        return JSON.parse(await response);
+    };
+    try {
+        await expect.poll(measure).toEqual({
+            viewport: 520,
+            content: 520,
+            scroll: 520,
+        });
+    } finally {
+        await cdp.send('Target.detachFromTarget', { sessionId });
+        await cdp.detach();
+    }
+});
+
+test('appearance switches immediately, overrides the device theme and survives reopening', async () => {
+    const actionPage = await context.newPage();
+    await actionPage.goto(`chrome-extension://${extensionId}/action.html#expired-action`);
+    await popup.emulateMedia({ reducedMotion: 'reduce' });
+    for (const theme of ['light', 'dark', 'system'] as const) {
+        await popup.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark' });
+        await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+        await popup.getByLabel('Appearance').selectOption(theme);
+        await expect(popup.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
+        await expect(popup.getByLabel('Appearance')).toBeEnabled();
+        await expect(popup.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(actionPage.locator('html')).toHaveAttribute('data-theme', theme);
+        const background = theme === 'light' ? 'rgb(246, 246, 246)' : 'rgb(24, 26, 23)';
+        await expect(popup.locator('body')).toHaveCSS('background-color', background);
+        await popup.close();
+        popup = await openPopup();
+        await popup.emulateMedia({ colorScheme: theme === 'dark' ? 'light' : 'dark' });
+        await expect(popup.locator('html')).toHaveAttribute('data-theme', theme);
+        await expect(popup.locator('body')).toHaveCSS('background-color', background);
+    }
 });

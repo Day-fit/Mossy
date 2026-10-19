@@ -84,6 +84,10 @@ export const contentMessageSchema = z.discriminatedUnion('kind', [
         .strict(),
 ]);
 export const commandSchema = z.discriminatedUnion('kind', [
+    z.object({
+        kind: z.literal('theme'),
+        theme: z.enum(['light', 'dark', 'system']),
+    }).strict(),
     z.object({ kind: z.literal('state'), vaultId: id.optional() }).strict(),
     z
         .object({

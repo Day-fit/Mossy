@@ -413,7 +413,7 @@ async function createAction(
     const window = await chrome.windows.create({
         url: chrome.runtime.getURL(`/action.html#${action.id}`),
         type: 'popup',
-        width: 440,
+        width: 560,
         height: 620,
         focused: true,
     });
@@ -481,6 +481,11 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
                   return handleContent(raw, sender);
               const command = commandSchema.parse(raw);
               if (command.kind === 'state') return state(command.vaultId);
+              if (command.kind === 'theme') {
+                  await chrome.storage.local.set({ theme: command.theme });
+                  theme = command.theme;
+                  return { ok: true };
+              }
               if (command.kind === 'dismiss') {
                   pending.clear();
                   return { ok: true };

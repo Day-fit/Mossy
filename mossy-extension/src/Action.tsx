@@ -13,6 +13,7 @@ import { ActionPort } from './rpc';
 import { authorizePrf } from './prf';
 import { wrappedKeys, signingHandles } from './storage';
 import { assertLive } from './security';
+import { useTheme } from './theme';
 import type { Action as ActionModel, ActionResult } from './models';
 import type { WrappedKeyRecord } from '@mossy/client-core';
 const titles = {
@@ -24,6 +25,7 @@ const titles = {
     'sync-receive': 'Receive vault key',
 };
 export default function Action() {
+    useTheme();
     const [action, setAction] = useState<ActionModel>();
     const [method, setMethod] = useState<'PRF' | 'Password'>();
     const [phase, setPhase] = useState<
@@ -68,9 +70,6 @@ export default function Action() {
             .then(async (value) => {
                 if (!alive.current) return;
                 setAction(value);
-                document.documentElement.dataset.theme = String(
-                    (await chrome.storage.local.get('theme')).theme ?? 'system'
-                );
                 if (value.operation === 'sync-receive') {
                     const existing = await wrappedKeys.read(value.scope);
                     // Existing PRF protection cannot be replaced with password protection accidentally.
