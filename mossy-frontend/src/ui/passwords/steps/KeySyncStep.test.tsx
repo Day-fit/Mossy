@@ -1,7 +1,6 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { SetStateAction } from 'react';
-import type { PreparedProtection } from '../../../hooks/useEncryptionHook.ts';
 import KeySyncStep from './KeySyncStep.tsx';
 
 type QrConfig = {
@@ -19,6 +18,7 @@ const { qrConfig } = vi.hoisted(() => ({
 vi.mock('../../../hooks/useKeySyncReceiver.ts', () => ({
     useKeySyncReceiver: () => ({ phase: 'waiting', code: 'ABC123' }),
 }));
+vi.mock('../../shared/VaultAccessModal.tsx', () => ({ default: () => null }));
 vi.mock('qr-code-styling', () => ({
     default: class {
         constructor(config: QrConfig) {
@@ -40,21 +40,9 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
     document.documentElement.style.setProperty('--color-surface', '#21251e');
     document.documentElement.dataset.theme = 'dark';
     const close = vi.fn<(value: SetStateAction<boolean>) => void>();
-    const protection: PreparedProtection = {
-        userId: 'user-one',
-        type: 'Password',
-        salt: new Uint8Array(16),
-        wrappingKey: {
-            algorithm: { name: 'AES-KW' },
-            extractable: false,
-            type: 'secret',
-            usages: ['wrapKey', 'unwrapKey'],
-        },
-    };
     const { rerender } = render(
         <KeySyncStep
             vaultId="vault-1"
-            protection={protection}
             setIsKeySyncModalActive={close}
         />
     );
@@ -70,7 +58,6 @@ it('keeps the QR colors and instance stable when the theme changes', async () =>
     rerender(
         <KeySyncStep
             vaultId="vault-1"
-            protection={protection}
             setIsKeySyncModalActive={close}
         />
     );

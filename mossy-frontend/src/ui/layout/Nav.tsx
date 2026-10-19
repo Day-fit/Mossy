@@ -96,15 +96,15 @@ function Nav() {
 
     return (
         <>
-            <nav className="grid shrink-0 grid-cols-[1fr_auto_1fr] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
+            <nav className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] grid-rows-1 items-center w-full h-20 border-b border-b-border sticky top-0 bg-surface z-50">
                 <Link
                     to="/"
                     aria-label="Mossy home"
                     onClick={closeMenu}
-                    className="col-start-1 justify-self-start self-stretch rounded-sm"
+                    className="col-start-1 justify-self-start self-stretch w-48 rounded-sm"
                 >
                     <img
-                        className="h-full max-w-none p-2 object-contain cursor-pointer"
+                        className="h-full w-full p-2 object-contain object-left cursor-pointer"
                         alt="mossy-logo"
                         src="/mossy_logo.png"
                     />

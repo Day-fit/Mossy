@@ -4,9 +4,7 @@ export function useVaultKey() {
     const userDetails = useAuthStore((state) => state.userDetails);
     const encoder = new TextEncoder();
     const vaultSalt = (vaultId: string) =>
-        encoder.encode(`mossy:encryption:v2:vault:${vaultId}`);
-    const legacyUserSalt = (userId: string) =>
-        encoder.encode(`mossy:encryption:v1:${userId}`);
+        encoder.encode(`mossy:encryption:v1:vault:${vaultId}`);
 
     const registerPasskey = async (vaultId: string, vaultName: string) => {
         if (userDetails === null)
@@ -23,7 +21,7 @@ export function useVaultKey() {
                 challenge: crypto.getRandomValues(new Uint8Array(32)),
                 user: {
                     id: encoder.encode(vaultId),
-                    name: vaultId,
+                    name: vaultName,
                     displayName: vaultName,
                 },
                 authenticatorSelection: {
@@ -45,7 +43,7 @@ export function useVaultKey() {
             },
         });
 
-        if (!(cred instanceof PublicKeyCredential) || !cred) {
+        if (!(cred instanceof PublicKeyCredential)) {
             throw new Error('Invalid credential');
         }
 
@@ -57,21 +55,16 @@ export function useVaultKey() {
         }
 
         return {
-            credential: cred,
             credentialId: cred.rawId,
             results: results.prf?.results?.first
                 ? results
                 : (await getPasskey(vaultId, cred.rawId)).results,
-            metadata: {
-                type: 'PRF',
-            },
         };
     };
 
     const getPasskey = async (
         vaultId: string,
-        credentialId?: BufferSource,
-        legacy = false
+        credentialId?: BufferSource
     ) => {
         if (userDetails === null)
             throw new Error('User details not available.');
@@ -88,30 +81,37 @@ export function useVaultKey() {
                 extensions: {
                     prf: {
                         eval: {
-                            first: legacy
-                                ? legacyUserSalt(userDetails.userId)
-                                : vaultSalt(vaultId),
+                            first: vaultSalt(vaultId),
                         },
                     },
                 },
             },
         });
 
-        if (!(cred instanceof PublicKeyCredential) || !cred) {
+        if (!(cred instanceof PublicKeyCredential)) {
             throw new Error('Invalid credential');
         }
 
-        const expectedHandle = legacy ? userDetails.userId : vaultId;
         const response = cred.response as AuthenticatorAssertionResponse;
-        if (
-            !credentialId &&
-            (!response.userHandle ||
-                new TextDecoder().decode(response.userHandle) !== expectedHandle)
-        ) {
+        if (credentialId) {
+            const expected = new Uint8Array(
+                credentialId instanceof ArrayBuffer
+                    ? credentialId
+                    : credentialId.buffer,
+                credentialId instanceof ArrayBuffer ? 0 : credentialId.byteOffset,
+                credentialId.byteLength
+            );
+            const actual = new Uint8Array(cred.rawId);
+            if (actual.length !== expected.length ||
+                actual.some((byte, index) => byte !== expected[index]))
+                throw new Error('The selected passkey does not match this vault’s saved passkey.');
+        } else if (!response.userHandle) {
+            throw new Error('Could not verify which vault this passkey belongs to.');
+        } else if (new TextDecoder().decode(response.userHandle) !== vaultId) {
             throw new Error('The selected passkey belongs to a different vault.');
         }
 
-        const results = cred?.getClientExtensionResults();
+        const results = cred.getClientExtensionResults();
         const isPrfNotSupported = !results.prf?.results?.first;
 
         if (isPrfNotSupported) {

@@ -50,10 +50,10 @@ it('registers a credential labelled and derived for its vault', async () => {
     const registered = await result.current.registerPasskey('vault-a', 'Personal vault');
     const options = create.mock.calls[0][0].publicKey;
     expect(new TextDecoder().decode(options.user.id)).toBe('vault-a');
-    expect(options.user.name).toBe('vault-a');
+    expect(options.user.name).toBe('Personal vault');
     expect(options.user.displayName).toBe('Personal vault');
     expect(new TextDecoder().decode(options.extensions.prf.eval.first))
-        .toBe('mossy:encryption:v2:vault:vault-a');
+        .toBe('mossy:encryption:v1:vault:vault-a');
     expect(registered.credentialId).toBe(credentialId);
 });
 
@@ -63,7 +63,17 @@ it('uses the vault salt and limits unlock to the saved credential ID', async () 
     const options = get.mock.calls[0][0].publicKey;
     expect(options.allowCredentials[0].id).toBe(credentialId);
     expect(new TextDecoder().decode(options.extensions.prf.eval.first))
-        .toBe('mossy:encryption:v2:vault:vault-a');
+        .toBe('mossy:encryption:v1:vault:vault-a');
+});
+
+it('accepts the matching credential ID when the authenticator omits userHandle', async () => {
+    get.mockResolvedValueOnce(Object.assign(new TestCredential(), {
+        response: { userHandle: null },
+    }));
+    const { result } = renderHook(useVaultKey);
+    await expect(result.current.getPasskey('vault-a', credentialId)).resolves.toMatchObject({
+        credentialId,
+    });
 });
 
 it('rejects another vault credential when selecting one without a saved ID', async () => {
@@ -73,13 +83,19 @@ it('rejects another vault credential when selecting one without a saved ID', asy
     );
 });
 
-it('keeps the original account salt for older wrapped keys', async () => {
-    const legacyCredential = new TestCredential();
-    legacyCredential.response.userHandle = encoder.encode('account-a').buffer;
-    get.mockResolvedValue(legacyCredential);
+it('does not call an absent user handle a different vault', async () => {
+    get.mockResolvedValueOnce(Object.assign(new TestCredential(), {
+        response: { userHandle: null },
+    }));
     const { result } = renderHook(useVaultKey);
-    await result.current.getPasskey('vault-a', undefined, true);
-    const options = get.mock.calls[0][0].publicKey;
-    expect(new TextDecoder().decode(options.extensions.prf.eval.first))
-        .toBe('mossy:encryption:v1:account-a');
+    await expect(result.current.getPasskey('vault-a')).rejects.toThrow(
+        'Could not verify which vault this passkey belongs to.'
+    );
+});
+
+it('rejects a credential that differs from the saved credential ID', async () => {
+    const { result } = renderHook(useVaultKey);
+    await expect(result.current.getPasskey('vault-a', new Uint8Array([9, 9, 9, 9]))).rejects.toThrow(
+        'The selected passkey does not match this vault’s saved passkey.'
+    );
 });

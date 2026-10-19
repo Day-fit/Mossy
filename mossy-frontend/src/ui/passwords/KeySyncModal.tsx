@@ -1,7 +1,5 @@
-import { type Dispatch, type SetStateAction, useState } from 'react';
+import { type Dispatch, type SetStateAction } from 'react';
 import { useAuthStore } from '../../store/authStore.ts';
-import VaultAccessModal from '../shared/VaultAccessModal.tsx';
-import type { PreparedProtection } from '../../hooks/useEncryptionHook.ts';
 import KeySyncStep from './steps/KeySyncStep.tsx';
 
 type KeySyncModalProps = {
@@ -19,21 +17,6 @@ function KeySyncDialog({
     setIsKeySyncModalActive,
     vaultId,
 }: KeySyncModalProps) {
-    const [protection, setProtection] = useState<PreparedProtection | null>(
-        null
-    );
-
-    if (!protection) {
-        return (
-            <VaultAccessModal
-                mode="prepare"
-                vaultId={vaultId}
-                onClose={() => setIsKeySyncModalActive(false)}
-                onPrepared={setProtection}
-            />
-        );
-    }
-
     return (
         <div
             className="fixed h-screen inset-0 z-50 flex items-center justify-center bg-overlay p-4 overflow-hidden"
@@ -44,7 +27,6 @@ function KeySyncDialog({
         >
             <KeySyncStep
                 vaultId={vaultId}
-                protection={protection}
                 setIsKeySyncModalActive={setIsKeySyncModalActive}
             />
         </div>

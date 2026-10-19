@@ -53,19 +53,25 @@ it('stores the vault credential ID and requires it when unlocking', async () => 
         type: 'PRF', credentialId,
     }), 'vault-a');
     await result.current.unlockVault('vault-a');
-    expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a', credentialId, false);
+    expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a', credentialId);
 });
 
-it('uses the account-salted path for existing vault records', async () => {
-    const results = { prf: { results: { first: new Uint8Array(32).buffer } } };
-    database.getDeviceDatabase.mockResolvedValue({
-        get: vi.fn().mockResolvedValue({ type: 'PRF', wrappedKey: new ArrayBuffer(40) }),
-    });
-    passkeys.getPasskey.mockResolvedValue({ results, credentialId: new ArrayBuffer(4) });
+it('saves a synced vault method with its wrapped key', async () => {
+    const put = vi.fn().mockResolvedValue(undefined);
+    database.getDeviceDatabase.mockResolvedValue({ put });
     const { result } = renderHook(useEncryptionHook);
-    await result.current.unlockVault('legacy-vault');
-    expect(passkeys.getPasskey).toHaveBeenCalledWith('legacy-vault', undefined, true);
+    const protection = {
+        type: 'Password' as const,
+        userId: 'user',
+        salt: new Uint8Array(16),
+        wrappingKey: {} as CryptoKey,
+    };
+    await result.current.saveRawKey('vault-a', protection, new Uint8Array(32));
+    expect(put).toHaveBeenCalledWith('keys', expect.objectContaining({
+        type: 'Password',
+    }), 'vault-a');
 });
+
 afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
@@ -77,7 +83,7 @@ it('propagates canceled selection without automatically creating a passkey', asy
     passkeys.getPasskey.mockRejectedValue(canceled);
     const { result } = renderHook(useEncryptionHook);
     await expect(
-        result.current.prepareProtection('vault-a', 'Vault A', { type: 'PRF' })
+        result.current.prepareProtection('vault-a', 'Vault A', { type: 'PRF', createNew: false })
     ).rejects.toBe(canceled);
     expect(passkeys.registerPasskey).not.toHaveBeenCalled();
 });
@@ -89,10 +95,12 @@ it('reuses an existing passkey by default and only registers on explicit creatio
     passkeys.registerPasskey.mockResolvedValue({ results, credentialId });
     const { result } = renderHook(useEncryptionHook);
     await expect(
-        result.current.prepareProtection('vault-a', 'Vault A', { type: 'PRF' })
+        result.current.prepareProtection('vault-a', 'Vault A', {
+            type: 'PRF', createNew: false, credentialId,
+        })
     ).resolves.toMatchObject({ userId: 'user', type: 'PRF', credentialId });
     expect(passkeys.registerPasskey).not.toHaveBeenCalled();
-    expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a');
+    expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a', credentialId);
     await result.current.prepareProtection('vault-b', 'Vault B', { type: 'PRF', createNew: true });
     expect(passkeys.registerPasskey).toHaveBeenCalledOnce();
     expect(passkeys.registerPasskey).toHaveBeenCalledWith('vault-b', 'Vault B');

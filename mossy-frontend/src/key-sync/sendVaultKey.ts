@@ -44,12 +44,14 @@ export async function sendVaultKey(
     senderId: string,
     identity: CryptoPair,
     key: CryptoKey,
+    credentialId: ArrayBuffer | undefined,
     signal: AbortSignal
 ): Promise<void> {
     const rawKey = new Uint8Array(await crypto.subtle.exportKey('raw', key));
     try {
         const request = await encryptVaultKey(
             rawKey,
+            credentialId,
             { code, receiver },
             senderId,
             identity

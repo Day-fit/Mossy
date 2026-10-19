@@ -36,6 +36,7 @@ async function transfer() {
     const rawKey = new Uint8Array(sodium.randombytes_buf(32));
     const upload = await encryptVaultKey(
         rawKey,
+        new Uint8Array([1, 2, 3]).buffer,
         context,
         'sender-device',
         sender.privateKey
@@ -70,7 +71,10 @@ describe('HTTP key transfer cryptography', () => {
                 data.offer.privateDh,
                 data.sender.publicKey
             )
-        ).resolves.toEqual(data.rawKey);
+        ).resolves.toEqual({
+            rawKey: data.rawKey,
+            credentialId: new Uint8Array([1, 2, 3]).buffer,
+        });
     });
 
     it.each(['receiverId', 'vaultId', 'publicDh'] as const)(

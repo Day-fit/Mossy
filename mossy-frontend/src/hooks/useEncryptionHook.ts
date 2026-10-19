@@ -15,7 +15,7 @@ export class PrfNotSupportedError extends Error {
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
 export type VaultMethod = 'PRF' | 'Password';
 export type VaultKeySetup =
-    | { type: 'PRF'; createNew?: boolean }
+    | { type: 'PRF'; createNew: boolean; credentialId?: ArrayBuffer }
     | { type: 'Password'; password: string };
 export type VaultKeyMetadata = { type: VaultMethod };
 export type PreparedProtection = {
@@ -29,7 +29,7 @@ export type PreparedProtection = {
 type VaultKeyRecord = {
     wrappedKey: ArrayBuffer;
 } & (
-    | { type: 'PRF'; credentialId?: ArrayBuffer }
+    | { type: 'PRF'; credentialId: ArrayBuffer }
     | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
 );
 
@@ -49,8 +49,8 @@ function isVaultKeyRecord(value: object | null | undefined): value is VaultKeyRe
         !!value &&
         'type' in value &&
         ((value.type === 'PRF' &&
-            (!('credentialId' in value) ||
-                value.credentialId instanceof ArrayBuffer)) ||
+            'credentialId' in value &&
+            value.credentialId instanceof ArrayBuffer) ||
             (value.type === 'Password' &&
                 'salt' in value &&
                 value.salt instanceof Uint8Array)) &&
@@ -110,6 +110,11 @@ async function readVaultKey(vaultId: string): Promise<VaultKeyRecord> {
 export async function getKeyMetadata(vaultId: string): Promise<VaultKeyMetadata> {
     const record = await readVaultKey(vaultId);
     return { type: record.type };
+}
+
+export async function getVaultCredentialId(vaultId: string): Promise<ArrayBuffer | undefined> {
+    const record = await readVaultKey(vaultId);
+    return record.type === 'PRF' ? record.credentialId : undefined;
 }
 
 async function saveWrappedKey(
@@ -230,7 +235,7 @@ export function useEncryptionHook() {
         try {
             passkey = setup.createNew
                 ? await registerPasskey(vaultId, vaultName)
-                : await getPasskey(vaultId);
+                : await getPasskey(vaultId, setup.credentialId);
         } catch (error) {
             if (error instanceof DOMException && error.name === 'NotSupportedError')
                 throw new PrfNotSupportedError();
@@ -259,8 +264,7 @@ export function useEncryptionHook() {
                     prfBytes(
                         (await getPasskey(
                             vaultId,
-                            record.credentialId,
-                            !record.credentialId
+                            record.credentialId
                         )).results
                     )
                 );

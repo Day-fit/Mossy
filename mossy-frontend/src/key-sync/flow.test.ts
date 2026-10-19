@@ -174,11 +174,16 @@ describe('HTTP vault key transfer', () => {
             'sender-device',
             senderIdentity.local,
             key,
+            new Uint8Array([1, 2, 3]).buffer,
             signal
         );
         await receiving;
 
         expect(saved).toEqual([rawKey]);
+        expect(fixture.options.saveKey).toHaveBeenCalledWith(
+            expect.any(Uint8Array),
+            new Uint8Array([1, 2, 3]).buffer
+        );
         expect(fixture.cancel).toHaveBeenCalledOnce();
         expect(
             vi.mocked(api.executeSubscribeReceiverEventsRequest).mock

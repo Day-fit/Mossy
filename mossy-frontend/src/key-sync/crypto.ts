@@ -12,13 +12,19 @@ export type TransferContext = { code: string; receiver: ReceiverDetails };
 
 const envelopeSchema = z
     .object({
-        version: z.literal(1),
+        version: z.literal(2),
         nonce: z.string(),
         ciphertext: z.string(),
         signature: z.string(),
     })
     .strict();
 type Envelope = z.infer<typeof envelopeSchema>;
+const transferredKeySchema = z
+    .object({
+        rawKey: z.string(),
+        credentialId: z.string().nullable(),
+    })
+    .strict();
 
 const encode = (bytes: Uint8Array) =>
     sodium.to_base64(bytes, sodium.base64_variants.URLSAFE_NO_PADDING);
@@ -51,7 +57,7 @@ function transferTranscript(
     return new Uint8Array(
         sodium.from_string(
             JSON.stringify([
-                'mossy-key-sync-transfer-v1',
+                'mossy-key-sync-transfer-v2',
                 context.code,
                 context.receiver.vaultId,
                 context.receiver.receiverId,
@@ -139,6 +145,7 @@ export async function verifyReceiverDetails(
 
 export async function encryptVaultKey(
     key: Uint8Array,
+    credentialId: ArrayBuffer | undefined,
     context: TransferContext,
     senderId: string,
     identity: CryptoPair
@@ -155,13 +162,19 @@ export async function encryptVaultKey(
         const nonce = sodium.randombytes_buf(
             sodium.crypto_secretbox_NONCEBYTES
         );
-        const envelope = {
-            version: 1 as const,
-            nonce: encode(nonce),
-            ciphertext: encode(
-                sodium.crypto_secretbox_easy(key, nonce, sharedSecret)
-            ),
-        };
+        const payload = new Uint8Array(sodium.from_string(JSON.stringify({
+            rawKey: encode(key),
+            credentialId: credentialId
+                ? encode(new Uint8Array(credentialId))
+                : null,
+        })));
+        let ciphertext: string;
+        try {
+            ciphertext = encode(sodium.crypto_secretbox_easy(payload, nonce, sharedSecret));
+        } finally {
+            sodium.memzero(payload);
+        }
+        const envelope = { version: 2 as const, nonce: encode(nonce), ciphertext };
         const publicDh = encode(senderKeys.publicKey);
         const signature = sodium.crypto_sign_detached(
             transferTranscript(context, senderId, publicDh, envelope),
@@ -186,7 +199,7 @@ export async function decryptVaultKey(
     context: TransferContext,
     privateDh: Uint8Array,
     senderIdentity: PublicIdentityJwk
-): Promise<Uint8Array<ArrayBuffer>> {
+): Promise<{ rawKey: Uint8Array<ArrayBuffer>; credentialId?: ArrayBuffer }> {
     await sodium.ready;
     if (key.vaultId !== context.receiver.vaultId)
         throw new Error('Received a key for a different vault.');
@@ -217,14 +230,38 @@ export async function decryptVaultKey(
         decode(key.senderPublicDh)
     );
     try {
-        const rawKey = sodium.crypto_secretbox_open_easy(
+        const plaintext = sodium.crypto_secretbox_open_easy(
             decode(envelope.ciphertext),
             decode(envelope.nonce),
             sharedSecret
         );
-        if (rawKey.length !== 32)
-            throw new Error('Received an invalid vault key.');
-        return new Uint8Array(rawKey);
+        try {
+            const payload = transferredKeySchema.parse(
+                JSON.parse(sodium.to_string(plaintext))
+            );
+            const rawKey = decode(payload.rawKey);
+            try {
+                if (rawKey.length !== 32)
+                    throw new Error('Received an invalid vault key.');
+                const id = payload.credentialId === null
+                    ? undefined
+                    : decode(payload.credentialId);
+                try {
+                    if (id && id.length === 0)
+                        throw new Error('Received an invalid passkey ID.');
+                    return {
+                        rawKey: new Uint8Array(rawKey),
+                        credentialId: id ? new Uint8Array(id).buffer : undefined,
+                    };
+                } finally {
+                    if (id) sodium.memzero(id);
+                }
+            } finally {
+                sodium.memzero(rawKey);
+            }
+        } finally {
+            sodium.memzero(plaintext);
+        }
     } finally {
         sodium.memzero(sharedSecret);
     }

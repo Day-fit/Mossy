@@ -3,16 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { receiveVaultKey } from '../key-sync/receiveVaultKey.ts';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import type { PreparedProtection } from './useEncryptionHook.ts';
 import { useKeySyncReceiver } from './useKeySyncReceiver.ts';
+import type { PreparedProtection } from './useEncryptionHook.ts';
 
-const encryption = vi.hoisted(() => ({
-    saveRawKey: vi.fn<(
-        vaultId: string,
-        protection: PreparedProtection,
-        rawKey: Uint8Array<ArrayBuffer>
-    ) => Promise<void>>(),
-}));
+const encryption = vi.hoisted(() => ({ saveRawKey: vi.fn() }));
 vi.mock('./useEncryptionHook.ts', () => ({
     useEncryptionHook: () => encryption,
 }));
@@ -28,17 +22,6 @@ describe('receiver lifecycle', () => {
         type: 'Ed25519',
         public: 'public',
         private: 'private',
-    };
-    const protection: PreparedProtection = {
-        userId: 'user-one',
-        type: 'Password',
-        salt: new Uint8Array(16),
-        wrappingKey: {
-            algorithm: { name: 'AES-KW' },
-            extractable: false,
-            type: 'secret',
-            usages: ['wrapKey', 'unwrapKey'],
-        },
     };
     beforeEach(() => {
         vi.resetAllMocks();
@@ -65,7 +48,7 @@ describe('receiver lifecycle', () => {
 
     it('aborts the receiver session when its modal unmounts', () => {
         const { unmount } = renderHook(() =>
-            useKeySyncReceiver('vault-one', protection)
+            useKeySyncReceiver('vault-one')
         );
         expect(attempts).toHaveLength(1);
 
@@ -75,7 +58,7 @@ describe('receiver lifecycle', () => {
     });
 
     it('keeps the receiver connection open when device identity is reloaded with the same keys', () => {
-        renderHook(() => useKeySyncReceiver('vault-one', protection));
+        renderHook(() => useKeySyncReceiver('vault-one'));
 
         act(() =>
             useDeviceStore.setState({
@@ -88,7 +71,7 @@ describe('receiver lifecycle', () => {
     });
 
     it('replaces the receiver connection when the actual device identity changes', () => {
-        renderHook(() => useKeySyncReceiver('vault-one', protection));
+        renderHook(() => useKeySyncReceiver('vault-one'));
 
         act(() =>
             useDeviceStore.setState({
@@ -108,7 +91,7 @@ describe('receiver lifecycle', () => {
     it('ends a stalled transfer and gives the receiver a retryable timeout error', async () => {
         vi.useFakeTimers();
         const { result } = renderHook(() =>
-            useKeySyncReceiver('vault-one', protection)
+            useKeySyncReceiver('vault-one')
         );
 
         await act(async () => {
@@ -127,7 +110,7 @@ describe('receiver lifecycle', () => {
             throw new Error('Connection lost');
         });
         const { result } = renderHook(() =>
-            useKeySyncReceiver('vault-one', protection)
+            useKeySyncReceiver('vault-one')
         );
         await waitFor(() => expect(result.current.phase).toBe('error'));
 
@@ -138,5 +121,27 @@ describe('receiver lifecycle', () => {
         expect(abandoned[0].signal.aborted).toBe(true);
         expect(result.current.code).toBe('XYZ789');
         expect(result.current.phase).toBe('waiting');
+    });
+
+    it('waits for a protection choice before saving the transferred key', async () => {
+        const rawKey = new Uint8Array(32);
+        const credentialId = new Uint8Array([1, 2, 3]).buffer;
+        vi.mocked(receiveVaultKey).mockImplementationOnce(async (options) => {
+            await options.saveKey(rawKey, credentialId);
+        });
+        const { result } = renderHook(() => useKeySyncReceiver('vault-one'));
+        await waitFor(() => expect(result.current.phase).toBe('choosing'));
+        expect(result.current.credentialId).toEqual(credentialId);
+        expect(encryption.saveRawKey).not.toHaveBeenCalled();
+
+        const protection = {
+            userId: 'user-one',
+            type: 'Password',
+            salt: new Uint8Array(16),
+            wrappingKey: {} as CryptoKey,
+        } satisfies PreparedProtection;
+        act(() => result.current.selectProtection(protection));
+        await waitFor(() => expect(result.current.phase).toBe('success'));
+        expect(encryption.saveRawKey).toHaveBeenCalledWith('vault-one', protection, rawKey);
     });
 });
