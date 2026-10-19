@@ -5,8 +5,12 @@ export function AppHeader({ children }: { children?: ReactNode }) {
     return (
         <header className="app-header">
             <h1 className="brand">
-                <img src="/mossy_logo.png" width="36" height="36" alt="" />
-                Mossy
+                <img
+                    src="/mossy_logo.png"
+                    width="106"
+                    height="48"
+                    alt="Mossy"
+                />
             </h1>
             <div className="header-actions">{children}</div>
         </header>

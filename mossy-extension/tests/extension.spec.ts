@@ -1016,16 +1016,51 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
         await expect(
             popup.getByRole('heading', { name: 'Settings', exact: true })
         ).toBeFocused();
+        await expect(popup.getByLabel('Mossy instance')).toBeHidden();
         await expect(popup.getByLabel('Mossy instance')).toHaveValue(instance);
         await expect(popup.getByLabel('Appearance')).toHaveValue(theme);
         await popup
             .locator('main')
             .screenshot({ path: `/tmp/mossy-v2-settings-${theme}.png` });
+        const advancedSettings = popup.locator('summary');
+        await advancedSettings.focus();
+        await advancedSettings.press('Enter');
+        await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+        await expect(
+            popup.getByRole('heading', {
+                name: 'Only change this if you know what you’re doing',
+                exact: true,
+            })
+        ).toBeVisible();
+        await expect(popup.locator('#instance-warning')).toContainText(
+            'Your sign-in credentials will be sent to this server.'
+        );
+        await expect(popup.getByLabel('Mossy instance')).toHaveAttribute(
+            'aria-describedby',
+            'instance-warning'
+        );
+        await popup
+            .locator('main')
+            .screenshot({
+                path: `/tmp/mossy-v2-advanced-settings-${theme}.png`,
+            });
+        await advancedSettings.press('Enter');
+        await expect(popup.getByLabel('Mossy instance')).toBeHidden();
         await popup
             .getByRole('button', { name: 'Close settings', exact: true })
             .click();
     }
     await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    // Native validation must reveal a hidden invalid field before focusing it.
+    await popup.locator('summary').click();
+    await popup.getByLabel('Mossy instance').fill('not a URL');
+    await popup.locator('summary').click();
+    await popup
+        .getByRole('button', { name: 'Save settings', exact: true })
+        .click();
+    await expect(popup.getByLabel('Mossy instance')).toBeFocused();
+    await expect(popup.locator('#instance-warning')).toBeVisible();
+    await popup.getByLabel('Mossy instance').fill(instance);
     await popup.getByLabel('Appearance').selectOption('system');
     await popup
         .getByRole('button', { name: 'Save settings', exact: true })
@@ -1104,4 +1139,126 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
         popup.getByRole('link', { name: 'Create a vault in Mossy' })
     ).toBeVisible();
     await expect(popup.getByRole('alert')).toHaveCount(0);
+});
+
+test('sign-in explains registration and device approval, and clears passwords after every attempt', async () => {
+    await popup.emulateMedia({ reducedMotion: 'reduce' });
+    const logo = popup.getByRole('heading', { name: 'Mossy', exact: true });
+    await expect(
+        logo.getByRole('img', { name: 'Mossy', exact: true })
+    ).toHaveCount(1);
+    await expect(logo).toHaveText('');
+    await expect(
+        popup.getByRole('heading', { name: 'Welcome back', exact: true })
+    ).toBeVisible();
+    const registration = popup.getByRole('link', {
+        name: 'Create an account',
+        exact: true,
+    });
+    await expect(registration).toHaveAttribute(
+        'href',
+        process.env.VITE_MOSSY_REGISTRATION_URL?.trim() ||
+            instance + '/register'
+    );
+    await expect(registration).toHaveAttribute('target', '_blank');
+    await expect(popup.getByText('Opens in the Mossy web app')).toBeVisible();
+    await popup
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-signed-out.png' });
+    expect(
+        await popup
+            .locator('main')
+            .evaluate((element) => element.getBoundingClientRect().height)
+    ).toBeLessThanOrEqual(600);
+    for (const theme of ['light', 'dark'] as const) {
+        await pageRpc(popup, { kind: 'settings', instance, theme });
+        await popup.reload();
+        await expect(
+            popup.getByRole('heading', { name: 'Welcome back', exact: true })
+        ).toBeVisible();
+        await popup
+            .locator('main')
+            .screenshot({ path: `/tmp/mossy-v2-sign-in-${theme}.png` });
+    }
+    await popup.setViewportSize({ width: 320, height: 600 });
+    expect(
+        await popup.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth
+        )
+    ).toBe(true);
+    const signInButton = popup.getByRole('button', {
+        name: 'Sign in',
+        exact: true,
+    });
+    expect(
+        await signInButton.evaluate(
+            (element) => element.getBoundingClientRect().bottom
+        )
+    ).toBeLessThanOrEqual(600);
+    await popup.setViewportSize({ width: 400, height: 600 });
+    await seed(popup);
+    await popup.getByLabel('Email or username').fill('alice');
+    const passwordInput = popup.getByLabel('Account password', { exact: true });
+    await passwordInput.fill('account password');
+    await popup
+        .getByRole('button', { name: 'Show account password', exact: true })
+        .click();
+    await expect(passwordInput).toHaveAttribute('type', 'text');
+    await expect(passwordInput).toHaveValue('account password');
+    await expect(
+        popup.getByRole('button', {
+            name: 'Hide account password',
+            exact: true,
+        })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await context.route(`${instance}/api/v1/auth/extension/login`, (route) =>
+        route.fulfill({
+            status: 401,
+            json: { message: 'Check your email or username and password.' },
+        })
+    );
+    await signInButton.click();
+    await expect(
+        popup
+            .getByRole('form', { name: 'Sign in', exact: true })
+            .getByRole('alert')
+    ).toContainText('Check your email or username and password.');
+    await expect(popup.getByRole('alert')).toHaveCount(1);
+    await expect(passwordInput).toHaveValue('');
+    await expect(passwordInput).toHaveAttribute('type', 'password');
+    await expect(popup.getByLabel('Email or username')).toHaveValue('alice');
+    await expect(signInButton).toBeEnabled();
+    await expect(popup.locator('.actions button > span')).toHaveCount(0);
+    await popup
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-sign-in-error.png' });
+    await context.unroute(`${instance}/api/v1/auth/extension/login`);
+    await context.route(
+        `${instance}/api/v1/device-trust/nonce/device-1`,
+        (route) => route.fulfill({ status: 202, body: '' })
+    );
+    await passwordInput.fill('account password');
+    await signInButton.click();
+    await expect(
+        popup.getByRole('heading', {
+            name: 'Approve this browser',
+            exact: true,
+        })
+    ).toBeVisible();
+    await expect(popup.getByRole('alert')).toHaveCount(0);
+    await expect(
+        popup.getByRole('link', { name: 'Open Devices', exact: true })
+    ).toHaveAttribute('href', instance + '/devices');
+    await expect(passwordInput).toHaveValue('');
+    await expect(signInButton).toBeEnabled();
+    await expect(popup.locator('.actions button > span')).toHaveCount(0);
+    await popup
+        .locator('main')
+        .screenshot({ path: '/tmp/mossy-v2-enrollment.png' });
+    await context.unroute(`${instance}/api/v1/device-trust/nonce/device-1`);
+    await passwordInput.fill('account password');
+    await signInButton.click();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
 });

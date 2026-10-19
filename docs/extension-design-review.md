@@ -15,17 +15,22 @@ separate extension palette or duplicate theme definition. An explicit body font
 in the extension globals overrides Chromium's injected extension stylesheet,
 which otherwise replaces Syne with Noto Sans despite the shared token import.
 
-The radius scale follows the frontend: 12px cards, 8px auth inputs and icon
-surfaces, 6px controls. Spacing follows the frontend's 4px rhythm. Body copy is
+The radius scale follows the frontend: 16px auth cards, 12px task cards, 8px
+auth inputs and icon surfaces, and 6px controls. Spacing follows the frontend's 4px rhythm. Body copy is
 14px; supplementary copy is 12px. No added imagery, external fonts, or libraries.
+
+Registration stays in the frontend's existing form. The sign-in card labels its
+external registration link clearly. It defaults to `https://mossy.dayfit.pl/register`
+and can be changed with `VITE_MOSSY_REGISTRATION_URL` at build time, independently
+of the API instance. See [build configuration](extension-installation.md#configure-the-registration-link-at-build-time).
 
 ## Component audit
 
 | Surface | Frontend reference | Change |
 | --- | --- | --- |
-| Header, settings, sign out | `Nav`, `AccountMenu`, shared icon buttons | Bordered surface header, consistent icon targets, accessible names and expanded states. |
-| Sign in and enrollment feedback | `AuthForm`, `SigninForm` | Contained auth card, strong input borders, full-width primary action, separate registration link and security notice. |
-| Instance, appearance, site permissions | Frontend auth fields and settings surfaces | Clear labels, distinct permission section, disabled permission control after access is granted. |
+| Header, settings, sign out | `Nav`, `AccountMenu`, shared icon buttons | Preserve the complete horizontal logo at its natural ratio, with no duplicated text wordmark. Bordered surface header, consistent icon targets, accessible names and expanded states. |
+| Sign in and enrollment feedback | `AuthForm`, `SigninForm` | Centered Welcome back card, strong input borders, clear placeholders, password visibility control, full-width primary action, inline errors and helpful device-approval guidance. Account passwords stay out of React state and are cleared after each attempt. |
+| Instance, appearance, site permissions | Frontend auth fields and settings surfaces | Appearance and permissions remain prominent. Hide the instance URL in a collapsed Advanced settings section, with an explicit credential-trust warning and sign-out explanation. Native validation reopens it if the URL is invalid. Disable permission control after access is granted. |
 | Vault selection | `VaultSelectorCard` | Dedicated surface, vault total, green selected control; retain the compact native select. |
 | Search | `SearchBar`, `PasswordListCard` | Shared green border and search icon; trimmed case-insensitive search and a visible no-results state. |
 | Password entries and copy/fill actions | `PasswordListItemFrame`, `PasswordListItem` | Password-type icon, username/site hierarchy, secondary copy controls and primary fill; retain full origin visibility and explain disabled fill. |
@@ -48,7 +53,11 @@ ignores stale failed responses as well as stale successful responses.
 The packaged Chromium suite covers the existing security flows plus search
 recovery, empty account/vault states, error retry, settings persistence, keyboard
 focus, both explicit themes and system appearance, bundled font selection, and
-long metadata in a scrollable list at 320px with no horizontal overflow.
+long metadata in a scrollable list at 320px with no horizontal overflow. It also
+checks the single logo, password visibility and clearing, inline sign-in errors,
+device-approval guidance, collapsed advanced settings, keyboard expansion, and
+native validation of hidden fields. A separate custom-URL build verifies the
+registration environment override in real Chromium.
 Screenshots use fixture accounts and metadata, with empty authorization inputs.
 They are stored in `docs/screenshots/extension-v2/`.
 
@@ -61,6 +70,8 @@ the production package and real Chromium rendering are checked directly.
 
 | Surface | Light | Dark |
 | --- | --- | --- |
+| Sign in | [Light](screenshots/extension-v2/signed-out.png) | [Dark](screenshots/extension-v2/sign-in-dark.png) |
+| Advanced settings | [Light](screenshots/extension-v2/advanced-settings-light.png) | [Dark](screenshots/extension-v2/advanced-settings-dark.png) |
 | Passwords | [Light](screenshots/extension-v2/metadata-light.png) | [Dark](screenshots/extension-v2/metadata-dark.png) |
 | Settings | [Light](screenshots/extension-v2/settings-light.png) | [Dark](screenshots/extension-v2/settings-dark.png) |
 | Key sync | [Light](screenshots/extension-v2/sync-light.png) | [Dark](screenshots/extension-v2/sync-dark.png) |
@@ -73,3 +84,6 @@ Additional views: [sign in](screenshots/extension-v2/signed-out.png),
 [expired action](screenshots/extension-v2/action-error.png),
 [empty search](screenshots/extension-v2/empty-dark.png), and
 [320px long entries](screenshots/extension-v2/narrow.png).
+
+Auth feedback: [sign-in error](screenshots/extension-v2/sign-in-error.png) and
+[device approval](screenshots/extension-v2/enrollment.png).

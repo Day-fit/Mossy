@@ -31,6 +31,22 @@ The frontend Docker image still copies the already-built frontend `dist` directo
 Build the frontend through the root workspace before using its existing image
 build; shared sources are bundled into those assets and need no runtime mount.
 
+## Configure the registration link at build time
+
+**Create an account** opens `https://mossy.dayfit.pl/register` by default. To point
+it at another frontend, set `VITE_MOSSY_REGISTRATION_URL` to its full registration
+page URL when building the extension:
+
+```sh
+VITE_MOSSY_REGISTRATION_URL=https://accounts.example.com/register npm run extension:zip
+```
+
+For local development, copy `mossy-extension/.env.example` to
+`mossy-extension/.env` and edit the URL before starting WXT. The URL is baked into
+the packaged extension; changing it requires a rebuild. It is independent of the
+sign-in/API instance selected in the extension's Settings. Registration and email
+verification continue in the frontend's existing forms.
+
 ## Load the extension and configure the server
 
 1. Open `chrome://extensions`, `edge://extensions`, or `brave://extensions` and

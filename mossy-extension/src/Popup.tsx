@@ -9,6 +9,8 @@ import {
     MdPassword,
     MdInfoOutline,
     MdErrorOutline,
+    MdExpandMore,
+    MdWarningAmber,
     MdClose,
     MdKey,
 } from 'react-icons/md';
@@ -19,6 +21,7 @@ import {
     SecurityNotice,
 } from './components';
 import { rpc } from './rpc';
+import SignIn from './SignIn';
 import { matchesSite, normalizeInstance, type Target } from './security';
 import type { Entry, Vault, Operation } from './models';
 import type { PendingMetadata } from './pending';
@@ -49,6 +52,7 @@ const usePopup = create<{
 export default function Popup() {
     const { view, error, loading, set } = usePopup();
     const [settings, setSettings] = useState(false);
+    const [enrollmentPending, setEnrollmentPending] = useState(false);
     const [search, setSearch] = useState('');
     const [now, setNow] = useState(Date.now());
     const [sync, setSync] = useState(false);
@@ -180,7 +184,7 @@ export default function Popup() {
                 </button>
             </AppHeader>
             <div className="page-content">
-                {error && (
+                {error && (!view || settings || view.account) && (
                     <div role="alert" className="status error">
                         <MdErrorOutline size={18} aria-hidden="true" />
                         <span>{error}</span>
@@ -244,39 +248,24 @@ export default function Popup() {
                                 Settings
                             </h2>
                             <p>
-                                Manage your instance, appearance, and website
-                                access.
+                                Choose how Mossy looks and works in your
+                                browser.
                             </p>
                         </div>
-                        <label htmlFor="instance">Mossy instance</label>
-                        <input
-                            id="instance"
-                            name="instance"
-                            type="url"
-                            required
-                            defaultValue={view.instance}
-                        />
                         <label htmlFor="theme">Appearance</label>
                         <select
                             id="theme"
                             name="theme"
                             defaultValue={view.theme}
+                            disabled={loading}
                         >
                             <option value="system">System</option>
                             <option value="light">Light</option>
                             <option value="dark">Dark</option>
                         </select>
                         <p className="muted">
-                            Changing instances signs out this extension.
-                            Registration is available in the web app.
+                            Follow your device or choose a light or dark theme.
                         </p>
-                        <Button
-                            type="submit"
-                            padding="medium"
-                            disabled={loading}
-                        >
-                            Save settings
-                        </Button>
                         <div className="settings-divider">
                             <h3>Website access</h3>
                             <p className="muted">
@@ -306,105 +295,79 @@ export default function Popup() {
                                     : 'Enable fill and capture'}
                             </Button>
                         </div>
+                        <details className="advanced-settings">
+                            <summary>
+                                Advanced settings
+                                <MdExpandMore size={20} aria-hidden="true" />
+                            </summary>
+                            <div
+                                className="advanced-warning"
+                                id="instance-warning"
+                            >
+                                <MdWarningAmber size={20} aria-hidden="true" />
+                                <div>
+                                    <h3>
+                                        Only change this if you know what you’re
+                                        doing
+                                    </h3>
+                                    <p>
+                                        Your sign-in credentials will be sent to
+                                        this server. Only use a Mossy instance
+                                        you trust. Changing it signs you out.
+                                    </p>
+                                </div>
+                            </div>
+                            <label htmlFor="instance">Mossy instance</label>
+                            <input
+                                id="instance"
+                                name="instance"
+                                type="url"
+                                required
+                                defaultValue={view.instance}
+                                disabled={loading}
+                                aria-describedby="instance-warning"
+                                onInvalid={(event) => {
+                                    event.currentTarget.closest(
+                                        'details'
+                                    )!.open = true;
+                                }}
+                            />
+                        </details>
+                        <Button
+                            type="submit"
+                            padding="medium"
+                            disabled={loading}
+                            className="settings-save"
+                        >
+                            Save settings
+                        </Button>
                     </form>
                 ) : view && !view.account ? (
-                    <>
-                        <section
-                            className="panel login-panel"
-                            aria-labelledby="sign-in-title"
-                        >
-                            <div className="intro">
-                                <h2 id="sign-in-title">
-                                    Your vault, close at hand.
-                                </h2>
-                                <p>
-                                    Sign in to enroll this browser as a new
-                                    device. Approve it from an existing Mossy
-                                    device.
-                                </p>
-                            </div>
-                            <form
-                                aria-busy={loading}
-                                onSubmit={(event) => {
-                                    event.preventDefault();
-                                    const form = event.currentTarget;
-                                    const data = new FormData(form);
-                                    const credentials = {
-                                        identifier: String(
-                                            data.get('identifier')
-                                        ),
-                                        password: String(data.get('password')),
-                                    };
-                                    (
-                                        form.elements.namedItem(
-                                            'password'
-                                        ) as HTMLInputElement
-                                    ).value = '';
-                                    void run(async () => {
-                                        try {
-                                            const response = await rpc<{
-                                                status: string;
-                                            }>({
-                                                kind: 'login',
-                                                ...credentials,
-                                            });
-                                            if (
-                                                response.status ===
-                                                'enrollment-pending'
-                                            )
-                                                throw new Error(
-                                                    'Device enrollment pending. Approve this browser in Mossy, then sign in again.'
-                                                );
-                                        } finally {
-                                            credentials.password = '';
-                                        }
+                    <SignIn
+                        instance={view.instance}
+                        loading={loading}
+                        error={error}
+                        enrollmentPending={enrollmentPending}
+                        onDismissError={() => set({ error: undefined })}
+                        onSignIn={(credentials) =>
+                            run(async () => {
+                                setEnrollmentPending(false);
+                                try {
+                                    const response = await rpc<{
+                                        status: string;
+                                    }>({
+                                        kind: 'login',
+                                        ...credentials,
                                     });
-                                }}
-                            >
-                                <label htmlFor="identifier">
-                                    Email or username
-                                </label>
-                                <input
-                                    id="identifier"
-                                    name="identifier"
-                                    autoComplete="username"
-                                    required
-                                />
-                                <label htmlFor="password">
-                                    Account password
-                                </label>
-                                <input
-                                    id="password"
-                                    name="password"
-                                    type="password"
-                                    autoComplete="current-password"
-                                    required
-                                />
-                                <div className="actions">
-                                    <Button
-                                        type="submit"
-                                        padding="medium"
-                                        disabled={loading}
-                                    >
-                                        {loading ? 'Signing in…' : 'Sign in'}
-                                    </Button>
-                                </div>
-                            </form>
-                            <p className="register-link">
-                                <a
-                                    href={view.instance + '/register'}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    Create an account in Mossy
-                                </a>
-                            </p>
-                        </section>
-                        <SecurityNotice>
-                            Every secret action requires its own vault
-                            authorization.
-                        </SecurityNotice>
-                    </>
+                                    setEnrollmentPending(
+                                        response.status === 'enrollment-pending'
+                                    );
+                                } finally {
+                                    credentials.password = '';
+                                }
+                            })
+                        }
+                    />
                 ) : (
                     view && (
                         <>
