@@ -27,6 +27,12 @@ import {
     type Target,
 } from './security';
 import type { Vault, Entry, Action } from './models';
+import {
+    instanceSetting,
+    themeSetting,
+    lastIdentifierSetting,
+    saveSettings,
+} from './settings';
 
 let instance = DEFAULT_INSTANCE;
 let theme: 'light' | 'dark' | 'system' = 'system';
@@ -126,25 +132,21 @@ const ready = (async () => {
         accessLevel: 'TRUSTED_CONTEXTS',
     });
 
-    const settings = await chrome.storage.local.get(['instance', 'theme']);
+    const [storedInstance, storedTheme] = await Promise.all([
+        instanceSetting.getValue(),
+        themeSetting.getValue(),
+    ]);
 
     try {
         instance = normalizeInstance(
-            typeof settings.instance === 'string'
-                ? settings.instance
-                : DEFAULT_INSTANCE,
+            storedInstance,
             import.meta.env.DEV
         );
     } catch {
         instance = DEFAULT_INSTANCE;
     }
 
-    if (
-        typeof settings.theme === 'string' &&
-        ['light', 'dark', 'system'].includes(settings.theme)
-    ) {
-        theme = settings.theme as typeof theme;
-    }
+    theme = storedTheme;
 
     api = new ExtensionTransport(instance, clearSession);
 
@@ -169,10 +171,10 @@ async function loadAccount() {
         throw new Error('Account changed.');
     }
 
-    const stored = await chrome.storage.local.get('lastIdentifier');
+    const storedIdentifier = await lastIdentifierSetting.getValue();
     const loadedDeviceId =
-        typeof stored.lastIdentifier === 'string'
-            ? ((await loadDeviceId(instance, stored.lastIdentifier)) ??
+        storedIdentifier !== null
+            ? ((await loadDeviceId(instance, storedIdentifier)) ??
               undefined)
             : undefined;
 
@@ -657,7 +659,7 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
               }
 
               if (command.kind === 'theme') {
-                  await chrome.storage.local.set({ theme: command.theme });
+                  await themeSetting.setValue(command.theme);
                   theme = command.theme;
 
                   return { ok: true };
@@ -721,7 +723,7 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
                   theme = command.theme;
 
-                  await chrome.storage.local.set({ instance, theme });
+                  await saveSettings(instance, theme);
 
                   return { ok: true };
               }
@@ -755,9 +757,7 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
                   deviceId = result.deviceId;
 
-                  await chrome.storage.local.set({
-                      lastIdentifier: command.identifier,
-                  });
+                  await lastIdentifierSetting.setValue(command.identifier);
 
                   if (result.status === 'authenticated') {
                       api.token = result.accessToken;

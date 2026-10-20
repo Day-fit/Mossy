@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
+import { themeSetting } from './settings';
 
 export type Theme = 'light' | 'dark' | 'system';
-
-const normalizeTheme = (value: unknown): Theme =>
-    value === 'light' || value === 'dark' ? value : 'system';
 
 export function useTheme() {
     const [theme, setTheme] = useState<Theme>('system');
@@ -12,34 +10,25 @@ export function useTheme() {
         let active = true;
         let changed = false;
 
-        const apply = (value: unknown) => {
-            const next = normalizeTheme(value);
-            document.documentElement.dataset.theme = next;
-            setTheme(next);
+        const apply = (value: Theme) => {
+            document.documentElement.dataset.theme = value;
+            setTheme(value);
         };
 
-        const listener = (
-            changes: Record<string, chrome.storage.StorageChange>,
-            area: string
-        ) => {
-            if (area !== 'local' || !changes.theme) {
-                return;
-            }
-
+        const unwatch = themeSetting.watch((value) => {
             changed = true;
-            apply(changes.theme.newValue);
-        };
+            apply(value);
+        });
 
-        chrome.storage.onChanged.addListener(listener);
-        void chrome.storage.local.get('theme').then((settings) => {
+        void themeSetting.getValue().then((value) => {
             if (active && !changed) {
-                apply(settings.theme);
+                apply(value);
             }
         });
 
         return () => {
             active = false;
-            chrome.storage.onChanged.removeListener(listener);
+            unwatch();
         };
     }, []);
 
