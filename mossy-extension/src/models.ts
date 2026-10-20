@@ -5,12 +5,14 @@ import type {
     VaultKeyResponse,
     PublicIdentityJwk,
 } from '@mossy/client-core';
+
 export type Vault = {
     vaultId: string;
     vaultName: string;
     isOnline?: boolean;
     online?: boolean;
 };
+
 export type Entry = {
     passwordId: string;
     identifier: string;
@@ -18,6 +20,7 @@ export type Entry = {
     passwordType: 'PASSWORD' | 'SSH_KEY';
     lastModified: string;
 };
+
 export type Operation =
     | 'copy-password'
     | 'copy-username'
@@ -25,6 +28,7 @@ export type Operation =
     | 'save'
     | 'sync-send'
     | 'sync-receive';
+
 export type Action = {
     id: string;
     operation: Operation;
@@ -43,6 +47,7 @@ export type Action = {
     code?: string;
     receiver?: ReceiverDetails;
 };
+
 export type ActionResult = {
     status: string;
     code?: string;

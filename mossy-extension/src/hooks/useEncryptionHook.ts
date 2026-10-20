@@ -12,13 +12,19 @@ async function protection(
 ) {
     try {
         const passkey = await ceremony;
+
         return {
             prf: prfBytes(passkey.results),
             credentialId: passkey.credentialId,
         };
     } catch (error) {
-        if (error instanceof DOMException && error.name === 'NotSupportedError')
+        if (
+            error instanceof DOMException &&
+            error.name === 'NotSupportedError'
+        ) {
             throw new PrfNotSupportedError();
+        }
+
         throw error;
     }
 }

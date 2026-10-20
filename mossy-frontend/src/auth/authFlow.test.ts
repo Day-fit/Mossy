@@ -6,11 +6,13 @@ const authApi = vi.hoisted(() => ({
     executeLoginRequest: vi.fn(),
     executeRegisterRequest: vi.fn(),
 }));
+
 const deviceTrustApi = vi.hoisted(() => ({
     executeDeviceLoginChallengeRequest: vi.fn(),
     executeCreateEnrollmentRequest: vi.fn(),
     executeConfirmEnrollmentRequest: vi.fn(),
 }));
+
 const deviceIdentity = vi.hoisted(() => ({
     ensureDeviceIdentity: vi.fn(),
     loadStoredDeviceId: vi.fn(),
@@ -19,7 +21,9 @@ const deviceIdentity = vi.hoisted(() => ({
 }));
 
 vi.mock('../api/auth.api.ts', () => authApi);
+
 vi.mock('../api/deviceTrust.api.ts', () => deviceTrustApi);
+
 vi.mock('./deviceIdentity.ts', () => deviceIdentity);
 
 const identity = {
@@ -27,6 +31,7 @@ const identity = {
     public: 'public-key',
     private: 'private-key',
 };
+
 const credentials = { identifier: 'mossy', password: 'correct-password' };
 
 describe('auth flow', () => {
@@ -56,6 +61,7 @@ describe('auth flow', () => {
             status: 'authenticated',
             accessToken: 'access-token',
         });
+
         expect(deviceIdentity.signNonce).toHaveBeenCalledWith(
             'bm9uY2UtMQ',
             identity
@@ -84,6 +90,7 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'pending-device-1',
         });
+
         expect(deviceIdentity.signNonce).not.toHaveBeenCalled();
         expect(authApi.executeLoginRequest).not.toHaveBeenCalled();
     });
@@ -110,6 +117,7 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'pending-device-1',
         });
+
         expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
             ...credentials,
             challengeDto: null,
@@ -155,6 +163,7 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'replacement-device',
         });
+
         expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
             ...credentials,
             challengeDto: null,
@@ -193,6 +202,7 @@ describe('auth flow', () => {
             status: 'authenticated',
             accessToken: 'registered-access-token',
         });
+
         expect(authApi.executeRegisterRequest).toHaveBeenCalledWith({
             username: 'mossy',
             email: 'mossy@example.com',
@@ -237,6 +247,7 @@ describe('auth flow', () => {
             verification,
             identifier: 'new@example.com',
         });
+
         expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
             'device-3',
             'new-user'

@@ -10,7 +10,9 @@ import {
 } from './security';
 import { PendingCapture } from './pending';
 import { authorizePrf } from './hooks/useEncryptionHook';
+
 afterEach(() => vi.unstubAllGlobals());
+
 describe('exact origin and browser-supplied sender boundaries', () => {
     it.each([
         'https://site.example',
@@ -18,14 +20,16 @@ describe('exact origin and browser-supplied sender boundaries', () => {
         'site.example',
     ])('matches only the exact secure origin for %s', (address) => {
         expect(matchesSite(address, 'https://site.example/login')).toBe(true);
+
         for (const url of [
             'http://site.example',
             'https://www.site.example',
             'https://login.site.example',
             'https://site.example:8443',
             'https://site.example.evil.test',
-        ])
+        ]) {
             expect(matchesSite(address, url)).toBe(false);
+        }
     });
     it('supports explicit nondefault origins without broadening legacy hostname entries', () => {
         expect(
@@ -51,6 +55,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
         expect(normalizeInstance('http://localhost:8080', true)).toBe(
             'http://localhost:8080'
         );
+
         for (const value of [
             'http://localhost',
             'http://vault.example',
@@ -58,8 +63,10 @@ describe('exact origin and browser-supplied sender boundaries', () => {
             'https://vault.example/path',
             'https://vault.example?x=1',
             'https://vault.example/#hash',
-        ])
+        ]) {
             expect(() => normalizeInstance(value)).toThrow();
+        }
+
         expect(() => normalizeInstance('http://vault.example', true)).toThrow();
     });
     it('rejects forged privileged commands, extras and arbitrary API/decryption requests', () => {
@@ -69,11 +76,13 @@ describe('exact origin and browser-supplied sender boundaries', () => {
             'finish',
             'claim-password',
             'fill-once',
-        ])
+        ]) {
             expect(
                 commandSchema.safeParse({ kind, url: 'https://evil.example' })
                     .success
             ).toBe(false);
+        }
+
         expect(
             commandSchema.safeParse({ kind: 'state', token: 'fake' }).success
         ).toBe(false);
@@ -92,6 +101,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
                 getURL: () => 'chrome-extension://extension-id/',
             },
         });
+
         expect(
             trustedPage(
                 {
@@ -112,6 +122,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
                 '/popup.html'
             )
         ).toBe(false);
+
         const source = {
             id: 'extension-id',
             origin: 'https://site.example',
@@ -120,24 +131,28 @@ describe('exact origin and browser-supplied sender boundaries', () => {
             frameId: 0,
             tab: { id: 1, url: 'https://site.example/' },
         };
+
         expect(
             contentSource(
                 source as chrome.runtime.MessageSender,
                 'https://mossy.example'
             ).documentId
         ).toBe('doc');
+
         for (const changed of [
             { origin: 'https://evil.test' },
             { tab: { id: 1, url: 'https://other.example' } },
             { documentId: undefined },
             { url: 'http://site.example' },
-        ])
+        ]) {
             expect(() =>
                 contentSource(
                     { ...source, ...changed } as chrome.runtime.MessageSender,
                     'https://mossy.example'
                 )
             ).toThrow();
+        }
+
         expect(() =>
             contentSource(
                 source as chrome.runtime.MessageSender,
@@ -146,6 +161,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
         ).toThrow();
     });
 });
+
 describe('ten-second encrypted candidate lifecycle', () => {
     const metadata = {
         origin: 'https://site.example',
@@ -157,9 +173,14 @@ describe('ten-second encrypted candidate lifecycle', () => {
         const prompts: unknown[] = [];
         const capture = new PendingCapture(() => {
             const value = capture.metadata();
-            if (value) prompts.push(value);
+
+            if (value) {
+                prompts.push(value);
+            }
         });
+
         await capture.stage('secret-at-capture', metadata);
+
         expect(prompts).toHaveLength(1);
         expect(JSON.stringify(prompts)).not.toContain('secret-at-capture');
         expect(Object.keys(capture.metadata()!)).not.toContain('key');
@@ -177,33 +198,43 @@ describe('ten-second encrypted candidate lifecycle', () => {
             () => now
         );
         const staged = await capture.stage('secret', metadata, 500);
+
         expect(staged!.deadline).toBe(10500);
         now = 10499;
         capture.handoff(staged!.id, metadata.account);
+
         expect(capture.metadata()!.deadline).toBe(10500);
         now = 10500;
+
         await expect(
             capture.consume(staged!.id, metadata.account)
         ).rejects.toThrow();
+
         expect(capture.metadata()).toBeUndefined();
     });
     it('consumes at most once, checks account scope and clears on decline/background loss', async () => {
         const capture = new PendingCapture();
         const first = await capture.stage('secret', metadata);
+
         expect(() => capture.handoff(first!.id, 'other-account')).toThrow();
         capture.handoff(first!.id, metadata.account);
+
         expect(await capture.consume(first!.id, metadata.account)).toBe(
             'secret'
         );
+
         await expect(
             capture.consume(first!.id, metadata.account)
         ).rejects.toThrow();
+
         const second = await capture.stage('second', metadata);
         capture.handoff(second!.id, metadata.account);
         capture.clear();
+
         await expect(
             capture.consume(second!.id, metadata.account)
         ).rejects.toThrow();
+
         expect(new PendingCapture().metadata()).toBeUndefined();
     });
     it('replaces prior candidates, never queues them, and refuses deadlines delayed before staging', async () => {
@@ -214,12 +245,15 @@ describe('ten-second encrypted candidate lifecycle', () => {
         );
         const first = await capture.stage('first', metadata);
         const second = await capture.stage('second', metadata);
+
         expect(() => capture.handoff(first!.id, metadata.account)).toThrow();
         capture.handoff(second!.id, metadata.account);
+
         expect(await capture.consume(second!.id, metadata.account)).toBe(
             'second'
         );
         now = 20000;
+
         expect(await capture.stage('expired', metadata, 1)).toBeUndefined();
         expect(capture.metadata()).toBeUndefined();
     });
@@ -229,6 +263,7 @@ describe('ten-second encrypted candidate lifecycle', () => {
         expect(() => assertLive(10000, 10001)).toThrow();
     });
 });
+
 describe('native PRF cancellation', () => {
     it('requests the configured RP and vault salt and never creates/replaces after cancellation', async () => {
         const get = vi
@@ -237,11 +272,15 @@ describe('native PRF cancellation', () => {
         const create = vi.fn();
         vi.stubGlobal('navigator', { credentials: { get, create } });
         vi.stubGlobal('PublicKeyCredential', class {});
+
         await expect(
             authorizePrf('https://vault.example', 'vault')
         ).rejects.toMatchObject({ name: 'NotAllowedError' });
+
         expect(create).not.toHaveBeenCalled();
+
         const request = get.mock.calls[0]![0];
+
         expect(request.publicKey.rpId).toBe('vault.example');
         expect(
             new TextDecoder().decode(
@@ -254,8 +293,11 @@ describe('native PRF cancellation', () => {
 describe('concurrent encrypted staging boundaries', () => {
     it('an older encryption completion or conditional clear cannot delete the newer candidate', async () => {
         const original = crypto.subtle.encrypt.bind(crypto.subtle);
+
         let release: () => void = () => {};
+
         let started: () => void = () => {};
+
         const entered = new Promise<void>((resolve) => {
             started = resolve;
         });
@@ -270,8 +312,10 @@ describe('concurrent encrypted staging boundaries', () => {
                     if (first) {
                         first = false;
                         started();
+
                         await barrier;
                     }
+
                     return original(...args);
                 }
             );
@@ -282,15 +326,21 @@ describe('concurrent encrypted staging boundaries', () => {
             tabId: 1,
             account: 'account',
         };
+
         try {
             const older = capture.stage('older', metadata);
+
             await entered;
+
             const newer = await capture.stage('newer', metadata);
             release();
+
             expect(await older).toBeUndefined();
             capture.clearIf('stale-id');
+
             expect(capture.metadata()!.id).toBe(newer!.id);
             capture.handoff(newer!.id, metadata.account);
+
             expect(await capture.consume(newer!.id, metadata.account)).toBe(
                 'newer'
             );

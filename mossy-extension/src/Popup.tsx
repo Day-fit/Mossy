@@ -26,6 +26,7 @@ import { useTheme, type Theme } from './theme';
 import { matchesSite, normalizeInstance, type Target } from './security';
 import type { Entry, Vault, Operation } from './models';
 import type { PendingMetadata } from './pending';
+
 type View = {
     instance: string;
     theme: 'light' | 'dark' | 'system';
@@ -37,6 +38,7 @@ type View = {
     pending: PendingMetadata | null;
     targets: Target[];
 };
+
 // Metadata only. Secrets live in transient input elements and action workers.
 const usePopup = create<{
     view?: View;
@@ -50,6 +52,7 @@ const usePopup = create<{
         }>
     ) => void;
 }>((set) => ({ loading: true, set }));
+
 export default function Popup() {
     const theme = useTheme();
     const [savingTheme, setSavingTheme] = useState(false);
@@ -60,22 +63,31 @@ export default function Popup() {
     const [now, setNow] = useState(Date.now());
     const [sync, setSync] = useState(false);
     const [updateId, setUpdateId] = useState('');
+
     const selected = useRef<string | undefined>(undefined);
     const requestVersion = useRef(0);
     const load = useCallback(
         async (vaultId?: string) => {
             const request = ++requestVersion.current;
             set({ loading: true, error: undefined });
+
             try {
                 const next = await rpc<View>({
                     kind: 'state',
                     vaultId: vaultId ?? selected.current,
                 });
-                if (request !== requestVersion.current) return;
+
+                if (request !== requestVersion.current) {
+                    return;
+                }
+
                 selected.current = next.selected;
                 set({ view: next, loading: false });
             } catch (error) {
-                if (request !== requestVersion.current) return;
+                if (request !== requestVersion.current) {
+                    return;
+                }
+
                 set({
                     error:
                         error instanceof Error
@@ -87,26 +99,39 @@ export default function Popup() {
         },
         [set]
     );
+
     useEffect(() => {
         void load();
+
         const listener = (message: { kind: string }) => {
-            if (message.kind === 'changed') void load();
+            if (message.kind === 'changed') {
+                void load();
+            }
         };
+
         chrome.runtime.onMessage.addListener(listener);
+
         const port = chrome.runtime.connect({ name: 'popup' });
         const timer = setInterval(() => setNow(Date.now()), 200);
+
         return () => {
             clearInterval(timer);
             chrome.runtime.onMessage.removeListener(listener);
             port.disconnect();
         };
     }, [load]);
+
     useEffect(() => {
-        if (settings) document.getElementById('settings-title')?.focus();
-        else if (sync) document.getElementById('sync-heading')?.focus();
+        if (settings) {
+            document.getElementById('settings-title')?.focus();
+        } else if (sync) {
+            document.getElementById('sync-heading')?.focus();
+        }
     }, [settings, sync]);
+
     const run = async (work: () => Promise<unknown>) => {
         set({ loading: true, error: undefined });
+
         try {
             await work();
             await load(view?.selected);
@@ -118,6 +143,7 @@ export default function Popup() {
             });
         }
     };
+
     const action = (
         operation: Operation,
         entry?: Entry,
@@ -126,36 +152,49 @@ export default function Popup() {
     ) =>
         run(async () => {
             if (operation === 'copy-username') {
-                await navigator.clipboard.writeText(entry!.identifier);
+                if (!entry) {
+                    throw new Error('Choose a password.');
+                }
+
+                await navigator.clipboard.writeText(entry.identifier);
+
                 return;
             }
+
+            if (!view?.selected) {
+                throw new Error('Choose a vault.');
+            }
+
             await rpc({
                 kind: 'action',
                 operation,
-                vaultId: view!.selected,
+                vaultId: view.selected,
                 passwordId: entry?.passwordId,
                 target,
                 code,
             });
             window.close();
         });
+
     const pending =
         view?.pending && view.pending.deadline > now && !view.pending.handedOff
             ? view.pending
             : undefined;
     const matches = pending
-        ? view!.entries.filter(
+        ? (view?.entries ?? []).filter(
               (entry) =>
                   matchesSite(entry.address, pending.origin) &&
                   entry.identifier === pending.identifier
           )
         : [];
+    const searchTerm = search.trim().toLowerCase();
     const filteredEntries =
         view?.entries.filter((entry) =>
             `${entry.address} ${entry.identifier}`
                 .toLowerCase()
-                .includes(search.trim().toLowerCase())
+                .includes(searchTerm)
         ) ?? [];
+
     return (
         <main className="popup">
             <AppHeader>
@@ -218,20 +257,24 @@ export default function Popup() {
                         aria-busy={loading}
                         onSubmit={(event) => {
                             event.preventDefault();
+
                             const data = new FormData(event.currentTarget);
                             void run(async () => {
                                 const instance = normalizeInstance(
                                     String(data.get('instance')),
                                     import.meta.env.DEV
                                 );
+
                                 if (
                                     !(await chrome.permissions.request({
                                         origins: [`${instance}/*`],
                                     }))
-                                )
+                                ) {
                                     throw new Error(
                                         'Instance host access was declined.'
                                     );
+                                }
+
                                 await rpc({
                                     kind: 'settings',
                                     instance,
@@ -261,9 +304,12 @@ export default function Popup() {
                                 setSavingTheme(true);
                                 void rpc({ kind: 'theme', theme: next })
                                     .catch((error: unknown) => {
-                                        set({ error: error instanceof Error
-                                            ? error.message
-                                            : 'Could not save appearance.' });
+                                        set({
+                                            error:
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : 'Could not save appearance.',
+                                        });
                                     })
                                     .finally(() => setSavingTheme(false));
                             }}
@@ -293,10 +339,11 @@ export default function Popup() {
                                             !(await chrome.permissions.request({
                                                 origins: ['https://*/*'],
                                             }))
-                                        )
+                                        ) {
                                             throw new Error(
                                                 'Website access was declined. Metadata and copy are still available.'
                                             );
+                                        }
                                     })
                                 }
                             >
@@ -337,9 +384,12 @@ export default function Popup() {
                                 disabled={loading}
                                 aria-describedby="instance-warning"
                                 onInvalid={(event) => {
-                                    event.currentTarget.closest(
-                                        'details'
-                                    )!.open = true;
+                                    const details =
+                                        event.currentTarget.closest('details');
+
+                                    if (details) {
+                                        details.open = true;
+                                    }
                                 }}
                             />
                         </details>
@@ -362,6 +412,7 @@ export default function Popup() {
                         onSignIn={(credentials) =>
                             run(async () => {
                                 setEnrollmentPending(false);
+
                                 try {
                                     const response = await rpc<{
                                         status: string;
@@ -591,6 +642,7 @@ export default function Popup() {
                                                         target.origin
                                                     )
                                             );
+
                                             return (
                                                 <article
                                                     className="entry"
@@ -723,6 +775,7 @@ export default function Popup() {
                                     <form
                                         onSubmit={(event) => {
                                             event.preventDefault();
+
                                             const code = String(
                                                 new FormData(
                                                     event.currentTarget

@@ -12,7 +12,6 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
-import kotlin.collections.ifEmpty
 
 @Configuration
 @EnableConfigurationProperties(SecurityConfigurationProperties::class)
@@ -65,10 +64,12 @@ class HttpConfiguration {
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration)
+
         val extensionOrigins = securityConfigurationProperties.extensionAllowedOrigins
-        require(extensionOrigins.all { Regex("chrome-extension://[a-p]{32}").matches(it) }) {
+        require(extensionOrigins.all { EXTENSION_ORIGIN.matches(it) }) {
             "Extension API origins must be exact chrome-extension:// origins with a 32-character extension ID"
         }
+
         val extensionConfiguration = CorsConfiguration().apply {
             this.allowedOrigins = extensionOrigins
             allowedMethods = corsConfiguration.allowedMethods
@@ -78,12 +79,15 @@ class HttpConfiguration {
             allowCredentials = false
             maxAge = 300
         }
+
         val extensionSource = UrlBasedCorsConfigurationSource().apply {
             securityConfigurationProperties.extensionAllowedPaths.forEach {
                 registerCorsConfiguration(it, extensionConfiguration)
             }
         }
+
         val deniedExtension = CorsConfiguration()
+
         return CorsConfigurationSource { request ->
             if (request.getHeader(HttpHeaders.ORIGIN)?.startsWith("chrome-extension:") == true) {
                 extensionSource.getCorsConfiguration(request) ?: deniedExtension
@@ -91,5 +95,9 @@ class HttpConfiguration {
                 urlBasedCorsConfigurationSource.getCorsConfiguration(request)
             }
         }
+    }
+
+    companion object {
+        private val EXTENSION_ORIGIN = Regex("chrome-extension://[a-p]{32}")
     }
 }

@@ -41,11 +41,14 @@ class ExtensionAuthController(
         request: HttpServletRequest,
     ): ResponseEntity<LoginResponseDto> {
         origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
+
         val pair = userService.login(credentials, userAgent, request.remoteAddr)
+
         check(
             (pair.accessTokenType == AccessTokenType.DEVICE_ENROLLMENT_TOKEN && pair.refreshToken == null) ||
                 (pair.accessTokenType == AccessTokenType.ACCESS_TOKEN && pair.refreshToken != null)
         ) { "Unexpected extension authentication token type" }
+
         return tokenResponse(pair)
     }
 
@@ -55,18 +58,23 @@ class ExtensionAuthController(
         request: HttpServletRequest,
     ): ResponseEntity<LoginResponseDto> {
         origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
+
         if (refreshToken.isNullOrBlank()) {
             throw BadCredentialsException("Extension session is missing or expired")
         }
+
         val pair = try {
             jwtManagement.handleTokenRefreshment(refreshToken)
         } catch (error: JwtException) {
             throw BadCredentialsException("Extension session is invalid or expired", error)
         }
+
         check(pair.accessTokenType == AccessTokenType.ACCESS_TOKEN && pair.refreshToken != null) {
             "Unexpected extension refresh token type"
         }
+
         jwtManagement.revokeToken(refreshToken)
+
         return tokenResponse(pair)
     }
 
@@ -76,20 +84,30 @@ class ExtensionAuthController(
         request: HttpServletRequest,
     ): ResponseEntity<GenericServerResponseDto> {
         origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
+
         jwtManagement.revokeToken(refreshToken.orEmpty())
-        return ResponseEntity.ok().headers {
-            it.set(HttpHeaders.CACHE_CONTROL, "no-store")
-            it.set(HttpHeaders.SET_COOKIE, refreshCookie("", Duration.ZERO).toString())
-        }.body(GenericServerResponseDto("Extension signed out successfully"))
+
+        return ResponseEntity
+            .ok()
+            .headers { headers ->
+                headers.set(HttpHeaders.CACHE_CONTROL, "no-store")
+                headers.set(HttpHeaders.SET_COOKIE, refreshCookie("", Duration.ZERO).toString())
+            }
+            .body(GenericServerResponseDto("Extension signed out successfully"))
     }
 
     private fun tokenResponse(pair: TokenPairDto): ResponseEntity<LoginResponseDto> =
-        ResponseEntity.ok().headers {
-            it.set(HttpHeaders.CACHE_CONTROL, "no-store")
-            pair.refreshToken?.let { refresh ->
-                it.set(HttpHeaders.SET_COOKIE, refreshCookie(refresh, tokens.refreshTokenExpirationTime).toString())
+        ResponseEntity
+            .ok()
+            .headers { headers ->
+                headers.set(HttpHeaders.CACHE_CONTROL, "no-store")
+
+                pair.refreshToken?.let { refreshToken ->
+                    val cookie = refreshCookie(refreshToken, tokens.refreshTokenExpirationTime)
+                    headers.set(HttpHeaders.SET_COOKIE, cookie.toString())
+                }
             }
-        }.body(LoginResponseDto(pair.accessToken, pair.accessTokenType))
+            .body(LoginResponseDto(pair.accessToken, pair.accessTokenType))
 
     private fun refreshCookie(value: String, age: Duration): ResponseCookie =
         ResponseCookie.from(COOKIE_NAME, value)

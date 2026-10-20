@@ -1,8 +1,10 @@
 import type { DeviceSigner, Transport } from './types.ts';
+
 export class ApiError extends Error {
     readonly status: number;
     readonly code?: string;
     readonly retryAfter?: number;
+
     constructor(
         message: string,
         status: number,
@@ -16,10 +18,12 @@ export class ApiError extends Error {
         this.retryAfter = retryAfter;
     }
 }
+
 export type LoginResponse = {
     accessToken: string;
     accessTokenType: 'ACCESS_TOKEN' | 'DEVICE_ENROLLMENT_TOKEN';
 };
+
 export async function authenticateDevice(options: {
     transport: Transport;
     signer: DeviceSigner;
@@ -34,6 +38,7 @@ export async function authenticateDevice(options: {
 > {
     const { transport, credentials, signer } = options;
     const deviceId = await options.loadDeviceId();
+
     if (deviceId) {
         try {
             const challenge = await transport.request<{
@@ -43,7 +48,11 @@ export async function authenticateDevice(options: {
                 `/api/v1/device-trust/nonce/${encodeURIComponent(deviceId)}`,
                 { anonymous: true }
             );
-            if (!challenge) return { status: 'enrollment-pending', deviceId };
+
+            if (!challenge) {
+                return { status: 'enrollment-pending', deviceId };
+            }
+
             const signature = encodeBase64url(
                 await signer.sign(decodeBase64url(challenge.nonce))
             );
@@ -62,8 +71,11 @@ export async function authenticateDevice(options: {
                     }),
                 }
             );
-            if (response.accessTokenType !== 'ACCESS_TOKEN')
+
+            if (response.accessTokenType !== 'ACCESS_TOKEN') {
                 throw new Error('Unexpected authentication token type');
+            }
+
             return {
                 status: 'authenticated',
                 accessToken: response.accessToken,
@@ -73,10 +85,12 @@ export async function authenticateDevice(options: {
             if (
                 !(error instanceof ApiError) ||
                 ![401, 404].includes(error.status)
-            )
+            ) {
                 throw error;
+            }
         }
     }
+
     const enrollmentLogin = await transport.request<LoginResponse>(
         options.loginPath,
         {
@@ -85,8 +99,11 @@ export async function authenticateDevice(options: {
             body: JSON.stringify({ ...credentials, challengeDto: null }),
         }
     );
-    if (enrollmentLogin.accessTokenType !== 'DEVICE_ENROLLMENT_TOKEN')
+
+    if (enrollmentLogin.accessTokenType !== 'DEVICE_ENROLLMENT_TOKEN') {
         throw new Error('Unexpected authentication token type');
+    }
+
     const enrollment = await transport.request<{
         enrollmentId: string;
         challenge: { nonce: string; challengeId: string };
@@ -116,14 +133,18 @@ export async function authenticateDevice(options: {
             }),
         }
     );
+
     await options.saveDeviceId(confirmed.deviceId);
+
     return { status: 'enrollment-pending', deviceId: confirmed.deviceId };
 }
+
 export const encodeBase64url = (bytes: Uint8Array) =>
     btoa(Array.from(bytes, (byte) => String.fromCharCode(byte)).join(''))
         .replaceAll('+', '-')
         .replaceAll('/', '_')
         .replaceAll('=', '');
+
 export const decodeBase64url = (text: string) =>
     Uint8Array.from(
         atob(text.replaceAll('-', '+').replaceAll('_', '/')),

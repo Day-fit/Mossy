@@ -15,7 +15,9 @@ interface Ripple {
 }
 
 type Variant = 'primary' | 'outline' | 'ghost' | 'destructive' | 'icon';
+
 type PaddingVariant = 'none' | 'small' | 'medium' | 'large';
+
 type Tone = 'neutral' | 'destructive';
 
 type RippleButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> & {
@@ -42,6 +44,7 @@ export default function Button({
 
     useEffect(() => {
         const timers = rippleTimers.current;
+
         return () => {
             timers.forEach((timer) => window.clearTimeout(timer));
             timers.clear();

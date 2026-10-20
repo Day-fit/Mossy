@@ -19,7 +19,9 @@ const envelopeSchema = z
         signature: z.string(),
     })
     .strict();
+
 type Envelope = z.infer<typeof envelopeSchema>;
+
 const transferredKeySchema = z
     .object({
         rawKey: z.string(),
@@ -29,6 +31,7 @@ const transferredKeySchema = z
 
 const encode = (bytes: Uint8Array) =>
     sodium.to_base64(bytes, sodium.base64_variants.URLSAFE_NO_PADDING);
+
 const decode = (value: string) =>
     sodium.from_base64(value, sodium.base64_variants.URLSAFE_NO_PADDING);
 
@@ -38,14 +41,20 @@ function decodeTransferredKey(plaintext: Uint8Array) {
     );
     const rawKey = decode(payload.rawKey);
     let credentialId: Uint8Array | undefined;
+
     try {
-        if (rawKey.length !== 32)
+        if (rawKey.length !== 32) {
             throw new Error('Received an invalid vault key.');
+        }
+
         if (payload.credentialId !== null) {
             credentialId = decode(payload.credentialId);
-            if (credentialId.length === 0)
+
+            if (credentialId.length === 0) {
                 throw new Error('Received an invalid passkey ID.');
+            }
         }
+
         return {
             rawKey: new Uint8Array(rawKey),
             credentialId: credentialId
@@ -54,7 +63,10 @@ function decodeTransferredKey(plaintext: Uint8Array) {
         };
     } finally {
         sodium.memzero(rawKey);
-        if (credentialId) sodium.memzero(credentialId);
+
+        if (credentialId) {
+            sodium.memzero(credentialId);
+        }
     }
 }
 
@@ -124,8 +136,11 @@ export async function createReceiverOffer(
     identity: CryptoPair | DeviceSigner
 ) {
     await sodium.ready;
-    if ('type' in identity && identity.type !== 'Ed25519')
+
+    if ('type' in identity && identity.type !== 'Ed25519') {
         throw new Error('The device identity is invalid.');
+    }
+
     const keys = sodium.crypto_box_keypair();
     const receiver = {
         receiverId,
@@ -136,6 +151,7 @@ export async function createReceiverOffer(
             x: encode(keys.publicKey),
         } as const,
     };
+
     return {
         receiver: {
             ...receiver,
@@ -152,6 +168,7 @@ export async function verifyReceiverDetails(
     identity: PublicIdentityJwk
 ): Promise<void> {
     await sodium.ready;
+
     if (
         receiver.publicDh.kty !== 'OKP' ||
         receiver.publicDh.crv !== 'X25519' ||
@@ -175,13 +192,17 @@ export async function encryptVaultKey(
     identity: CryptoPair | DeviceSigner
 ): Promise<UploadVaultKeyRequest> {
     await sodium.ready;
-    if ('type' in identity && identity.type !== 'Ed25519')
+
+    if ('type' in identity && identity.type !== 'Ed25519') {
         throw new Error('The device identity is invalid.');
+    }
+
     const senderKeys = sodium.crypto_box_keypair();
     const sharedSecret = sodium.crypto_scalarmult(
         senderKeys.privateKey,
         decode(context.receiver.publicDh.x)
     );
+
     try {
         const nonce = sodium.randombytes_buf(
             sodium.crypto_secretbox_NONCEBYTES
@@ -197,6 +218,7 @@ export async function encryptVaultKey(
             )
         );
         let ciphertext: string;
+
         try {
             ciphertext = encode(
                 sodium.crypto_secretbox_easy(payload, nonce, sharedSecret)
@@ -204,6 +226,7 @@ export async function encryptVaultKey(
         } finally {
             sodium.memzero(payload);
         }
+
         const envelope = {
             version: 2 as const,
             nonce: encode(nonce),
@@ -214,6 +237,7 @@ export async function encryptVaultKey(
             identity,
             transferTranscript(context, senderId, publicDh, envelope)
         );
+
         return {
             vaultId: context.receiver.vaultId,
             ciphertext: JSON.stringify({
@@ -235,16 +259,23 @@ export async function decryptVaultKey(
     senderIdentity: PublicIdentityJwk
 ): Promise<{ rawKey: Uint8Array<ArrayBuffer>; credentialId?: ArrayBuffer }> {
     await sodium.ready;
-    if (key.vaultId !== context.receiver.vaultId)
+
+    if (key.vaultId !== context.receiver.vaultId) {
         throw new Error('Received a key for a different vault.');
-    if (key.code !== context.code)
+    }
+
+    if (key.code !== context.code) {
         throw new Error('Received a key for a different sync code.');
+    }
+
     let envelope: Envelope;
+
     try {
         envelope = envelopeSchema.parse(JSON.parse(key.cipherText));
     } catch {
         throw new Error('Received an invalid encrypted key.');
     }
+
     if (
         !validSignature(
             envelope.signature,
@@ -259,16 +290,19 @@ export async function decryptVaultKey(
     ) {
         throw new Error('The sending device signature could not be verified.');
     }
+
     const sharedSecret = sodium.crypto_scalarmult(
         privateDh,
         decode(key.senderPublicDh)
     );
+
     try {
         const plaintext = sodium.crypto_secretbox_open_easy(
             decode(envelope.ciphertext),
             decode(envelope.nonce),
             sharedSecret
         );
+
         try {
             return decodeTransferredKey(plaintext);
         } finally {
@@ -283,6 +317,9 @@ async function sign(
     identity: CryptoPair | DeviceSigner,
     transcript: Uint8Array
 ): Promise<Uint8Array> {
-    if ('sign' in identity) return identity.sign(transcript);
+    if ('sign' in identity) {
+        return identity.sign(transcript);
+    }
+
     return sodium.crypto_sign_detached(transcript, decode(identity.private));
 }

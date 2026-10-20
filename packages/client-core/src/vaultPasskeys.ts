@@ -17,24 +17,31 @@ function verifyVaultCredential(
                       credentialId.byteLength
                   );
         const actual = new Uint8Array(credential.rawId);
+
         if (
             actual.length !== expected.length ||
             actual.some((byte, index) => byte !== expected[index])
-        )
+        ) {
             throw new Error(
                 'The selected passkey does not match this vault’s saved passkey.'
             );
+        }
+
         return;
     }
 
     const { userHandle } =
         credential.response as AuthenticatorAssertionResponse;
-    if (!userHandle)
+
+    if (!userHandle) {
         throw new Error(
             'Could not verify which vault this passkey belongs to.'
         );
-    if (new TextDecoder().decode(userHandle) !== vaultId)
+    }
+
+    if (new TextDecoder().decode(userHandle) !== vaultId) {
         throw new Error('The selected passkey belongs to a different vault.');
+    }
 }
 
 export function createVaultPasskeys(instance: string) {
@@ -44,8 +51,9 @@ export function createVaultPasskeys(instance: string) {
         if (
             typeof PublicKeyCredential === 'undefined' ||
             !navigator.credentials?.create
-        )
+        ) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
+        }
 
         const cred = await navigator.credentials.create({
             publicKey: {
@@ -83,6 +91,7 @@ export function createVaultPasskeys(instance: string) {
         }
 
         const results = cred.getClientExtensionResults();
+
         if (!results.prf?.enabled) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }
@@ -99,8 +108,10 @@ export function createVaultPasskeys(instance: string) {
         if (
             typeof PublicKeyCredential === 'undefined' ||
             !navigator.credentials?.get
-        )
+        ) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
+        }
+
         const cred = await navigator.credentials.get({
             publicKey: {
                 challenge: crypto.getRandomValues(new Uint8Array(32)),
@@ -126,6 +137,7 @@ export function createVaultPasskeys(instance: string) {
         verifyVaultCredential(cred, vaultId, credentialId);
 
         const results = cred.getClientExtensionResults();
+
         if (!results.prf?.results?.first) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }

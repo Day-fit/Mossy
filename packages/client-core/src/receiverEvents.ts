@@ -15,15 +15,21 @@ export async function waitForReceiverResult(
 ): Promise<void> {
     for await (const data of readSseData(response)) {
         const event = resultSchema.parse(JSON.parse(data));
-        if (event.receiverId !== receiverId || event.code !== code) continue;
+
+        if (event.receiverId !== receiverId || event.code !== code) {
+            continue;
+        }
+
         if (event.result === 'FAILED') {
             throw new Error(
                 event.errorMessage ||
                     'The sending device could not upload the key.'
             );
         }
+
         return;
     }
+
     throw new Error(
         'The connection closed before the key arrived. Please try again.'
     );

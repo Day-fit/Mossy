@@ -1,4 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
+
 export default defineContentScript({
     matches: ['https://*/*'],
     allFrames: true,
@@ -8,11 +9,13 @@ export default defineContentScript({
             if (
                 location.protocol !== 'https:' ||
                 window.top!.location.origin !== location.origin
-            )
+            ) {
                 return;
+            }
         } catch {
             return;
         }
+
         const cleanAutofill = new WeakSet<HTMLFormElement>();
         const forms = new Map<
             string,
@@ -25,14 +28,18 @@ export default defineContentScript({
             }
         >();
         const ids = new WeakMap<Element, string>();
+
         const id = (element: Element) => {
             let value = ids.get(element);
+
             if (!value) {
                 value = crypto.randomUUID();
                 ids.set(element, value);
             }
+
             return value;
         };
+
         const eligible = (field: HTMLInputElement) =>
             !field.disabled &&
             !field.readOnly &&
@@ -41,15 +48,21 @@ export default defineContentScript({
                 checkVisibilityCSS: true,
             }) &&
             field.type !== 'hidden';
+
         function discover() {
             forms.clear();
+
             for (const form of document.forms) {
                 const password = Array.from(
                     form.querySelectorAll<HTMLInputElement>(
                         'input[type="password"]'
                     )
                 ).find(eligible);
-                if (!password) continue;
+
+                if (!password) {
+                    continue;
+                }
+
                 const username =
                     Array.from(form.querySelectorAll<HTMLInputElement>('input'))
                         .filter(eligible)
@@ -69,6 +82,7 @@ export default defineContentScript({
                     usernameId: username ? id(username) : null,
                 });
             }
+
             void chrome.runtime
                 .sendMessage({
                     kind: 'discover',
@@ -81,6 +95,7 @@ export default defineContentScript({
                 })
                 .catch(() => undefined);
         }
+
         ctx.addEventListener(
             document,
             'input',
@@ -88,17 +103,21 @@ export default defineContentScript({
                 if (
                     event.target instanceof HTMLInputElement &&
                     event.target.form
-                )
+                ) {
                     cleanAutofill.delete(event.target.form);
+                }
             },
             true
         );
+
         let interaction = 0;
         ctx.addEventListener(
             document,
             'pointerdown',
             (event) => {
-                if (event.isTrusted) interaction = performance.now();
+                if (event.isTrusted) {
+                    interaction = performance.now();
+                }
             },
             true
         );
@@ -106,7 +125,9 @@ export default defineContentScript({
             document,
             'keydown',
             (event) => {
-                if (event.isTrusted) interaction = performance.now();
+                if (event.isTrusted) {
+                    interaction = performance.now();
+                }
             },
             true
         );
@@ -118,10 +139,16 @@ export default defineContentScript({
                     !event.isTrusted ||
                     performance.now() - interaction > 2000 ||
                     !(event.target instanceof HTMLFormElement)
-                )
+                ) {
                     return;
+                }
+
                 const form = event.target;
-                if (cleanAutofill.has(form)) return;
+
+                if (cleanAutofill.has(form)) {
+                    return;
+                }
+
                 const passwords = Array.from(
                     form.querySelectorAll<HTMLInputElement>(
                         'input[type="password"]'
@@ -131,15 +158,21 @@ export default defineContentScript({
                     passwords.find(
                         (input) => input.autocomplete === 'new-password'
                     ) ?? passwords[0];
-                if (!field?.value) return;
+
+                if (!field?.value) {
+                    return;
+                }
+
                 if (
                     passwords
                         .filter(
                             (input) => input.autocomplete === 'new-password'
                         )
                         .some((input) => input.value !== field.value)
-                )
+                ) {
                     return;
+                }
+
                 const username = Array.from(
                     form.querySelectorAll<HTMLInputElement>('input')
                 )
@@ -150,7 +183,11 @@ export default defineContentScript({
                                 input.autocomplete
                             ) || ['email', 'text', 'tel'].includes(input.type)
                     );
-                if (!username?.value) return;
+
+                if (!username?.value) {
+                    return;
+                }
+
                 // Read only during this user submission. Never watch or retain typed passwords.
                 void chrome.runtime
                     .sendMessage({
@@ -164,6 +201,7 @@ export default defineContentScript({
             },
             true
         );
+
         function selected(target: {
             formId: string;
             passwordId: string;
@@ -171,6 +209,7 @@ export default defineContentScript({
             origin: string;
         }) {
             const record = forms.get(target.formId);
+
             if (
                 !record ||
                 location.origin !== target.origin ||
@@ -185,32 +224,45 @@ export default defineContentScript({
                     (!record.username.isConnected ||
                         record.username.form !== record.form ||
                         !eligible(record.username)))
-            )
+            ) {
                 return;
+            }
+
             try {
-                if (window.top!.location.origin !== location.origin) return;
+                if (window.top!.location.origin !== location.origin) {
+                    return;
+                }
             } catch {
                 return;
             }
+
             return record;
         }
+
         const filled = new Set<string>();
         chrome.runtime.onMessage.addListener((message, sender, respond) => {
             if (
                 sender.id !== chrome.runtime.id ||
                 sender.tab ||
                 !['validate-fill', 'fill-once'].includes(message?.kind)
-            )
+            ) {
                 return;
+            }
+
             const record = selected(message.target ?? {});
+
             if (!record) {
                 respond({ valid: false });
+
                 return;
             }
+
             if (message.kind === 'validate-fill') {
                 respond({ valid: true });
+
                 return;
             }
+
             if (
                 typeof message.actionId !== 'string' ||
                 filled.has(message.actionId) ||
@@ -218,27 +270,37 @@ export default defineContentScript({
                 typeof message.identifier !== 'string'
             ) {
                 respond({ valid: false });
+
                 return;
             }
+
             filled.add(message.actionId);
+
             const setter = Object.getOwnPropertyDescriptor(
                 HTMLInputElement.prototype,
                 'value'
             )!.set!;
+
             // Both values are written before events, with no automatic submit.
-            if (record.username)
+            if (record.username) {
                 setter.call(record.username, message.identifier);
+            }
+
             setter.call(record.password, message.password);
-            for (const input of [record.username, record.password])
+
+            for (const input of [record.username, record.password]) {
                 if (input) {
                     input.dispatchEvent(new Event('input', { bubbles: true }));
                     input.dispatchEvent(new Event('change', { bubbles: true }));
                 }
+            }
+
             cleanAutofill.add(record.form);
             message.password = '';
             respond({ valid: true });
         });
         discover();
+
         let timer: ReturnType<typeof setTimeout> | undefined;
         const observer = new MutationObserver(() => {
             clearTimeout(timer);

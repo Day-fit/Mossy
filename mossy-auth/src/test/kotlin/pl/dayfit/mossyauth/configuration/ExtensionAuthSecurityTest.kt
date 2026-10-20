@@ -59,61 +59,96 @@ class ExtensionAuthSecurityTest {
     }
 
     @AfterEach
-    fun close() { context.close() }
+    fun close() {
+        context.close()
+    }
 
     @Test
     fun `approved extension can refresh without a bearer header through the real chain`() {
         whenever(jwt.handleTokenRefreshment("extension-refresh"))
             .thenReturn(TokenPairDto("next-access", AccessTokenType.ACCESS_TOKEN, "next-refresh"))
-        mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, ORIGIN)
-            .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh")))
+
+        mvc.perform(
+            post("$BASE/extension/refresh").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, ORIGIN)
+                .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh"))
+        )
             .andExpect(status().isOk)
             .andExpect(cookie().value(ExtensionAuthController.COOKIE_NAME, "next-refresh"))
     }
 
     @Test
     fun `origin checks still protect public cookie routes while bearer APIs remain protected`() {
-        mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-            .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh")))
+        mvc.perform(
+            post("$BASE/extension/refresh").contextPath(BASE)
+                .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh"))
+        )
             .andExpect(status().isForbidden)
-        mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
-            .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh")))
+
+        mvc.perform(
+            post("$BASE/extension/refresh").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
+                .cookie(Cookie(ExtensionAuthController.COOKIE_NAME, "extension-refresh"))
+        )
             .andExpect(status().isForbidden)
+
         mvc.perform(get("$BASE/user/me").contextPath(BASE))
             .andExpect(status().isUnauthorized)
+
         verifyNoInteractions(jwt)
     }
 
     @Test
     fun `extension can clear an expired session without a bearer header`() {
-        mvc.perform(post("$BASE/extension/logout").contextPath(BASE).header(HttpHeaders.ORIGIN, ORIGIN))
+        mvc.perform(
+            post("$BASE/extension/logout").contextPath(BASE).header(HttpHeaders.ORIGIN, ORIGIN)
+        )
             .andExpect(status().isOk)
             .andExpect(cookie().maxAge(ExtensionAuthController.COOKIE_NAME, 0))
     }
 
     @Configuration(proxyBeanMethods = false)
     @EnableWebMvc
-    @Import(SecurityConfiguration::class, ExtensionAuthController::class,
-        SecurityControllerAdvice::class, GlobalControllerAdvice::class)
+    @Import(
+        SecurityConfiguration::class,
+        ExtensionAuthController::class,
+        SecurityControllerAdvice::class,
+        GlobalControllerAdvice::class
+    )
     class TestConfiguration {
-        @Bean fun users(): UserService = mock()
-        @Bean fun jwt(): JwtManagementService = mock()
-        @Bean fun decoder(): JwtDecoder = mock()
-        @Bean fun converter() = JwtAuthenticationConverter()
-        @Bean fun cookies() = CookiesConfigurationProperties()
-        @Bean fun tokens() = JwtConfigurationProperties()
-        @Bean fun origins() = ExtensionAuthOriginPolicy(ExtensionAuthProperties().apply {
+        @Bean
+        fun users(): UserService = mock()
+
+        @Bean
+        fun jwt(): JwtManagementService = mock()
+
+        @Bean
+        fun decoder(): JwtDecoder = mock()
+
+        @Bean
+        fun converter() = JwtAuthenticationConverter()
+
+        @Bean
+        fun cookies() = CookiesConfigurationProperties()
+
+        @Bean
+        fun tokens() = JwtConfigurationProperties()
+
+        @Bean
+        fun origins() = ExtensionAuthOriginPolicy(ExtensionAuthProperties().apply {
             allowedOrigins = listOf(ORIGIN)
         })
-        @Bean fun securityProperties() = SecurityConfigurationProperties().apply {
+
+        @Bean
+        fun securityProperties() = SecurityConfigurationProperties().apply {
             val defaults = Properties().apply {
                 ExtensionAuthSecurityTest::class.java.getResourceAsStream("/application.properties")!!.use { load(it) }
             }
             publicRoutesPatterns = defaults.getProperty("mossy.security.public-routes-patterns").split(",")
         }
-        @Bean fun corsConfigurationSource() = CorsConfigurationSource {
+
+        @Bean
+        fun corsConfigurationSource() = CorsConfigurationSource {
             CorsConfiguration().apply {
                 allowedOrigins = listOf("https://app.mossy.test")
                 allowedMethods = listOf("POST", "GET", "OPTIONS")

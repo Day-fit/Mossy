@@ -15,7 +15,11 @@ import { wrappedKeys, signingHandles } from './storage';
 import { assertLive } from './security';
 import { useTheme } from './theme';
 import type { Action as ActionModel, ActionResult } from './models';
-import type { WrappedKeyRecord } from '@mossy/client-core';
+import {
+    VAULT_PASSWORD_MIN_LENGTH,
+    type WrappedKeyRecord,
+} from '@mossy/client-core';
+
 const titles = {
     'copy-password': 'Copy password',
     'copy-username': 'Copy username',
@@ -24,19 +28,70 @@ const titles = {
     'sync-send': 'Send vault key',
     'sync-receive': 'Receive vault key',
 };
+
+type Phase = 'loading' | 'waiting' | 'authorize' | 'busy' | 'done' | 'error';
+type ProtectionChoice = 'use-passkey' | 'use-password' | 'register-passkey';
+
+const protectionDescriptions: Record<ProtectionChoice, string> = {
+    'use-passkey': 'Use this vault’s existing passkey.',
+    'use-password':
+        'Choose a password of at least 12 characters to protect this vault.',
+    'register-passkey': 'Register a new passkey for this vault.',
+};
+
+const protectionLabels: Record<ProtectionChoice, string> = {
+    'use-passkey': 'Use existing passkey',
+    'use-password': 'Save password',
+    'register-passkey': 'Register new passkey',
+};
+
+function actionTitle(action: ActionModel | undefined): string {
+    return action ? titles[action.operation] : 'Secure action';
+}
+
+function authorizationDescription(
+    phase: Phase,
+    isProtectingVault: boolean,
+    choice: ProtectionChoice | null
+): string {
+    if (phase === 'done') {
+        return 'All set. You can close this window.';
+    }
+
+    if (phase === 'error') {
+        return 'This action could not be completed.';
+    }
+
+    if (isProtectingVault) {
+        return choice
+            ? protectionDescriptions[choice]
+            : 'Choose how to protect this vault on this browser.';
+    }
+
+    return 'Confirm this action with your vault.';
+}
+
+function authorizationError(error: unknown, isSetup: boolean): string {
+    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        return isSetup
+            ? 'The passkey prompt was closed. Try again or choose another method.'
+            : 'The passkey prompt was closed. Try again.';
+    }
+
+    return error instanceof Error ? error.message : 'Action failed.';
+}
+
 export default function Action() {
     useTheme();
+
     const [action, setAction] = useState<ActionModel>();
     const [method, setMethod] = useState<'PRF' | 'Password'>();
-    const [choice, setChoice] = useState<
-        'use-passkey' | 'use-password' | 'register-passkey' | null
-    >(null);
-    const [phase, setPhase] = useState<
-        'loading' | 'waiting' | 'authorize' | 'busy' | 'done' | 'error'
-    >('loading');
+    const [choice, setChoice] = useState<ProtectionChoice | null>(null);
+    const [phase, setPhase] = useState<Phase>('loading');
     const [message, setMessage] = useState('');
     const [code, setCode] = useState('');
     const [now, setNow] = useState(Date.now());
+
     const worker = useRef<ActionWorker | null>(null);
     const port = useRef<ActionPort | null>(null);
     const alive = useRef(true);
@@ -47,17 +102,31 @@ export default function Action() {
     const credentialId = useRef<ArrayBuffer | undefined>(undefined);
     const transfer = useRef<ActionResult | undefined>(undefined);
     const record = useRef<WrappedKeyRecord | undefined>(undefined);
+
     useEffect(() => {
         alive.current = true;
         active.current = true;
+
         const actionWorker = new ActionWorker();
         worker.current = actionWorker;
+
         const fail = (error: unknown) => {
             active.current = false;
-            if (completed.current) return;
+
+            if (completed.current) {
+                return;
+            }
+
             actionWorker.stop();
-            if (password.current) password.current.value = '';
-            if (confirmation.current) confirmation.current.value = '';
+
+            if (password.current) {
+                password.current.value = '';
+            }
+
+            if (confirmation.current) {
+                confirmation.current.value = '';
+            }
+
             if (alive.current) {
                 setPhase('error');
                 setMessage(
@@ -67,6 +136,7 @@ export default function Action() {
                 );
             }
         };
+
         const connection = new ActionPort(location.hash.slice(1), () =>
             fail(new Error('This action expired or was canceled.'))
         );
@@ -74,10 +144,15 @@ export default function Action() {
         void connection
             .call<ActionModel>('claim')
             .then(async (value) => {
-                if (!alive.current) return;
+                if (!alive.current) {
+                    return;
+                }
+
                 setAction(value);
+
                 if (value.operation === 'sync-receive') {
                     setPhase('waiting');
+
                     const receiver = await actionWorker.call('offer', {
                         ...(await signingHandles(value.scope.instance)),
                         deviceId: value.deviceId,
@@ -87,11 +162,19 @@ export default function Action() {
                         'offer',
                         receiver
                     );
-                    if (!alive.current) return;
+
+                    if (!alive.current) {
+                        return;
+                    }
+
                     setCode(result.code);
                     transfer.current =
                         await connection.call<ActionResult>('wait');
-                    if (!alive.current) return;
+
+                    if (!alive.current) {
+                        return;
+                    }
+
                     assertLive(value.deadline);
                     credentialId.current = await actionWorker.call<
                         ArrayBuffer | undefined
@@ -100,29 +183,46 @@ export default function Action() {
                         context: { code: result.code, receiver },
                     });
                     transfer.current = undefined;
-                    if (!alive.current) return;
+
+                    if (!alive.current) {
+                        return;
+                    }
+
                     assertLive(value.deadline);
                     setPhase('authorize');
                 } else {
                     const stored = await wrappedKeys.read(value.scope);
-                    if (!stored)
+
+                    if (!stored) {
                         throw new Error(
                             'This browser needs the vault key. Close this action and receive it using Sync vault keys.'
                         );
+                    }
+
                     record.current = stored;
                     setMethod(stored.type);
                     setPhase('authorize');
                 }
             })
             .catch(fail);
+
         const timer = setInterval(() => setNow(Date.now()), 200);
+
         const unload = () => {
             actionWorker.stop();
             connection.close();
-            if (password.current) password.current.value = '';
-            if (confirmation.current) confirmation.current.value = '';
+
+            if (password.current) {
+                password.current.value = '';
+            }
+
+            if (confirmation.current) {
+                confirmation.current.value = '';
+            }
         };
+
         window.addEventListener('pagehide', unload);
+
         return () => {
             alive.current = false;
             active.current = false;
@@ -135,40 +235,73 @@ export default function Action() {
             credentialId.current = undefined;
         };
     }, []);
+
     const authorize = async () => {
-        if (!action || !worker.current || !port.current || !method) return;
+        if (!action || !worker.current || !port.current || !method) {
+            return;
+        }
+
         const currentWorker = worker.current;
         const connection = port.current;
+
         const requireLive = () => {
-            if (!alive.current || !active.current)
+            if (!alive.current || !active.current) {
                 throw new Error('Action closed.');
+            }
+
             assertLive(action.deadline);
         };
+
         const isSetup = action.operation === 'sync-receive';
-        if (isSetup && !choice) return;
+
+        if (isSetup && !choice) {
+            return;
+        }
+
         if (isSetup && method === 'Password') {
-            if ((password.current?.value.length ?? 0) < 12) {
+            if (
+                (password.current?.value.length ?? 0) <
+                VAULT_PASSWORD_MIN_LENGTH
+            ) {
                 setMessage(
                     'Use at least 12 characters for your vault password.'
                 );
+
                 return;
             }
+
             if (password.current?.value !== confirmation.current?.value) {
                 setMessage('Passwords do not match.');
+
                 return;
             }
         }
+
         setPhase('busy');
         setMessage('');
+
         let vaultPassword = password.current?.value ?? '';
-        if (password.current) password.current.value = '';
-        if (confirmation.current) confirmation.current.value = '';
+
+        if (password.current) {
+            password.current.value = '';
+        }
+
+        if (confirmation.current) {
+            confirmation.current.value = '';
+        }
+
         let prf: Uint8Array<ArrayBuffer> | undefined;
         let selectedCredentialId: ArrayBuffer | undefined;
         let workerStarted = false;
+
         try {
             requireLive();
+
             if (method === 'PRF') {
+                const savedCredentialId =
+                    record.current?.type === 'PRF'
+                        ? record.current.credentialId
+                        : undefined;
                 const passkey =
                     choice === 'register-passkey' && isSetup
                         ? await registerPrf(
@@ -179,23 +312,30 @@ export default function Action() {
                         : await authorizePrf(
                               action.scope.instance,
                               action.scope.vault,
-                              isSetup
-                                  ? credentialId.current
-                                  : record.current?.type === 'PRF'
-                                    ? record.current.credentialId
-                                    : undefined
+                              isSetup ? credentialId.current : savedCredentialId
                           );
                 prf = passkey.prf;
                 selectedCredentialId = passkey.credentialId;
-            } else if (!vaultPassword)
+            } else if (!vaultPassword) {
                 throw new Error('Enter your vault password.');
-            if (!alive.current) throw new Error('Action closed.');
+            }
+
+            if (!alive.current) {
+                throw new Error('Action closed.');
+            }
+
             requireLive();
+
             if (action.operation === 'sync-receive') {
-                if (method === 'Password' && vaultPassword.length < 12)
+                if (
+                    method === 'Password' &&
+                    vaultPassword.length < VAULT_PASSWORD_MIN_LENGTH
+                ) {
                     throw new Error(
                         'Use at least 12 characters for the vault password.'
                     );
+                }
+
                 const protection =
                     method === 'Password'
                         ? {
@@ -204,6 +344,7 @@ export default function Action() {
                           }
                         : { type: 'PRF', credentialId: selectedCredentialId };
                 workerStarted = true;
+
                 const wrapped = await currentWorker.call<WrappedKeyRecord>(
                     'protect',
                     {
@@ -216,7 +357,11 @@ export default function Action() {
                 vaultPassword = '';
                 prf?.fill(0);
                 requireLive();
-                if (!alive.current) throw new Error('Action closed.');
+
+                if (!alive.current) {
+                    throw new Error('Action closed.');
+                }
+
                 await connection.call('receive-finish', {
                     type: wrapped.type,
                     wrappedKey: Array.from(new Uint8Array(wrapped.wrappedKey)),
@@ -230,6 +375,7 @@ export default function Action() {
                 });
             } else {
                 workerStarted = true;
+
                 await currentWorker.call('unlock', {
                     record: record.current,
                     password: vaultPassword,
@@ -239,8 +385,10 @@ export default function Action() {
                 vaultPassword = '';
                 prf?.fill(0);
                 requireLive();
+
                 if (action.operation === 'copy-username') {
                     currentWorker.stop();
+
                     await navigator.clipboard.writeText(
                         action.entry!.identifier
                     );
@@ -257,21 +405,25 @@ export default function Action() {
                     });
                     currentWorker.stop();
                     requireLive();
+
                     try {
                         if (action.operation === 'copy-password') {
                             await navigator.clipboard.writeText(secret);
                             await connection.call('finish');
-                        } else
+                        } else {
                             await connection.call('finish', {
                                 password: secret,
                             });
+                        }
                     } finally {
                         secret = '';
                     }
                 } else if (action.operation === 'save') {
                     let candidate = await connection.call<string>('candidate');
+
                     try {
                         let unchanged = false;
+
                         if (action.entry) {
                             const encrypted = await connection.call<{
                                 ciphertext: string;
@@ -285,6 +437,7 @@ export default function Action() {
                             unchanged = existing === candidate;
                             existing = '';
                         }
+
                         const ciphertext = unchanged
                             ? undefined
                             : await currentWorker.call<string>('encrypt', {
@@ -293,6 +446,7 @@ export default function Action() {
                         currentWorker.stop();
                         candidate = '';
                         requireLive();
+
                         await connection.call('finish', {
                             ciphertext,
                             unchanged,
@@ -315,10 +469,13 @@ export default function Action() {
                     });
                     currentWorker.stop();
                     requireLive();
+
                     await connection.call('finish', result);
                 }
             }
+
             completed.current = true;
+
             if (alive.current) {
                 setPhase('done');
                 setMessage(
@@ -333,24 +490,23 @@ export default function Action() {
                 alive.current &&
                 active.current &&
                 Date.now() < action.deadline;
-            if (!retryable) currentWorker.stop();
+
+            if (!retryable) {
+                currentWorker.stop();
+            }
+
             if (alive.current) {
                 setPhase(retryable ? 'authorize' : 'error');
-                setMessage(
-                    error instanceof DOMException &&
-                        error.name === 'NotAllowedError'
-                        ? isSetup
-                            ? 'The passkey prompt was closed. Try again or choose another method.'
-                            : 'The passkey prompt was closed. Try again.'
-                        : error instanceof Error
-                          ? error.message
-                          : 'Action failed.'
-                );
+                setMessage(authorizationError(error, isSetup));
             }
         } finally {
             vaultPassword = '';
             prf?.fill(0);
-            if (password.current) password.current.value = '';
+
+            if (password.current) {
+                password.current.value = '';
+            }
+
             if (workerStarted) {
                 record.current = undefined;
                 transfer.current = undefined;
@@ -358,23 +514,50 @@ export default function Action() {
             }
         }
     };
+
     const selectChoice = (next: typeof choice) => {
         setChoice(next);
-        setMethod(
-            next === 'use-password' ? 'Password' : next ? 'PRF' : undefined
-        );
+
+        const methods = {
+            'use-password': 'Password',
+            'use-passkey': 'PRF',
+            'register-passkey': 'PRF',
+        } as const;
+        setMethod(next ? methods[next] : undefined);
         setMessage('');
-        if (password.current) password.current.value = '';
-        if (confirmation.current) confirmation.current.value = '';
+
+        if (password.current) {
+            password.current.value = '';
+        }
+
+        if (confirmation.current) {
+            confirmation.current.value = '';
+        }
     };
+
+    const isReceiving = action?.operation === 'sync-receive';
+    const isProtectingVault = isReceiving && phase === 'authorize';
+    const title = isProtectingVault
+        ? 'Protect your vault'
+        : actionTitle(action);
+    const description = authorizationDescription(
+        phase,
+        isProtectingVault,
+        choice
+    );
+    const authorizeLabel = isReceiving
+        ? protectionLabels[choice ?? 'use-password']
+        : method === 'PRF'
+          ? 'Authorize with passkey'
+          : 'Authorize action';
+    const MethodIcon = method === 'PRF' ? MdFingerprint : MdLockOutline;
     const AuthorizationIcon =
         phase === 'done'
             ? MdCheckCircleOutline
             : phase === 'error'
               ? MdErrorOutline
-              : method === 'PRF'
-                ? MdFingerprint
-                : MdLockOutline;
+              : MethodIcon;
+
     return (
         <main className="action">
             <AppHeader>
@@ -395,30 +578,8 @@ export default function Action() {
                             <AuthorizationIcon size={24} />
                         </span>
                         <div>
-                            <h2 id="action-title">
-                                {action?.operation === 'sync-receive' &&
-                                phase === 'authorize'
-                                    ? 'Protect your vault'
-                                    : action
-                                      ? titles[action.operation]
-                                      : 'Secure action'}
-                            </h2>
-                            <p>
-                                {phase === 'done'
-                                    ? 'All set. You can close this window.'
-                                    : phase === 'error'
-                                      ? 'This action could not be completed.'
-                                      : action?.operation === 'sync-receive' &&
-                                          phase === 'authorize'
-                                        ? !choice
-                                            ? 'Choose how to protect this vault on this browser.'
-                                            : choice === 'register-passkey'
-                                              ? 'Register a new passkey for this vault.'
-                                              : choice === 'use-passkey'
-                                                ? 'Use this vault’s existing passkey.'
-                                                : 'Choose a password of at least 12 characters to protect this vault.'
-                                        : 'Confirm this action with your vault.'}
-                            </p>
+                            <h2 id="action-title">{title}</h2>
+                            <p>{description}</p>
                         </div>
                     </div>
                     {action && (
@@ -580,7 +741,7 @@ export default function Action() {
                                         aria-describedby="vault-password-hint"
                                         minLength={
                                             action?.operation === 'sync-receive'
-                                                ? 12
+                                                ? VAULT_PASSWORD_MIN_LENGTH
                                                 : undefined
                                         }
                                     />
@@ -670,15 +831,7 @@ export default function Action() {
                                 form="authorize-form"
                                 padding="medium"
                             >
-                                {action?.operation === 'sync-receive'
-                                    ? choice === 'register-passkey'
-                                        ? 'Register new passkey'
-                                        : choice === 'use-passkey'
-                                          ? 'Use existing passkey'
-                                          : 'Save password'
-                                    : method === 'PRF'
-                                      ? 'Authorize with passkey'
-                                      : 'Authorize action'}
+                                {authorizeLabel}
                             </Button>
                         )}
                     </div>

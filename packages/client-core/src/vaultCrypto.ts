@@ -1,8 +1,11 @@
 import sodium from 'libsodium-wrappers-sumo';
 import type { WrappedKeyRecord } from './types.ts';
+
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
+
 export const prfInput = (vaultId: string) =>
     new TextEncoder().encode(`mossy:encryption:v1:vault:${vaultId}`);
+
 export class PrfNotSupportedError extends Error {
     constructor() {
         super(
@@ -10,19 +13,29 @@ export class PrfNotSupportedError extends Error {
         );
     }
 }
+
 export function prfBytes(
     results: AuthenticationExtensionsClientOutputs
 ): Uint8Array<ArrayBuffer> {
     const first = results.prf?.results?.first;
-    if (!first || first.byteLength !== 32) throw new PrfNotSupportedError();
+
+    if (!first || first.byteLength !== 32) {
+        throw new PrfNotSupportedError();
+    }
+
     const bytes = new Uint8Array(32);
-    if (first instanceof ArrayBuffer) bytes.set(new Uint8Array(first));
-    else
+
+    if (first instanceof ArrayBuffer) {
+        bytes.set(new Uint8Array(first));
+    } else {
         bytes.set(
             new Uint8Array(first.buffer, first.byteOffset, first.byteLength)
         );
+    }
+
     return bytes;
 }
+
 export function importWrappingKey(
     bytes: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
@@ -34,11 +47,13 @@ export function importWrappingKey(
         ['wrapKey', 'unwrapKey']
     );
 }
+
 export async function passwordWrappingKey(
     password: string,
     salt: Uint8Array<ArrayBuffer>
 ): Promise<CryptoKey> {
     await sodium.ready;
+
     const bytes = sodium.crypto_pwhash(
         32,
         password,
@@ -48,6 +63,7 @@ export async function passwordWrappingKey(
         sodium.crypto_pwhash_ALG_ARGON2ID13
     );
     const material = new Uint8Array(bytes);
+
     try {
         return await importWrappingKey(material);
     } finally {
@@ -55,6 +71,7 @@ export async function passwordWrappingKey(
         sodium.memzero(bytes);
     }
 }
+
 export function unwrapVaultKey(
     record: WrappedKeyRecord,
     wrappingKey: CryptoKey,
@@ -70,6 +87,7 @@ export function unwrapVaultKey(
         ['encrypt', 'decrypt']
     );
 }
+
 export async function encryptWithKey(
     rawData: string,
     key: CryptoKey
@@ -85,8 +103,10 @@ export async function encryptWithKey(
     const blob = new Uint8Array(iv.length + ciphertext.length);
     blob.set(iv);
     blob.set(ciphertext, iv.length);
+
     return btoa(Array.from(blob, (byte) => String.fromCharCode(byte)).join(''));
 }
+
 export async function decryptWithKey(
     ciphertext: string,
     key: CryptoKey
@@ -94,14 +114,20 @@ export async function decryptWithKey(
     const blob = Uint8Array.from(atob(ciphertext), (char) =>
         char.charCodeAt(0)
     );
-    if (blob.length < 28) throw new Error('Invalid encrypted secret.');
+
+    if (blob.length < 28) {
+        throw new Error('Invalid encrypted secret.');
+    }
+
     const plaintext = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv: blob.slice(0, 12) },
         key,
         blob.slice(12)
     );
+
     return new TextDecoder().decode(plaintext);
 }
+
 export const scopeKey = (scope: {
     instance: string;
     account: string;

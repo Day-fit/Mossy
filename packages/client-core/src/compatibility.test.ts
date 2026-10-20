@@ -23,9 +23,12 @@ import type {
     PublicIdentityJwk,
     VaultKeyResponse,
 } from './types';
+
 async function sodiumIdentity(): Promise<CryptoPair> {
     await sodium.ready;
+
     const pair = sodium.crypto_sign_keypair();
+
     return {
         type: 'Ed25519',
         public: sodium.to_base64(
@@ -38,16 +41,21 @@ async function sodiumIdentity(): Promise<CryptoPair> {
         ),
     };
 }
+
 async function nativeIdentity(): Promise<DeviceSigner> {
     const pair = (await crypto.subtle.generateKey('Ed25519', false, [
         'sign',
         'verify',
     ])) as CryptoKeyPair;
+
     expect(pair.privateKey.extractable).toBe(false);
+
     await expect(
         crypto.subtle.exportKey('pkcs8', pair.privateKey)
     ).rejects.toThrow();
+
     const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
+
     return {
         publicJwk: async () => ({ kty: 'OKP', crv: 'Ed25519', x: jwk.x! }),
         sign: async (data) =>
@@ -60,12 +68,14 @@ async function nativeIdentity(): Promise<DeviceSigner> {
             ),
     };
 }
+
 const publicIdentity = async (
     identity: CryptoPair | DeviceSigner
 ): Promise<PublicIdentityJwk> =>
     'publicJwk' in identity
         ? identity.publicJwk()
         : { kty: 'OKP', crv: 'Ed25519', x: identity.public };
+
 describe('frontend / native extension wire compatibility', () => {
     it.each(['web-to-extension', 'extension-to-web'] as const)(
         'transfers signed keys %s and rejects every bound-context tamper',
@@ -80,10 +90,12 @@ describe('frontend / native extension wire compatibility', () => {
                 'vault',
                 receiverIdentity
             );
+
             await verifyReceiverDetails(
                 offer.receiver,
                 await publicIdentity(receiverIdentity)
             );
+
             const context = { code: 'ABC123', receiver: offer.receiver };
             const raw = crypto.getRandomValues(new Uint8Array(32));
             const encrypted = await encryptVaultKey(
@@ -100,6 +112,7 @@ describe('frontend / native extension wire compatibility', () => {
                 cipherText: encrypted.ciphertext,
                 senderPublicDh: encrypted.publicDh.x,
             };
+
             expect(
                 await decryptVaultKey(
                     transfer,
@@ -111,6 +124,7 @@ describe('frontend / native extension wire compatibility', () => {
                 rawKey: raw,
                 credentialId: new Uint8Array([1, 2, 3]).buffer,
             });
+
             for (const changed of [
                 { vaultId: 'other' },
                 { code: 'ZZZ999' },
@@ -122,7 +136,7 @@ describe('frontend / native extension wire compatibility', () => {
                         '"version":1'
                     ),
                 },
-            ])
+            ]) {
                 await expect(
                     decryptVaultKey(
                         { ...transfer, ...changed },
@@ -131,6 +145,8 @@ describe('frontend / native extension wire compatibility', () => {
                         await publicIdentity(sender)
                     )
                 ).rejects.toThrow();
+            }
+
             await expect(
                 verifyReceiverDetails(
                     { ...offer.receiver, vaultId: 'other' },
@@ -145,6 +161,7 @@ describe('frontend / native extension wire compatibility', () => {
         expect(new TextDecoder().decode(prfInput('vault'))).toBe(
             'mossy:encryption:v1:vault:vault'
         );
+
         const bytes = new Uint8Array(32).fill(71);
         const wrapping = await importWrappingKey(
             prfBytes({ prf: { results: { first: bytes.buffer } } })
@@ -168,14 +185,18 @@ describe('frontend / native extension wire compatibility', () => {
             ),
         };
         const key = await unwrapVaultKey(record, wrapping);
+
         expect(key.extractable).toBe(false);
+
         await expect(crypto.subtle.exportKey('raw', key)).rejects.toThrow();
+
         const text = serializeSecretPayload({
             passwordType: 'PASSWORD',
             password: 'example\u0000𝄞',
         });
         const encrypted = await encryptWithKey(text, key);
         const blob = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));
+
         expect(
             new TextDecoder().decode(
                 await crypto.subtle.decrypt(
@@ -189,14 +210,17 @@ describe('frontend / native extension wire compatibility', () => {
             parseSecretPayload(await decryptWithKey(encrypted, baseline))
         ).toEqual({ kind: 'PASSWORD', password: 'example\u0000𝄞' });
         blob[15] ^= 1;
+
         await expect(
             decryptWithKey(btoa(String.fromCharCode(...blob)), key)
         ).rejects.toThrow();
         await expect(decryptWithKey('AA==', key)).rejects.toThrow();
+
         expect(() => prfBytes({})).toThrow();
     });
     it('uses exactly the frontend Argon2id moderate password parameters and salt', async () => {
         await sodium.ready;
+
         const salt = new Uint8Array(16).fill(9);
         const password = 'a long vault password';
         const baseline = sodium.crypto_pwhash(
@@ -219,10 +243,12 @@ describe('frontend / native extension wire compatibility', () => {
             'AES-KW'
         );
         baseline.fill(0);
+
         const unlocked = await unwrapVaultKey(
             { type: 'Password', salt, wrappedKey },
             await passwordWrappingKey(password, salt)
         );
+
         expect(
             await decryptWithKey(await encryptWithKey('secret', key), unlocked)
         ).toBe('secret');
@@ -233,6 +259,7 @@ describe('frontend / native extension wire compatibility', () => {
             account: 'alice',
             vault: 'vault',
         };
+
         expect(
             new Set([
                 scopeKey(scope),

@@ -69,6 +69,7 @@ class HttpConfigurationTest {
             extensionAllowedOrigins = listOf(origin)
             extensionAllowedPaths = listOf("/device/enrollment")
         }
+
         val request = MockHttpServletRequest("OPTIONS", "/api/v1/device-trust/device/enrollment").apply {
             contextPath = "/api/v1/device-trust"
             servletPath = "/device/enrollment"
@@ -77,7 +78,9 @@ class HttpConfigurationTest {
             addHeader("Access-Control-Request-Headers", "authorization,content-type,idempotency-key")
         }
         val response = MockHttpServletResponse()
-        CorsFilter(httpConfiguration.corsConfigurationSource(properties)).doFilter(request, response, MockFilterChain())
+
+        CorsFilter(httpConfiguration.corsConfigurationSource(properties))
+            .doFilter(request, response, MockFilterChain())
 
         assertEquals(200, response.status)
         assertEquals(origin, response.getHeader("Access-Control-Allow-Origin"))
@@ -93,22 +96,35 @@ class HttpConfigurationTest {
             extensionAllowedPaths = listOf("/user/me")
         }
         val source = httpConfiguration.corsConfigurationSource(properties)
-        for ((path, sender) in listOf(
+        val deniedRequests = listOf(
             "/login" to origin,
             "/refresh" to origin,
             "/logout" to origin,
             "/user/me" to ("chrome-extension://" + "b".repeat(32)),
-        )) {
-            val request = MockHttpServletRequest("POST", path).apply { addHeader("Origin", sender) }
+        )
+
+        for ((path, sender) in deniedRequests) {
+            val request = MockHttpServletRequest("POST", path).apply {
+                addHeader("Origin", sender)
+            }
             val response = MockHttpServletResponse()
+
             CorsFilter(source).doFilter(request, response, MockFilterChain())
+
             assertEquals(403, response.status, "$sender must not use $path")
         }
     }
 
     @Test
     fun `resource services reject malformed extension origin configuration`() {
-        for (origin in listOf("*", "chrome-extension://*", "https://app.mossy.test", "chrome-extension://short")) {
+        val invalidOrigins = listOf(
+            "*",
+            "chrome-extension://*",
+            "https://app.mossy.test",
+            "chrome-extension://short"
+        )
+
+        for (origin in invalidOrigins) {
             assertFailsWith<IllegalArgumentException> {
                 httpConfiguration.corsConfigurationSource(SecurityConfigurationProperties().apply {
                     extensionAllowedOrigins = listOf(origin)

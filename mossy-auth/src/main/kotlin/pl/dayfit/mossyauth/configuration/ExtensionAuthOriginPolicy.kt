@@ -23,16 +23,17 @@ class ExtensionAuthOriginPolicy(private val properties: ExtensionAuthProperties)
 
     fun corsSource(fallback: CorsConfigurationSource): CorsConfigurationSource = CorsConfigurationSource { request ->
         val path = request.requestURI.removePrefix(request.contextPath)
-        if (path.startsWith("/extension/")) {
-            CorsConfiguration().apply {
-                allowedOrigins = properties.allowedOrigins
-                allowedMethods = listOf("POST", "OPTIONS")
-                allowedHeaders = listOf("Content-Type", "Authorization")
-                allowCredentials = true
-                maxAge = 300
-            }
-        } else {
-            fallback.getCorsConfiguration(request)
+
+        if (!path.startsWith("/extension/")) {
+            return@CorsConfigurationSource fallback.getCorsConfiguration(request)
+        }
+
+        CorsConfiguration().apply {
+            allowedOrigins = properties.allowedOrigins
+            allowedMethods = listOf("POST", "OPTIONS")
+            allowedHeaders = listOf("Content-Type", "Authorization")
+            allowCredentials = true
+            maxAge = 300
         }
     }
 

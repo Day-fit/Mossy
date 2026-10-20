@@ -6,6 +6,7 @@ type ApiFetchOptions = RequestInit & {
 };
 
 import { ApiError } from '@mossy/client-core';
+
 export { ApiError };
 
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {

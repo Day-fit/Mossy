@@ -1,5 +1,6 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
+
 export default defineConfig({
     hooks: {
         'build:manifestGenerated': (_wxt, manifest) => {

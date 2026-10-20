@@ -64,6 +64,7 @@ class ExtensionAuthControllerTest {
             .setMessageConverters(JacksonJsonHttpMessageConverter(
                 JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
             ))
+
         if (cors) {
             val webCors = CorsConfigurationSource {
                 CorsConfiguration().apply {
@@ -75,6 +76,7 @@ class ExtensionAuthControllerTest {
                 CorsFilter(policy.corsSource(webCors))
             )
         }
+
         return builder.build()
     }
 
@@ -114,33 +116,61 @@ class ExtensionAuthControllerTest {
 
     @Test
     fun `missing untrusted malformed and web origins cannot authenticate or rotate a session`() {
-        for (origin in listOf(null, "null", "https://app.mossy.test", "chrome-extension://${"b".repeat(32)}", "$ORIGIN/")) {
+        val untrustedOrigins = listOf(
+            null,
+            "null",
+            "https://app.mossy.test",
+            "chrome-extension://${"b".repeat(32)}",
+            "$ORIGIN/"
+        )
+
+        for (origin in untrustedOrigins) {
             val request = login("/extension/login")
-            if (origin != null) request.header(HttpHeaders.ORIGIN, origin)
+
+            if (origin != null) {
+                request.header(HttpHeaders.ORIGIN, origin)
+            }
+
             mvc.perform(request).andExpect(status().isForbidden)
+
             val refresh = post("$BASE/extension/refresh").contextPath(BASE).cookie(Cookie(EXT_COOKIE, "secret"))
-            if (origin != null) refresh.header(HttpHeaders.ORIGIN, origin)
+
+            if (origin != null) {
+                refresh.header(HttpHeaders.ORIGIN, origin)
+            }
+
             mvc.perform(refresh).andExpect(status().isForbidden)
+
             val logout = post("$BASE/extension/logout").contextPath(BASE).cookie(Cookie(EXT_COOKIE, "secret"))
-            if (origin != null) logout.header(HttpHeaders.ORIGIN, origin)
+
+            if (origin != null) {
+                logout.header(HttpHeaders.ORIGIN, origin)
+            }
+
             mvc.perform(logout).andExpect(status().isForbidden)
         }
+
         verifyNoInteractions(users, jwt)
     }
 
     @Test
     fun `empty allowlist disables extension auth without affecting web login`() {
         mvc = mockMvc(ExtensionAuthOriginPolicy(ExtensionAuthProperties()))
+
         mvc.perform(login("/extension/login").header(HttpHeaders.ORIGIN, ORIGIN))
             .andExpect(status().isForbidden)
+
         verifyNoInteractions(users, jwt)
     }
 
     @Test
     fun `web cookie cannot substitute for an extension refresh cookie`() {
-        mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, ORIGIN).cookie(Cookie("refreshToken", "web-refresh")))
+        mvc.perform(
+            post("$BASE/extension/refresh").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, ORIGIN).cookie(Cookie("refreshToken", "web-refresh"))
+        )
             .andExpect(status().isUnauthorized)
+
         verifyNoInteractions(jwt)
     }
 
@@ -150,8 +180,10 @@ class ExtensionAuthControllerTest {
         whenever(jwt.handleTokenRefreshment("web-refresh")).thenReturn(pair("web-next"))
         val both = arrayOf(Cookie(EXT_COOKIE, "extension-refresh"), Cookie("refreshToken", "web-refresh"))
 
-        mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, ORIGIN).cookie(*both))
+        mvc.perform(
+            post("$BASE/extension/refresh").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, ORIGIN).cookie(*both)
+        )
             .andExpect(status().isOk)
             .andExpect(cookie().value(EXT_COOKIE, "extension-next-refresh"))
             .andExpect(cookie().doesNotExist("refreshToken"))
@@ -162,6 +194,7 @@ class ExtensionAuthControllerTest {
             .andExpect(cookie().doesNotExist(EXT_COOKIE))
 
         verify(jwt).revokeToken("extension-refresh")
+
         verify(jwt).revokeToken("web-refresh")
     }
 
@@ -171,27 +204,36 @@ class ExtensionAuthControllerTest {
         whenever(jwt.handleTokenRefreshment("blocked")).thenThrow(LockedException("Device is blocked"))
 
         for ((value, expected) in listOf("expired" to 401, "blocked" to 403)) {
-            mvc.perform(post("$BASE/extension/refresh").contextPath(BASE)
-                .header(HttpHeaders.ORIGIN, ORIGIN).cookie(Cookie(EXT_COOKIE, value)))
+            mvc.perform(
+                post("$BASE/extension/refresh").contextPath(BASE)
+                    .header(HttpHeaders.ORIGIN, ORIGIN).cookie(Cookie(EXT_COOKIE, value))
+            )
                 .andExpect(status().`is`(expected))
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE))
+
             verify(jwt, never()).revokeToken(value)
         }
     }
 
     @Test
     fun `extension logout revokes and clears only the extension session and tolerates a missing cookie`() {
-        mvc.perform(post("$BASE/extension/logout").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, ORIGIN)
-            .cookie(Cookie(EXT_COOKIE, "extension-refresh"), Cookie("refreshToken", "web-refresh")))
+        mvc.perform(
+            post("$BASE/extension/logout").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, ORIGIN)
+                .cookie(Cookie(EXT_COOKIE, "extension-refresh"), Cookie("refreshToken", "web-refresh"))
+        )
             .andExpect(status().isOk)
             .andExpect(cookie().maxAge(EXT_COOKIE, 0))
             .andExpect(cookie().path(EXT_COOKIE, "/api/v1/auth/extension"))
             .andExpect(cookie().doesNotExist("refreshToken"))
+
         verify(jwt).revokeToken("extension-refresh")
+
         verify(jwt, never()).revokeToken("web-refresh")
 
-        mvc.perform(post("$BASE/extension/logout").contextPath(BASE).header(HttpHeaders.ORIGIN, ORIGIN))
+        mvc.perform(
+            post("$BASE/extension/logout").contextPath(BASE).header(HttpHeaders.ORIGIN, ORIGIN)
+        )
             .andExpect(status().isOk)
             .andExpect(cookie().maxAge(EXT_COOKIE, 0))
     }
@@ -201,22 +243,28 @@ class ExtensionAuthControllerTest {
         val policy = ExtensionAuthOriginPolicy(ExtensionAuthProperties().apply { allowedOrigins = listOf(ORIGIN) })
         mvc = mockMvc(policy, cors = true)
 
-        mvc.perform(options("$BASE/extension/login").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, ORIGIN)
-            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
+        mvc.perform(
+            options("$BASE/extension/login").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, ORIGIN)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
+        )
             .andExpect(status().isOk)
             .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN))
             .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
 
-        mvc.perform(options("$BASE/extension/login").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
-            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+        mvc.perform(
+            options("$BASE/extension/login").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        )
             .andExpect(status().isForbidden)
 
-        mvc.perform(options("$BASE/login").contextPath(BASE)
-            .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
-            .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+        mvc.perform(
+            options("$BASE/login").contextPath(BASE)
+                .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+        )
             .andExpect(status().isOk)
             .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://app.mossy.test"))
     }
@@ -225,6 +273,7 @@ class ExtensionAuthControllerTest {
     fun `development can disable secure cookies without changing their scope`() {
         cookies.secure = false
         whenever(users.login(eq(credentials), any(), any())).thenReturn(pair("extension"))
+
         mvc.perform(login("/extension/login").header(HttpHeaders.ORIGIN, ORIGIN))
             .andExpect(status().isOk)
             .andExpect(cookie().secure(EXT_COOKIE, false))

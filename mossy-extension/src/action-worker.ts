@@ -14,11 +14,13 @@ import {
     type VaultKeyResponse,
     type PublicIdentityJwk,
 } from '@mossy/client-core';
+
 // This worker has exactly one lifetime/action. Ordinary vault keys are nonextractable.
 let key: CryptoKey | undefined;
 let wrapping: CryptoKey | undefined;
 let privateDh: Uint8Array | undefined;
 let receivedRaw: Uint8Array<ArrayBuffer> | undefined;
+
 function nativeSigner(
     privateKey: CryptoKey,
     publicJwk: PublicIdentityJwk
@@ -35,10 +37,13 @@ function nativeSigner(
             ),
     };
 }
+
 self.onmessage = async ({ data }) => {
     const { id, kind, ...input } = data;
+
     try {
         let result: unknown;
+
         if (kind === 'unlock') {
             wrapping =
                 input.record.type === 'Password'
@@ -51,20 +56,29 @@ self.onmessage = async ({ data }) => {
             input.prf?.fill(0);
             key = await unwrapVaultKey(
                 input.record as WrappedKeyRecord,
-                wrapping!,
+                wrapping,
                 input.extractable === true
             );
             wrapping = undefined;
         } else if (kind === 'read') {
-            if (!key) throw new Error('Authorize this action first.');
+            if (!key) {
+                throw new Error('Authorize this action first.');
+            }
+
             const payload = parseSecretPayload(
                 await decryptWithKey(input.ciphertext, key)
             );
-            if (payload.kind !== 'PASSWORD')
+
+            if (payload.kind !== 'PASSWORD') {
                 throw new Error('Only passwords can be used here.');
+            }
+
             result = payload.password;
         } else if (kind === 'encrypt') {
-            if (!key) throw new Error('Authorize this action first.');
+            if (!key) {
+                throw new Error('Authorize this action first.');
+            }
+
             result = await encryptWithKey(
                 JSON.stringify({ kind: 'PASSWORD', password: input.password }),
                 key
@@ -79,11 +93,14 @@ self.onmessage = async ({ data }) => {
             privateDh = offer.privateDh;
             result = offer.receiver;
         } else if (kind === 'send') {
-            if (!key || !key.extractable)
+            if (!key || !key.extractable) {
                 throw new Error('Authorize vault key transfer first.');
+            }
+
             const raw = new Uint8Array(
                 await crypto.subtle.exportKey('raw', key)
             );
+
             try {
                 result = await encryptVaultKey(
                     raw,
@@ -97,7 +114,10 @@ self.onmessage = async ({ data }) => {
                 key = undefined;
             }
         } else if (kind === 'receive') {
-            if (!privateDh) throw new Error('Sync offer expired.');
+            if (!privateDh) {
+                throw new Error('Sync offer expired.');
+            }
+
             // As on main, authenticate and decode before offering local protection.
             const received = await decryptVaultKey(
                 input.transfer as VaultKeyResponse,
@@ -110,7 +130,10 @@ self.onmessage = async ({ data }) => {
             privateDh = undefined;
             result = received.credentialId;
         } else if (kind === 'protect') {
-            if (!receivedRaw) throw new Error('Receive a vault key first.');
+            if (!receivedRaw) {
+                throw new Error('Receive a vault key first.');
+            }
+
             wrapping =
                 input.protection.type === 'Password'
                     ? await passwordWrappingKey(
@@ -120,6 +143,7 @@ self.onmessage = async ({ data }) => {
                     : await importWrappingKey(new Uint8Array(input.prf));
             input.password = '';
             input.prf?.fill(0);
+
             try {
                 const received = await crypto.subtle.importKey(
                     'raw',
@@ -131,7 +155,7 @@ self.onmessage = async ({ data }) => {
                 const wrappedKey = await crypto.subtle.wrapKey(
                     'raw',
                     received,
-                    wrapping!,
+                    wrapping,
                     'AES-KW'
                 );
                 result =
@@ -151,7 +175,10 @@ self.onmessage = async ({ data }) => {
                 receivedRaw = undefined;
                 wrapping = undefined;
             }
-        } else throw new Error('Unsupported worker operation.');
+        } else {
+            throw new Error('Unsupported worker operation.');
+        }
+
         self.postMessage({ id, result });
     } catch {
         key = undefined;

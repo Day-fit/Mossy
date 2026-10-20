@@ -32,6 +32,7 @@ export default function SignIn({
     onDismissError: () => void;
 }) {
     const [showPassword, setShowPassword] = useState(false);
+
     return (
         <>
             <section
@@ -47,6 +48,7 @@ export default function SignIn({
                     aria-busy={loading}
                     onSubmit={(event) => {
                         event.preventDefault();
+
                         const form = event.currentTarget;
                         const data = new FormData(form);
                         const credentials = {

@@ -38,10 +38,21 @@ function sourceFiles(directory: string): string[] {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const path = join(directory, entry.name);
 
-        if (entry.isDirectory()) return sourceFiles(path);
-        if (!['.ts', '.tsx', '.css'].includes(extname(entry.name))) return [];
-        if (entry.name.includes('.test.')) return [];
-        if (path === globalsPath) return [];
+        if (entry.isDirectory()) {
+            return sourceFiles(path);
+        }
+
+        if (!['.ts', '.tsx', '.css'].includes(extname(entry.name))) {
+            return [];
+        }
+
+        if (entry.name.includes('.test.')) {
+            return [];
+        }
+
+        if (path === globalsPath) {
+            return [];
+        }
 
         return [path];
     });
@@ -80,8 +91,13 @@ function declarations(block: string): Record<string, string> {
 function color(tokens: Record<string, string>, name: string): string {
     const value = tokens[`--color-${name}`];
     const alias = value?.match(/^var\(--color-([\w-]+)\)$/);
-    if (alias) return color(tokens, alias[1]);
+
+    if (alias) {
+        return color(tokens, alias[1]);
+    }
+
     expect(value, `Missing hex color for ${name}`).toMatch(/^#[\da-f]{6}$/i);
+
     return value;
 }
 
@@ -95,7 +111,9 @@ function blend(
             .slice(1)
             .match(/.{2}/g)!
             .map((value) => Number.parseInt(value, 16));
+
     const back = channels(background);
+
     return (
         '#' +
         channels(foreground)
@@ -178,6 +196,7 @@ describe('global design token contract', () => {
                 /:root:not\(\[data-theme='light'\]\):not\(\[data-theme='dark'\]\)\s*\{([^}]+)\}/
             )![1]
         );
+
         expect(system).toEqual(dark);
         expect(globals).toContain('@media (prefers-color-scheme: dark)');
         expect(globals).toContain('@media (prefers-reduced-motion: reduce)');
@@ -196,6 +215,7 @@ describe('global design token contract', () => {
         ]) {
             expect(dark).not.toHaveProperty(`--color-${name}`);
         }
+
         expect(color(base, 'brand')).toBe('#007735');
         expect(color(base, 'qr-surface')).toBe('#ffffff');
     });
@@ -292,6 +312,7 @@ describe('global design token contract', () => {
                         foreground
                     ).toBeGreaterThanOrEqual(4.5);
                 }
+
                 expect(
                     contrastRatio(
                         color(tokens, 'border-strong'),
@@ -325,6 +346,7 @@ describe('global design token contract', () => {
                     color(tokens, 'surface'),
                     0.05
                 );
+
                 expect(
                     contrastRatio(color(tokens, `fg-${name}`), background)
                 ).toBeGreaterThanOrEqual(4.5);

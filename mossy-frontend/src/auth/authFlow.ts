@@ -32,6 +32,7 @@ function publicJwk(identity: CryptoPair): PublicIdentityJwk {
     if (identity.type !== 'Ed25519') {
         throw new Error('The local device identity is not an Ed25519 key');
     }
+
     return { kty: 'OKP', crv: 'Ed25519', x: identity.public };
 }
 
@@ -42,6 +43,7 @@ function requireTokenType(
     if (response.accessTokenType !== expected) {
         throw new Error(`Unexpected authentication token type`);
     }
+
     return response.accessToken;
 }
 
@@ -51,6 +53,7 @@ async function loginKnownDevice(
     identity: CryptoPair
 ): Promise<SignInResult> {
     const challengeResult = await executeDeviceLoginChallengeRequest(deviceId);
+
     if (challengeResult.status === 'enrollment-pending') {
         return { status: 'enrollment-pending', deviceId };
     }
@@ -65,6 +68,7 @@ async function loginKnownDevice(
             signature,
         },
     });
+
     return {
         status: 'authenticated',
         accessToken: requireTokenType(response, 'ACCESS_TOKEN'),
@@ -81,10 +85,12 @@ export async function registerAndSignIn(data: {
         ...data,
         publicIdentityKey: publicJwk(identity),
     });
+
     await Promise.all([
         storeDeviceId(registration.deviceId, data.username),
         storeDeviceId(registration.deviceId, data.email),
     ]);
+
     if (registration.verification) {
         return {
             status: 'verification-pending',
