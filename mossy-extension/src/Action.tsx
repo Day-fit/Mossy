@@ -10,7 +10,7 @@ import {
 import { AppHeader, LoadingState, SecurityNotice } from './components';
 import { ActionWorker } from './action-lifecycle';
 import { ActionPort } from './rpc';
-import { authorizePrf } from './prf';
+import { authorizePrf, registerPrf } from './hooks/useEncryptionHook';
 import { wrappedKeys, signingHandles } from './storage';
 import { assertLive } from './security';
 import { useTheme } from './theme';
@@ -28,6 +28,9 @@ export default function Action() {
     useTheme();
     const [action, setAction] = useState<ActionModel>();
     const [method, setMethod] = useState<'PRF' | 'Password'>();
+    const [choice, setChoice] = useState<
+        'use-passkey' | 'use-password' | 'register-passkey' | null
+    >(null);
     const [phase, setPhase] = useState<
         'loading' | 'waiting' | 'authorize' | 'busy' | 'done' | 'error'
     >('loading');
@@ -40,6 +43,8 @@ export default function Action() {
     const active = useRef(true);
     const completed = useRef(false);
     const password = useRef<HTMLInputElement>(null);
+    const confirmation = useRef<HTMLInputElement>(null);
+    const credentialId = useRef<ArrayBuffer | undefined>(undefined);
     const transfer = useRef<ActionResult | undefined>(undefined);
     const record = useRef<WrappedKeyRecord | undefined>(undefined);
     useEffect(() => {
@@ -52,6 +57,7 @@ export default function Action() {
             if (completed.current) return;
             actionWorker.stop();
             if (password.current) password.current.value = '';
+            if (confirmation.current) confirmation.current.value = '';
             if (alive.current) {
                 setPhase('error');
                 setMessage(
@@ -71,20 +77,12 @@ export default function Action() {
                 if (!alive.current) return;
                 setAction(value);
                 if (value.operation === 'sync-receive') {
-                    const existing = await wrappedKeys.read(value.scope);
-                    // Existing PRF protection cannot be replaced with password protection accidentally.
-                    if (existing && existing.type !== value.protection)
-                        throw new Error(
-                            'This vault already uses a different protection method on this browser.'
-                        );
-                    setMethod(existing?.type ?? value.protection ?? 'PRF');
                     setPhase('waiting');
                     const receiver = await actionWorker.call('offer', {
                         ...(await signingHandles(value.scope.instance)),
                         deviceId: value.deviceId,
                         vaultId: value.scope.vault,
                     });
-                    offer.current = receiver;
                     const result = await connection.call<{ code: string }>(
                         'offer',
                         receiver
@@ -93,6 +91,15 @@ export default function Action() {
                     setCode(result.code);
                     transfer.current =
                         await connection.call<ActionResult>('wait');
+                    if (!alive.current) return;
+                    assertLive(value.deadline);
+                    credentialId.current = await actionWorker.call<
+                        ArrayBuffer | undefined
+                    >('receive', {
+                        ...transfer.current,
+                        context: { code: result.code, receiver },
+                    });
+                    transfer.current = undefined;
                     if (!alive.current) return;
                     assertLive(value.deadline);
                     setPhase('authorize');
@@ -113,6 +120,7 @@ export default function Action() {
             actionWorker.stop();
             connection.close();
             if (password.current) password.current.value = '';
+            if (confirmation.current) confirmation.current.value = '';
         };
         window.addEventListener('pagehide', unload);
         return () => {
@@ -124,6 +132,7 @@ export default function Action() {
             connection.close();
             transfer.current = undefined;
             record.current = undefined;
+            credentialId.current = undefined;
         };
     }, []);
     const authorize = async () => {
@@ -135,16 +144,50 @@ export default function Action() {
                 throw new Error('Action closed.');
             assertLive(action.deadline);
         };
+        const isSetup = action.operation === 'sync-receive';
+        if (isSetup && !choice) return;
+        if (isSetup && method === 'Password') {
+            if ((password.current?.value.length ?? 0) < 12) {
+                setMessage(
+                    'Use at least 12 characters for your vault password.'
+                );
+                return;
+            }
+            if (password.current?.value !== confirmation.current?.value) {
+                setMessage('Passwords do not match.');
+                return;
+            }
+        }
         setPhase('busy');
         setMessage('');
         let vaultPassword = password.current?.value ?? '';
         if (password.current) password.current.value = '';
+        if (confirmation.current) confirmation.current.value = '';
         let prf: Uint8Array<ArrayBuffer> | undefined;
+        let selectedCredentialId: ArrayBuffer | undefined;
+        let workerStarted = false;
         try {
             requireLive();
-            if (method === 'PRF')
-                prf = await authorizePrf(action.scope.instance, action.userId);
-            else if (!vaultPassword)
+            if (method === 'PRF') {
+                const passkey =
+                    choice === 'register-passkey' && isSetup
+                        ? await registerPrf(
+                              action.scope.instance,
+                              action.scope.vault,
+                              action.vaultName?.trim() || action.scope.vault
+                          )
+                        : await authorizePrf(
+                              action.scope.instance,
+                              action.scope.vault,
+                              isSetup
+                                  ? credentialId.current
+                                  : record.current?.type === 'PRF'
+                                    ? record.current.credentialId
+                                    : undefined
+                          );
+                prf = passkey.prf;
+                selectedCredentialId = passkey.credentialId;
+            } else if (!vaultPassword)
                 throw new Error('Enter your vault password.');
             if (!alive.current) throw new Error('Action closed.');
             requireLive();
@@ -159,15 +202,11 @@ export default function Action() {
                               type: 'Password',
                               salt: crypto.getRandomValues(new Uint8Array(16)),
                           }
-                        : { type: 'PRF' };
+                        : { type: 'PRF', credentialId: selectedCredentialId };
+                workerStarted = true;
                 const wrapped = await currentWorker.call<WrappedKeyRecord>(
-                    'receive',
+                    'protect',
                     {
-                        ...transfer.current,
-                        context: {
-                            code,
-                            receiver: await receiverFromOffer(action),
-                        },
                         password: vaultPassword,
                         prf,
                         protection,
@@ -183,9 +222,14 @@ export default function Action() {
                     wrappedKey: Array.from(new Uint8Array(wrapped.wrappedKey)),
                     ...(wrapped.type === 'Password'
                         ? { salt: Array.from(wrapped.salt) }
-                        : {}),
+                        : {
+                              credentialId: Array.from(
+                                  new Uint8Array(wrapped.credentialId)
+                              ),
+                          }),
                 });
             } else {
+                workerStarted = true;
                 await currentWorker.call('unlock', {
                     record: record.current,
                     password: vaultPassword,
@@ -258,6 +302,10 @@ export default function Action() {
                     }
                 } else if (action.operation === 'sync-send') {
                     const result = await currentWorker.call('send', {
+                        credentialId:
+                            record.current?.type === 'PRF'
+                                ? record.current.credentialId
+                                : undefined,
                         ...(await signingHandles(action.scope.instance)),
                         deviceId: action.deviceId,
                         context: {
@@ -280,27 +328,45 @@ export default function Action() {
                 );
             }
         } catch (error) {
-            currentWorker.stop();
+            const retryable =
+                !workerStarted &&
+                alive.current &&
+                active.current &&
+                Date.now() < action.deadline;
+            if (!retryable) currentWorker.stop();
             if (alive.current) {
-                setPhase('error');
+                setPhase(retryable ? 'authorize' : 'error');
                 setMessage(
-                    error instanceof Error ? error.message : 'Action failed.'
+                    error instanceof DOMException &&
+                        error.name === 'NotAllowedError'
+                        ? isSetup
+                            ? 'The passkey prompt was closed. Try again or choose another method.'
+                            : 'The passkey prompt was closed. Try again.'
+                        : error instanceof Error
+                          ? error.message
+                          : 'Action failed.'
                 );
             }
         } finally {
             vaultPassword = '';
             prf?.fill(0);
             if (password.current) password.current.value = '';
-            record.current = undefined;
-            transfer.current = undefined;
+            if (workerStarted) {
+                record.current = undefined;
+                transfer.current = undefined;
+                credentialId.current = undefined;
+            }
         }
     };
-    // The offer contains only transport metadata; it is read from a ref, never vault keys.
-    const offer = useRef<unknown>(undefined);
-    async function receiverFromOffer(value: ActionModel) {
-        if (offer.current) return offer.current;
-        return value.receiver;
-    }
+    const selectChoice = (next: typeof choice) => {
+        setChoice(next);
+        setMethod(
+            next === 'use-password' ? 'Password' : next ? 'PRF' : undefined
+        );
+        setMessage('');
+        if (password.current) password.current.value = '';
+        if (confirmation.current) confirmation.current.value = '';
+    };
     const AuthorizationIcon =
         phase === 'done'
             ? MdCheckCircleOutline
@@ -330,16 +396,28 @@ export default function Action() {
                         </span>
                         <div>
                             <h2 id="action-title">
-                                {action
-                                    ? titles[action.operation]
-                                    : 'Secure action'}
+                                {action?.operation === 'sync-receive' &&
+                                phase === 'authorize'
+                                    ? 'Protect your vault'
+                                    : action
+                                      ? titles[action.operation]
+                                      : 'Secure action'}
                             </h2>
                             <p>
                                 {phase === 'done'
                                     ? 'All set. You can close this window.'
                                     : phase === 'error'
                                       ? 'This action could not be completed.'
-                                      : 'Confirm this action with your vault.'}
+                                      : action?.operation === 'sync-receive' &&
+                                          phase === 'authorize'
+                                        ? !choice
+                                            ? 'Choose how to protect this vault on this browser.'
+                                            : choice === 'register-passkey'
+                                              ? 'Register a new passkey for this vault.'
+                                              : choice === 'use-passkey'
+                                                ? 'Use this vault’s existing passkey.'
+                                                : 'Choose a password of at least 12 characters to protect this vault.'
+                                        : 'Confirm this action with your vault.'}
                             </p>
                         </div>
                     </div>
@@ -399,9 +477,8 @@ export default function Action() {
                                 </LoadingState>
                             )}
                             <p className="muted">
-                                No vault key is unlocked while waiting. Local
-                                protection is requested when the transfer
-                                arrives.
+                                Local protection is requested after the transfer
+                                is received and verified.
                             </p>
                         </>
                     )}
@@ -413,6 +490,79 @@ export default function Action() {
                                 void authorize();
                             }}
                         >
+                            {action?.operation === 'sync-receive' &&
+                                !choice && (
+                                    <div
+                                        role="group"
+                                        aria-label="Vault protection method"
+                                        className="protection-choices"
+                                    >
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            disabled={
+                                                typeof PublicKeyCredential ===
+                                                'undefined'
+                                            }
+                                            onClick={() =>
+                                                selectChoice('use-passkey')
+                                            }
+                                        >
+                                            Use existing passkey
+                                        </Button>
+                                        <p className="muted">
+                                            Select the passkey already
+                                            registered for this vault.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() =>
+                                                selectChoice('use-password')
+                                            }
+                                        >
+                                            Use password
+                                        </Button>
+                                        <p className="muted">
+                                            Set a vault password on this
+                                            browser.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            disabled={
+                                                typeof PublicKeyCredential ===
+                                                'undefined'
+                                            }
+                                            onClick={() =>
+                                                selectChoice('register-passkey')
+                                            }
+                                        >
+                                            Register new passkey
+                                        </Button>
+                                        <p className="muted">
+                                            Create a passkey for this vault.
+                                        </p>
+                                    </div>
+                                )}
+                            {action?.operation === 'sync-receive' &&
+                                choice === 'register-passkey' && (
+                                    <div className="status">
+                                        <div>
+                                            <strong>
+                                                This may replace an existing
+                                                passkey
+                                            </strong>
+                                            <p>
+                                                Replacing this vault’s passkey
+                                                can prevent other browsers or
+                                                devices from unlocking copies of
+                                                this vault that use the old
+                                                passkey.
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             {method === 'Password' ? (
                                 <>
                                     <label htmlFor="vault-password">
@@ -442,18 +592,42 @@ export default function Action() {
                                             ? 'Use at least 12 characters to protect this vault on this browser.'
                                             : 'Use your vault password to authorize this action.'}
                                     </p>
+                                    {action?.operation === 'sync-receive' && (
+                                        <>
+                                            <label htmlFor="vault-password-confirmation">
+                                                Confirm vault password
+                                            </label>
+                                            <input
+                                                ref={confirmation}
+                                                id="vault-password-confirmation"
+                                                type="password"
+                                                required
+                                                autoComplete="off"
+                                            />
+                                        </>
+                                    )}
                                 </>
-                            ) : (
+                            ) : method === 'PRF' ? (
                                 <div className="passkey-prompt">
                                     <MdFingerprint
                                         size={22}
                                         aria-hidden="true"
                                     />
                                     <p>
-                                        Use your existing Mossy passkey to
-                                        authorize this action.
+                                        {choice === 'register-passkey'
+                                            ? 'This passkey will protect only this vault.'
+                                            : 'Select the existing passkey for this vault.'}
                                     </p>
                                 </div>
+                            ) : null}
+                            {action?.operation === 'sync-receive' && choice && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => selectChoice(null)}
+                                >
+                                    Choose another method
+                                </Button>
                             )}
                         </form>
                     )}
@@ -464,10 +638,10 @@ export default function Action() {
                     )}
                     {message && (
                         <div
-                            role={phase === 'error' ? 'alert' : 'status'}
-                            className={`status ${phase === 'error' ? 'error' : 'success'}`}
+                            role={phase === 'done' ? 'status' : 'alert'}
+                            className={`status ${phase === 'done' ? 'success' : 'error'}`}
                         >
-                            {phase === 'error' ? (
+                            {phase !== 'done' ? (
                                 <MdErrorOutline size={18} aria-hidden="true" />
                             ) : (
                                 <MdCheckCircleOutline
@@ -490,15 +664,21 @@ export default function Action() {
                         >
                             {phase === 'done' ? 'Close' : 'Cancel'}
                         </Button>
-                        {phase === 'authorize' && (
+                        {phase === 'authorize' && method && (
                             <Button
                                 type="submit"
                                 form="authorize-form"
                                 padding="medium"
                             >
-                                {method === 'PRF'
-                                    ? 'Authorize with passkey'
-                                    : 'Authorize action'}
+                                {action?.operation === 'sync-receive'
+                                    ? choice === 'register-passkey'
+                                        ? 'Register new passkey'
+                                        : choice === 'use-passkey'
+                                          ? 'Use existing passkey'
+                                          : 'Save password'
+                                    : method === 'PRF'
+                                      ? 'Authorize with passkey'
+                                      : 'Authorize action'}
                             </Button>
                         )}
                     </div>

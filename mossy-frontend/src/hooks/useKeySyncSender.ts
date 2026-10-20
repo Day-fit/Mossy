@@ -3,7 +3,7 @@ import { ApiError } from '../api/client.ts';
 import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
 import { getVerifiedReceiver, sendVaultKey } from '../key-sync/sendVaultKey.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';
-import { useEncryptionHook } from './useEncryptionHook.ts';
+import { getVaultCredentialId, useEncryptionHook } from './useEncryptionHook.ts';
 
 type SenderState = {
     phase: 'idle' | 'syncing' | 'needs-unlock' | 'success' | 'error';
@@ -42,12 +42,14 @@ export function useKeySyncSender() {
             }
             const key = getUnlockedKey(vaultId);
             if (!key) throw new Error('Unlock this vault to continue.');
+            const credentialId = await getVaultCredentialId(vaultId);
             await sendVaultKey(
                 code,
                 receiver,
                 deviceId,
                 idKey,
                 key,
+                credentialId,
                 controller.signal
             );
             if (controller.signal.aborted) return false;

@@ -1,5 +1,5 @@
 import { motion, type Variants } from 'framer-motion';
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import Button from '../shared/Button.tsx';
 import {
     executeCreateVaultRequest,
@@ -14,6 +14,7 @@ import { useVaultStore } from '../../store/vaultStore.ts';
 
 type CreatedVaultState = {
     vaultId: string;
+    vaultName: string;
     apiKey: string;
 } | null;
 
@@ -53,7 +54,7 @@ export default function VaultHero() {
         },
     };
 
-    const handleCreate = async (event: FormEvent<HTMLFormElement>) => {
+    const handleCreate = async (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault();
         setIsSubmitting(true);
         setSuccessMessage(null);
@@ -63,6 +64,7 @@ export default function VaultHero() {
             const response = await executeCreateVaultRequest(vaultName);
             setCreatedVault({
                 vaultId: response.vaultId,
+                vaultName,
                 apiKey: response.apiKey,
             });
             setIsVaultAccessModalActive(true);
@@ -156,6 +158,7 @@ export default function VaultHero() {
                     <VaultAccessModal
                         mode="register"
                         vaultId={createdVault.vaultId}
+                        vaultName={createdVault.vaultName}
                         onClose={() => setIsVaultAccessModalActive(false)}
                     />
                 )}

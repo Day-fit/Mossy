@@ -30,6 +30,7 @@ export type Action = {
     operation: Operation;
     scope: Scope;
     userId: string;
+    vaultName: string;
     deviceId: string;
     entry?: Entry;
     target?: Target;
@@ -41,7 +42,6 @@ export type Action = {
     candidateOrigin?: string;
     code?: string;
     receiver?: ReceiverDetails;
-    protection?: 'PRF' | 'Password';
 };
 export type ActionResult = {
     status: string;

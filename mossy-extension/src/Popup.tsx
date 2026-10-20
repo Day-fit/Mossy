@@ -122,8 +122,7 @@ export default function Popup() {
         operation: Operation,
         entry?: Entry,
         target?: Target,
-        code?: string,
-        protection?: 'PRF' | 'Password'
+        code?: string
     ) =>
         run(async () => {
             if (operation === 'copy-username') {
@@ -137,7 +136,6 @@ export default function Popup() {
                 passwordId: entry?.passwordId,
                 target,
                 code,
-                protection,
             });
             window.close();
         });
@@ -712,40 +710,16 @@ export default function Popup() {
                                             this vault key.
                                         </p>
                                     </div>
-                                    <div className="row">
-                                        <Button
-                                            padding="small"
-                                            variant="outline"
-                                            disabled={loading || !view.selected}
-                                            onClick={() =>
-                                                void action(
-                                                    'sync-receive',
-                                                    undefined,
-                                                    undefined,
-                                                    undefined,
-                                                    'PRF'
-                                                )
-                                            }
-                                        >
-                                            Receive · passkey
-                                        </Button>
-                                        <Button
-                                            padding="small"
-                                            variant="outline"
-                                            disabled={loading || !view.selected}
-                                            onClick={() =>
-                                                void action(
-                                                    'sync-receive',
-                                                    undefined,
-                                                    undefined,
-                                                    undefined,
-                                                    'Password'
-                                                )
-                                            }
-                                        >
-                                            Receive · password
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        padding="small"
+                                        variant="outline"
+                                        disabled={loading || !view.selected}
+                                        onClick={() =>
+                                            void action('sync-receive')
+                                        }
+                                    >
+                                        Receive vault key
+                                    </Button>
                                     <form
                                         onSubmit={(event) => {
                                             event.preventDefault();

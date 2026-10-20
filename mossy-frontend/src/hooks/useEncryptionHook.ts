@@ -6,29 +6,34 @@ import { useEncryptionStore } from '../store/encryptionStore.ts';
 import { useDeviceKeys } from './useDeviceKeys.ts';
 import { useVaultKey } from './useVaultKey.ts';
 
-import {
-    PrfNotSupportedError,
-    VAULT_PASSWORD_MIN_LENGTH,
-    prfBytes,
-    importWrappingKey,
-    passwordWrappingKey,
-    encryptWithKey,
-    decryptWithKey,
-} from '@mossy/client-core';
-export { PrfNotSupportedError, VAULT_PASSWORD_MIN_LENGTH };
+export class PrfNotSupportedError extends Error {
+    constructor() {
+        super(
+            'This passkey does not support PRF. Use a vault password instead.'
+        );
+    }
+}
+
+export const VAULT_PASSWORD_MIN_LENGTH = 12;
 export type VaultMethod = 'PRF' | 'Password';
 export type VaultKeySetup =
-    | { type: 'PRF'; createNew?: boolean }
+    | { type: 'PRF'; createNew: boolean; credentialId?: ArrayBuffer }
     | { type: 'Password'; password: string };
 export type VaultKeyMetadata = { type: VaultMethod };
 export type PreparedProtection = {
     userId: string;
     wrappingKey: CryptoKey;
-} & ({ type: 'PRF' } | { type: 'Password'; salt: Uint8Array<ArrayBuffer> });
+} & (
+    | { type: 'PRF'; credentialId: ArrayBuffer }
+    | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
+);
 
 type VaultKeyRecord = {
     wrappedKey: ArrayBuffer;
-} & ({ type: 'PRF' } | { type: 'Password'; salt: Uint8Array<ArrayBuffer> });
+} & (
+    | { type: 'PRF'; credentialId: ArrayBuffer }
+    | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
+);
 
 function activeUser(): string {
     const userId = useAuthStore.getState().userDetails?.userId;
@@ -41,19 +46,69 @@ function requireUser(userId: string): void {
         throw new Error('Account changed. Please try again.');
 }
 
-function isVaultKeyRecord(
-    value: object | null | undefined
-): value is VaultKeyRecord {
-    return (
-        !!value &&
-        'type' in value &&
-        (value.type === 'PRF' ||
-            (value.type === 'Password' &&
-                'salt' in value &&
-                value.salt instanceof Uint8Array)) &&
-        'wrappedKey' in value &&
-        value.wrappedKey instanceof ArrayBuffer
+function isVaultKeyRecord(value: unknown): value is VaultKeyRecord {
+    if (!value || typeof value !== 'object') return false;
+    if (!('wrappedKey' in value) || !(value.wrappedKey instanceof ArrayBuffer))
+        return false;
+    if (!('type' in value)) return false;
+
+    switch (value.type) {
+        case 'PRF':
+            return (
+                'credentialId' in value &&
+                value.credentialId instanceof ArrayBuffer
+            );
+        case 'Password':
+            return 'salt' in value && value.salt instanceof Uint8Array;
+        default:
+            return false;
+    }
+}
+
+function prfBytes(
+    results: AuthenticationExtensionsClientOutputs
+): Uint8Array<ArrayBuffer> {
+    const first = results.prf?.results?.first;
+    if (!first || first.byteLength !== 32) throw new PrfNotSupportedError();
+    const bytes = new Uint8Array(32);
+    if (first instanceof ArrayBuffer) bytes.set(new Uint8Array(first));
+    else
+        bytes.set(
+            new Uint8Array(first.buffer, first.byteOffset, first.byteLength)
+        );
+    return bytes;
+}
+
+async function importWrappingKey(
+    bytes: Uint8Array<ArrayBuffer>
+): Promise<CryptoKey> {
+    return crypto.subtle.importKey(
+        'raw',
+        bytes,
+        { name: 'AES-KW', length: 256 },
+        false,
+        ['wrapKey', 'unwrapKey']
     );
+}
+
+async function passwordWrappingKey(
+    password: string,
+    salt: Uint8Array<ArrayBuffer>
+): Promise<CryptoKey> {
+    await sodium.ready;
+    const bytes = sodium.crypto_pwhash(
+        32,
+        password,
+        salt,
+        sodium.crypto_pwhash_OPSLIMIT_MODERATE,
+        sodium.crypto_pwhash_MEMLIMIT_MODERATE,
+        sodium.crypto_pwhash_ALG_ARGON2ID13
+    );
+    try {
+        return await importWrappingKey(new Uint8Array(bytes));
+    } finally {
+        sodium.memzero(bytes);
+    }
 }
 
 async function readVaultKey(vaultId: string): Promise<VaultKeyRecord> {
@@ -72,6 +127,13 @@ export async function getKeyMetadata(
     return { type: record.type };
 }
 
+export async function getVaultCredentialId(
+    vaultId: string
+): Promise<ArrayBuffer | undefined> {
+    const record = await readVaultKey(vaultId);
+    return record.type === 'PRF' ? record.credentialId : undefined;
+}
+
 async function saveWrappedKey(
     vaultId: string,
     protection: PreparedProtection,
@@ -88,7 +150,11 @@ async function saveWrappedKey(
     const record: VaultKeyRecord =
         protection.type === 'Password'
             ? { type: 'Password', salt: protection.salt, wrappedKey }
-            : { type: 'PRF', wrappedKey };
+            : {
+                  type: 'PRF',
+                  credentialId: protection.credentialId,
+                  wrappedKey,
+              };
     requireUser(protection.userId);
     const db = await getDeviceDatabase();
     if (createOnly) await db.add('keys', record, vaultId);
@@ -142,14 +208,33 @@ export async function encrypt(
     rawData: string,
     vaultId: string
 ): Promise<string> {
-    return encryptWithKey(rawData, unlockedKey(vaultId));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = new Uint8Array(
+        await crypto.subtle.encrypt(
+            { name: 'AES-GCM', iv },
+            unlockedKey(vaultId),
+            new TextEncoder().encode(rawData)
+        )
+    );
+    const blob = new Uint8Array(iv.length + ciphertext.length);
+    blob.set(iv);
+    blob.set(ciphertext, iv.length);
+    return btoa(String.fromCharCode(...blob));
 }
 
 export async function decrypt(
     ciphertext: string,
     vaultId: string
 ): Promise<string> {
-    return decryptWithKey(ciphertext, unlockedKey(vaultId));
+    const blob = Uint8Array.from(atob(ciphertext), (char) =>
+        char.charCodeAt(0)
+    );
+    const plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: blob.slice(0, 12) },
+        unlockedKey(vaultId),
+        blob.slice(12)
+    );
+    return new TextDecoder().decode(plaintext);
 }
 
 export function useEncryptionHook() {
@@ -157,6 +242,8 @@ export function useEncryptionHook() {
     const { registerPasskey, getPasskey } = useVaultKey();
 
     const prepareProtection = async (
+        vaultId: string,
+        vaultName: string,
         setup: VaultKeySetup
     ): Promise<PreparedProtection> => {
         const userId = activeUser();
@@ -173,11 +260,14 @@ export function useEncryptionHook() {
             return { userId, type: 'Password', salt, wrappingKey };
         }
 
-        let results: AuthenticationExtensionsClientOutputs;
+        let passkey: {
+            results: AuthenticationExtensionsClientOutputs;
+            credentialId: ArrayBuffer;
+        };
         try {
-            results = setup.createNew
-                ? (await registerPasskey()).results
-                : await getPasskey();
+            passkey = setup.createNew
+                ? await registerPasskey(vaultId, vaultName)
+                : await getPasskey(vaultId, setup.credentialId);
         } catch (error) {
             if (
                 error instanceof DOMException &&
@@ -187,8 +277,36 @@ export function useEncryptionHook() {
             throw error;
         }
         requireUser(userId);
-        const wrappingKey = await importWrappingKey(prfBytes(results));
-        return { userId, type: 'PRF', wrappingKey };
+        const wrappingKey = await importWrappingKey(prfBytes(passkey.results));
+        return {
+            userId,
+            type: 'PRF',
+            credentialId: passkey.credentialId,
+            wrappingKey,
+        };
+    };
+
+    const getWrappingKey = async (
+        vaultId: string,
+        record: VaultKeyRecord,
+        password?: string
+    ): Promise<CryptoKey> => {
+        if (record.type === 'Password') {
+            if (!password) throw new Error('Enter your vault password.');
+            return passwordWrappingKey(password, record.salt);
+        }
+
+        try {
+            const passkey = await getPasskey(vaultId, record.credentialId);
+            return await importWrappingKey(prfBytes(passkey.results));
+        } catch (error) {
+            if (
+                error instanceof DOMException &&
+                error.name === 'NotSupportedError'
+            )
+                throw new PrfNotSupportedError();
+            throw error;
+        }
     };
 
     const unlockVault = async (
@@ -197,24 +315,7 @@ export function useEncryptionHook() {
     ): Promise<void> => {
         const userId = activeUser();
         const record = await readVaultKey(vaultId);
-        let wrappingKey: CryptoKey;
-        if (record.type === 'Password') {
-            if (!password) throw new Error('Enter your vault password.');
-            wrappingKey = await passwordWrappingKey(password, record.salt);
-        } else {
-            try {
-                wrappingKey = await importWrappingKey(
-                    prfBytes(await getPasskey())
-                );
-            } catch (error) {
-                if (
-                    error instanceof DOMException &&
-                    error.name === 'NotSupportedError'
-                )
-                    throw new PrfNotSupportedError();
-                throw error;
-            }
-        }
+        const wrappingKey = await getWrappingKey(vaultId, record, password);
         let dataKey: CryptoKey;
         try {
             dataKey = await crypto.subtle.unwrapKey(

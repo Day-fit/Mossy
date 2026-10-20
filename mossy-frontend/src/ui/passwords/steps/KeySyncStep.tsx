@@ -1,6 +1,7 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Button from '../../shared/Button.tsx';
-import type { PreparedProtection } from '../../../hooks/useEncryptionHook.ts';
+import VaultAccessModal from '../../shared/VaultAccessModal.tsx';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { useKeySyncReceiver } from '../../../hooks/useKeySyncReceiver.ts';
 import QRCodeStyling, { type Options } from 'qr-code-styling';
@@ -9,7 +10,6 @@ import { resolveGlobalStyleToken } from '../../../theme/globalTokens.ts';
 
 type KeySyncModalProps = {
     vaultId: string;
-    protection: PreparedProtection;
     setIsKeySyncModalActive: Dispatch<SetStateAction<boolean>>;
 };
 
@@ -65,10 +65,9 @@ const stepVariants: Variants = {
 
 export default function KeySyncStep({
     vaultId,
-    protection,
     setIsKeySyncModalActive,
 }: KeySyncModalProps) {
-    const receiver = useKeySyncReceiver(vaultId, protection);
+    const receiver = useKeySyncReceiver(vaultId);
     const qrCodeRef = useRef<HTMLDivElement>(null);
     const synced = receiver.phase === 'success';
     const syncCode = receiver.code;
@@ -168,6 +167,9 @@ export default function KeySyncStep({
                                 readOnly
                                 className="font-mono text-sm w-full rounded-md border border-border-strong bg-surface-subtle px-3 py-2 text-center text-fg-secondary"
                             />
+                            {receiver.phase === 'receiving' && (
+                                <p role="status">Receiving your vault key…</p>
+                            )}
                             {receiver.phase === 'saving' && (
                                 <p role="status">Saving your vault key…</p>
                             )}
@@ -198,6 +200,16 @@ export default function KeySyncStep({
                     </motion.div>
                 )}
             </AnimatePresence>
+            {receiver.phase === 'choosing' && createPortal(
+                <VaultAccessModal
+                    mode="prepare"
+                    vaultId={vaultId}
+                    credentialId={receiver.credentialId}
+                    onClose={() => setIsKeySyncModalActive(false)}
+                    onPrepared={receiver.selectProtection}
+                />,
+                document.body
+            )}
         </motion.div>
     );
 }

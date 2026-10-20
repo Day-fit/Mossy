@@ -9,7 +9,7 @@ import {
     trustedPage,
 } from './security';
 import { PendingCapture } from './pending';
-import { authorizePrf } from './prf';
+import { authorizePrf } from './hooks/useEncryptionHook';
 afterEach(() => vi.unstubAllGlobals());
 describe('exact origin and browser-supplied sender boundaries', () => {
     it.each([
@@ -230,7 +230,7 @@ describe('ten-second encrypted candidate lifecycle', () => {
     });
 });
 describe('native PRF cancellation', () => {
-    it('requests the configured RP and unchanged user salt and never creates/replaces after cancellation', async () => {
+    it('requests the configured RP and vault salt and never creates/replaces after cancellation', async () => {
         const get = vi
             .fn()
             .mockRejectedValue(new DOMException('Canceled', 'NotAllowedError'));
@@ -238,7 +238,7 @@ describe('native PRF cancellation', () => {
         vi.stubGlobal('navigator', { credentials: { get, create } });
         vi.stubGlobal('PublicKeyCredential', class {});
         await expect(
-            authorizePrf('https://vault.example', 'account')
+            authorizePrf('https://vault.example', 'vault')
         ).rejects.toMatchObject({ name: 'NotAllowedError' });
         expect(create).not.toHaveBeenCalled();
         const request = get.mock.calls[0]![0];
@@ -247,7 +247,7 @@ describe('native PRF cancellation', () => {
             new TextDecoder().decode(
                 request.publicKey.extensions.prf.eval.first
             )
-        ).toBe('mossy:encryption:v1:account');
+        ).toBe('mossy:encryption:v1:vault:vault');
     });
 });
 

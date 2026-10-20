@@ -667,6 +667,14 @@ a:hover {
     align-items: flex-start;
     color: var(--color-fg-brand);
 }
+.protection-choices {
+    display: grid;
+    gap: 10px;
+}
+.protection-choices p {
+    margin-bottom: 6px;
+    font-size: 0.8125rem;
+}
 .passkey-prompt svg {
     flex-shrink: 0;
     margin-top: 3px;

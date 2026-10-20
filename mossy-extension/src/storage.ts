@@ -14,7 +14,14 @@ const db = () =>
     });
 export const wrappedKeys = {
     async read(scope: Scope): Promise<WrappedKeyRecord | undefined> {
-        return (await db()).get('wrapped', scopeKey(scope));
+        const value = await (await db()).get('wrapped', scopeKey(scope));
+        if (!value || !(value.wrappedKey instanceof ArrayBuffer))
+            return undefined;
+        if (value.type === 'PRF' && value.credentialId instanceof ArrayBuffer)
+            return value;
+        if (value.type === 'Password' && value.salt instanceof Uint8Array)
+            return value;
+        return undefined;
     },
     async write(
         scope: Scope,

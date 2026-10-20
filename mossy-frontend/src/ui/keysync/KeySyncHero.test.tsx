@@ -27,16 +27,19 @@ const services = vi.hoisted(() => ({
         senderId: string,
         identity: CryptoPair,
         key: CryptoKey,
+        credentialId: ArrayBuffer | undefined,
         signal: AbortSignal
     ) => Promise<void>>(),
 }));
 const encryption = vi.hoisted(() => ({
     isVaultUnlocked: vi.fn<(vaultId: string) => Promise<boolean>>(),
     getUnlockedKey: vi.fn<(vaultId: string) => CryptoKey | undefined>(),
+    getVaultCredentialId: vi.fn<(vaultId: string) => Promise<ArrayBuffer | undefined>>(),
 }));
 vi.mock('../../key-sync/sendVaultKey.ts', () => services);
 vi.mock('../../hooks/useEncryptionHook.ts', () => ({
     useEncryptionHook: () => encryption,
+    getVaultCredentialId: encryption.getVaultCredentialId,
 }));
 vi.mock('../shared/VaultAccessModal.tsx', () => ({
     default: ({ onSuccess }: { onSuccess?: () => void }) => (
@@ -88,6 +91,7 @@ describe('key sync sender page', () => {
         });
         services.sendVaultKey.mockResolvedValue(undefined);
         encryption.isVaultUnlocked.mockResolvedValue(true);
+        encryption.getVaultCredentialId.mockResolvedValue(new Uint8Array([1, 2, 3]).buffer);
         encryption.getUnlockedKey.mockReturnValue({
             algorithm: { name: 'AES-GCM' },
             extractable: true,
@@ -114,6 +118,15 @@ describe('key sync sender page', () => {
             expect.any(AbortSignal)
         );
         expect(services.sendVaultKey).toHaveBeenCalledOnce();
+        expect(services.sendVaultKey).toHaveBeenCalledWith(
+            'ABC123',
+            expect.objectContaining({ vaultId: 'vault-one' }),
+            'sender-device',
+            expect.any(Object),
+            expect.any(Object),
+            new Uint8Array([1, 2, 3]).buffer,
+            expect.any(AbortSignal)
+        );
     });
 
     it('prompts to unlock a linked vault and resumes the transfer', async () => {

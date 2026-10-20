@@ -88,6 +88,7 @@ describe('frontend / native extension wire compatibility', () => {
             const raw = crypto.getRandomValues(new Uint8Array(32));
             const encrypted = await encryptVaultKey(
                 raw,
+                new Uint8Array([1, 2, 3]).buffer,
                 context,
                 'sender',
                 sender
@@ -106,7 +107,10 @@ describe('frontend / native extension wire compatibility', () => {
                     offer.privateDh,
                     await publicIdentity(sender)
                 )
-            ).toEqual(raw);
+            ).toEqual({
+                rawKey: raw,
+                credentialId: new Uint8Array([1, 2, 3]).buffer,
+            });
             for (const changed of [
                 { vaultId: 'other' },
                 { code: 'ZZZ999' },
@@ -114,8 +118,8 @@ describe('frontend / native extension wire compatibility', () => {
                 { senderPublicDh: offer.receiver.publicDh.x },
                 {
                     cipherText: encrypted.ciphertext.replace(
-                        '"version":1',
-                        '"version":2'
+                        '"version":2',
+                        '"version":1'
                     ),
                 },
             ])
@@ -138,8 +142,8 @@ describe('frontend / native extension wire compatibility', () => {
         }
     );
     it('preserves PRF salt input, AES-KW and iv+ciphertext AES-GCM format with nonextractable ordinary keys', async () => {
-        expect(new TextDecoder().decode(prfInput('user'))).toBe(
-            'mossy:encryption:v1:user'
+        expect(new TextDecoder().decode(prfInput('vault'))).toBe(
+            'mossy:encryption:v1:vault:vault'
         );
         const bytes = new Uint8Array(32).fill(71);
         const wrapping = await importWrappingKey(
@@ -155,6 +159,7 @@ describe('frontend / native extension wire compatibility', () => {
         );
         const record = {
             type: 'PRF' as const,
+            credentialId: new Uint8Array([1, 2, 3]).buffer,
             wrappedKey: await crypto.subtle.wrapKey(
                 'raw',
                 baseline,

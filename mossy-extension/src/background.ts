@@ -325,11 +325,12 @@ async function createAction(
         operation: command.operation,
         scope: { instance, account: user.userId, vault: command.vaultId },
         userId: user.userId,
+        vaultName: vaults.find((vault) => vault.vaultId === command.vaultId)!
+            .vaultName,
         deviceId: sourceDevice,
         entry,
         deadline: Date.now() + 120000,
         code: command.code,
-        protection: command.protection,
     };
     if (command.operation === 'fill') {
         const target = command.target;
@@ -764,6 +765,10 @@ chrome.runtime.onConnect.addListener((port) => {
                             z
                                 .object({
                                     type: z.literal('PRF'),
+                                    credentialId: z
+                                        .array(z.number().int().min(0).max(255))
+                                        .min(1)
+                                        .max(1024),
                                     wrappedKey: z
                                         .array(z.number().int().min(0).max(255))
                                         .length(40),
@@ -782,12 +787,16 @@ chrome.runtime.onConnect.addListener((port) => {
                                 .strict(),
                         ])
                         .parse(request.value);
-                    if (value.type !== action.protection)
-                        throw new Error('Protection method changed.');
                     const wrappedKey = new Uint8Array(value.wrappedKey).buffer;
                     const record =
                         value.type === 'PRF'
-                            ? { type: 'PRF' as const, wrappedKey }
+                            ? {
+                                  type: 'PRF' as const,
+                                  credentialId: new Uint8Array(
+                                      value.credentialId
+                                  ).buffer,
+                                  wrappedKey,
+                              }
                             : {
                                   type: 'Password' as const,
                                   wrappedKey,

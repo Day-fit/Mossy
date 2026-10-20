@@ -123,7 +123,6 @@ export const commandSchema = z.discriminatedUnion('kind', [
                 .string()
                 .regex(/^[A-Z0-9]{6}$/)
                 .optional(),
-            protection: z.enum(['PRF', 'Password']).optional(),
         })
         .strict(),
     z.object({ kind: z.literal('claim'), actionId: z.uuid() }).strict(),

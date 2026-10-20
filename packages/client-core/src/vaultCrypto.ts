@@ -1,8 +1,8 @@
 import sodium from 'libsodium-wrappers-sumo';
 import type { WrappedKeyRecord } from './types.ts';
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
-export const prfInput = (userId: string) =>
-    new TextEncoder().encode(`mossy:encryption:v1:${userId}`);
+export const prfInput = (vaultId: string) =>
+    new TextEncoder().encode(`mossy:encryption:v1:vault:${vaultId}`);
 export class PrfNotSupportedError extends Error {
     constructor() {
         super(

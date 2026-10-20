@@ -2,11 +2,10 @@
 
 ## Source and delivery
 
-Rebuild on `feat/mossy-extension-v2`, based on
-`feat/vault-pin-replacement` at `3e4c438753c444502193840446286d5613509de9`.
-The source branch stays unchanged. The old extension is removed in a preparation
-commit before a fresh implementation context starts. Do not inspect its history,
-artifacts, caches, or another checkout. Git history is not rewritten.
+`main` is authoritative for vault protection and key-sync behavior. Keep the
+PRF flow identical to `main`; changing that flow requires explicit user approval.
+Preserve PRF-related source paths as edits, and identify actual extractions into
+shared packages as moves. Git history is not rewritten.
 
 Implement shared extraction, isolated extension authentication, PRF/password and
 key-sync flows, autofill, capture/save, then release checks. Deliver an unpacked
@@ -29,6 +28,18 @@ extension and ZIP with installation instructions; do not publish to a browser st
   CryptoKeys in IndexedDB. Wrapped vault keys are scoped by instance/account/vault.
   The extension enrolls as a new device and provisions keys through existing sync.
 
+Shared extractions are implementation moves. Their original frontend entry points
+remain as edited forwarding modules so existing imports keep working:
+
+| Edited frontend entry point (`mossy-frontend/src/`) | Implementation moved to (`packages/`) |
+| --- | --- |
+| `key-sync/crypto.ts` | `client-core/src/keySync.ts` |
+| `key-sync/receiverEvents.ts` | `client-core/src/receiverEvents.ts` |
+| `api/sse.ts` | `client-core/src/sse.ts` |
+| `ui/passwords/secretPayload.ts` | `client-core/src/secretPayload.ts` |
+| `ui/shared/Button.tsx` | `ui/src/Button.tsx` |
+| `theme/globalTokens.ts` | `ui/src/tokens.ts` |
+
 ## Authentication
 
 Add POST `/api/v1/auth/extension/login`, `/refresh`, and `/logout`, backed by the
@@ -45,9 +56,20 @@ only against that instance. Registration stays in the web app. Existing device
 approval/enrollment contracts remain authoritative.
 
 The extension PRF adapter explicitly uses the configured Mossy hostname as RP ID,
-with the frontend's existing per-user PRF input. Request the necessary host
-permission. Reuse existing passkeys. Never silently register/replace a passkey
-after cancellation or treat an existing PRF-wrapped vault as password-wrapped.
+with the frontend's per-vault PRF input (`mossy:encryption:v1:vault:${vaultId}`).
+Request the necessary host permission. Store the credential ID with PRF-wrapped
+keys and restrict unlock to that ID. Without a saved ID, verify the assertion's
+user handle equals the vault ID. Never silently register/replace a passkey after
+cancellation or treat an existing PRF-wrapped vault as password-wrapped.
+
+Key sync uses main's signed v2 envelope and encrypted JSON payload containing
+`rawKey` and nullable `credentialId`. Receive and verify/decrypt the transfer before
+choosing local protection. Offer the same three explicit choices as main: use
+this vault's existing passkey, set a vault password (with confirmation), or
+register a new passkey for this vault. Display main's replacement warning before
+registration. Registration uses the vault ID as the user handle and the vault
+name as both credential labels. Cancellation stays retryable without creating a
+credential or changing protection methods automatically.
 
 ## UI and contexts
 
@@ -76,9 +98,11 @@ an explicit key-sync send. Never persist vault/wrapping keys, vault passwords, o
 decrypted credentials in Zustand/browser storage/logs/UI state.
 
 For receiving key sync, keep only transport material during its bounded wait;
-obtain local protection immediately before decrypting and wrapping the received
-vault key. Sending unlocks just in time after verifying the receiver. No unlocked
-vault-key cache remains afterward. Frontend vault caching policy is unchanged.
+verify/decrypt the received key inside the action worker, then obtain the chosen
+local protection and wrap the received key. Keep pending raw key material only
+in that worker until protection succeeds or the action ends. Sending unlocks
+just in time after verifying the receiver. No unlocked vault-key cache remains
+afterward. Frontend vault caching policy is unchanged.
 
 ## Autofill and messaging
 
@@ -123,7 +147,7 @@ vault-key cache remains afterward. Frontend vault caching policy is unchanged.
 
 ## Validation and release
 
-- Preserve all 157 frontend tests; build and lint with no new issues.
+- Preserve the frontend tests on `main`; build and lint with no new issues.
 - Real crypto compatibility frontend/extension in both sync directions, PRF and
   password wrapping, payload/ciphertext parsing, tampering, canceled passkeys,
   account isolation, and native/libsodium signer interoperability.

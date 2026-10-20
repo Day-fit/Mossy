@@ -67,9 +67,12 @@ verification continue in the frontend's existing forms.
    Mossy device, then sign in again. Account registration and email verification
    remain in the web app.
 5. Receive the selected vault's key using the displayed sync code and a trusted
-   device that already has that key. Protect the received key with your existing
-   Mossy PRF passkey or a vault password of at least twelve characters. A canceled
-   passkey prompt does not create or replace a passkey.
+   device that already has that key. After the transfer is verified, choose the
+   vault's existing PRF passkey, a vault password of at least twelve characters
+   (with confirmation), or explicit registration of a new passkey for this vault.
+   Registration shows the same replacement warning as the web app. A canceled
+   passkey prompt can be retried and does not create or replace a passkey.
+   Existing passkey selection uses the transferred credential ID when available.
 6. Enable HTTPS site access to use form discovery, autofill, and automatic save
    prompts. Without that grant, metadata browsing and copying remain available.
 

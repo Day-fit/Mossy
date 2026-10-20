@@ -18,6 +18,7 @@ import {
 let key: CryptoKey | undefined;
 let wrapping: CryptoKey | undefined;
 let privateDh: Uint8Array | undefined;
+let receivedRaw: Uint8Array<ArrayBuffer> | undefined;
 function nativeSigner(
     privateKey: CryptoKey,
     publicJwk: PublicIdentityJwk
@@ -86,6 +87,7 @@ self.onmessage = async ({ data }) => {
             try {
                 result = await encryptVaultKey(
                     raw,
+                    input.credentialId,
                     input.context as TransferContext,
                     input.deviceId,
                     nativeSigner(input.privateKey, input.publicJwk)
@@ -96,7 +98,19 @@ self.onmessage = async ({ data }) => {
             }
         } else if (kind === 'receive') {
             if (!privateDh) throw new Error('Sync offer expired.');
-            // Local protection is obtained only after the encrypted transfer arrives.
+            // As on main, authenticate and decode before offering local protection.
+            const received = await decryptVaultKey(
+                input.transfer as VaultKeyResponse,
+                input.context as TransferContext,
+                privateDh,
+                input.senderIdentity as PublicIdentityJwk
+            );
+            receivedRaw = received.rawKey;
+            privateDh.fill(0);
+            privateDh = undefined;
+            result = received.credentialId;
+        } else if (kind === 'protect') {
+            if (!receivedRaw) throw new Error('Receive a vault key first.');
             wrapping =
                 input.protection.type === 'Password'
                     ? await passwordWrappingKey(
@@ -106,16 +120,10 @@ self.onmessage = async ({ data }) => {
                     : await importWrappingKey(new Uint8Array(input.prf));
             input.password = '';
             input.prf?.fill(0);
-            const raw = await decryptVaultKey(
-                input.transfer as VaultKeyResponse,
-                input.context as TransferContext,
-                privateDh,
-                input.senderIdentity as PublicIdentityJwk
-            );
             try {
                 const received = await crypto.subtle.importKey(
                     'raw',
-                    raw,
+                    receivedRaw,
                     { name: 'AES-GCM' },
                     true,
                     ['encrypt', 'decrypt']
@@ -133,11 +141,14 @@ self.onmessage = async ({ data }) => {
                               salt: input.protection.salt,
                               wrappedKey,
                           }
-                        : { type: 'PRF', wrappedKey };
+                        : {
+                              type: 'PRF',
+                              credentialId: input.protection.credentialId,
+                              wrappedKey,
+                          };
             } finally {
-                raw.fill(0);
-                privateDh.fill(0);
-                privateDh = undefined;
+                receivedRaw.fill(0);
+                receivedRaw = undefined;
                 wrapping = undefined;
             }
         } else throw new Error('Unsupported worker operation.');
@@ -147,6 +158,8 @@ self.onmessage = async ({ data }) => {
         wrapping = undefined;
         privateDh?.fill(0);
         privateDh = undefined;
+        receivedRaw?.fill(0);
+        receivedRaw = undefined;
         self.postMessage({
             id,
             error: 'The secret action failed. Check your vault password or passkey, and try again.',

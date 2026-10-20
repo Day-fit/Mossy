@@ -5,3 +5,4 @@ export * from './keySync.ts';
 export * from './secretPayload.ts';
 export * from './receiverEvents.ts';
 export * from './sse.ts';
+export * from './vaultPasskeys.ts';

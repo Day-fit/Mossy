@@ -31,7 +31,7 @@ export interface Transport {
 }
 export type Scope = { instance: string; account: string; vault: string };
 export type WrappedKeyRecord = { wrappedKey: ArrayBuffer } & (
-    | { type: 'PRF' }
+    | { type: 'PRF'; credentialId: ArrayBuffer }
     | { type: 'Password'; salt: Uint8Array<ArrayBuffer> }
 );
 export interface WrappedKeyRepository {
@@ -39,7 +39,10 @@ export interface WrappedKeyRepository {
     write(scope: Scope, record: WrappedKeyRecord): Promise<void>;
 }
 export interface ProtectionProvider {
-    getPrf(userId: string): Promise<AuthenticationExtensionsClientOutputs>;
+    getPrf(
+        vaultId: string,
+        credentialId?: BufferSource
+    ): Promise<AuthenticationExtensionsClientOutputs>;
 }
 export interface AccountScope {
     current(): Scope;
