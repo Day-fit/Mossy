@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { themeSetting } from './settings';
+import { themeSetting } from '../storage/settings';
 
-export type Theme = 'light' | 'dark' | 'system';
+import type { Theme } from './types';
 
 export function useTheme() {
     const [theme, setTheme] = useState<Theme>('system');

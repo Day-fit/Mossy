@@ -8,8 +8,8 @@ import {
     contentSource,
     trustedPage,
 } from './security';
-import { PendingCapture } from './pending';
-import { authorizePrf } from './hooks/useEncryptionHook';
+import { PendingCapture } from '../capture/PendingCapture';
+import { authorizePrf } from './passkeys';
 
 afterEach(() => vi.unstubAllGlobals());
 

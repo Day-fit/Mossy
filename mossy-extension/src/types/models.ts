@@ -1,4 +1,4 @@
-import type { Target } from './security';
+import type { Target } from '../security/security';
 import type {
     Scope,
     ReceiverDetails,

@@ -7,14 +7,14 @@ import {
     type VaultKeyResponse,
     type PublicIdentityJwk,
 } from '@mossy/client-core';
+import { wrappedKeys } from '../storage/wrappedKeys';
 import {
     deviceSigner,
     loadDeviceId,
     saveDeviceId,
-    wrappedKeys,
-} from './storage';
-import { ExtensionTransport } from './api';
-import { PendingCapture } from './pending';
+} from '../storage/deviceIdentity';
+import { ExtensionTransport } from '../api/ExtensionTransport';
+import { PendingCapture } from '../capture/PendingCapture';
 import {
     DEFAULT_INSTANCE,
     normalizeInstance,
@@ -25,14 +25,14 @@ import {
     matchesSite,
     assertLive,
     type Target,
-} from './security';
-import type { Vault, Entry, Action } from './models';
+} from '../security/security';
+import type { Vault, Entry, Action } from '../types/models';
 import {
     instanceSetting,
     themeSetting,
     lastIdentifierSetting,
     saveSettings,
-} from './settings';
+} from '../storage/settings';
 
 let instance = DEFAULT_INSTANCE;
 let theme: 'light' | 'dark' | 'system' = 'system';
@@ -138,10 +138,7 @@ const ready = (async () => {
     ]);
 
     try {
-        instance = normalizeInstance(
-            storedInstance,
-            import.meta.env.DEV
-        );
+        instance = normalizeInstance(storedInstance, import.meta.env.DEV);
     } catch {
         instance = DEFAULT_INSTANCE;
     }
@@ -174,8 +171,7 @@ async function loadAccount() {
     const storedIdentifier = await lastIdentifierSetting.getValue();
     const loadedDeviceId =
         storedIdentifier !== null
-            ? ((await loadDeviceId(instance, storedIdentifier)) ??
-              undefined)
+            ? ((await loadDeviceId(instance, storedIdentifier)) ?? undefined)
             : undefined;
 
     if (current !== api || epoch !== generation) {

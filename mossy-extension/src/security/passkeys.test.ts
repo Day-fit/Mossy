@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { authorizePrf, registerPrf } from './useEncryptionHook';
+import { authorizePrf, registerPrf } from './passkeys';
 
 const credentialId = new Uint8Array([1, 2, 3, 4]).buffer;
 const prf = new Uint8Array(32).fill(7);

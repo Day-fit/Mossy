@@ -1,4 +1,4 @@
-import SecretWorker from './action-worker?worker';
+import SecretWorker from './action.worker.ts?worker';
 
 /** Dedicated worker termination is the key-release boundary on every result and exit path. */
 export class ActionWorker {

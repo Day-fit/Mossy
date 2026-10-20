@@ -1,4 +1,4 @@
-import { assertLive } from './security';
+import { assertLive } from '../security/security';
 
 export type CaptureMetadata = {
     origin: string;

@@ -8,7 +8,7 @@ import {
     MdVisibility,
     MdVisibilityOff,
 } from 'react-icons/md';
-import { SecurityNotice } from './components';
+import SecurityNotice from '../shared/SecurityNotice';
 
 const registrationUrl =
     import.meta.env.VITE_MOSSY_REGISTRATION_URL?.trim() ||

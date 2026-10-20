@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ExtensionTransport } from './api';
+import { ExtensionTransport } from './ExtensionTransport';
 
 afterEach(() => vi.unstubAllGlobals());
 

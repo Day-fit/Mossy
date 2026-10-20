@@ -1,51 +1,8 @@
-import { openDB } from 'idb';
-import {
-    scopeKey,
-    type DeviceSigner,
-    type Scope,
-    type WrappedKeyRecord,
-} from '@mossy/client-core';
-
-const db = () =>
-    openDB('mossy-extension-v2', 1, {
-        upgrade(db) {
-            db.createObjectStore('device');
-            db.createObjectStore('wrapped');
-        },
-    });
-
-export const wrappedKeys = {
-    async read(scope: Scope): Promise<WrappedKeyRecord | undefined> {
-        const value = await (await db()).get('wrapped', scopeKey(scope));
-
-        if (!value || !(value.wrappedKey instanceof ArrayBuffer)) {
-            return undefined;
-        }
-
-        if (value.type === 'PRF' && value.credentialId instanceof ArrayBuffer) {
-            return value;
-        }
-
-        if (value.type === 'Password' && value.salt instanceof Uint8Array) {
-            return value;
-        }
-
-        return undefined;
-    },
-    async write(
-        scope: Scope,
-        record: WrappedKeyRecord,
-        guard: () => void = () => {}
-    ) {
-        const database = await db();
-        guard();
-
-        await database.put('wrapped', record, scopeKey(scope));
-    },
-};
+import type { DeviceSigner } from '@mossy/client-core';
+import { openDatabase } from './database';
 
 export async function deviceSigner(instance: string): Promise<DeviceSigner> {
-    const database = await db();
+    const database = await openDatabase();
     let pair = (await database.get('device', ['identity', instance])) as
         | CryptoKeyPair
         | undefined;
@@ -99,7 +56,9 @@ export async function loadDeviceId(
     identifier: string
 ): Promise<string | null> {
     return (
-        (await (await db()).get('device', ['id', instance, identifier])) ?? null
+        (await (
+            await openDatabase()
+        ).get('device', ['id', instance, identifier])) ?? null
     );
 }
 
@@ -108,7 +67,9 @@ export async function saveDeviceId(
     identifier: string,
     id: string
 ) {
-    await (await db()).put('device', id, ['id', instance, identifier]);
+    await (
+        await openDatabase()
+    ).put('device', id, ['id', instance, identifier]);
 }
 
 /** Native key handles can cross only trusted packaged page/worker boundaries, never runtime IPC/content scripts. */
@@ -118,7 +79,7 @@ export async function signingHandles(instance: string): Promise<{
 }> {
     const signer = await deviceSigner(instance);
     const pair = (await (
-        await db()
+        await openDatabase()
     ).get('device', ['identity', instance])) as CryptoKeyPair;
 
     return {
