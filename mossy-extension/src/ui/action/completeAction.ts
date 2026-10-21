@@ -1,4 +1,4 @@
-import type { WrappedKeyRecord } from '@mossy/client-core';
+import type { WrappedKeyRecord } from '../../types/vault';
 import type { Action } from '../../types/models';
 import type { ActionWorker } from '../../actions/ActionWorker';
 import type { ActionPort } from '../../messaging/rpc';

@@ -4,11 +4,16 @@ import {
     type LoginResponse,
     type PublicIdentityJwk,
     type EmailVerification,
-} from '../api/auth.api.ts';
-import { executeDeviceLoginChallengeRequest } from '../api/deviceTrust.api.ts';
-import { signInWithSharedCore } from './sharedCoreAdapter.ts';
+} from 'mossy-api-client/auth.api';
+import {
+    executeConfirmEnrollmentRequest,
+    executeCreateEnrollmentRequest,
+    executeDeviceLoginChallengeRequest,
+} from 'mossy-api-client/deviceTrust.api';
+import { ApiError } from 'mossy-api-client/client';
 import {
     ensureDeviceIdentity,
+    loadStoredDeviceId,
     signNonce,
     storeDeviceId,
     type CryptoPair,
@@ -32,7 +37,6 @@ function publicJwk(identity: CryptoPair): PublicIdentityJwk {
     if (identity.type !== 'Ed25519') {
         throw new Error('The local device identity is not an Ed25519 key');
     }
-
     return { kty: 'OKP', crv: 'Ed25519', x: identity.public };
 }
 
@@ -43,7 +47,6 @@ function requireTokenType(
     if (response.accessTokenType !== expected) {
         throw new Error(`Unexpected authentication token type`);
     }
-
     return response.accessToken;
 }
 
@@ -53,7 +56,6 @@ async function loginKnownDevice(
     identity: CryptoPair
 ): Promise<SignInResult> {
     const challengeResult = await executeDeviceLoginChallengeRequest(deviceId);
-
     if (challengeResult.status === 'enrollment-pending') {
         return { status: 'enrollment-pending', deviceId };
     }
@@ -68,11 +70,41 @@ async function loginKnownDevice(
             signature,
         },
     });
-
     return {
         status: 'authenticated',
         accessToken: requireTokenType(response, 'ACCESS_TOKEN'),
     };
+}
+
+async function enrollDevice(
+    credentials: Credentials,
+    identity: CryptoPair
+): Promise<SignInResult> {
+    const enrollmentLogin = await executeLoginRequest({
+        ...credentials,
+        challengeDto: null,
+    });
+    const enrollmentToken = requireTokenType(
+        enrollmentLogin,
+        'DEVICE_ENROLLMENT_TOKEN'
+    );
+    const enrollment = await executeCreateEnrollmentRequest({
+        token: enrollmentToken,
+        idempotencyKey: crypto.randomUUID(),
+        userAgent: navigator.userAgent,
+        publicIdentityKey: publicJwk(identity),
+    });
+    const signature = await signNonce(enrollment.challenge.nonce, identity);
+    const confirmed = await executeConfirmEnrollmentRequest({
+        token: enrollmentToken,
+        idempotencyKey: crypto.randomUUID(),
+        enrollmentId: enrollment.enrollmentId,
+        challengeId: enrollment.challenge.challengeId,
+        signature,
+    });
+    await storeDeviceId(confirmed.deviceId, credentials.identifier);
+
+    return { status: 'enrollment-pending', deviceId: confirmed.deviceId };
 }
 
 export async function registerAndSignIn(data: {
@@ -85,12 +117,10 @@ export async function registerAndSignIn(data: {
         ...data,
         publicIdentityKey: publicJwk(identity),
     });
-
     await Promise.all([
         storeDeviceId(registration.deviceId, data.username),
         storeDeviceId(registration.deviceId, data.email),
     ]);
-
     if (registration.verification) {
         return {
             status: 'verification-pending',
@@ -115,5 +145,20 @@ export async function registerAndSignIn(data: {
 }
 
 export async function signIn(credentials: Credentials): Promise<SignInResult> {
-    return signInWithSharedCore(credentials);
+    const identity = await ensureDeviceIdentity();
+    const deviceId = await loadStoredDeviceId(credentials.identifier);
+    if (deviceId) {
+        try {
+            return await loginKnownDevice(credentials, deviceId, identity);
+        } catch (error) {
+            if (
+                !(error instanceof ApiError) ||
+                ![401, 404].includes(error.status)
+            ) {
+                throw error;
+            }
+        }
+    }
+
+    return enrollDevice(credentials, identity);
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { tokenStorage } from '../auth/tokenStorage.ts';
-import { receiveEnrollmentEvents } from './deviceTrust.api.ts';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
+import { receiveEnrollmentEvents } from 'mossy-api-client/deviceTrust.api';
 
 const enrollment = {
     id: 'enrollment-1',

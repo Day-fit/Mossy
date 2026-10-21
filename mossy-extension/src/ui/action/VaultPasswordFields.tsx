@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { VAULT_PASSWORD_MIN_LENGTH } from '@mossy/client-core';
+import { VAULT_PASSWORD_MIN_LENGTH } from '../../security/vaultCrypto';
 
 type VaultPasswordFieldsProps = {
     isReceiving: boolean;

@@ -1,7 +1,14 @@
-import type { DeviceSigner } from '@mossy/client-core';
+import type { PublicIdentityJwk } from 'mossy-api-client';
 import { openDatabase } from './database';
 
-export async function deviceSigner(instance: string): Promise<DeviceSigner> {
+export type NativeIdentity = {
+    privateKey: CryptoKey;
+    publicJwk: PublicIdentityJwk;
+};
+
+export async function signingHandles(
+    instance: string
+): Promise<NativeIdentity> {
     const database = await openDatabase();
     let pair = (await database.get('device', ['identity', instance])) as
         | CryptoKeyPair
@@ -12,14 +19,11 @@ export async function deviceSigner(instance: string): Promise<DeviceSigner> {
             'sign',
             'verify',
         ])) as CryptoKeyPair;
-
-        // add is race safe; concurrent contexts always reload the winner.
         try {
             await database.add('device', generated, ['identity', instance]);
         } catch {
-            /* another context won */
+            // Another extension context may have created the identity first.
         }
-
         pair = await database.get('device', ['identity', instance]);
     }
 
@@ -31,24 +35,30 @@ export async function deviceSigner(instance: string): Promise<DeviceSigner> {
         throw new Error('Invalid native device identity.');
     }
 
-    const keys = pair;
-
+    const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
     return {
-        async publicJwk() {
-            const jwk = await crypto.subtle.exportKey('jwk', keys.publicKey);
-
-            return { kty: 'OKP', crv: 'Ed25519', x: jwk.x! };
-        },
-        async sign(bytes) {
-            return new Uint8Array(
-                await crypto.subtle.sign(
-                    'Ed25519',
-                    keys.privateKey,
-                    new Uint8Array(bytes)
-                )
-            );
-        },
+        privateKey: pair.privateKey,
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: jwk.x! },
     };
+}
+
+export async function signNonce(
+    nonce: string,
+    identity: NativeIdentity
+): Promise<string> {
+    const bytes = Uint8Array.from(
+        atob(nonce.replaceAll('-', '+').replaceAll('_', '/')),
+        (character) => character.charCodeAt(0)
+    );
+    const signature = new Uint8Array(
+        await crypto.subtle.sign('Ed25519', identity.privateKey, bytes)
+    );
+    return btoa(
+        Array.from(signature, (byte) => String.fromCharCode(byte)).join('')
+    )
+        .replaceAll('+', '-')
+        .replaceAll('/', '_')
+        .replaceAll('=', '');
 }
 
 export async function loadDeviceId(
@@ -70,20 +80,4 @@ export async function saveDeviceId(
     await (
         await openDatabase()
     ).put('device', id, ['id', instance, identifier]);
-}
-
-/** Native key handles can cross only trusted packaged page/worker boundaries, never runtime IPC/content scripts. */
-export async function signingHandles(instance: string): Promise<{
-    privateKey: CryptoKey;
-    publicJwk: import('@mossy/client-core').PublicIdentityJwk;
-}> {
-    const signer = await deviceSigner(instance);
-    const pair = (await (
-        await openDatabase()
-    ).get('device', ['identity', instance])) as CryptoKeyPair;
-
-    return {
-        privateKey: pair.privateKey,
-        publicJwk: await signer.publicJwk(),
-    };
 }

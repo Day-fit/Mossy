@@ -9,14 +9,14 @@ import {
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import EmailConfirmation from './EmailConfirmation.tsx';
 import { savePendingVerification } from '../../auth/pendingVerification.ts';
-import { ApiError } from '../../api/client.ts';
+import { ApiError } from 'mossy-api-client/client';
 
 const api = vi.hoisted(() => ({
     executeConfirmEmailRequest: vi.fn(),
     executeResendVerificationRequest: vi.fn(),
     executeRecoverVerificationRequest: vi.fn(),
 }));
-vi.mock('../../api/auth.api.ts', () => api);
+vi.mock('mossy-api-client/auth.api', () => api);
 
 function Login() {
     const location = useLocation();

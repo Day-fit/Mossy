@@ -21,8 +21,8 @@ import {
     executeRecoverVerificationRequest,
     executeResendVerificationRequest,
     type EmailVerification,
-} from '../../api/auth.api.ts';
-import { ApiError } from '../../api/client.ts';
+} from 'mossy-api-client/auth.api';
+import { ApiError } from 'mossy-api-client/client';
 import {
     clearPendingVerification,
     loadPendingVerification,

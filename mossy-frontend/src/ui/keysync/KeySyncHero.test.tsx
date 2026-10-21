@@ -8,7 +8,7 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReceiverDetails } from '../../api/keySync.api.ts';
+import type { ReceiverDetails } from 'mossy-api-client/keySync.api';
 import type { CryptoPair } from '../../auth/deviceIdentity.ts';
 import { useAuthStore } from '../../store/authStore.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';

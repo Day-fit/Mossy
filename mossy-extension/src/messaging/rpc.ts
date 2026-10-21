@@ -1,3 +1,35 @@
+import { defineExtensionMessaging } from '@webext-core/messaging';
+import type { PopupView } from '../ui/popup/types';
+import type { Target } from '../security/security';
+import type { Operation } from '../types/models';
+
+export type MessageStatus = {
+    status: 'ok' | 'error';
+};
+
+type PopupToBackgroundProtocol = {
+    getPopupView(data: { vaultId?: string }): PopupView;
+    handleAction(data: {
+        operation: Operation;
+        vaultId: string;
+        passwordId: string | undefined;
+        target?: Target;
+        code?: string;
+    }): void;
+    handleLogin(data: { identifier: string; password: string }): {
+        status: string;
+    };
+    handleLogout(): MessageStatus;
+
+    setTheme(data: { theme: 'light' | 'dark' | 'system' }): MessageStatus;
+
+    handleDissmiss(): MessageStatus;
+};
+
+type ExtensionProtocol = PopupToBackgroundProtocol;
+
+export const messaging = defineExtensionMessaging<ExtensionProtocol>();
+
 export async function rpc<T>(command: unknown): Promise<T> {
     const response = await chrome.runtime.sendMessage(command);
 

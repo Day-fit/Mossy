@@ -1,4 +1,4 @@
-import type { EmailVerification } from '../api/auth.api.ts';
+import type { EmailVerification } from 'mossy-api-client/auth.api';
 
 export type PendingVerification = {
     verification: EmailVerification;

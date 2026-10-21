@@ -1,8 +1,5 @@
-import {
-    scopeKey,
-    type Scope,
-    type WrappedKeyRecord,
-} from '@mossy/client-core';
+import { scopeKey } from '../security/vaultCrypto';
+import { type Scope, type WrappedKeyRecord } from '../types/vault';
 import { openDatabase } from './database';
 
 export const wrappedKeys = {

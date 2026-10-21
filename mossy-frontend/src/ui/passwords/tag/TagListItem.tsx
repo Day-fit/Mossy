@@ -1,7 +1,7 @@
 import { MdDelete, MdEdit } from 'react-icons/md';
 import { useState } from 'react';
 import TagInput from './TagInput.tsx';
-import { executeDeleteTagRequest } from '../../../api/tags.api.ts';
+import { executeDeleteTagRequest } from 'mossy-api-client/tags.api';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useTagStore } from '../../../store/tagStore.ts';
 import { useSearchStore } from '../../../store/searchStore.ts';

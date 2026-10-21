@@ -72,8 +72,8 @@ export async function executeCheckAuthState(data: { token: string }) {
     });
 }
 
-export async function executeUserDetailsRequest() {
-    return apiFetch('/api/v1/auth/user/me', {
+export async function executeUserDetailsRequest(instance = '') {
+    return apiFetch(instance + '/api/v1/auth/user/me', {
         method: 'GET',
     }).then((response) => response.json() as Promise<UserDetailsResponse>);
 }

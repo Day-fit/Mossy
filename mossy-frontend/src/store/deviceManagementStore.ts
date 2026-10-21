@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type {
     DeviceDetails,
     DeviceEnrollment,
-} from '../api/deviceTrust.api.ts';
+} from 'mossy-api-client/deviceTrust.api';
 
 type DeviceManagementState = {
     devices: DeviceDetails[];

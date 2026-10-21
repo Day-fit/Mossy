@@ -4,39 +4,25 @@ import {
     unwrapVaultKey,
     encryptWithKey,
     decryptWithKey,
-    parseSecretPayload,
+} from '../security/vaultCrypto';
+import { parseSecretPayload } from './secretPayload';
+import {
     createReceiverOffer,
     encryptVaultKey,
     decryptVaultKey,
-    type WrappedKeyRecord,
-    type DeviceSigner,
     type TransferContext,
+} from './keySync';
+import { type WrappedKeyRecord } from '../types/vault';
+import {
     type VaultKeyResponse,
     type PublicIdentityJwk,
-} from '@mossy/client-core';
+} from 'mossy-api-client';
 
 // This worker has exactly one lifetime/action. Ordinary vault keys are nonextractable.
 let key: CryptoKey | undefined;
 let wrapping: CryptoKey | undefined;
 let privateDh: Uint8Array | undefined;
 let receivedRaw: Uint8Array<ArrayBuffer> | undefined;
-
-function nativeSigner(
-    privateKey: CryptoKey,
-    publicJwk: PublicIdentityJwk
-): DeviceSigner {
-    return {
-        publicJwk: async () => publicJwk,
-        sign: async (bytes) =>
-            new Uint8Array(
-                await crypto.subtle.sign(
-                    'Ed25519',
-                    privateKey,
-                    new Uint8Array(bytes)
-                )
-            ),
-    };
-}
 
 self.onmessage = async ({ data }) => {
     const { id, kind, ...input } = data;
@@ -88,7 +74,10 @@ self.onmessage = async ({ data }) => {
             const offer = await createReceiverOffer(
                 input.deviceId,
                 input.vaultId,
-                nativeSigner(input.privateKey, input.publicJwk)
+                {
+                    privateKey: input.privateKey,
+                    publicJwk: input.publicJwk,
+                }
             );
             privateDh = offer.privateDh;
             result = offer.receiver;
@@ -107,7 +96,7 @@ self.onmessage = async ({ data }) => {
                     input.credentialId,
                     input.context as TransferContext,
                     input.deviceId,
-                    nativeSigner(input.privateKey, input.publicJwk)
+                    { privateKey: input.privateKey, publicJwk: input.publicJwk }
                 );
             } finally {
                 raw.fill(0);

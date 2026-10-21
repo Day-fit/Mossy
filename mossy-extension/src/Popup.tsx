@@ -9,7 +9,7 @@ import VaultSelector from './ui/popup/VaultSelector';
 import PasswordList from './ui/popup/PasswordList';
 import VaultKeySync from './ui/popup/VaultKeySync';
 import { usePopupController } from './ui/popup/usePopupController';
-import { rpc } from './messaging/rpc';
+import { messaging, rpc } from './messaging/rpc';
 import SignIn from './ui/auth/SignIn';
 import { useTheme } from './theme/useTheme';
 
@@ -24,7 +24,9 @@ export default function Popup() {
                 signedIn={!!view?.account}
                 loading={loading}
                 settings={settings}
-                onSignOut={() => void run(() => rpc({ kind: 'logout' }))}
+                onSignOut={() =>
+                    void run(() => messaging.sendMessage('handleLogout'))
+                }
                 onToggleSettings={() => setSettings(!settings)}
             />
             <div className="page-content">

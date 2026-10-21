@@ -6,7 +6,7 @@ import {
     executeUpdatePasswordRequest,
     type PasswordMetadataDto,
     type ServerResponseDto,
-} from '../../api/password.api.ts';
+} from 'mossy-api-client/password.api';
 import type {
     CiphertextPhase,
     PasswordFormState,

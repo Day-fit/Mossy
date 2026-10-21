@@ -1,13 +1,13 @@
 import sodium from 'libsodium-wrappers-sumo';
 import { z } from 'zod';
 import type {
-    CryptoPair,
-    DeviceSigner,
     PublicIdentityJwk,
     ReceiverDetails,
     UploadVaultKeyRequest,
     VaultKeyResponse,
-} from './types.ts';
+} from 'mossy-api-client';
+
+import type { NativeIdentity } from '../storage/deviceIdentity';
 
 export type TransferContext = { code: string; receiver: ReceiverDetails };
 
@@ -133,13 +133,9 @@ function validSignature(
 export async function createReceiverOffer(
     receiverId: string,
     vaultId: string,
-    identity: CryptoPair | DeviceSigner
+    identity: NativeIdentity
 ) {
     await sodium.ready;
-
-    if ('type' in identity && identity.type !== 'Ed25519') {
-        throw new Error('The device identity is invalid.');
-    }
 
     const keys = sodium.crypto_box_keypair();
     const receiver = {
@@ -189,13 +185,9 @@ export async function encryptVaultKey(
     credentialId: ArrayBuffer | undefined,
     context: TransferContext,
     senderId: string,
-    identity: CryptoPair | DeviceSigner
+    identity: NativeIdentity
 ): Promise<UploadVaultKeyRequest> {
     await sodium.ready;
-
-    if ('type' in identity && identity.type !== 'Ed25519') {
-        throw new Error('The device identity is invalid.');
-    }
 
     const senderKeys = sodium.crypto_box_keypair();
     const sharedSecret = sodium.crypto_scalarmult(
@@ -314,12 +306,14 @@ export async function decryptVaultKey(
 }
 
 async function sign(
-    identity: CryptoPair | DeviceSigner,
+    identity: NativeIdentity,
     transcript: Uint8Array
 ): Promise<Uint8Array> {
-    if ('sign' in identity) {
-        return identity.sign(transcript);
-    }
-
-    return sodium.crypto_sign_detached(transcript, decode(identity.private));
+    return new Uint8Array(
+        await crypto.subtle.sign(
+            'Ed25519',
+            identity.privateKey,
+            new Uint8Array(transcript)
+        )
+    );
 }

@@ -27,10 +27,15 @@ function normalizeVaultDto(rawVault: RawUserVaultDto): UserVaultDto {
     };
 }
 
-export async function executeUserVaultsRequest(): Promise<UserVaultDto[]> {
-    const response = await apiFetch('/api/v1/passwords/vault/vaults', {
-        method: 'GET',
-    });
+export async function executeUserVaultsRequest(
+    instance = ''
+): Promise<UserVaultDto[]> {
+    const response = await apiFetch(
+        instance + '/api/v1/passwords/vault/vaults',
+        {
+            method: 'GET',
+        }
+    );
 
     const rawResponse: unknown = await response.json();
 

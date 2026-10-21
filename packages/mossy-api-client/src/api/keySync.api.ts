@@ -31,18 +31,20 @@ export type VaultKeysResponse = {
 };
 
 export async function executeGetPendingReceiversRequest(
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<PendingReceiver[]> {
-    return apiFetch('/api/v1/key-sync/receivers', { signal }).then((response) =>
-        response.json()
+    return apiFetch(instance + '/api/v1/key-sync/receivers', { signal }).then(
+        (response) => response.json()
     );
 }
 
 export async function executeInitKeySyncRequest(
     request: InitKeySyncRequest,
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<{ code: string }> {
-    return apiFetch('/api/v1/key-sync', {
+    return apiFetch(instance + '/api/v1/key-sync', {
         method: 'POST',
         body: JSON.stringify(request),
         signal,
@@ -52,9 +54,10 @@ export async function executeInitKeySyncRequest(
 export async function executeUploadVaultKeyRequest(
     code: string,
     request: UploadVaultKeyRequest,
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<void> {
-    await apiFetch(`/api/v1/key-sync/${encodeURIComponent(code)}`, {
+    await apiFetch(instance + `/api/v1/key-sync/${encodeURIComponent(code)}`, {
         method: 'POST',
         body: JSON.stringify(request),
         signal,
@@ -62,17 +65,19 @@ export async function executeUploadVaultKeyRequest(
 }
 
 export async function executeGetVaultKeysRequest(
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<VaultKeysResponse> {
-    return apiFetch('/api/v1/key-sync/vault-keys', { signal }).then(
+    return apiFetch(instance + '/api/v1/key-sync/vault-keys', { signal }).then(
         (response) => response.json()
     );
 }
 
 export function executeSubscribeReceiverEventsRequest(
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<Response> {
-    return apiFetch('/api/v1/key-sync/receiver-events', {
+    return apiFetch(instance + '/api/v1/key-sync/receiver-events', {
         headers: { Accept: 'text/event-stream' },
         signal,
     });

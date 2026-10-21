@@ -1,3 +1,4 @@
+import type { NativeIdentity } from '../src/storage/deviceIdentity';
 import {
     test,
     expect,
@@ -12,18 +13,20 @@ import {
     encryptWithKey,
     importWrappingKey,
     passwordWrappingKey,
+    decryptWithKey,
+    unwrapVaultKey,
+} from '../src/security/vaultCrypto';
+import {
     createReceiverOffer,
     encryptVaultKey,
     decryptVaultKey,
-    decryptWithKey,
-    unwrapVaultKey,
-    type CryptoPair,
+} from '../src/actions/keySync';
+import {
     type ReceiverDetails,
     type VaultKeyResponse,
     type UploadVaultKeyRequest,
-    type WrappedKeyRecord,
-} from '@mossy/client-core';
-import sodium from 'libsodium-wrappers-sumo';
+} from 'mossy-api-client';
+import { type WrappedKeyRecord } from '../src/types/vault';
 
 const instance = 'https://mossy.dayfit.pl';
 const extensionId = 'amkfdcmiegnfjnaidcoaojapakdcchoj';
@@ -47,6 +50,17 @@ let slowSave = 0;
 
 async function pageRpc<T>(page: Page, command: unknown): Promise<T> {
     return page.evaluate(async (input) => {
+        if (input && typeof input === 'object' && 'type' in input) {
+            const { type, ...data } = input;
+            const result = await chrome.runtime.sendMessage({
+                id: 1,
+                type,
+                data,
+                timestamp: Date.now(),
+            });
+            if (result?.err) throw new Error(result.err.message);
+            return result?.res;
+        }
         const result = await chrome.runtime.sendMessage(input);
 
         if (!result?.ok) {
@@ -100,7 +114,11 @@ async function seed(page: Page) {
                     salt: new Uint8Array(16).fill(7),
                     wrappedKey: new Uint8Array(wrapped).buffer,
                 },
-                JSON.stringify([instance, 'user-1', 'vault-1'])
+                JSON.stringify([
+                    instance,
+                    'user-1',
+                    '10000000-0000-4000-8000-000000000001',
+                ])
             );
 
             await new Promise<void>((resolve, reject) => {
@@ -267,13 +285,21 @@ test.beforeEach(async ({}, testInfo) => {
             data = { userId: 'user-1', username: 'alice' };
         } else if (path === '/api/v1/passwords/vault/vaults') {
             data = [
-                { vaultId: 'vault-1', vaultName: 'Personal', isOnline: true },
-                { vaultId: 'vault-2', vaultName: 'Work', isOnline: true },
+                {
+                    vaultId: '10000000-0000-4000-8000-000000000001',
+                    vaultName: 'Personal',
+                    isOnline: true,
+                },
+                {
+                    vaultId: '10000000-0000-4000-8000-000000000002',
+                    vaultName: 'Work',
+                    isOnline: true,
+                },
             ];
         } else if (path === '/api/v1/passwords/metadata') {
             data = [
                 {
-                    passwordId: 'password-1',
+                    passwordId: '20000000-0000-4000-8000-000000000001',
                     identifier: 'alice',
                     address: 'https://login.example',
                     passwordType: 'PASSWORD',
@@ -282,7 +308,7 @@ test.beforeEach(async ({}, testInfo) => {
             ];
         } else if (path.startsWith('/api/v1/passwords/ciphertext/')) {
             data = {
-                passwordId: 'password-1',
+                passwordId: '20000000-0000-4000-8000-000000000001',
                 ciphertext,
                 type: 'CIPHERTEXT_RETRIEVAL',
             };
@@ -548,8 +574,8 @@ test(
         const snapshot = await pageRpc<{ pending: { deadline: number } }>(
             popup,
             {
-                kind: 'state',
-                vaultId: 'vault-1',
+                type: 'getPopupView',
+                vaultId: '10000000-0000-4000-8000-000000000001',
             }
         );
 
@@ -578,7 +604,7 @@ test(
         await expect.poll(() => saved).toBeTruthy();
 
         expect(saved).toMatchObject({
-            vaultId: 'vault-1',
+            vaultId: '10000000-0000-4000-8000-000000000001',
             identifier: 'bob',
             address: 'https://login.example',
             passwordType: 'PASSWORD',
@@ -641,7 +667,7 @@ test(
         popup = await openPopup();
 
         const state = await pageRpc<{ pending: unknown }>(popup, {
-            kind: 'state',
+            type: 'getPopupView',
         });
 
         expect(state.pending).toBeNull();
@@ -659,8 +685,8 @@ test(
         await expect
             .poll(async () => {
                 const state = await pageRpc<{ targets: unknown[] }>(popup, {
-                    kind: 'state',
-                    vaultId: 'vault-1',
+                    type: 'getPopupView',
+                    vaultId: '10000000-0000-4000-8000-000000000001',
                 });
 
                 return state.targets.length;
@@ -669,16 +695,16 @@ test(
 
         // Keep the HTTPS site as the active tab while invoking the packaged popup's IPC.
         const state = await pageRpc<{ targets: unknown[] }>(popup, {
-            kind: 'state',
-            vaultId: 'vault-1',
+            type: 'getPopupView',
+            vaultId: '10000000-0000-4000-8000-000000000001',
         });
         const windowPromise = context.waitForEvent('page');
 
         await pageRpc(popup, {
-            kind: 'action',
+            type: 'handleAction',
             operation: 'fill',
-            vaultId: 'vault-1',
-            passwordId: 'password-1',
+            vaultId: '10000000-0000-4000-8000-000000000001',
+            passwordId: '20000000-0000-4000-8000-000000000001',
             target: state.targets[0],
         });
 
@@ -697,8 +723,11 @@ test(
         popup = await openPopup();
 
         expect(
-            (await pageRpc<{ pending: unknown }>(popup, { kind: 'state' }))
-                .pending
+            (
+                await pageRpc<{ pending: unknown }>(popup, {
+                    type: 'getPopupView',
+                })
+            ).pending
         ).toBeNull();
     }
 );
@@ -749,8 +778,8 @@ test(
         await expect
             .poll(async () => {
                 const state = await pageRpc<{ targets: unknown[] }>(popup, {
-                    kind: 'state',
-                    vaultId: 'vault-1',
+                    type: 'getPopupView',
+                    vaultId: '10000000-0000-4000-8000-000000000001',
                 });
 
                 return state.targets.length;
@@ -758,15 +787,15 @@ test(
             .toBeGreaterThan(0);
 
         const state = await pageRpc<{ targets: unknown[] }>(popup, {
-            kind: 'state',
+            type: 'getPopupView',
         });
         const actionPromise = context.waitForEvent('page');
 
         await pageRpc(popup, {
-            kind: 'action',
+            type: 'handleAction',
             operation: 'fill',
-            vaultId: 'vault-1',
-            passwordId: 'password-1',
+            vaultId: '10000000-0000-4000-8000-000000000001',
+            passwordId: '20000000-0000-4000-8000-000000000001',
             target: state.targets[0],
         });
 
@@ -785,29 +814,27 @@ test(
     }
 );
 
-async function webIdentity(): Promise<CryptoPair> {
-    await sodium.ready;
-
-    const pair = sodium.crypto_sign_keypair();
-
+async function peerIdentity(): Promise<NativeIdentity> {
+    const pair = (await crypto.subtle.generateKey('Ed25519', false, [
+        'sign',
+        'verify',
+    ])) as CryptoKeyPair;
+    const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
     return {
-        type: 'Ed25519',
-        public: sodium.to_base64(
-            pair.publicKey,
-            sodium.base64_variants.URLSAFE_NO_PADDING
-        ),
-        private: sodium.to_base64(
-            pair.privateKey,
-            sodium.base64_variants.URLSAFE_NO_PADDING
-        ),
+        privateKey: pair.privateKey,
+        publicJwk: { kty: 'OKP', crv: 'Ed25519', x: jwk.x! },
     };
 }
 
-test('a frontend receiver verifies and decrypts an extension key transfer after fresh authorization', async () => {
+test('a receiver verifies and decrypts an extension key transfer after fresh authorization', async () => {
     await signIn();
 
-    const identity = await webIdentity();
-    const offer = await createReceiverOffer('web-device', 'vault-1', identity);
+    const identity = await peerIdentity();
+    const offer = await createReceiverOffer(
+        'web-device',
+        '10000000-0000-4000-8000-000000000001',
+        identity
+    );
     let upload: UploadVaultKeyRequest | undefined;
 
     await context.route(`${instance}/api/v1/key-sync/receivers`, (route) =>
@@ -817,7 +844,7 @@ test('a frontend receiver verifies and decrypts an extension key transfer after 
         `${instance}/api/v1/device-trust/device/web-device/identity-key`,
         (route) =>
             route.fulfill({
-                json: { kty: 'OKP', crv: 'Ed25519', x: identity.public },
+                json: { kty: 'OKP', crv: 'Ed25519', x: identity.publicJwk.x },
             })
     );
     await context.route(`${instance}/api/v1/key-sync/ABC123`, async (route) => {
@@ -844,9 +871,9 @@ test('a frontend receiver verifies and decrypts an extension key transfer after 
     const actionPromise = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        kind: 'action',
+        type: 'handleAction',
         operation: 'sync-send',
-        vaultId: 'vault-1',
+        vaultId: '10000000-0000-4000-8000-000000000001',
         code: 'ABC123',
     });
 
@@ -858,7 +885,7 @@ test('a frontend receiver verifies and decrypts an extension key transfer after 
     const received = await decryptVaultKey(
         {
             code: 'ABC123',
-            vaultId: 'vault-1',
+            vaultId: '10000000-0000-4000-8000-000000000001',
             senderId: 'device-1',
             senderPublicDh: upload!.publicDh.x,
             cipherText: upload!.ciphertext,
@@ -876,7 +903,7 @@ test('a frontend receiver verifies and decrypts an extension key transfer after 
 test('receiving subscribes before initialization, accepts a frontend signed transfer and protects it before persistence', async () => {
     await signIn();
 
-    const identity = await webIdentity();
+    const identity = await peerIdentity();
     const order: string[] = [];
     let transfer: VaultKeyResponse | undefined;
 
@@ -905,7 +932,7 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
         );
         transfer = {
             code: 'ABC123',
-            vaultId: 'vault-2',
+            vaultId: '10000000-0000-4000-8000-000000000002',
             senderId: 'web-device',
             senderPublicDh: encrypted.publicDh.x,
             cipherText: encrypted.ciphertext,
@@ -925,16 +952,16 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
         `${instance}/api/v1/device-trust/device/web-device/identity-key`,
         (route) =>
             route.fulfill({
-                json: { kty: 'OKP', crv: 'Ed25519', x: identity.public },
+                json: { kty: 'OKP', crv: 'Ed25519', x: identity.publicJwk.x },
             })
     );
 
     const actionPromise = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        kind: 'action',
+        type: 'handleAction',
         operation: 'sync-receive',
-        vaultId: 'vault-2',
+        vaultId: '10000000-0000-4000-8000-000000000002',
     });
 
     const action = await actionPromise;
@@ -969,7 +996,7 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
                         JSON.stringify([
                             'https://mossy.dayfit.pl',
                             'user-1',
-                            'vault-2',
+                            '10000000-0000-4000-8000-000000000002',
                         ])
                     );
                 request.onsuccess = () =>
@@ -1036,7 +1063,7 @@ test(
         const snapshot = await pageRpc<{ pending: { deadline: number } }>(
             popup,
             {
-                kind: 'state',
+                type: 'getPopupView',
             }
         );
         slowSave = 11000;
@@ -1093,8 +1120,11 @@ test(
         popup = await openPopup();
 
         expect(
-            (await pageRpc<{ pending: unknown }>(popup, { kind: 'state' }))
-                .pending
+            (
+                await pageRpc<{ pending: unknown }>(popup, {
+                    type: 'getPopupView',
+                })
+            ).pending
         ).toBeNull();
         expect(saved).toBeUndefined();
     }
@@ -1111,7 +1141,7 @@ test(
         await pendingPrompt(site);
 
         const old = await pageRpc<{ pending: { id: string } }>(popup, {
-            kind: 'state',
+            type: 'getPopupView',
         });
         const actionPromise = context.waitForEvent('page');
 
@@ -1135,7 +1165,7 @@ test(
         ).toContainText('newer-identifier');
 
         const replacement = await pageRpc<{ pending: { id: string } }>(popup, {
-            kind: 'state',
+            type: 'getPopupView',
         });
 
         expect(replacement.pending.id).not.toBe(old.pending.id);
@@ -1143,8 +1173,11 @@ test(
         await pageRpc(popup, { kind: 'dismiss' });
 
         expect(
-            (await pageRpc<{ pending: unknown }>(popup, { kind: 'state' }))
-                .pending
+            (
+                await pageRpc<{ pending: unknown }>(popup, {
+                    type: 'getPopupView',
+                })
+            ).pending
         ).toBeNull();
         expect(saved).toBeUndefined();
     }
@@ -1617,7 +1650,7 @@ test('appearance switches immediately, overrides the device theme and survives r
 });
 
 async function receiveFixtureKey() {
-    const identity = await webIdentity();
+    const identity = await peerIdentity();
     let transfer: VaultKeyResponse;
 
     await context.route(
@@ -1642,7 +1675,7 @@ async function receiveFixtureKey() {
         );
         transfer = {
             code: 'ABC123',
-            vaultId: 'vault-2',
+            vaultId: '10000000-0000-4000-8000-000000000002',
             senderId: 'web-device',
             senderPublicDh: upload.publicDh.x,
             cipherText: upload.ciphertext,
@@ -1657,16 +1690,16 @@ async function receiveFixtureKey() {
         `${instance}/api/v1/device-trust/device/web-device/identity-key`,
         (route) =>
             route.fulfill({
-                json: { kty: 'OKP', crv: 'Ed25519', x: identity.public },
+                json: { kty: 'OKP', crv: 'Ed25519', x: identity.publicJwk.x },
             })
     );
 
     const opened = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        kind: 'action',
+        type: 'handleAction',
         operation: 'sync-receive',
-        vaultId: 'vault-2',
+        vaultId: '10000000-0000-4000-8000-000000000002',
     });
 
     const action = await opened;
@@ -1705,7 +1738,9 @@ for (const method of [
                 rawId = new Uint8Array(registered ? [9, 8, 7] : [1, 2, 3])
                     .buffer;
                 response = {
-                    userHandle: new TextEncoder().encode('vault-2').buffer,
+                    userHandle: new TextEncoder().encode(
+                        '10000000-0000-4000-8000-000000000002'
+                    ).buffer,
                 };
 
                 getClientExtensionResults() {
@@ -1728,7 +1763,7 @@ for (const method of [
                         calls.push({
                             operation: 'get',
                             rpId: publicKey!.rpId!,
-                            vaultId: 'vault-2',
+                            vaultId: '10000000-0000-4000-8000-000000000002',
                             allowed: publicKey!.allowCredentials
                                 ?.map((c) =>
                                     Array.from(
@@ -1801,12 +1836,16 @@ for (const method of [
             method === 'Use existing passkey' ? 'get' : 'create'
         );
         expect(firstCalls[0].rpId).toBe('mossy.dayfit.pl');
-        expect(firstCalls[0].salt).toBe('mossy:encryption:v1:vault:vault-2');
+        expect(firstCalls[0].salt).toBe(
+            'mossy:encryption:v1:vault:10000000-0000-4000-8000-000000000002'
+        );
 
         if (method === 'Use existing passkey') {
             expect(firstCalls[0].allowed).toEqual([1, 2, 3]);
         } else {
-            expect(firstCalls[0].vaultId).toBe('vault-2');
+            expect(firstCalls[0].vaultId).toBe(
+                '10000000-0000-4000-8000-000000000002'
+            );
             expect(firstCalls[0].name).toBeTruthy();
         }
 
@@ -1829,7 +1868,7 @@ for (const method of [
                         JSON.stringify([
                             'https://mossy.dayfit.pl',
                             'user-1',
-                            'vault-2',
+                            '10000000-0000-4000-8000-000000000002',
                         ])
                     );
                 request.onsuccess = () => resolve(request.result);

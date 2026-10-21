@@ -5,9 +5,24 @@ type ApiFetchOptions = RequestInit & {
     authToken?: string | null;
 };
 
-import { ApiError } from '@mossy/client-core';
+export class ApiError extends Error {
+    readonly status: number;
+    readonly code?: string;
+    readonly retryAfter?: number;
 
-export { ApiError };
+    constructor(
+        message: string,
+        status: number,
+        code?: string,
+        retryAfter?: number
+    ) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.code = code;
+        this.retryAfter = retryAfter;
+    }
+}
 
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
     const { includeAuth = true, authToken, ...requestOptions } = options;

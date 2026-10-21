@@ -1,5 +1,5 @@
 import sodium from 'libsodium-wrappers-sumo';
-import type { WrappedKeyRecord } from './types.ts';
+import type { WrappedKeyRecord } from '../types/vault';
 
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
 

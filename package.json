@@ -17,9 +17,12 @@
         "extension:zip": "npm run zip -w mossy-extension"
     },
     "devDependencies": {
-        "typescript": "~5.9.3",
-        "vitest": "^4.1.11",
+        "@playwright/test": "^1.58.2",
         "@types/node": "^24.10.1",
-        "@playwright/test": "^1.58.2"
+        "typescript": "~5.9.3",
+        "vitest": "^4.1.11"
+    },
+    "dependencies": {
+        "@webext-core/messaging": "^4.0.0"
     }
 }

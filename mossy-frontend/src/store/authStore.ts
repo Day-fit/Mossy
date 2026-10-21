@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { UserDetailsResponse } from '../api/auth.api.ts';
+import type { UserDetailsResponse } from 'mossy-api-client/auth.api';
 
 type AuthStoreState = {
     isAuthenticated: boolean | null;

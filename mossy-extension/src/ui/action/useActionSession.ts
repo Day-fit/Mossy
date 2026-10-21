@@ -5,7 +5,7 @@ import { wrappedKeys } from '../../storage/wrappedKeys';
 import { signingHandles } from '../../storage/deviceIdentity';
 import { assertLive } from '../../security/security';
 import type { Action as ActionModel, ActionResult } from '../../types/models';
-import type { WrappedKeyRecord } from '@mossy/client-core';
+import type { WrappedKeyRecord } from '../../types/vault';
 import type { Phase } from './authorization';
 
 export function useActionSession() {

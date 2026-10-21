@@ -9,8 +9,8 @@ src/
   Action.tsx       Top-level secure-action screen
   Popup.tsx        Top-level popup screen
   globals.css      Styles shared across the extension
-  actions/         Secret worker and its lifecycle wrapper
-  api/             Extension HTTP transport
+  actions/         Secret worker, key-sync crypto, and event parsing
+  auth/            Device login and enrollment flow
   background/      Background session, command handling, and browser events
   capture/         Login-form discovery and pending password captures
   messaging/       Popup RPC and action-window connections
@@ -30,6 +30,9 @@ Keep unit tests beside the module they exercise. Keep screen-specific components
 and hooks in their matching `ui` folder; keep top-level screens and global styles
 in `src/`. Put a component in `ui/shared` when multiple screens use it. Browser
 entrypoints should configure and launch the relevant module.
+
+Endpoint functions are imported directly from `mossy-api-client`, including
+`mossy-api-client/extension/auth.api` for extension authentication.
 
 Secrets stay in transient input elements and action workers. Popup state holds
 metadata only. Storage modules persist wrapped vault keys and native device

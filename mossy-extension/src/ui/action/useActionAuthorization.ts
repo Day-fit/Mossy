@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import {
-    VAULT_PASSWORD_MIN_LENGTH,
-    type WrappedKeyRecord,
-} from '@mossy/client-core';
+import { VAULT_PASSWORD_MIN_LENGTH } from '../../security/vaultCrypto';
+import { type WrappedKeyRecord } from '../../types/vault';
 import { authorizePrf, registerPrf } from '../../security/passkeys';
 import { assertLive } from '../../security/security';
 import { authorizationError, type ProtectionChoice } from './authorization';

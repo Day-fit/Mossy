@@ -31,10 +31,12 @@ export type DeviceDetails = {
 
 export async function executeGetDeviceIdentityKeyRequest(
     deviceId: string,
-    signal: AbortSignal
+    signal: AbortSignal | undefined,
+    instance = ''
 ): Promise<PublicIdentityJwk> {
     return apiFetch(
-        `/api/v1/device-trust/device/${encodeURIComponent(deviceId)}/identity-key`,
+        instance +
+            `/api/v1/device-trust/device/${encodeURIComponent(deviceId)}/identity-key`,
         { signal }
     ).then((response) => response.json());
 }
@@ -89,12 +91,16 @@ export async function receiveEnrollmentEvents(
 }
 
 export async function executeDeviceLoginChallengeRequest(
-    deviceId: string
+    deviceId: string,
+    instance = ''
 ): Promise<DeviceLoginChallengeResult> {
-    const response = await apiFetch(`/api/v1/device-trust/nonce/${deviceId}`, {
-        includeAuth: false,
-        method: 'GET',
-    });
+    const response = await apiFetch(
+        instance + `/api/v1/device-trust/nonce/${deviceId}`,
+        {
+            includeAuth: false,
+            method: 'GET',
+        }
+    );
 
     if (response.status === 202) {
         return { status: 'enrollment-pending' };
@@ -106,13 +112,16 @@ export async function executeDeviceLoginChallengeRequest(
     };
 }
 
-export async function executeCreateEnrollmentRequest(data: {
-    token: string;
-    idempotencyKey: string;
-    userAgent: string;
-    publicIdentityKey: PublicIdentityJwk;
-}): Promise<{ enrollmentId: string; challenge: NonceChallenge }> {
-    return apiFetch('/api/v1/device-trust/device/enrollment', {
+export async function executeCreateEnrollmentRequest(
+    data: {
+        token: string;
+        idempotencyKey: string;
+        userAgent: string;
+        publicIdentityKey: PublicIdentityJwk;
+    },
+    instance = ''
+): Promise<{ enrollmentId: string; challenge: NonceChallenge }> {
+    return apiFetch(instance + '/api/v1/device-trust/device/enrollment', {
         method: 'POST',
         authToken: data.token,
         headers: { 'Idempotency-Key': data.idempotencyKey },
@@ -123,23 +132,29 @@ export async function executeCreateEnrollmentRequest(data: {
     }).then((response) => response.json());
 }
 
-export async function executeConfirmEnrollmentRequest(data: {
-    token: string;
-    idempotencyKey: string;
-    enrollmentId: string;
-    challengeId: string;
-    signature: string;
-}): Promise<{ deviceId: string }> {
-    return apiFetch('/api/v1/device-trust/device/enrollment/challenge', {
-        method: 'POST',
-        authToken: data.token,
-        headers: { 'Idempotency-Key': data.idempotencyKey },
-        body: JSON.stringify({
-            enrollmentId: data.enrollmentId,
-            challengeId: data.challengeId,
-            signature: data.signature,
-        }),
-    }).then((response) => response.json());
+export async function executeConfirmEnrollmentRequest(
+    data: {
+        token: string;
+        idempotencyKey: string;
+        enrollmentId: string;
+        challengeId: string;
+        signature: string;
+    },
+    instance = ''
+): Promise<{ deviceId: string }> {
+    return apiFetch(
+        instance + '/api/v1/device-trust/device/enrollment/challenge',
+        {
+            method: 'POST',
+            authToken: data.token,
+            headers: { 'Idempotency-Key': data.idempotencyKey },
+            body: JSON.stringify({
+                enrollmentId: data.enrollmentId,
+                challengeId: data.challengeId,
+                signature: data.signature,
+            }),
+        }
+    ).then((response) => response.json());
 }
 
 export async function executeGetEnrollmentsRequest(): Promise<

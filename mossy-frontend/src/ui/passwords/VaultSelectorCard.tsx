@@ -1,4 +1,4 @@
-import type { UserVaultDto } from '../../api/vault.api.ts';
+import type { UserVaultDto } from 'mossy-api-client/vault.api';
 import { GoCheckCircleFill } from 'react-icons/go';
 import { motion } from 'framer-motion';
 import VaultStatus from '../shared/VaultStatus.tsx';

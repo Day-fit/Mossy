@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
     executeUserVaultsRequest,
     type UserVaultDto,
-} from '../api/vault.api.ts';
+} from 'mossy-api-client/vault.api';
 
 type VaultStoreState = {
     vaults: UserVaultDto[];

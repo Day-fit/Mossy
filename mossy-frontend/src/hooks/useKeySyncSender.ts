@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiError } from '../api/client.ts';
+import { ApiError } from 'mossy-api-client/client';
 import { KeyNotFoundException } from '../exception/KeyNotFoundException.ts';
 import { getVerifiedReceiver, sendVaultKey } from '../key-sync/sendVaultKey.ts';
 import { useDeviceStore } from '../store/deviceStore.ts';

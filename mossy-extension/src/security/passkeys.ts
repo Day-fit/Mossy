@@ -1,8 +1,5 @@
-import {
-    createVaultPasskeys,
-    prfBytes,
-    PrfNotSupportedError,
-} from '@mossy/client-core';
+import { createVaultPasskeys } from './vaultPasskeys';
+import { prfBytes, PrfNotSupportedError } from './vaultCrypto';
 
 async function protection(
     ceremony: Promise<{

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { rpc } from '../../messaging/rpc';
+import { messaging } from '../../messaging/rpc';
 import { matchesSite, type Target } from '../../security/security';
 import type { Entry, Operation } from '../../types/models';
 import type { PopupView } from './types';
@@ -22,11 +22,12 @@ export function usePopupController() {
             set({ loading: true, error: undefined });
 
             try {
-                const next = await rpc<PopupView>({
-                    kind: 'state',
-                    vaultId: vaultId ?? selected.current,
-                });
-
+                const next: PopupView = await messaging.sendMessage(
+                    'getPopupView',
+                    {
+                        vaultId: vaultId ?? selected.current,
+                    }
+                );
                 if (request !== requestVersion.current) {
                     return;
                 }
@@ -115,8 +116,7 @@ export function usePopupController() {
                 throw new Error('Choose a vault.');
             }
 
-            await rpc({
-                kind: 'action',
+            await messaging.sendMessage('handleAction', {
                 operation,
                 vaultId: view.selected,
                 passwordId: entry?.passwordId,
@@ -150,12 +150,10 @@ export function usePopupController() {
             setEnrollmentPending(false);
 
             try {
-                const response = await rpc<{
-                    status: string;
-                }>({
-                    kind: 'login',
-                    ...credentials,
-                });
+                const response = await messaging.sendMessage(
+                    'handleLogin',
+                    credentials
+                );
                 setEnrollmentPending(response.status === 'enrollment-pending');
             } finally {
                 credentials.password = '';

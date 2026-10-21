@@ -64,13 +64,16 @@ function firstValidationMessage(
 }
 
 export async function executeSavePasswordRequest(
-    payload: SavePasswordRequestDto
+    payload: SavePasswordRequestDto,
+    instance = '',
+    signal?: AbortSignal
 ): Promise<ServerResponseDto> {
     const validation = savePasswordRequestSchema.safeParse(payload);
     const validationMessage = firstValidationMessage(validation);
     if (validationMessage) throw new Error(validationMessage);
 
-    const response = await apiFetch('/api/v1/passwords/save', {
+    const response = await apiFetch(instance + '/api/v1/passwords/save', {
+        signal,
         method: 'POST',
         body: JSON.stringify(validation.data),
     });
@@ -79,13 +82,16 @@ export async function executeSavePasswordRequest(
 }
 
 export async function executeUpdatePasswordRequest(
-    payload: UpdatePasswordRequestDto
+    payload: UpdatePasswordRequestDto,
+    instance = '',
+    signal?: AbortSignal
 ): Promise<ServerResponseDto> {
     const validation = updatePasswordRequestSchema.safeParse(payload);
     const validationMessage = firstValidationMessage(validation);
     if (validationMessage) throw new Error(validationMessage);
 
-    const response = await apiFetch('/api/v1/passwords/update', {
+    const response = await apiFetch(instance + '/api/v1/passwords/update', {
+        signal,
         method: 'PATCH',
         body: JSON.stringify(validation.data),
     });
@@ -105,13 +111,14 @@ export async function executeDeletePasswordRequest(
 }
 
 export async function executePasswordMetadataRequest(
-    vaultId: string
+    vaultId: string,
+    instance = '',
+    signal?: AbortSignal
 ): Promise<PasswordMetadataDto[]> {
     const response = await apiFetch(
-        `/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`,
-        {
-            method: 'GET',
-        }
+        instance +
+            `/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`,
+        { signal, method: 'GET' }
     );
 
     return response.json();
@@ -119,13 +126,14 @@ export async function executePasswordMetadataRequest(
 
 export async function executePasswordCiphertextRequest(
     passwordId: string,
-    vaultId: string
+    vaultId: string,
+    instance = '',
+    signal?: AbortSignal
 ): Promise<CiphertextResponseDto> {
     const response = await apiFetch(
-        `/api/v1/passwords/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
-        {
-            method: 'GET',
-        }
+        instance +
+            `/api/v1/passwords/ciphertext/${encodeURIComponent(passwordId)}?vaultId=${encodeURIComponent(vaultId)}`,
+        { signal, method: 'GET' }
     );
 
     return response.json();

@@ -1,19 +1,31 @@
 import { z } from 'zod';
+import { signIn } from '../auth/signIn';
+import { executeUserDetailsRequest } from 'mossy-api-client/auth.api';
+import { executeUserVaultsRequest } from 'mossy-api-client/vault.api';
+import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import {
-    authenticateDevice,
-    verifyReceiverDetails,
-    waitForReceiverResult,
-    type ReceiverDetails,
-    type VaultKeyResponse,
-    type PublicIdentityJwk,
-} from '@mossy/client-core';
+    executePasswordMetadataRequest,
+    executePasswordCiphertextRequest,
+    executeSavePasswordRequest,
+    executeUpdatePasswordRequest,
+} from 'mossy-api-client/password.api';
+import {
+    executeGetPendingReceiversRequest,
+    executeInitKeySyncRequest,
+    executeGetVaultKeysRequest,
+    executeSubscribeReceiverEventsRequest,
+    executeUploadVaultKeyRequest,
+} from 'mossy-api-client/keySync.api';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
+import {
+    executeExtensionRefreshRequest,
+    executeExtensionLogoutRequest,
+} from 'mossy-api-client/extension/auth.api';
+import { messaging } from '../messaging/rpc';
+import { verifyReceiverDetails } from '../actions/keySync';
+import { waitForReceiverResult } from '../actions/receiverEvents';
 import { wrappedKeys } from '../storage/wrappedKeys';
-import {
-    deviceSigner,
-    loadDeviceId,
-    saveDeviceId,
-} from '../storage/deviceIdentity';
-import { ExtensionTransport } from '../api/ExtensionTransport';
+import { loadDeviceId } from '../storage/deviceIdentity';
 import { PendingCapture } from '../capture/PendingCapture';
 import {
     DEFAULT_INSTANCE,
@@ -26,7 +38,7 @@ import {
     assertLive,
     type Target,
 } from '../security/security';
-import type { Vault, Entry, Action } from '../types/models';
+import type { Action } from '../types/models';
 import {
     instanceSetting,
     themeSetting,
@@ -38,24 +50,6 @@ let instance = DEFAULT_INSTANCE;
 let theme: 'light' | 'dark' | 'system' = 'system';
 let account: { userId: string; username: string } | undefined;
 let deviceId: string | undefined;
-let api: ExtensionTransport;
-let generation = 0;
-
-function sessionGuard() {
-    const epoch = generation;
-    const current = api;
-    const user = account?.userId;
-
-    return () => {
-        if (
-            epoch !== generation ||
-            api !== current ||
-            account?.userId !== user
-        ) {
-            throw new Error('Account changed.');
-        }
-    };
-}
 
 const actions = new Map<
     string,
@@ -85,25 +79,6 @@ const pending = new PendingCapture(() => {
         void chrome.action.setBadgeText({ text: '' });
     }
 });
-
-function clearSession() {
-    generation++;
-
-    if (api) {
-        api.token = null;
-    }
-
-    account = undefined;
-    deviceId = undefined;
-    pending.clear();
-    forms.clear();
-
-    for (const id of actions.keys()) {
-        closeAction(id);
-    }
-
-    notify();
-}
 
 function closeAction(id: string) {
     const state = actions.get(id);
@@ -145,42 +120,13 @@ const ready = (async () => {
 
     theme = storedTheme;
 
-    api = new ExtensionTransport(instance, clearSession);
-
-    try {
-        await api.refresh();
-        await loadAccount();
-    } catch {
-        /* signed out; login reports upgrade/network errors */
-    }
+    const response = await executeExtensionRefreshRequest(instance);
+    const { accessToken } = await response.json();
+    tokenStorage.set(accessToken);
 
     await configureCapture();
 })();
 
-async function loadAccount() {
-    const current = api;
-    const epoch = generation;
-    const user = await api.request<{ userId: string; username: string }>(
-        '/api/v1/auth/user/me'
-    );
-
-    if (current !== api || epoch !== generation) {
-        throw new Error('Account changed.');
-    }
-
-    const storedIdentifier = await lastIdentifierSetting.getValue();
-    const loadedDeviceId =
-        storedIdentifier !== null
-            ? ((await loadDeviceId(instance, storedIdentifier)) ?? undefined)
-            : undefined;
-
-    if (current !== api || epoch !== generation) {
-        throw new Error('Account changed.');
-    }
-
-    account = user;
-    deviceId = loadedDeviceId;
-}
 
 async function configureCapture() {
     const permission = await chrome.permissions.contains({
@@ -348,19 +294,15 @@ async function handleContent(
 }
 
 async function listEntries(vaultId: string) {
-    return (
-        await api.request<Entry[]>(
-            `/api/v1/passwords/metadata?vaultId=${encodeURIComponent(vaultId)}`
-        )
-    ).filter((entry) => entry.passwordType === 'PASSWORD');
+    return (await executePasswordMetadataRequest(vaultId, instance)).filter(
+        (entry) => entry.passwordType === 'PASSWORD'
+    );
 }
 
 async function state(vaultId?: string) {
-    const guard = sessionGuard();
     const permission = await chrome.permissions.contains({
         origins: ['https://*/*'],
     });
-    guard();
 
     if (!account) {
         return {
@@ -375,7 +317,7 @@ async function state(vaultId?: string) {
         };
     }
 
-    const vaults = await api.request<Vault[]>('/api/v1/passwords/vault/vaults');
+    const vaults = await executeUserVaultsRequest(instance);
     const selected =
         vaultId && vaults.some((v) => v.vaultId === vaultId)
             ? vaultId
@@ -386,7 +328,6 @@ async function state(vaultId?: string) {
     });
     const tab = tabs[0];
     const entries = selected ? await listEntries(selected) : [];
-    guard();
 
     return {
         instance,
@@ -410,11 +351,9 @@ async function createAction(
         throw new Error('Sign in again to verify your device.');
     }
 
-    const guard = sessionGuard();
     const user = account;
     const sourceDevice = deviceId;
-    const vaults = await api.request<Vault[]>('/api/v1/passwords/vault/vaults');
-    guard();
+    const vaults = await executeUserVaultsRequest(instance);
 
     const vault = vaults.find((vault) => vault.vaultId === command.vaultId);
 
@@ -423,7 +362,6 @@ async function createAction(
     }
 
     const entries = await listEntries(command.vaultId);
-    guard();
 
     const entry = entries.find((e) => e.passwordId === command.passwordId);
 
@@ -525,9 +463,10 @@ async function createAction(
             throw new Error('Enter a sync code.');
         }
 
-        const receivers = await api.request<
-            (ReceiverDetails & { code: string })[]
-        >('/api/v1/key-sync/receivers');
+        const receivers = await executeGetPendingReceiversRequest(
+            undefined,
+            instance
+        );
         const receiver = receivers.find(
             (r) =>
                 r.code === command.code &&
@@ -541,11 +480,12 @@ async function createAction(
 
         await verifyReceiverDetails(
             receiver,
-            await api.request<PublicIdentityJwk>(
-                `/api/v1/device-trust/device/${encodeURIComponent(receiver.receiverId)}/identity-key`
+            await executeGetDeviceIdentityKeyRequest(
+                receiver.receiverId,
+                undefined,
+                instance
             )
         );
-        guard();
         action.receiver = receiver;
     }
 
@@ -553,7 +493,6 @@ async function createAction(
         action.deadline = Date.now() + 300000;
     }
 
-    guard();
     assertLive(action.deadline);
 
     const window = await chrome.windows.create({
@@ -570,7 +509,6 @@ async function createAction(
     }
 
     try {
-        guard();
         assertLive(action.deadline);
     } catch (error) {
         void chrome.windows.remove(window.id);
@@ -633,7 +571,55 @@ async function revalidateTarget(target: Target) {
     }
 }
 
+function requirePopup(sender: chrome.runtime.MessageSender) {
+    if (!trustedPage(sender, '/popup.html'))
+        throw new Error('Untrusted source.');
+}
+
+messaging.onMessage('getPopupView', async ({ data, sender }) => {
+    requirePopup(sender);
+    await ready;
+    return state(data.vaultId);
+});
+
+messaging.onMessage('handleAction', async ({ data, sender }) => {
+    requirePopup(sender);
+    await ready;
+    const command = commandSchema.parse({ kind: 'action', ...data });
+    if (command.kind !== 'action') throw new Error('Invalid action.');
+    await createAction(command);
+});
+
+messaging.onMessage('handleLogin', async ({ data, sender }) => {
+    requirePopup(sender);
+    await ready;
+    const command = commandSchema.parse({ kind: 'login', ...data });
+    if (command.kind !== 'login') throw new Error('Invalid login.');
+    const result = await signIn(instance, command);
+    command.password = '';
+    await lastIdentifierSetting.setValue(command.identifier);
+    deviceId = result.deviceId;
+    if (result.status === 'authenticated') {
+        tokenStorage.set(result.accessToken);
+    }
+    return { status: result.status };
+});
+
+messaging.onMessage('handleLogout', async ({ sender }) => {
+    requirePopup(sender);
+    await ready;
+    const retiring = instance;
+    await executeExtensionLogoutRequest(retiring);
+    return { status: 'ok' as const };
+});
+
 chrome.runtime.onMessage.addListener((raw, sender, respond) => {
+    if (
+        !['discover', 'capture', 'theme', 'settings', 'dismiss'].includes(
+            raw?.kind
+        )
+    )
+        return;
     if (raw?.kind === 'changed') {
         return;
     }
@@ -650,10 +636,6 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
               const command = commandSchema.parse(raw);
 
-              if (command.kind === 'state') {
-                  return state(command.vaultId);
-              }
-
               if (command.kind === 'theme') {
                   await themeSetting.setValue(command.theme);
                   theme = command.theme;
@@ -663,19 +645,6 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
               if (command.kind === 'dismiss') {
                   pending.clear();
-
-                  return { ok: true };
-              }
-
-              if (command.kind === 'logout') {
-                  const retiring = api;
-                  retiring.token = null;
-                  clearSession();
-
-                  await retiring.request('/api/v1/auth/extension/logout', {
-                      method: 'POST',
-                      anonymous: true,
-                  });
 
                   return { ok: true };
               }
@@ -697,24 +666,16 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
                   }
 
                   if (next !== instance) {
-                      const retiring = api;
-                      retiring.token = null;
+                      const retiring = instance;
                       clearSession();
 
                       try {
-                          await retiring.request(
-                              '/api/v1/auth/extension/logout',
-                              {
-                                  method: 'POST',
-                                  anonymous: true,
-                              }
-                          );
+                          await executeExtensionLogoutRequest(retiring);
                       } catch {
                           /* Local teardown still succeeds if the old server is unavailable. */
                       }
 
                       instance = next;
-                      api = new ExtensionTransport(instance, clearSession);
                   }
 
                   theme = command.theme;
@@ -722,50 +683,6 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
                   await saveSettings(instance, theme);
 
                   return { ok: true };
-              }
-
-              if (command.kind === 'login') {
-                  clearSession();
-                  api.token = null;
-
-                  const epoch = generation;
-                  const currentInstance = instance;
-                  const currentApi = api;
-                  const result = await authenticateDevice({
-                      transport: api,
-                      signer: await deviceSigner(instance),
-                      credentials: {
-                          identifier: command.identifier,
-                          password: command.password,
-                      },
-                      loginPath: '/api/v1/auth/extension/login',
-                      loadDeviceId: () =>
-                          loadDeviceId(currentInstance, command.identifier),
-                      saveDeviceId: (id) =>
-                          saveDeviceId(currentInstance, command.identifier, id),
-                      userAgent: navigator.userAgent,
-                  });
-                  command.password = '';
-
-                  if (epoch !== generation || api !== currentApi) {
-                      throw new Error('Account changed.');
-                  }
-
-                  deviceId = result.deviceId;
-
-                  await lastIdentifierSetting.setValue(command.identifier);
-
-                  if (result.status === 'authenticated') {
-                      api.token = result.accessToken;
-
-                      await loadAccount();
-                  }
-
-                  return result;
-              }
-
-              if (command.kind === 'action') {
-                  return createAction(command);
               }
 
               throw new Error('Unsupported command.');
@@ -868,7 +785,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 if (
                     account?.userId !== action.scope.account ||
                     instance !== action.scope.instance ||
-                    !api.token
+                    !tokenStorage.get()
                 ) {
                     throw new Error('Account changed.');
                 }
@@ -887,9 +804,11 @@ chrome.runtime.onConnect.addListener((port) => {
                         throw new Error('No selected secret.');
                     }
 
-                    result = await api.request(
-                        `/api/v1/passwords/ciphertext/${encodeURIComponent(action.entry.passwordId)}?vaultId=${encodeURIComponent(action.scope.vault)}`,
-                        { signal: item.controller.signal }
+                    result = await executePasswordCiphertextRequest(
+                        action.entry.passwordId,
+                        action.scope.vault,
+                        instance,
+                        item.controller.signal
                     );
                 } else if (request.kind === 'candidate') {
                     if (
@@ -931,22 +850,20 @@ chrome.runtime.onConnect.addListener((port) => {
                         throw new Error('Invalid receiver.');
                     }
 
-                    item.events = await api.receiverEvents(
-                        item.controller.signal
+                    item.events = await executeSubscribeReceiverEventsRequest(
+                        item.controller.signal,
+                        instance
                     );
                     guard();
 
-                    const response = await api.request<{ code: string }>(
-                        '/api/v1/key-sync',
+                    const response = await executeInitKeySyncRequest(
                         {
-                            method: 'POST',
-                            body: JSON.stringify({
-                                vaultId: receiver.vaultId,
-                                publicDh: receiver.publicDh,
-                                signature: receiver.signature,
-                            }),
-                            signal: item.controller.signal,
-                        }
+                            vaultId: receiver.vaultId,
+                            publicDh: receiver.publicDh,
+                            signature: receiver.signature,
+                        },
+                        item.controller.signal,
+                        instance
                     );
                     guard();
                     action.receiver = receiver;
@@ -973,11 +890,10 @@ chrome.runtime.onConnect.addListener((port) => {
                     guard();
                     assertLive(action.deadline);
 
-                    const keys = await api.request<{
-                        keys: VaultKeyResponse[];
-                    }>('/api/v1/key-sync/vault-keys', {
-                        signal: item.controller.signal,
-                    });
+                    const keys = await executeGetVaultKeysRequest(
+                        item.controller.signal,
+                        instance
+                    );
                     guard();
 
                     const transfer = keys.keys.find(
@@ -994,10 +910,12 @@ chrome.runtime.onConnect.addListener((port) => {
 
                     result = {
                         transfer,
-                        senderIdentity: await api.request(
-                            `/api/v1/device-trust/device/${encodeURIComponent(transfer.senderId)}/identity-key`,
-                            { signal: item.controller.signal }
-                        ),
+                        senderIdentity:
+                            await executeGetDeviceIdentityKeyRequest(
+                                transfer.senderId,
+                                item.controller.signal,
+                                instance
+                            ),
                     };
                 } else if (request.kind === 'receive-finish') {
                     if (action.operation !== 'sync-receive') {
@@ -1102,31 +1020,28 @@ chrome.runtime.onConnect.addListener((port) => {
 
                             const payload = {
                                 vaultId: action.scope.vault,
-                                identifier: action.candidateIdentifier,
-                                address: action.candidateOrigin,
+                                identifier: action.candidateIdentifier!,
+                                address: action.candidateOrigin!,
                                 cipherText: value.ciphertext,
-                                ...(action.entry
-                                    ? { passwordId: action.entry.passwordId }
-                                    : { passwordType: 'PASSWORD' }),
                             };
                             guard();
                             assertLive(action.deadline);
                             item.dispatched = true;
 
-                            await api.request(
-                                action.entry
-                                    ? '/api/v1/passwords/update'
-                                    : '/api/v1/passwords/save',
-                                {
-                                    method: action.entry ? 'PATCH' : 'POST',
-                                    body: JSON.stringify(payload),
-                                    signal: item.controller.signal,
-                                    beforeDispatch: () => {
-                                        guard();
-                                        assertLive(action.deadline);
-                                    },
-                                }
-                            );
+                            await (action.entry
+                                ? executeUpdatePasswordRequest(
+                                      {
+                                          ...payload,
+                                          passwordId: action.entry.passwordId,
+                                      },
+                                      instance,
+                                      item.controller.signal
+                                  )
+                                : executeSavePasswordRequest(
+                                      { ...payload, passwordType: 'PASSWORD' },
+                                      instance,
+                                      item.controller.signal
+                                  ));
                             result = { status: 'saved' };
                         }
                     } else if (action.operation === 'sync-send') {
@@ -1147,13 +1062,11 @@ chrome.runtime.onConnect.addListener((port) => {
                             throw new Error('Invalid transfer.');
                         }
 
-                        await api.request(
-                            `/api/v1/key-sync/${encodeURIComponent(action.code!)}`,
-                            {
-                                method: 'POST',
-                                body: JSON.stringify(value),
-                                signal: item.controller.signal,
-                            }
+                        await executeUploadVaultKeyRequest(
+                            action.code!,
+                            value,
+                            item.controller.signal,
+                            instance
                         );
                         result = { status: 'sent' };
                     } else if (

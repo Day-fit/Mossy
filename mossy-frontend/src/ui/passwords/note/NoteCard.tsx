@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
     executeGetNoteRequest,
     executeSaveNoteRequest,
-} from '../../../api/note.api.ts';
+} from 'mossy-api-client/note.api';
 import { RiErrorWarningLine } from 'react-icons/ri';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useEncryptionHook } from '../../../hooks/useEncryptionHook.ts';

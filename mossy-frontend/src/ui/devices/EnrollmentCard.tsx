@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { DeviceEnrollment } from '../../api/deviceTrust.api.ts';
+import type { DeviceEnrollment } from 'mossy-api-client/deviceTrust.api';
 import { useDevices } from '../../hooks/useDevices.ts';
 import Button from '../shared/Button.tsx';
 import { DeviceIcon } from './deviceIcon.tsx';

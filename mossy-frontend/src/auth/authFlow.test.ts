@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/client.ts';
+import { ApiError } from 'mossy-api-client/client';
 import { registerAndSignIn, signIn } from './authFlow.ts';
 
 const authApi = vi.hoisted(() => ({
     executeLoginRequest: vi.fn(),
     executeRegisterRequest: vi.fn(),
 }));
-
 const deviceTrustApi = vi.hoisted(() => ({
     executeDeviceLoginChallengeRequest: vi.fn(),
     executeCreateEnrollmentRequest: vi.fn(),
     executeConfirmEnrollmentRequest: vi.fn(),
 }));
-
 const deviceIdentity = vi.hoisted(() => ({
     ensureDeviceIdentity: vi.fn(),
     loadStoredDeviceId: vi.fn(),
@@ -20,10 +18,8 @@ const deviceIdentity = vi.hoisted(() => ({
     storeDeviceId: vi.fn(),
 }));
 
-vi.mock('../api/auth.api.ts', () => authApi);
-
-vi.mock('../api/deviceTrust.api.ts', () => deviceTrustApi);
-
+vi.mock('mossy-api-client/auth.api', () => authApi);
+vi.mock('mossy-api-client/deviceTrust.api', () => deviceTrustApi);
 vi.mock('./deviceIdentity.ts', () => deviceIdentity);
 
 const identity = {
@@ -31,14 +27,13 @@ const identity = {
     public: 'public-key',
     private: 'private-key',
 };
-
 const credentials = { identifier: 'mossy', password: 'correct-password' };
 
 describe('auth flow', () => {
     beforeEach(() => {
         vi.resetAllMocks();
         deviceIdentity.ensureDeviceIdentity.mockResolvedValue(identity);
-        deviceIdentity.signNonce.mockResolvedValue('c2lnbmVkLW5vbmNl');
+        deviceIdentity.signNonce.mockResolvedValue('signed-nonce');
         deviceIdentity.storeDeviceId.mockResolvedValue(undefined);
     });
 
@@ -47,7 +42,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
             status: 'challenge-ready',
             challenge: {
-                nonce: 'bm9uY2UtMQ',
+                nonce: 'nonce-1',
                 challengeId: 'challenge-1',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -61,9 +56,8 @@ describe('auth flow', () => {
             status: 'authenticated',
             accessToken: 'access-token',
         });
-
         expect(deviceIdentity.signNonce).toHaveBeenCalledWith(
-            'bm9uY2UtMQ',
+            'nonce-1',
             identity
         );
         expect(deviceIdentity.loadStoredDeviceId).toHaveBeenCalledWith('mossy');
@@ -72,7 +66,7 @@ describe('auth flow', () => {
             challengeDto: {
                 deviceId: 'device-1',
                 challengeId: 'challenge-1',
-                signature: 'c2lnbmVkLW5vbmNl',
+                signature: 'signed-nonce',
             },
         });
         expect(
@@ -90,7 +84,6 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'pending-device-1',
         });
-
         expect(deviceIdentity.signNonce).not.toHaveBeenCalled();
         expect(authApi.executeLoginRequest).not.toHaveBeenCalled();
     });
@@ -104,7 +97,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeCreateEnrollmentRequest.mockResolvedValue({
             enrollmentId: 'enrollment-1',
             challenge: {
-                nonce: 'ZW5yb2xsbWVudC1ub25jZQ',
+                nonce: 'enrollment-nonce',
                 challengeId: 'enrollment-challenge',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -117,7 +110,6 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'pending-device-1',
         });
-
         expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
             ...credentials,
             challengeDto: null,
@@ -129,7 +121,7 @@ describe('auth flow', () => {
                 token: 'enrollment-token',
                 enrollmentId: 'enrollment-1',
                 challengeId: 'enrollment-challenge',
-                signature: 'c2lnbmVkLW5vbmNl',
+                signature: 'signed-nonce',
             })
         );
         expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
@@ -150,7 +142,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeCreateEnrollmentRequest.mockResolvedValue({
             enrollmentId: 'replacement-enrollment',
             challenge: {
-                nonce: 'cmVwbGFjZW1lbnQtbm9uY2U',
+                nonce: 'replacement-nonce',
                 challengeId: 'replacement-challenge',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -163,7 +155,6 @@ describe('auth flow', () => {
             status: 'enrollment-pending',
             deviceId: 'replacement-device',
         });
-
         expect(authApi.executeLoginRequest).toHaveBeenCalledWith({
             ...credentials,
             challengeDto: null,
@@ -182,7 +173,7 @@ describe('auth flow', () => {
         deviceTrustApi.executeDeviceLoginChallengeRequest.mockResolvedValue({
             status: 'challenge-ready',
             challenge: {
-                nonce: 'bm9uY2UtMg',
+                nonce: 'nonce-2',
                 challengeId: 'challenge-2',
                 expiresAt: '2026-08-11T00:00:00Z',
             },
@@ -202,7 +193,6 @@ describe('auth flow', () => {
             status: 'authenticated',
             accessToken: 'registered-access-token',
         });
-
         expect(authApi.executeRegisterRequest).toHaveBeenCalledWith({
             username: 'mossy',
             email: 'mossy@example.com',
@@ -247,7 +237,6 @@ describe('auth flow', () => {
             verification,
             identifier: 'new@example.com',
         });
-
         expect(deviceIdentity.storeDeviceId).toHaveBeenCalledWith(
             'device-3',
             'new-user'

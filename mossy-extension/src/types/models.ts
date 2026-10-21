@@ -1,10 +1,10 @@
+import type { Scope } from './vault';
 import type { Target } from '../security/security';
 import type {
-    Scope,
     ReceiverDetails,
     VaultKeyResponse,
     PublicIdentityJwk,
-} from '@mossy/client-core';
+} from 'mossy-api-client';
 
 export type Vault = {
     vaultId: string;

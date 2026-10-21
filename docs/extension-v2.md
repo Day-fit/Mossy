@@ -17,28 +17,17 @@ extension and ZIP with installation instructions; do not publish to a browser st
   shared UI. One root lockfile; update CI install/build/test commands.
 - WXT/Vite, React, TypeScript, Zustand, Tailwind 4, framer-motion, Zod, idb, and
   libsodium aligned with the frontend dependencies. Chromium 137 minimum.
-- Shared core contains the current frontend's auth/device enrollment, password
-  payload serialization, PRF/password vault protection, AES encryption, and signed
-  key-sync protocol. Preserve salt inputs, crypto parameters, transcript formats,
-  ciphertext formats, and API DTOs.
-- Platform interfaces cover transport, wrapped-key repository, device signer,
-  protection provider, and account scope. Core has no React/Zustand dependencies
-  or global unlocked-key cache. Frontend adapters retain existing behavior.
+- `mossy-api-client` contains all existing frontend and extension API files,
+  moved whole with their DTOs. Functions call main's fetch helper directly;
+  shared operations accept an optional instance origin for extension requests.
+- Frontend code matches main apart from direct library imports and the package
+  dependency. Auth flow, crypto, components, themes, and tests stay in the frontend.
+- Extension device login, native identity, vault protection, key sync, and
+  wrapped-key storage are concrete extension modules. There are no generic
+  transport, signer, repository, or protection-provider interfaces.
+
 - Extension device private signing keys are native, non-extractable Ed25519
   CryptoKeys in IndexedDB. Wrapped vault keys are scoped by instance/account/vault.
-  The extension enrolls as a new device and provisions keys through existing sync.
-
-Shared extractions are implementation moves. Their original frontend entry points
-remain as edited forwarding modules so existing imports keep working:
-
-| Edited frontend entry point (`mossy-frontend/src/`) | Implementation moved to (`packages/`) |
-| --- | --- |
-| `key-sync/crypto.ts` | `client-core/src/keySync.ts` |
-| `key-sync/receiverEvents.ts` | `client-core/src/receiverEvents.ts` |
-| `api/sse.ts` | `client-core/src/sse.ts` |
-| `ui/passwords/secretPayload.ts` | `client-core/src/secretPayload.ts` |
-| `ui/shared/Button.tsx` | `ui/src/Button.tsx` |
-| `theme/globalTokens.ts` | `ui/src/tokens.ts` |
 
 ## Authentication
 

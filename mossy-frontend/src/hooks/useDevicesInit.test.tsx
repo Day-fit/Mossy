@@ -8,7 +8,7 @@ const api = vi.hoisted(() => ({
     executeGetEnrollmentsRequest: vi.fn(),
     receiveEnrollmentEvents: vi.fn(),
 }));
-vi.mock('../api/deviceTrust.api.ts', () => api);
+vi.mock('mossy-api-client/deviceTrust.api', () => api);
 const enrollment = {
     id: 'enrollment-1',
     lastOsName: 'Linux',

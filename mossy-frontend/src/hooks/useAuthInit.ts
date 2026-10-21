@@ -1,10 +1,10 @@
 import { useEffect } from 'react';
-import { tokenStorage } from '../auth/tokenStorage.ts';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
 import {
     executeCheckAuthState,
     executeRefreshRequest,
     executeUserDetailsRequest,
-} from '../api/auth.api.ts';
+} from 'mossy-api-client/auth.api';
 import { useAuthStore } from '../store/authStore.ts';
 
 export const useAuthInit = () => {
