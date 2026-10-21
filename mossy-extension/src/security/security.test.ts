@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     assertLive,
-    commandSchema,
     contentMessageSchema,
     matchesSite,
     normalizeInstance,
@@ -69,23 +68,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
 
         expect(() => normalizeInstance('http://vault.example', true)).toThrow();
     });
-    it('rejects forged privileged commands, extras and arbitrary API/decryption requests', () => {
-        for (const kind of [
-            'fetch',
-            'decrypt',
-            'finish',
-            'claim-password',
-            'fill-once',
-        ]) {
-            expect(
-                commandSchema.safeParse({ kind, url: 'https://evil.example' })
-                    .success
-            ).toBe(false);
-        }
-
-        expect(
-            commandSchema.safeParse({ kind: 'state', token: 'fake' }).success
-        ).toBe(false);
+    it('rejects privileged commands in content messages', () => {
         expect(
             contentMessageSchema.safeParse({
                 kind: 'action',

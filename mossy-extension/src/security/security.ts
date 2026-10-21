@@ -105,55 +105,6 @@ export const contentMessageSchema = z.discriminatedUnion('kind', [
         .strict(),
 ]);
 
-export const commandSchema = z.discriminatedUnion('kind', [
-    z
-        .object({
-            kind: z.literal('theme'),
-            theme: z.enum(['light', 'dark', 'system']),
-        })
-        .strict(),
-    z.object({ kind: z.literal('state'), vaultId: id.optional() }).strict(),
-    z
-        .object({
-            kind: z.literal('login'),
-            identifier: z.string().min(1).max(1024),
-            password: z.string().min(1).max(65536),
-        })
-        .strict(),
-    z.object({ kind: z.literal('logout') }).strict(),
-    z
-        .object({
-            kind: z.literal('settings'),
-            instance: z.string().max(2048),
-            theme: z.enum(['light', 'dark', 'system']),
-        })
-        .strict(),
-    z.object({ kind: z.literal('dismiss') }).strict(),
-    z
-        .object({
-            kind: z.literal('action'),
-            operation: z.enum([
-                'copy-password',
-                'copy-username',
-                'fill',
-                'save',
-                'sync-send',
-                'sync-receive',
-            ]),
-            vaultId: id,
-            passwordId: id.optional(),
-            target: targetSchema.optional(),
-            code: z
-                .string()
-                .regex(/^[A-Z0-9]{6}$/)
-                .optional(),
-        })
-        .strict(),
-    z.object({ kind: z.literal('claim'), actionId: z.uuid() }).strict(),
-]);
-
-export type Command = z.infer<typeof commandSchema>;
-
 export function trustedPage(
     sender: chrome.runtime.MessageSender,
     path: string

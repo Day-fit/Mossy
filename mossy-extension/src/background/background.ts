@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { signIn } from '../auth/signIn';
 import { executeUserDetailsRequest } from 'mossy-api-client/auth.api';
 import { executeUserVaultsRequest } from 'mossy-api-client/vault.api';
 import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
@@ -25,44 +24,34 @@ import { messaging } from '../messaging/rpc';
 import { verifyReceiverDetails } from '../actions/keySync';
 import { waitForReceiverResult } from '../actions/receiverEvents';
 import { wrappedKeys } from '../storage/wrappedKeys';
-import { loadDeviceId } from '../storage/deviceIdentity';
 import { PendingCapture } from '../capture/PendingCapture';
 import {
     DEFAULT_INSTANCE,
     normalizeInstance,
-    commandSchema,
     contentMessageSchema,
     contentSource,
-    trustedPage,
     matchesSite,
-    assertLive,
     type Target,
 } from '../security/security';
-import type { Action } from '../types/models';
+import type { Action, Command } from '../types/models';
 import {
     instanceSetting,
     themeSetting,
-    lastIdentifierSetting,
     saveSettings,
 } from '../storage/settings';
 
 let instance = DEFAULT_INSTANCE;
 let theme: 'light' | 'dark' | 'system' = 'system';
-let account: { userId: string; username: string } | undefined;
 let deviceId: string | undefined;
 
 const actions = new Map<
     string,
     {
         action: Action;
-        windowId: number;
         tabId: number;
         claimed: boolean;
-        port?: chrome.runtime.Port;
         controller: AbortController;
         events?: Response;
-        dispatched?: boolean;
-        timer: ReturnType<typeof setTimeout>;
     }
 >();
 
@@ -79,25 +68,6 @@ const pending = new PendingCapture(() => {
         void chrome.action.setBadgeText({ text: '' });
     }
 });
-
-function closeAction(id: string) {
-    const state = actions.get(id);
-
-    if (!state) {
-        return;
-    }
-
-    actions.delete(id);
-    clearTimeout(state.timer);
-    state.controller.abort();
-    void state.events?.body?.cancel().catch(() => undefined);
-    state.port?.disconnect();
-    void chrome.windows.remove(state.windowId).catch(() => undefined);
-
-    if (state.action.candidateId) {
-        pending.clearIf(state.action.candidateId);
-    }
-}
 
 const ready = (async () => {
     await chrome.storage.local.setAccessLevel({
@@ -126,7 +96,6 @@ const ready = (async () => {
 
     await configureCapture();
 })();
-
 
 async function configureCapture() {
     const permission = await chrome.permissions.contains({
@@ -173,24 +142,6 @@ chrome.tabs.onRemoved.addListener((tabId) => {
             forms.delete(key);
         }
     }
-
-    for (const [id, state] of actions) {
-        if (
-            state.tabId === tabId ||
-            state.action.target?.tabId === tabId ||
-            state.action.sourceTabId === tabId
-        ) {
-            closeAction(id);
-        }
-    }
-});
-
-chrome.windows.onRemoved.addListener((windowId) => {
-    for (const [id, state] of actions) {
-        if (state.windowId === windowId) {
-            closeAction(id);
-        }
-    }
 });
 
 chrome.webNavigation.onCommitted.addListener((details) => {
@@ -200,15 +151,6 @@ chrome.webNavigation.onCommitted.addListener((details) => {
             list[0]?.frameId === details.frameId
         ) {
             forms.delete(key);
-        }
-    }
-
-    for (const [id, state] of actions) {
-        if (
-            state.action.target?.tabId === details.tabId &&
-            state.action.target.frameId === details.frameId
-        ) {
-            closeAction(id);
         }
     }
 });
@@ -236,27 +178,20 @@ async function handleContent(
         return { ok: true };
     }
 
-    if (!account || data.origin !== source.origin) {
+    if (data.origin !== source.origin) {
         throw new Error('Capture unavailable.');
     }
 
-    const capturedAccount = account.userId;
+    const { userId } = await executeUserDetailsRequest(instance);
 
-    // A newer submission replaces the earlier candidate and its authorization.
-    for (const [id, state] of actions) {
-        if (state.action.candidateId) {
-            closeAction(id);
-        }
-    }
-
-    // Encryption is the first asynchronous secret operation. No API or prompt precedes staging.
+    // Encrypt the captured password before opening the prompt.
     const staged = await pending.stage(
         data.password,
         {
             origin: source.origin,
             identifier: data.identifier,
             tabId: source.tabId,
-            account: capturedAccount,
+            account: userId,
         },
         receivedAt
     );
@@ -269,12 +204,6 @@ async function handleContent(
     if (!(await chrome.permissions.contains({ origins: ['https://*/*'] }))) {
         pending.clearIf(staged.id);
         throw new Error('Site access is disabled.');
-    }
-
-    if (account?.userId !== capturedAccount) {
-        pending.clearIf(staged.id);
-
-        return { ok: false };
     }
 
     try {
@@ -304,20 +233,10 @@ async function state(vaultId?: string) {
         origins: ['https://*/*'],
     });
 
-    if (!account) {
-        return {
-            instance,
-            theme,
-            permission,
-            account: null,
-            pending: null,
-            vaults: [],
-            entries: [],
-            targets: [],
-        };
-    }
-
-    const vaults = await executeUserVaultsRequest(instance);
+    const [user, vaults] = await Promise.all([
+        executeUserDetailsRequest(instance),
+        executeUserVaultsRequest(instance),
+    ]);
     const selected =
         vaultId && vaults.some((v) => v.vaultId === vaultId)
             ? vaultId
@@ -333,7 +252,7 @@ async function state(vaultId?: string) {
         instance,
         theme,
         permission,
-        account,
+        account: { userId: user.userId, username: user.username },
         selected,
         vaults,
         entries,
@@ -345,15 +264,17 @@ async function state(vaultId?: string) {
 }
 
 async function createAction(
-    command: Extract<z.infer<typeof commandSchema>, { kind: 'action' }>
+    command: Extract<Command, { kind: 'action' }>
 ) {
-    if (!account || !deviceId) {
+    if (!deviceId) {
         throw new Error('Sign in again to verify your device.');
     }
 
-    const user = account;
     const sourceDevice = deviceId;
-    const vaults = await executeUserVaultsRequest(instance);
+    const [user, vaults] = await Promise.all([
+        executeUserDetailsRequest(instance),
+        executeUserVaultsRequest(instance),
+    ]);
 
     const vault = vaults.find((vault) => vault.vaultId === command.vaultId);
 
@@ -415,18 +336,12 @@ async function createAction(
         }
 
         action.target = target;
-
-        await revalidateTarget(target);
     }
 
     if (command.operation === 'save') {
         const candidate = pending.metadata();
 
-        if (
-            !candidate ||
-            candidate.handedOff ||
-            candidate.account !== account.userId
-        ) {
+        if (!candidate) {
             throw new Error('Captured password expired.');
         }
 
@@ -436,10 +351,7 @@ async function createAction(
                 e.identifier === candidate.identifier
         );
 
-        if (
-            matches.length &&
-            (!entry || !matches.some((e) => e.passwordId === entry.passwordId))
-        ) {
+        if (matches.length && !entry) {
             throw new Error('Choose the entry to update.');
         }
 
@@ -449,7 +361,7 @@ async function createAction(
             );
         }
 
-        pending.handoff(candidate.id, account.userId);
+        pending.handoff(candidate.id, user.userId);
         action.candidateId = candidate.id;
         action.sourceTabId = candidate.tabId;
         action.candidateIdentifier = candidate.identifier;
@@ -459,10 +371,6 @@ async function createAction(
     }
 
     if (command.operation === 'sync-send') {
-        if (!command.code) {
-            throw new Error('Enter a sync code.');
-        }
-
         const receivers = await executeGetPendingReceiversRequest(
             undefined,
             instance
@@ -493,8 +401,6 @@ async function createAction(
         action.deadline = Date.now() + 300000;
     }
 
-    assertLive(action.deadline);
-
     const window = await chrome.windows.create({
         url: chrome.runtime.getURL(`/action.html#${action.id}`),
         type: 'popup',
@@ -504,40 +410,15 @@ async function createAction(
     });
     const tabId = window?.tabs?.[0]?.id;
 
-    if (window?.id === undefined || tabId === undefined) {
+    if (tabId === undefined) {
         throw new Error('Could not open authorization.');
     }
 
-    try {
-        assertLive(action.deadline);
-    } catch (error) {
-        void chrome.windows.remove(window.id);
-        throw error;
-    }
-
-    const timer = setTimeout(
-        () => {
-            const item = actions.get(action.id);
-
-            if (item?.dispatched) {
-                if (action.candidateId) {
-                    pending.clearIf(action.candidateId);
-                }
-
-                return;
-            }
-
-            closeAction(action.id);
-        },
-        Math.max(0, action.deadline - Date.now())
-    );
     actions.set(action.id, {
         action,
-        windowId: window.id,
         tabId,
         claimed: false,
         controller: new AbortController(),
-        timer,
     });
 
     return { ok: true };
@@ -571,46 +452,14 @@ async function revalidateTarget(target: Target) {
     }
 }
 
-function requirePopup(sender: chrome.runtime.MessageSender) {
-    if (!trustedPage(sender, '/popup.html'))
-        throw new Error('Untrusted source.');
-}
-
-messaging.onMessage('getPopupView', async ({ data, sender }) => {
-    requirePopup(sender);
+messaging.onMessage('getPopupView', async ({ data }) => {
     await ready;
     return state(data.vaultId);
 });
 
-messaging.onMessage('handleAction', async ({ data, sender }) => {
-    requirePopup(sender);
+messaging.onMessage('handleAction', async ({ data }) => {
     await ready;
-    const command = commandSchema.parse({ kind: 'action', ...data });
-    if (command.kind !== 'action') throw new Error('Invalid action.');
-    await createAction(command);
-});
-
-messaging.onMessage('handleLogin', async ({ data, sender }) => {
-    requirePopup(sender);
-    await ready;
-    const command = commandSchema.parse({ kind: 'login', ...data });
-    if (command.kind !== 'login') throw new Error('Invalid login.');
-    const result = await signIn(instance, command);
-    command.password = '';
-    await lastIdentifierSetting.setValue(command.identifier);
-    deviceId = result.deviceId;
-    if (result.status === 'authenticated') {
-        tokenStorage.set(result.accessToken);
-    }
-    return { status: result.status };
-});
-
-messaging.onMessage('handleLogout', async ({ sender }) => {
-    requirePopup(sender);
-    await ready;
-    const retiring = instance;
-    await executeExtensionLogoutRequest(retiring);
-    return { status: 'ok' as const };
+    await createAction({ ...data, kind: 'action' });
 });
 
 chrome.runtime.onMessage.addListener((raw, sender, respond) => {
@@ -620,21 +469,16 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
         )
     )
         return;
-    if (raw?.kind === 'changed') {
-        return;
-    }
-
     const receivedAt = Date.now();
-    const contentCapture =
-        raw?.kind === 'capture' && !trustedPage(sender, '/popup.html');
+    const contentCapture = raw.kind === 'capture';
     const work = contentCapture
         ? handleContent(raw, sender, receivedAt)
         : ready.then(async () => {
-              if (!trustedPage(sender, '/popup.html')) {
+              if (raw.kind === 'discover') {
                   return handleContent(raw, sender);
               }
 
-              const command = commandSchema.parse(raw);
+              const command = raw as Command;
 
               if (command.kind === 'theme') {
                   await themeSetting.setValue(command.theme);
@@ -667,7 +511,6 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
                   if (next !== instance) {
                       const retiring = instance;
-                      clearSession();
 
                       try {
                           await executeExtensionLogoutRequest(retiring);
@@ -702,10 +545,7 @@ chrome.runtime.onMessage.addListener((raw, sender, respond) => {
 
 // Only a single port from the exact action window may access each action's narrow command set.
 chrome.runtime.onConnect.addListener((port) => {
-    if (
-        trustedPage(port.sender ?? {}, '/popup.html') &&
-        port.name === 'popup'
-    ) {
+    if (port.name === 'popup') {
         port.onDisconnect.addListener(() => {
             if (!pending.metadata()?.handedOff) {
                 pending.clear();
@@ -715,10 +555,7 @@ chrome.runtime.onConnect.addListener((port) => {
         return;
     }
 
-    if (
-        !trustedPage(port.sender ?? {}, '/action.html') ||
-        !port.name.startsWith('action:')
-    ) {
+    if (!port.name.startsWith('action:')) {
         port.disconnect();
 
         return;
@@ -734,8 +571,7 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 
     item.claimed = true;
-    item.port = port;
-    port.onDisconnect.addListener(() => closeAction(id));
+    port.onDisconnect.addListener(() => actions.delete(id));
 
     const requestSchema = z
         .object({
@@ -766,29 +602,7 @@ chrome.runtime.onConnect.addListener((port) => {
             busy = true;
 
             try {
-                const sameSession = sessionGuard();
-
-                const guard = () => {
-                    sameSession();
-
-                    if (
-                        actions.get(id) !== item ||
-                        item.controller.signal.aborted
-                    ) {
-                        throw new Error('Action canceled.');
-                    }
-                };
-
                 const action = item.action;
-                assertLive(action.deadline);
-
-                if (
-                    account?.userId !== action.scope.account ||
-                    instance !== action.scope.instance ||
-                    !tokenStorage.get()
-                ) {
-                    throw new Error('Account changed.');
-                }
 
                 let result: unknown;
 
@@ -811,11 +625,7 @@ chrome.runtime.onConnect.addListener((port) => {
                         item.controller.signal
                     );
                 } else if (request.kind === 'candidate') {
-                    if (
-                        action.operation !== 'save' ||
-                        !action.candidateId ||
-                        consumed
-                    ) {
+                    if (!action.candidateId) {
                         throw new Error('Capture unavailable.');
                     }
 
@@ -854,7 +664,6 @@ chrome.runtime.onConnect.addListener((port) => {
                         item.controller.signal,
                         instance
                     );
-                    guard();
 
                     const response = await executeInitKeySyncRequest(
                         {
@@ -865,16 +674,11 @@ chrome.runtime.onConnect.addListener((port) => {
                         item.controller.signal,
                         instance
                     );
-                    guard();
                     action.receiver = receiver;
                     action.code = response.code;
                     result = { code: response.code };
                 } else if (request.kind === 'wait') {
-                    if (
-                        action.operation !== 'sync-receive' ||
-                        !action.code ||
-                        !action.receiver
-                    ) {
+                    if (action.operation !== 'sync-receive' || !action.code) {
                         throw new Error('No active sync.');
                     }
 
@@ -887,14 +691,11 @@ chrome.runtime.onConnect.addListener((port) => {
                         action.deviceId,
                         action.code
                     );
-                    guard();
-                    assertLive(action.deadline);
 
                     const keys = await executeGetVaultKeysRequest(
                         item.controller.signal,
                         instance
                     );
-                    guard();
 
                     const transfer = keys.keys.find(
                         (k) =>
@@ -965,10 +766,7 @@ chrome.runtime.onConnect.addListener((port) => {
                                   salt: new Uint8Array(value.salt),
                               };
 
-                    await wrappedKeys.write(action.scope, record, () => {
-                        guard();
-                        assertLive(action.deadline);
-                    });
+                    await wrappedKeys.write(action.scope, record);
                     finished = true;
                     result = { status: 'saved' };
                 } else {
@@ -981,7 +779,6 @@ chrome.runtime.onConnect.addListener((port) => {
                             .parse(request.value);
 
                         await revalidateTarget(action.target!);
-                        assertLive(action.deadline);
 
                         await chrome.tabs.sendMessage(
                             action.target!.tabId,
@@ -1009,8 +806,6 @@ chrome.runtime.onConnect.addListener((port) => {
                             throw new Error('Authorize before saving.');
                         }
 
-                        assertLive(action.deadline);
-
                         if (value.unchanged) {
                             result = { status: 'unchanged' };
                         } else {
@@ -1024,9 +819,6 @@ chrome.runtime.onConnect.addListener((port) => {
                                 address: action.candidateOrigin!,
                                 cipherText: value.ciphertext,
                             };
-                            guard();
-                            assertLive(action.deadline);
-                            item.dispatched = true;
 
                             await (action.entry
                                 ? executeUpdatePasswordRequest(
@@ -1080,33 +872,16 @@ chrome.runtime.onConnect.addListener((port) => {
                     }
                 }
 
-                guard();
-
-                if (!item.dispatched) {
-                    assertLive(action.deadline);
-                }
-
                 port.postMessage({ id: request.id, result });
-
-                if (finished) {
-                    clearTimeout(item.timer);
-                    setTimeout(() => closeAction(id), 200);
-                }
             } finally {
                 busy = false;
             }
         })().catch((error) => {
-            try {
-                port.postMessage({
-                    id: raw?.id,
-                    error:
-                        error instanceof Error
-                            ? error.message
-                            : 'Action failed.',
-                });
-            } finally {
-                closeAction(id);
-            }
+            port.postMessage({
+                id: raw?.id,
+                error:
+                    error instanceof Error ? error.message : 'Action failed.',
+            });
         });
     });
 });

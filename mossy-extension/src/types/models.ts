@@ -29,6 +29,27 @@ export type Operation =
     | 'sync-send'
     | 'sync-receive';
 
+export type Command =
+    | { kind: 'theme'; theme: 'light' | 'dark' | 'system' }
+    | { kind: 'state'; vaultId?: string }
+    | { kind: 'login'; identifier: string; password: string }
+    | { kind: 'logout' }
+    | {
+          kind: 'settings';
+          instance: string;
+          theme: 'light' | 'dark' | 'system';
+      }
+    | { kind: 'dismiss' }
+    | {
+          kind: 'action';
+          operation: Operation;
+          vaultId: string;
+          passwordId?: string;
+          target?: Target;
+          code?: string;
+      }
+    | { kind: 'claim'; actionId: string };
+
 export type Action = {
     id: string;
     operation: Operation;
