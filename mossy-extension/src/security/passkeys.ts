@@ -15,10 +15,9 @@ async function protection(
             credentialId: passkey.credentialId,
         };
     } catch (error) {
-        if (
-            error instanceof DOMException &&
-            error.name === 'NotSupportedError'
-        ) {
+        const isUnsupportedPasskey =
+            error instanceof DOMException && error.name === 'NotSupportedError';
+        if (isUnsupportedPasskey) {
             throw new PrfNotSupportedError();
         }
 

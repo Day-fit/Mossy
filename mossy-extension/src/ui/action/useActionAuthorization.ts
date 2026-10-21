@@ -27,15 +27,17 @@ export function useActionAuthorization(session: ActionSession) {
     } = session;
     const [choice, setChoice] = useState<ProtectionChoice | null>(null);
     const authorize = async () => {
-        if (!action || !worker.current || !port.current || !method) {
+        const currentWorker = worker.current;
+        const connection = port.current;
+        const cannotAuthorize =
+            !action || !currentWorker || !connection || !method;
+        if (cannotAuthorize) {
             return;
         }
 
-        const currentWorker = worker.current;
-        const connection = port.current;
-
         const requireLive = () => {
-            if (!alive.current || !active.current) {
+            const isActionClosed = !alive.current || !active.current;
+            if (isActionClosed) {
                 throw new Error('Action closed.');
             }
 
@@ -44,15 +46,17 @@ export function useActionAuthorization(session: ActionSession) {
 
         const isSetup = action.operation === 'sync-receive';
 
-        if (isSetup && !choice) {
+        const needsProtectionChoice = isSetup && !choice;
+        if (needsProtectionChoice) {
             return;
         }
 
-        if (isSetup && method === 'Password') {
-            if (
+        const isSettingVaultPassword = isSetup && method === 'Password';
+        if (isSettingVaultPassword) {
+            const isVaultPasswordTooShort =
                 (password.current?.value.length ?? 0) <
-                VAULT_PASSWORD_MIN_LENGTH
-            ) {
+                VAULT_PASSWORD_MIN_LENGTH;
+            if (isVaultPasswordTooShort) {
                 setMessage(
                     'Use at least 12 characters for your vault password.'
                 );
@@ -60,7 +64,9 @@ export function useActionAuthorization(session: ActionSession) {
                 return;
             }
 
-            if (password.current?.value !== confirmation.current?.value) {
+            const passwordsDoNotMatch =
+                password.current?.value !== confirmation.current?.value;
+            if (passwordsDoNotMatch) {
                 setMessage('Passwords do not match.');
 
                 return;
@@ -117,10 +123,10 @@ export function useActionAuthorization(session: ActionSession) {
             requireLive();
 
             if (action.operation === 'sync-receive') {
-                if (
+                const isVaultPasswordTooShort =
                     method === 'Password' &&
-                    vaultPassword.length < VAULT_PASSWORD_MIN_LENGTH
-                ) {
+                    vaultPassword.length < VAULT_PASSWORD_MIN_LENGTH;
+                if (isVaultPasswordTooShort) {
                     throw new Error(
                         'Use at least 12 characters for the vault password.'
                     );

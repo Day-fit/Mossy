@@ -2,42 +2,34 @@ import { z } from 'zod';
 
 export const DEFAULT_INSTANCE = 'https://mossy.dayfit.pl';
 
-export function normalizeInstance(value: string, development = false): string {
+export function validateInstance(value: string, development = false): void {
     const url = new URL(value);
 
-    if (
-        url.username ||
-        url.password ||
-        url.search ||
-        url.hash ||
-        (url.pathname !== '/' && url.pathname !== '')
-    ) {
-        throw new Error('Use a single instance origin.');
+    if (value !== url.origin) {
+        throw new Error(
+            'Use a single instance origin without a trailing slash.'
+        );
     }
 
-    if (
+    const isUnsupportedProtocol =
         url.protocol !== 'https:' &&
         !(
             development &&
             url.protocol === 'http:' &&
             ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-        )
-    ) {
+        );
+    if (isUnsupportedProtocol) {
         throw new Error('Use HTTPS for your Mossy instance.');
     }
-
-    return url.origin;
 }
 
 export function matchesSite(address: string, target: string): boolean {
     try {
         const origin = new URL(target);
 
-        if (
-            origin.protocol !== 'https:' ||
-            origin.username ||
-            origin.password
-        ) {
+        const isInvalidTargetOrigin =
+            origin.protocol !== 'https:' || origin.username || origin.password;
+        if (isInvalidTargetOrigin) {
             return false;
         }
 
@@ -109,15 +101,16 @@ export function trustedPage(
     sender: chrome.runtime.MessageSender,
     path: string
 ): boolean {
-    if (
-        sender.id !== chrome.runtime.id ||
-        !sender.url ||
-        sender.origin !== chrome.runtime.getURL('').replace(/\/$/, '')
-    ) {
+    const { id, url: senderUrl, origin } = sender;
+    const isUntrustedPage =
+        id !== chrome.runtime.id ||
+        !senderUrl ||
+        origin !== chrome.runtime.getURL('').replace(/\/$/, '');
+    if (isUntrustedPage) {
         return false;
     }
 
-    const url = new URL(sender.url);
+    const url = new URL(senderUrl);
 
     return url.pathname === path;
 }
@@ -126,33 +119,36 @@ export function contentSource(
     sender: chrome.runtime.MessageSender,
     instance: string
 ): { tabId: number; documentId: string; frameId: number; origin: string } {
-    if (
-        sender.id !== chrome.runtime.id ||
-        !sender.tab?.id ||
-        !sender.documentId ||
-        sender.frameId === undefined ||
-        !sender.url ||
-        !sender.tab.url
-    ) {
+    const { id, tab, documentId, frameId, url: senderUrl, origin } = sender;
+    const tabId = tab?.id;
+    const tabUrl = tab?.url;
+    const isMissingSourceIdentity =
+        id !== chrome.runtime.id ||
+        !tabId ||
+        !documentId ||
+        frameId === undefined ||
+        !senderUrl ||
+        !tabUrl;
+    if (isMissingSourceIdentity) {
         throw new Error('Untrusted source.');
     }
 
-    const url = new URL(sender.url);
-    const top = new URL(sender.tab.url);
+    const url = new URL(senderUrl);
+    const top = new URL(tabUrl);
 
-    if (
+    const isIneligiblePage =
         url.protocol !== 'https:' ||
         top.origin !== url.origin ||
-        sender.origin !== url.origin ||
-        url.origin === instance
-    ) {
+        origin !== url.origin ||
+        url.origin === instance;
+    if (isIneligiblePage) {
         throw new Error('This page is not eligible.');
     }
 
     return {
-        tabId: sender.tab.id,
-        documentId: sender.documentId,
-        frameId: sender.frameId,
+        tabId,
+        documentId,
+        frameId,
         origin: url.origin,
     };
 }

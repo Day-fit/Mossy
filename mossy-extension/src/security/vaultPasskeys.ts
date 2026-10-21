@@ -18,10 +18,10 @@ function verifyVaultCredential(
                   );
         const actual = new Uint8Array(credential.rawId);
 
-        if (
+        const isDifferentCredential =
             actual.length !== expected.length ||
-            actual.some((byte, index) => byte !== expected[index])
-        ) {
+            actual.some((byte, index) => byte !== expected[index]);
+        if (isDifferentCredential) {
             throw new Error(
                 'The selected passkey does not match this vault’s saved passkey.'
             );
@@ -39,7 +39,8 @@ function verifyVaultCredential(
         );
     }
 
-    if (new TextDecoder().decode(userHandle) !== vaultId) {
+    const isDifferentVault = new TextDecoder().decode(userHandle) !== vaultId;
+    if (isDifferentVault) {
         throw new Error('The selected passkey belongs to a different vault.');
     }
 }
@@ -48,10 +49,10 @@ export function createVaultPasskeys(instance: string) {
     const hostname = new URL(instance).hostname;
 
     const registerPasskey = async (vaultId: string, vaultName: string) => {
-        if (
+        const cannotCreatePasskeys =
             typeof PublicKeyCredential === 'undefined' ||
-            !navigator.credentials?.create
-        ) {
+            !navigator.credentials?.create;
+        if (cannotCreatePasskeys) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }
 
@@ -86,7 +87,8 @@ export function createVaultPasskeys(instance: string) {
             },
         });
 
-        if (!(cred instanceof PublicKeyCredential)) {
+        const isInvalidCredential = !(cred instanceof PublicKeyCredential);
+        if (isInvalidCredential) {
             throw new Error('Invalid credential');
         }
 
@@ -105,10 +107,10 @@ export function createVaultPasskeys(instance: string) {
     };
 
     const getPasskey = async (vaultId: string, credentialId?: BufferSource) => {
-        if (
+        const cannotGetPasskeys =
             typeof PublicKeyCredential === 'undefined' ||
-            !navigator.credentials?.get
-        ) {
+            !navigator.credentials?.get;
+        if (cannotGetPasskeys) {
             throw new DOMException('PRF is not supported', 'NotSupportedError');
         }
 
@@ -130,7 +132,8 @@ export function createVaultPasskeys(instance: string) {
             },
         });
 
-        if (!(cred instanceof PublicKeyCredential)) {
+        const isInvalidCredential = !(cred instanceof PublicKeyCredential);
+        if (isInvalidCredential) {
             throw new Error('Invalid credential');
         }
 

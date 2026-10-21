@@ -50,7 +50,9 @@ let slowSave = 0;
 
 async function pageRpc<T>(page: Page, command: unknown): Promise<T> {
     return page.evaluate(async (input) => {
-        if (input && typeof input === 'object' && 'type' in input) {
+        const isTypedMessage =
+            input && typeof input === 'object' && 'type' in input;
+        if (isTypedMessage) {
             const { type, ...data } = input;
             const result = await chrome.runtime.sendMessage({
                 id: 1,
@@ -78,15 +80,17 @@ async function seed(page: Page) {
                 (resolve, reject) => {
                     const request = indexedDB.open('mossy-extension-v2', 1);
                     request.onupgradeneeded = () => {
-                        if (
-                            !request.result.objectStoreNames.contains('device')
-                        ) {
+                        const needsDeviceStore =
+                            !request.result.objectStoreNames.contains('device');
+                        if (needsDeviceStore) {
                             request.result.createObjectStore('device');
                         }
 
-                        if (
-                            !request.result.objectStoreNames.contains('wrapped')
-                        ) {
+                        const needsWrappedKeyStore =
+                            !request.result.objectStoreNames.contains(
+                                'wrapped'
+                            );
+                        if (needsWrappedKeyStore) {
                             request.result.createObjectStore('wrapped');
                         }
                     };
@@ -219,7 +223,8 @@ test.beforeEach(async ({}, testInfo) => {
 
     context = await launch();
 
-    if (testInfo.tags.includes('@site')) {
+    const shouldSeedWebsiteAccess = testInfo.tags.includes('@site');
+    if (shouldSeedWebsiteAccess) {
         // Seed a user's prior optional-host approval in this disposable profile.
         // Native extension permission dialogs are outside headless page automation.
         // The production manifest and runtime permission checks remain unchanged.
@@ -266,6 +271,12 @@ test.beforeEach(async ({}, testInfo) => {
 
         let data: unknown = {};
         let status = 200;
+        const isPasswordWrite =
+            path === '/api/v1/passwords/save' ||
+            path === '/api/v1/passwords/update';
+        const isCiphertextRequest = path.startsWith(
+            '/api/v1/passwords/ciphertext/'
+        );
 
         if (path === '/api/v1/auth/extension/refresh') {
             status = 401;
@@ -306,16 +317,13 @@ test.beforeEach(async ({}, testInfo) => {
                     lastModified: '2026-01-01',
                 },
             ];
-        } else if (path.startsWith('/api/v1/passwords/ciphertext/')) {
+        } else if (isCiphertextRequest) {
             data = {
                 passwordId: '20000000-0000-4000-8000-000000000001',
                 ciphertext,
                 type: 'CIPHERTEXT_RETRIEVAL',
             };
-        } else if (
-            path === '/api/v1/passwords/save' ||
-            path === '/api/v1/passwords/update'
-        ) {
+        } else if (isPasswordWrite) {
             saved = body;
 
             if (slowSave) {
@@ -344,7 +352,8 @@ test.beforeEach(async ({}, testInfo) => {
 
     await expect(popup.getByLabel('Email or username')).toBeVisible();
 
-    if (testInfo.tags.includes('@site')) {
+    const requiresWebsiteAccess = testInfo.tags.includes('@site');
+    if (requiresWebsiteAccess) {
         const worker =
             context.serviceWorkers()[0] ??
             (await context.waitForEvent('serviceworker'));

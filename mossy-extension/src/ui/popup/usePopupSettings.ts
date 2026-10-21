@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { rpc } from '../../messaging/rpc';
-import { normalizeInstance } from '../../security/security';
+import { validateInstance } from '../../security/security';
 import type { Theme } from '../../theme/types';
 import type { RunPopupTask } from './types';
 
@@ -19,15 +19,13 @@ export function usePopupSettings({
 
     const saveSettings = (data: FormData) =>
         run(async () => {
-            const instance = normalizeInstance(
-                String(data.get('instance')),
-                import.meta.env.DEV
-            );
-            if (
+            const instance = String(data.get('instance'));
+            validateInstance(instance, import.meta.env.DEV);
+            const wasInstanceAccessDeclined =
                 !(await chrome.permissions.request({
                     origins: [`${instance}/*`],
-                }))
-            ) {
+                }));
+            if (wasInstanceAccessDeclined) {
                 throw new Error('Instance host access was declined.');
             }
             await rpc({ kind: 'settings', instance, theme: data.get('theme') });
@@ -51,11 +49,12 @@ export function usePopupSettings({
 
     const enableWebsiteAccess = () =>
         run(async () => {
-            if (
-                !(await chrome.permissions.request({
+            const wasWebsiteAccessDeclined = !(await chrome.permissions.request(
+                {
                     origins: ['https://*/*'],
-                }))
-            ) {
+                }
+            ));
+            if (wasWebsiteAccessDeclined) {
                 throw new Error(
                     'Website access was declined. Metadata and copy are still available.'
                 );

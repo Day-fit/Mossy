@@ -82,12 +82,14 @@ self.onmessage = async ({ data }) => {
             privateDh = offer.privateDh;
             result = offer.receiver;
         } else if (kind === 'send') {
-            if (!key || !key.extractable) {
+            const transferKey = key;
+            const cannotTransferKey = !transferKey || !transferKey.extractable;
+            if (cannotTransferKey) {
                 throw new Error('Authorize vault key transfer first.');
             }
 
             const raw = new Uint8Array(
-                await crypto.subtle.exportKey('raw', key)
+                await crypto.subtle.exportKey('raw', transferKey)
             );
 
             try {

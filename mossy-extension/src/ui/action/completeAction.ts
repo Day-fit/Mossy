@@ -18,15 +18,15 @@ export async function completeAction({
     record: WrappedKeyRecord | undefined;
     requireLive: () => void;
 }) {
+    const shouldReadPassword =
+        action.operation === 'copy-password' || action.operation === 'fill';
+
     if (action.operation === 'copy-username') {
         currentWorker.stop();
 
         await navigator.clipboard.writeText(action.entry!.identifier);
         await connection.call('finish');
-    } else if (
-        action.operation === 'copy-password' ||
-        action.operation === 'fill'
-    ) {
+    } else if (shouldReadPassword) {
         const encrypted = await connection.call<{
             ciphertext: string;
         }>('ciphertext');

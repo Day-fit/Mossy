@@ -165,15 +165,15 @@ export async function verifyReceiverDetails(
 ): Promise<void> {
     await sodium.ready;
 
-    if (
+    const isInvalidReceiver =
         receiver.publicDh.kty !== 'OKP' ||
         receiver.publicDh.crv !== 'X25519' ||
         !validSignature(
             receiver.signature,
             receiverTranscript(receiver),
             identity
-        )
-    ) {
+        );
+    if (isInvalidReceiver) {
         throw new Error(
             'The receiving device public key could not be verified.'
         );
@@ -268,18 +268,12 @@ export async function decryptVaultKey(
         throw new Error('Received an invalid encrypted key.');
     }
 
-    if (
-        !validSignature(
-            envelope.signature,
-            transferTranscript(
-                context,
-                key.senderId,
-                key.senderPublicDh,
-                envelope
-            ),
-            senderIdentity
-        )
-    ) {
+    const isInvalidSenderSignature = !validSignature(
+        envelope.signature,
+        transferTranscript(context, key.senderId, key.senderPublicDh, envelope),
+        senderIdentity
+    );
+    if (isInvalidSenderSignature) {
         throw new Error('The sending device signature could not be verified.');
     }
 

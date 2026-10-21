@@ -58,7 +58,9 @@ export class PendingCapture {
             password = '';
         }
 
-        if (generation !== this.generation || this.now() >= deadline) {
+        const isStagingObsolete =
+            generation !== this.generation || this.now() >= deadline;
+        if (isStagingObsolete) {
             return undefined;
         }
 
@@ -83,7 +85,8 @@ export class PendingCapture {
             return;
         }
 
-        if (this.now() >= this.candidate.metadata.deadline) {
+        const hasExpired = this.now() >= this.candidate.metadata.deadline;
+        if (hasExpired) {
             this.clear();
 
             return;
@@ -96,13 +99,13 @@ export class PendingCapture {
         const pending = this.metadata();
         const candidate = this.candidate;
 
-        if (
+        const cannotHandOff =
             !pending ||
             !candidate ||
             pending.id !== id ||
             pending.account !== account ||
-            pending.handedOff
-        ) {
+            pending.handedOff;
+        if (cannotHandOff) {
             throw new Error('Capture is unavailable.');
         }
 
@@ -112,12 +115,12 @@ export class PendingCapture {
     async consume(id: string, account: string): Promise<string> {
         const candidate = this.candidate;
 
-        if (
+        const cannotConsume =
             !candidate ||
             candidate.metadata.id !== id ||
             candidate.metadata.account !== account ||
-            !candidate.metadata.handedOff
-        ) {
+            !candidate.metadata.handedOff;
+        if (cannotConsume) {
             throw new Error('Capture is unavailable.');
         }
 

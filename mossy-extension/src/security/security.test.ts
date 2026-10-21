@@ -3,7 +3,7 @@ import {
     assertLive,
     contentMessageSchema,
     matchesSite,
-    normalizeInstance,
+    validateInstance,
     contentSource,
     trustedPage,
 } from './security';
@@ -48,14 +48,13 @@ describe('exact origin and browser-supplied sender boundaries', () => {
         ).toBe(false);
     });
     it('accepts one HTTPS instance and localhost HTTP only in development', () => {
-        expect(normalizeInstance('https://vault.example/')).toBe(
-            'https://vault.example'
-        );
-        expect(normalizeInstance('http://localhost:8080', true)).toBe(
-            'http://localhost:8080'
-        );
+        expect(() => validateInstance('https://vault.example')).not.toThrow();
+        expect(() =>
+            validateInstance('http://localhost:8080', true)
+        ).not.toThrow();
 
         for (const value of [
+            'https://vault.example/',
             'http://localhost',
             'http://vault.example',
             'https://user@vault.example',
@@ -63,10 +62,10 @@ describe('exact origin and browser-supplied sender boundaries', () => {
             'https://vault.example?x=1',
             'https://vault.example/#hash',
         ]) {
-            expect(() => normalizeInstance(value)).toThrow();
+            expect(() => validateInstance(value)).toThrow();
         }
 
-        expect(() => normalizeInstance('http://vault.example', true)).toThrow();
+        expect(() => validateInstance('http://vault.example', true)).toThrow();
     });
     it('rejects privileged commands in content messages', () => {
         expect(

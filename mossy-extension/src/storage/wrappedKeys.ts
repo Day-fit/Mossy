@@ -8,15 +8,21 @@ export const wrappedKeys = {
             await openDatabase()
         ).get('wrapped', scopeKey(scope));
 
-        if (!value || !(value.wrappedKey instanceof ArrayBuffer)) {
+        const isInvalidWrappedKey =
+            !value || !(value.wrappedKey instanceof ArrayBuffer);
+        if (isInvalidWrappedKey) {
             return undefined;
         }
 
-        if (value.type === 'PRF' && value.credentialId instanceof ArrayBuffer) {
+        const isPrfRecord =
+            value.type === 'PRF' && value.credentialId instanceof ArrayBuffer;
+        if (isPrfRecord) {
             return value;
         }
 
-        if (value.type === 'Password' && value.salt instanceof Uint8Array) {
+        const isPasswordRecord =
+            value.type === 'Password' && value.salt instanceof Uint8Array;
+        if (isPasswordRecord) {
             return value;
         }
 

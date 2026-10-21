@@ -61,7 +61,9 @@ export function authorizationDescription(
 }
 
 export function authorizationError(error: unknown, isSetup: boolean): string {
-    if (error instanceof DOMException && error.name === 'NotAllowedError') {
+    const wasPasskeyDismissed =
+        error instanceof DOMException && error.name === 'NotAllowedError';
+    if (wasPasskeyDismissed) {
         return isSetup
             ? 'The passkey prompt was closed. Try again or choose another method.'
             : 'The passkey prompt was closed. Try again.';

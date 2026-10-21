@@ -19,7 +19,8 @@ export function prfBytes(
 ): Uint8Array<ArrayBuffer> {
     const first = results.prf?.results?.first;
 
-    if (!first || first.byteLength !== 32) {
+    const isInvalidPrfOutput = !first || first.byteLength !== 32;
+    if (isInvalidPrfOutput) {
         throw new PrfNotSupportedError();
     }
 

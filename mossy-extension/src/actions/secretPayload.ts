@@ -33,11 +33,14 @@ export function validateSshKeyPair(privateKey: string, publicKey?: string) {
         return 'Private SSH key is required.';
     }
 
-    if (!PRIVATE_KEY_PATTERN.test(trimmedPrivateKey)) {
+    const isInvalidPrivateKey = !PRIVATE_KEY_PATTERN.test(trimmedPrivateKey);
+    if (isInvalidPrivateKey) {
         return 'Private SSH key must be an OpenSSH or PEM private key.';
     }
 
-    if (trimmedPublicKey && !PUBLIC_KEY_PATTERN.test(trimmedPublicKey)) {
+    const isInvalidPublicKey =
+        trimmedPublicKey && !PUBLIC_KEY_PATTERN.test(trimmedPublicKey);
+    if (isInvalidPublicKey) {
         return 'Public SSH key must be an OpenSSH public key.';
     }
 
@@ -74,28 +77,28 @@ export function serializeSecretPayload(formState: PasswordFormState) {
 
 export function parseSecretPayload(decrypted: string): SecretPayload {
     const parsed: unknown = JSON.parse(decrypted);
+    const { kind, password, privateKey, publicKey } = asObject(parsed)
+        ? parsed
+        : {};
 
-    if (
-        asObject(parsed) &&
-        parsed.kind === 'PASSWORD' &&
-        typeof parsed.password === 'string'
-    ) {
+    const isPasswordPayload =
+        kind === 'PASSWORD' && typeof password === 'string';
+    if (isPasswordPayload) {
         return {
             kind: 'PASSWORD',
-            password: parsed.password,
+            password,
         };
     }
 
-    if (
-        asObject(parsed) &&
-        parsed.kind === 'SSH' &&
-        typeof parsed.privateKey === 'string' &&
-        typeof parsed.publicKey === 'string'
-    ) {
+    const isSshPayload =
+        kind === 'SSH' &&
+        typeof privateKey === 'string' &&
+        typeof publicKey === 'string';
+    if (isSshPayload) {
         return {
             kind: 'SSH',
-            privateKey: parsed.privateKey,
-            publicKey: parsed.publicKey,
+            privateKey,
+            publicKey,
         };
     }
 

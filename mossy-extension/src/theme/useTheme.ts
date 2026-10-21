@@ -21,7 +21,8 @@ export function useTheme() {
         });
 
         void themeSetting.getValue().then((value) => {
-            if (active && !changed) {
+            const shouldApplyStoredTheme = active && !changed;
+            if (shouldApplyStoredTheme) {
                 apply(value);
             }
         });

@@ -2,10 +2,10 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 
 export function registerCapture(ctx: ContentScriptContext) {
     try {
-        if (
+        const isIneligiblePage =
             location.protocol !== 'https:' ||
-            window.top!.location.origin !== location.origin
-        ) {
+            window.top!.location.origin !== location.origin;
+        if (isIneligiblePage) {
             return;
         }
     } catch {
@@ -95,7 +95,9 @@ export function registerCapture(ctx: ContentScriptContext) {
         document,
         'input',
         (event) => {
-            if (event.target instanceof HTMLInputElement && event.target.form) {
+            const isFormInput =
+                event.target instanceof HTMLInputElement && event.target.form;
+            if (isFormInput) {
                 cleanAutofill.delete(event.target.form);
             }
         },
@@ -127,11 +129,11 @@ export function registerCapture(ctx: ContentScriptContext) {
         document,
         'submit',
         (event) => {
-            if (
+            const shouldIgnoreSubmission =
                 !event.isTrusted ||
                 performance.now() - interaction > 2000 ||
-                !(event.target instanceof HTMLFormElement)
-            ) {
+                !(event.target instanceof HTMLFormElement);
+            if (shouldIgnoreSubmission) {
                 return;
             }
 
@@ -155,11 +157,10 @@ export function registerCapture(ctx: ContentScriptContext) {
                 return;
             }
 
-            if (
-                passwords
-                    .filter((input) => input.autocomplete === 'new-password')
-                    .some((input) => input.value !== field.value)
-            ) {
+            const hasMismatchedNewPasswords = passwords
+                .filter((input) => input.autocomplete === 'new-password')
+                .some((input) => input.value !== field.value);
+            if (hasMismatchedNewPasswords) {
                 return;
             }
 
@@ -199,7 +200,7 @@ export function registerCapture(ctx: ContentScriptContext) {
     }) {
         const record = forms.get(target.formId);
 
-        if (
+        const isInvalidTarget =
             !record ||
             location.origin !== target.origin ||
             !record.form.isConnected ||
@@ -212,13 +213,15 @@ export function registerCapture(ctx: ContentScriptContext) {
             (record.username &&
                 (!record.username.isConnected ||
                     record.username.form !== record.form ||
-                    !eligible(record.username)))
-        ) {
+                    !eligible(record.username)));
+        if (isInvalidTarget) {
             return;
         }
 
         try {
-            if (window.top!.location.origin !== location.origin) {
+            const isCrossOriginFrame =
+                window.top!.location.origin !== location.origin;
+            if (isCrossOriginFrame) {
                 return;
             }
         } catch {
@@ -230,11 +233,11 @@ export function registerCapture(ctx: ContentScriptContext) {
 
     const filled = new Set<string>();
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
-        if (
+        const shouldIgnoreMessage =
             sender.id !== chrome.runtime.id ||
             sender.tab ||
-            !['validate-fill', 'fill-once'].includes(message?.kind)
-        ) {
+            !['validate-fill', 'fill-once'].includes(message?.kind);
+        if (shouldIgnoreMessage) {
             return;
         }
 
@@ -252,12 +255,12 @@ export function registerCapture(ctx: ContentScriptContext) {
             return;
         }
 
-        if (
+        const isInvalidFillRequest =
             typeof message.actionId !== 'string' ||
             filled.has(message.actionId) ||
             typeof message.password !== 'string' ||
-            typeof message.identifier !== 'string'
-        ) {
+            typeof message.identifier !== 'string';
+        if (isInvalidFillRequest) {
             respond({ valid: false });
 
             return;

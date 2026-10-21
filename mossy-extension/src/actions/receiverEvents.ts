@@ -16,7 +16,9 @@ export async function waitForReceiverResult(
     for await (const data of readSseData(response)) {
         const event = resultSchema.parse(JSON.parse(data));
 
-        if (event.receiverId !== receiverId || event.code !== code) {
+        const isUnrelatedTransfer =
+            event.receiverId !== receiverId || event.code !== code;
+        if (isUnrelatedTransfer) {
             continue;
         }
 

@@ -27,17 +27,18 @@ export async function signingHandles(
         pair = await database.get('device', ['identity', instance]);
     }
 
-    if (
-        !pair ||
-        pair.privateKey.extractable ||
-        pair.privateKey.algorithm.name !== 'Ed25519'
-    ) {
+    const identity = pair;
+    const isInvalidIdentity =
+        !identity ||
+        identity.privateKey.extractable ||
+        identity.privateKey.algorithm.name !== 'Ed25519';
+    if (isInvalidIdentity) {
         throw new Error('Invalid native device identity.');
     }
 
-    const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    const jwk = await crypto.subtle.exportKey('jwk', identity.publicKey);
     return {
-        privateKey: pair.privateKey,
+        privateKey: identity.privateKey,
         publicJwk: { kty: 'OKP', crv: 'Ed25519', x: jwk.x! },
     };
 }
