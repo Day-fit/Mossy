@@ -4,6 +4,7 @@ import { matchesSite, type Target } from '../../security/security';
 import type { Entry, Operation } from '../../types/models';
 import type { PopupView } from './types';
 import { usePopupStore } from './usePopupStore';
+import { useVaultStore } from '../shared/useVaultStore';
 
 const actionMessages = {
     'copy-password': 'handleCopyPassword',
@@ -41,6 +42,15 @@ export function usePopupController() {
                 }
 
                 selected.current = next.selected;
+                if (next.account) {
+                    useVaultStore.getState().setVaults(
+                        {
+                            instance: next.instance,
+                            accountId: next.account.userId,
+                        },
+                        next.vaults
+                    );
+                }
                 set({ view: next, loading: false });
             } catch (error) {
                 if (request !== requestVersion.current) {
@@ -62,21 +72,14 @@ export function usePopupController() {
     useEffect(() => {
         void load();
 
-        const listener = (message: { kind: string }) => {
-            if (message.kind === 'changed') {
-                void load();
-            }
-        };
-
-        chrome.runtime.onMessage.addListener(listener);
-
-        const port = chrome.runtime.connect({ name: 'popup' });
+        const unsubscribe = messaging.onMessage('onChanged', () => {
+            void load();
+        });
         const timer = setInterval(() => setNow(Date.now()), 200);
 
         return () => {
             clearInterval(timer);
-            chrome.runtime.onMessage.removeListener(listener);
-            port.disconnect();
+            unsubscribe();
         };
     }, [load]);
 

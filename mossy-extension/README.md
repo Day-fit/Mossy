@@ -38,6 +38,11 @@ Secrets stay in transient input elements and action workers. Popup state holds
 metadata only. Storage modules persist wrapped vault keys and native device
 identity, preserving the existing database name and schema.
 
+Action scopes identify `instance`, `accountId`, and `vaultId`. Vault names belong
+to UI metadata in `ui/shared/useVaultStore.ts`; `useVaultName(scope)` fetches
+metadata through the background and resolves the name by vault ID, falling back
+to the ID when unavailable. Each extension page has its own Zustand store.
+
 From the repository root:
 
 ```sh

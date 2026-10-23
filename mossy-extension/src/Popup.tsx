@@ -9,7 +9,7 @@ import VaultSelector from './ui/popup/VaultSelector';
 import PasswordList from './ui/popup/PasswordList';
 import VaultKeySync from './ui/popup/VaultKeySync';
 import { usePopupController } from './ui/popup/usePopupController';
-import { messaging, rpc } from './messaging/rpc';
+import { messaging } from './messaging/rpc';
 import SignIn from './ui/auth/SignIn';
 import { useTheme } from './theme/useTheme';
 
@@ -91,7 +91,11 @@ export default function Popup() {
                                     setUpdateId={popup.setUpdateId}
                                     action={action}
                                     onDismiss={() =>
-                                        void run(() => rpc({ kind: 'dismiss' }))
+                                        void run(() =>
+                                            messaging.sendMessage(
+                                                'handleDismiss'
+                                            )
+                                        )
                                     }
                                 />
                             )}

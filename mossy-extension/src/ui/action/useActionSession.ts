@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActionWorker } from '../../actions/ActionWorker';
-import { ActionPort } from '../../messaging/rpc';
+import { messaging } from '../../messaging/rpc';
+import type { ReceiverDetails } from 'mossy-api-client';
 import { wrappedKeys } from '../../storage/wrappedKeys';
 import { signingHandles } from '../../storage/deviceIdentity';
 import { assertLive } from '../../security/security';
@@ -17,7 +18,6 @@ export function useActionSession() {
     const [now, setNow] = useState(() => Date.now());
 
     const worker = useRef<ActionWorker | null>(null);
-    const port = useRef<ActionPort | null>(null);
     const alive = useRef(true);
     const active = useRef(true);
     const completed = useRef(false);
@@ -33,6 +33,15 @@ export function useActionSession() {
 
         const actionWorker = new ActionWorker();
         worker.current = actionWorker;
+        const actionId = location.hash.slice(1);
+        let deadline: number | undefined;
+        const cancel = () => {
+            if (!completed.current) {
+                void messaging
+                    .sendMessage('cancelAction', { actionId })
+                    .catch(() => undefined);
+            }
+        };
 
         const fail = (error: unknown) => {
             active.current = false;
@@ -42,6 +51,7 @@ export function useActionSession() {
             }
 
             actionWorker.stop();
+            cancel();
 
             if (password.current) {
                 password.current.value = '';
@@ -61,39 +71,44 @@ export function useActionSession() {
             }
         };
 
-        const connection = new ActionPort(location.hash.slice(1), () =>
-            fail(new Error('This action expired or was canceled.'))
-        );
-        port.current = connection;
-        void connection
-            .call<ActionModel>('claim')
+        void messaging
+            .sendMessage('claimAction', { actionId })
             .then(async (value) => {
                 if (!alive.current) {
                     return;
                 }
 
+                deadline = value.deadline;
+                assertLive(deadline);
                 setAction(value);
 
                 if (value.operation === 'sync-receive') {
                     setPhase('waiting');
 
-                    const receiver = await actionWorker.call('offer', {
-                        ...(await signingHandles(value.scope.instance)),
-                        deviceId: value.deviceId,
-                        vaultId: value.scope.vault,
-                    });
-                    const result = await connection.call<{ code: string }>(
+                    const receiver = await actionWorker.call<ReceiverDetails>(
                         'offer',
-                        receiver
+                        {
+                            ...(await signingHandles(value.scope.instance)),
+                            deviceId: value.deviceId,
+                            vaultId: value.scope.vaultId,
+                        }
                     );
+                    const result = await messaging.sendMessage('offerKeySync', {
+                        actionId,
+                        receiver,
+                    });
 
                     if (!alive.current) {
                         return;
                     }
 
                     setCode(result.code);
-                    transfer.current =
-                        await connection.call<ActionResult>('wait');
+                    transfer.current = await messaging.sendMessage(
+                        'waitForKeySync',
+                        {
+                            actionId,
+                        }
+                    );
 
                     if (!alive.current) {
                         return;
@@ -130,11 +145,22 @@ export function useActionSession() {
             })
             .catch(fail);
 
-        const timer = setInterval(() => setNow(Date.now()), 200);
+        const timer = setInterval(() => {
+            const now = Date.now();
+            setNow(now);
+            if (
+                deadline &&
+                now >= deadline &&
+                active.current &&
+                !completed.current
+            ) {
+                fail(new Error('This action expired.'));
+            }
+        }, 200);
 
         const unload = () => {
             actionWorker.stop();
-            connection.close();
+            cancel();
 
             if (password.current) {
                 password.current.value = '';
@@ -153,7 +179,7 @@ export function useActionSession() {
             clearInterval(timer);
             window.removeEventListener('pagehide', unload);
             actionWorker.stop();
-            connection.close();
+            cancel();
             transfer.current = undefined;
             record.current = undefined;
             credentialId.current = undefined;
@@ -162,7 +188,14 @@ export function useActionSession() {
 
     const close = () => {
         worker.current?.stop();
-        port.current?.close();
+        active.current = false;
+        if (!completed.current) {
+            void messaging
+                .sendMessage('cancelAction', {
+                    actionId: location.hash.slice(1),
+                })
+                .catch(() => undefined);
+        }
         window.close();
     };
 
@@ -177,7 +210,6 @@ export function useActionSession() {
         code,
         now,
         worker,
-        port,
         alive,
         active,
         completed,

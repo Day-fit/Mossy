@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { rpc } from '../../messaging/rpc';
+import { messaging } from '../../messaging/rpc';
 import { validateInstance } from '../../security/security';
 import type { Theme } from '../../theme/types';
 import type { RunPopupTask } from './types';
@@ -28,14 +28,17 @@ export function usePopupSettings({
             if (wasInstanceAccessDeclined) {
                 throw new Error('Instance host access was declined.');
             }
-            await rpc({ kind: 'settings', instance, theme: data.get('theme') });
+            await messaging.sendMessage('handleSettings', {
+                instance,
+                theme: data.get('theme') as Theme,
+            });
             onSaved();
         });
 
     const saveTheme = async (theme: Theme) => {
         setSavingTheme(true);
         try {
-            await rpc({ kind: 'theme', theme });
+            await messaging.sendMessage('setTheme', { theme });
         } catch (error) {
             onError(
                 error instanceof Error

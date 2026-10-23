@@ -1,4 +1,5 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import { messaging } from '../messaging/rpc';
 
 export function registerCapture(ctx: ContentScriptContext) {
     try {
@@ -78,9 +79,8 @@ export function registerCapture(ctx: ContentScriptContext) {
             });
         }
 
-        void chrome.runtime
-            .sendMessage({
-                kind: 'discover',
+        void messaging
+            .sendMessage('handleDiscover', {
                 forms: [...forms].slice(0, 30).map(([formId, value]) => ({
                     formId,
                     passwordId: value.passwordId,
@@ -179,10 +179,8 @@ export function registerCapture(ctx: ContentScriptContext) {
             }
 
             // Read only during this user submission. Never watch or retain typed passwords.
-            void chrome.runtime
-                .sendMessage({
-                    kind: 'capture',
-                    formId: id(form),
+            void messaging
+                .sendMessage('handleCapture', {
                     identifier: username.value,
                     password: field.value,
                     origin: location.origin,
@@ -232,65 +230,56 @@ export function registerCapture(ctx: ContentScriptContext) {
     }
 
     const filled = new Set<string>();
-    chrome.runtime.onMessage.addListener((message, sender, respond) => {
-        const shouldIgnoreMessage =
-            sender.id !== chrome.runtime.id ||
-            sender.tab ||
-            !['validate-fill', 'fill-once'].includes(message?.kind);
-        if (shouldIgnoreMessage) {
-            return;
-        }
-
-        const record = selected(message.target ?? {});
-
-        if (!record) {
-            respond({ valid: false });
-
-            return;
-        }
-
-        if (message.kind === 'validate-fill') {
-            respond({ valid: true });
-
-            return;
-        }
-
-        const isInvalidFillRequest =
-            typeof message.actionId !== 'string' ||
-            filled.has(message.actionId) ||
-            typeof message.password !== 'string' ||
-            typeof message.identifier !== 'string';
-        if (isInvalidFillRequest) {
-            respond({ valid: false });
-
-            return;
-        }
-
-        filled.add(message.actionId);
-
-        const setter = Object.getOwnPropertyDescriptor(
-            HTMLInputElement.prototype,
-            'value'
-        )!.set!;
-
-        // Both values are written before events, with no automatic submit.
-        if (record.username) {
-            setter.call(record.username, message.identifier);
-        }
-
-        setter.call(record.password, message.password);
-
-        for (const input of [record.username, record.password]) {
-            if (input) {
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-                input.dispatchEvent(new Event('change', { bubbles: true }));
+    const unsubscribe = messaging.onMessage(
+        'fillOnce',
+        ({ data: message, sender }) => {
+            const shouldIgnoreMessage =
+                sender.id !== chrome.runtime.id || sender.tab;
+            if (shouldIgnoreMessage) {
+                return { valid: false };
             }
-        }
 
-        cleanAutofill.add(record.form);
-        message.password = '';
-        respond({ valid: true });
-    });
+            const record = selected(message.target ?? {});
+
+            if (!record) {
+                return { valid: false };
+            }
+
+            const isInvalidFillRequest =
+                typeof message.actionId !== 'string' ||
+                filled.has(message.actionId) ||
+                typeof message.password !== 'string' ||
+                typeof message.identifier !== 'string';
+            if (isInvalidFillRequest) {
+                return { valid: false };
+            }
+
+            filled.add(message.actionId);
+
+            const setter = Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype,
+                'value'
+            )!.set!;
+
+            // Both values are written before events, with no automatic submit.
+            if (record.username) {
+                setter.call(record.username, message.identifier);
+            }
+
+            setter.call(record.password, message.password);
+
+            for (const input of [record.username, record.password]) {
+                if (input) {
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            cleanAutofill.add(record.form);
+            message.password = '';
+            return { valid: true };
+        }
+    );
     discover();
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -312,6 +301,7 @@ export function registerCapture(ctx: ContentScriptContext) {
         ],
     });
     ctx.onInvalidated(() => {
+        unsubscribe();
         observer.disconnect();
         clearTimeout(timer);
         forms.clear();

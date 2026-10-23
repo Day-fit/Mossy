@@ -9,8 +9,21 @@ import {
 } from './security';
 import { PendingCapture } from '../capture/PendingCapture';
 import { authorizePrf } from './passkeys';
+import { scopeKey } from './vaultCrypto';
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('wrapped-key storage scope', () => {
+    it('preserves existing database keys after renaming scope fields', () => {
+        expect(
+            scopeKey({
+                instance: 'https://mossy.test',
+                accountId: 'account',
+                vaultId: 'vault',
+            })
+        ).toBe('["https://mossy.test","account","vault"]');
+    });
+});
 
 describe('exact origin and browser-supplied sender boundaries', () => {
     it.each([

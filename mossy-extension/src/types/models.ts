@@ -55,7 +55,6 @@ export type Action = {
     operation: Operation;
     scope: Scope;
     userId: string;
-    vaultName: string;
     deviceId: string;
     entry?: Entry;
     target?: Target;

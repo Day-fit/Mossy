@@ -7,6 +7,7 @@ import { authorizationError, type ProtectionChoice } from './authorization';
 import { completeAction } from './completeAction';
 import type { ActionSession } from './useActionSession';
 import { messaging, type WrappedKeyPayload } from '../../messaging/rpc';
+import { useVaultName } from '../shared/useVaultName';
 
 export function useActionAuthorization(session: ActionSession) {
     const {
@@ -16,7 +17,6 @@ export function useActionAuthorization(session: ActionSession) {
         setPhase,
         setMessage,
         worker,
-        port,
         alive,
         active,
         completed,
@@ -26,12 +26,11 @@ export function useActionAuthorization(session: ActionSession) {
         transfer,
         record,
     } = session;
+    const vaultName = useVaultName(action?.scope);
     const [choice, setChoice] = useState<ProtectionChoice | null>(null);
     const authorize = async () => {
         const currentWorker = worker.current;
-        const connection = port.current;
-        const cannotAuthorize =
-            !action || !currentWorker || !connection || !method;
+        const cannotAuthorize = !action || !currentWorker || !method;
         if (cannotAuthorize) {
             return;
         }
@@ -103,12 +102,12 @@ export function useActionAuthorization(session: ActionSession) {
                     choice === 'register-passkey' && isSetup
                         ? await registerPrf(
                               action.scope.instance,
-                              action.scope.vault,
-                              action.vaultName?.trim() || action.scope.vault
+                              action.scope.vaultId,
+                              vaultName ?? action.scope.vaultId
                           )
                         : await authorizePrf(
                               action.scope.instance,
-                              action.scope.vault,
+                              action.scope.vaultId,
                               isSetup ? credentialId.current : savedCredentialId
                           );
                 prf = passkey.prf;
@@ -196,7 +195,6 @@ export function useActionAuthorization(session: ActionSession) {
                 await completeAction({
                     action,
                     currentWorker,
-                    connection,
                     record: record.current,
                     requireLive,
                 });

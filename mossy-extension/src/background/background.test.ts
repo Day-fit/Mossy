@@ -118,7 +118,10 @@ vi.mock('mossy-api-client/extension/auth.api', () => ({
     executeExtensionLogoutRequest: mocks.logout,
 }));
 vi.mock('mossy-api-client/tokenStorage', () => ({
-    tokenStorage: { set: mocks.token },
+    tokenStorage: {
+        set: mocks.token,
+        get: () => mocks.token.mock.lastCall?.[0] ?? null,
+    },
 }));
 vi.mock('mossy-api-client/deviceTrust.api', () => ({
     executeGetDeviceIdentityKeyRequest: mocks.identity,
@@ -225,6 +228,24 @@ afterEach(async () => {
 });
 
 describe('background message transports', () => {
+    it('returns vault metadata with its account and instance for UI lookup', async () => {
+        expect(await message('getVaults', undefined)).toEqual({
+            scope: { instance: 'https://mossy.test', accountId: 'user' },
+            vaults: [{ vaultId: 'vault', vaultName: 'Personal' }],
+        });
+        expect(mocks.vaults).toHaveBeenCalledWith('https://mossy.test');
+    });
+
+    it('rejects unavailable vaults before opening an action window', async () => {
+        await expect(
+            message('handleSyncReceive', {
+                vaultId: 'unavailable',
+                passwordId: undefined,
+            })
+        ).rejects.toThrow('This vault is not available to your account.');
+        expect(mocks.chrome.windows.create).not.toHaveBeenCalled();
+    });
+
     it('returns settings results directly through the messaging protocol', async () => {
         expect(await message('setTheme', { theme: 'dark' })).toEqual({
             status: 'ok',
@@ -407,7 +428,7 @@ describe('background message transports', () => {
             })
         ).toEqual({ status: 'saved' });
         expect(mocks.write).toHaveBeenCalledWith(
-            { instance: 'https://mossy.test', account: 'user', vault: 'vault' },
+            { instance: 'https://mossy.test', accountId: 'user', vaultId: 'vault' },
             {
                 type: 'Password',
                 wrappedKey: new Uint8Array([1, 2]).buffer,

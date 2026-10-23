@@ -3,11 +3,16 @@ import { executeUserVaultsRequest } from 'mossy-api-client/vault.api';
 import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import {
     executePasswordMetadataRequest,
+    executePasswordCiphertextRequest,
+    executeSavePasswordRequest,
+    executeUpdatePasswordRequest,
 } from 'mossy-api-client/password.api';
 import {
     executeGetPendingReceiversRequest,
     executeInitKeySyncRequest,
-    type InitKeySyncRequest,
+    executeGetVaultKeysRequest,
+    executeSubscribeReceiverEventsRequest,
+    executeUploadVaultKeyRequest,
 } from 'mossy-api-client/keySync.api';
 import { tokenStorage } from 'mossy-api-client/tokenStorage';
 import {
@@ -16,19 +21,22 @@ import {
 } from 'mossy-api-client/extension/auth.api';
 import { messaging } from '../messaging/rpc';
 import { verifyReceiverDetails } from '../actions/keySync';
+import { waitForReceiverResult } from '../actions/receiverEvents';
+import { wrappedKeys } from '../storage/wrappedKeys';
 import { loadDeviceId } from '../storage/deviceIdentity';
 import { PendingCapture } from '../capture/PendingCapture';
-import type { Target } from '../security/security';
-import type { Action } from '../types/models';
+import { assertLive, type Target } from '../security/security';
+import type { Action, Operation } from '../types/models';
 import type { Theme } from '../theme/types';
 import { themeSetting, lastIdentifierSetting } from '../storage/settings';
 import { getInstance, setInstance } from './instance';
 
 let theme: Theme = 'system';
 const actions = new Map<string, Action>();
+const keySyncWaits = new Map<string, AbortController>();
 const forms = new Map<string, Target[]>();
 const pending = new PendingCapture(() => {
-    void chrome.runtime.sendMessage({ kind: 'changed' }).catch(() => undefined);
+    void messaging.sendMessage('onChanged').catch(() => undefined);
     const shouldClearBadge = !pending.metadata();
     if (shouldClearBadge) {
         void chrome.action.setBadgeText({ text: '' });
@@ -47,9 +55,13 @@ const ready = (async () => {
         themeSetting.getValue(),
     ]);
     theme = storedTheme;
-    const response = await executeExtensionRefreshRequest(instance);
-    const { accessToken } = await response.json();
-    tokenStorage.set(accessToken);
+    try {
+        const response = await executeExtensionRefreshRequest(instance);
+        const { accessToken } = await response.json();
+        tokenStorage.set(accessToken);
+    } catch {
+        tokenStorage.set(null);
+    }
     await configureCapture();
 })();
 
@@ -97,74 +109,228 @@ async function listEntries(vaultId: string, instance: string) {
     );
 }
 
-messaging.onMessage('offerKeySync', async ({ data }) => {
-    const receiverDetails = data.receiver
-
-    const request: InitKeySyncRequest = {
-        vaultId: receiverDetails.vaultId,
-        publicDh: receiverDetails.publicDh,
-        signature: receiverDetails.signature
+async function requireUserVault(vaultId: string, instance: string) {
+    const vaults = await executeUserVaultsRequest(instance);
+    if (!vaults.some((vault) => vault.vaultId === vaultId)) {
+        throw new Error('This vault is not available to your account.');
     }
+}
 
-    return await executeInitKeySyncRequest(request, undefined, await getInstance())
-})
+function getAction(actionId: string, operation?: Operation): Action {
+    const action = actions.get(actionId);
+    if (!action) throw new Error('This action expired or was canceled.');
+    assertLive(action.deadline);
+    if (operation && action.operation !== operation) {
+        throw new Error('This action does not support that operation.');
+    }
+    return action;
+}
 
-messaging.onMessage('waitForKeySync', ({data}) => {
-    data.actionId
-})
+function consumeAction(actionId: string, operation: Operation): Action {
+    const action = getAction(actionId, operation);
+    actions.delete(actionId);
+    return action;
+}
+
+messaging.onMessage('claimAction', ({ data }) => getAction(data.actionId));
+
+messaging.onMessage('cancelAction', ({ data }) => {
+    const action = actions.get(data.actionId);
+    actions.delete(data.actionId);
+    keySyncWaits.get(data.actionId)?.abort();
+    if (action?.candidateId) pending.clearIf(action.candidateId);
+});
+
+messaging.onMessage('getActionCiphertext', ({ data }) => {
+    const action = getAction(data.actionId);
+    if (!action.entry) throw new Error('Choose a password.');
+    return executePasswordCiphertextRequest(
+        action.entry.passwordId,
+        action.scope.vaultId,
+        action.scope.instance
+    );
+});
+
+messaging.onMessage('getActionCandidate', ({ data }) => {
+    const action = getAction(data.actionId, 'save');
+    return pending.consume(action.candidateId!, action.scope.accountId);
+});
+
+messaging.onMessage('offerKeySync', async ({ data }) => {
+    const action = getAction(data.actionId, 'sync-receive');
+    if (data.receiver.vaultId !== action.scope.vaultId) {
+        throw new Error('The receiver does not match this vault.');
+    }
+    const { publicDh, signature } = data.receiver;
+    const result = await executeInitKeySyncRequest(
+        { vaultId: action.scope.vaultId, publicDh, signature },
+        undefined,
+        action.scope.instance
+    );
+    action.receiver = data.receiver;
+    action.code = result.code;
+    return result;
+});
+
+messaging.onMessage('waitForKeySync', async ({ data }) => {
+    const action = getAction(data.actionId, 'sync-receive');
+    if (!action.code || !action.receiver) {
+        throw new Error('Create a key-sync offer first.');
+    }
+    const controller = new AbortController();
+    keySyncWaits.get(action.id)?.abort();
+    keySyncWaits.set(action.id, controller);
+    const timer = setTimeout(
+        () => controller.abort(),
+        action.deadline - Date.now()
+    );
+    const { signal } = controller;
+    const instance = action.scope.instance;
+    const findTransfer = async () => {
+        const { keys } = await executeGetVaultKeysRequest(signal, instance);
+        return keys.find(
+            (key) =>
+                key.code === action.code && key.vaultId === action.scope.vaultId
+        );
+    };
+    try {
+        const response = await executeSubscribeReceiverEventsRequest(
+            signal,
+            instance
+        );
+        let transfer = await findTransfer();
+        if (!transfer) {
+            await waitForReceiverResult(
+                response,
+                action.receiver.receiverId,
+                action.code
+            );
+            transfer = await findTransfer();
+        }
+        getAction(action.id, 'sync-receive');
+        if (!transfer) throw new Error('The vault key was not received.');
+        const senderIdentity = await executeGetDeviceIdentityKeyRequest(
+            transfer.senderId,
+            signal,
+            instance
+        );
+        return { status: 'received', transfer, senderIdentity };
+    } finally {
+        clearTimeout(timer);
+        controller.abort();
+        if (keySyncWaits.get(action.id) === controller)
+            keySyncWaits.delete(action.id);
+    }
+});
 
 messaging.onMessage('finishCopyPassword', ({ data }) => {
-    // TODO: Acknowledge the clipboard write and consume data.actionId.
-
-    
-    throw new Error(
-        `finishCopyPassword is not implemented (action ${data.actionId}).`
-    );
+    consumeAction(data.actionId, 'copy-password');
+    return { status: 'copied' };
 });
 
 messaging.onMessage('finishCopyUsername', ({ data }) => {
-    // TODO: Acknowledge the clipboard write and consume data.actionId.
-    throw new Error(
-        `finishCopyUsername is not implemented (action ${data.actionId}).`
-    );
+    consumeAction(data.actionId, 'copy-username');
+    return { status: 'copied' };
 });
 
-messaging.onMessage('finishFill', ({ data }) => {
-    // TODO: Send data.password to the action's target with fillOnce, then consume the action.
-    throw new Error(
-        `finishFill is not implemented (action ${data.actionId}).`
-    );
+messaging.onMessage('finishFill', async ({ data }) => {
+    const action = consumeAction(data.actionId, 'fill');
+    try {
+        if (!action.target || !action.entry)
+            throw new Error('Choose a login form.');
+        const { valid } = await messaging.sendMessage(
+            'fillOnce',
+            {
+                actionId: action.id,
+                target: action.target,
+                identifier: action.entry.identifier,
+                password: data.password,
+            },
+            { tabId: action.target.tabId, frameId: action.target.frameId }
+        );
+        if (!valid) throw new Error('The login form changed. Try again.');
+        return { status: 'filled' };
+    } finally {
+        data.password = '';
+    }
 });
 
-messaging.onMessage('finishSave', ({ data }) => {
-    // TODO: Skip unchanged entries, otherwise save/update data.ciphertext; consume the action.
-    throw new Error(
-        `finishSave is not implemented (action ${data.actionId}).`
-    );
+messaging.onMessage('finishSave', async ({ data }) => {
+    const action = consumeAction(data.actionId, 'save');
+    if (data.unchanged) return { status: 'unchanged' };
+    const payload = {
+        vaultId: action.scope.vaultId,
+        identifier: action.candidateIdentifier!,
+        address: action.candidateOrigin!,
+        cipherText: data.ciphertext,
+    };
+    if (action.entry) {
+        await executeUpdatePasswordRequest(
+            { ...payload, passwordId: action.entry.passwordId },
+            action.scope.instance
+        );
+    } else {
+        await executeSavePasswordRequest(
+            { ...payload, passwordType: 'PASSWORD' },
+            action.scope.instance
+        );
+    }
+    return { status: 'saved' };
 });
 
-messaging.onMessage('finishKeySyncSend', ({ data }) => {
-    // TODO: Upload data.value using the stored action's code and instance; consume the action.
-    throw new Error(
-        `finishKeySyncSend is not implemented (action ${data.actionId}).`
+messaging.onMessage('finishKeySyncSend', async ({ data }) => {
+    const action = consumeAction(data.actionId, 'sync-send');
+    if (!action.code || data.value.vaultId !== action.scope.vaultId) {
+        throw new Error('The key transfer does not match this action.');
+    }
+    await executeUploadVaultKeyRequest(
+        action.code,
+        data.value,
+        undefined,
+        action.scope.instance
     );
+    return { status: 'sent' };
 });
 
-messaging.onMessage('finishKeySyncReceive', ({ data }) => {
-    // TODO: Store data.value as a wrapped-key record for the action's scope; consume the action.
-    throw new Error(
-        `finishKeySyncReceive is not implemented (action ${data.actionId}).`
+messaging.onMessage('finishKeySyncReceive', async ({ data }) => {
+    const action = consumeAction(data.actionId, 'sync-receive');
+    const value = data.value;
+    const wrappedKey = new Uint8Array(value.wrappedKey).buffer;
+    await wrappedKeys.write(
+        action.scope,
+        value.type === 'Password'
+            ? { type: 'Password', wrappedKey, salt: new Uint8Array(value.salt) }
+            : {
+                  type: 'PRF',
+                  wrappedKey,
+                  credentialId: new Uint8Array(value.credentialId).buffer,
+              }
     );
+    return { status: 'saved' };
 });
 
 messaging.onMessage('getPopupView', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, tabs, permission] = await Promise.all([
-        executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
+    const [tabs, permission] = await Promise.all([
         chrome.tabs.query({ active: true, lastFocusedWindow: true }),
         chrome.permissions.contains({ origins: ['https://*/*'] }),
+    ]);
+    if (!tokenStorage.get()) {
+        return {
+            instance,
+            theme,
+            permission,
+            account: null,
+            vaults: [],
+            entries: [],
+            pending: null,
+            targets: [],
+        };
+    }
+    const [user, vaults] = await Promise.all([
+        executeUserDetailsRequest(instance),
+        executeUserVaultsRequest(instance),
     ]);
     const selected = data.vaultId ?? vaults[0]?.vaultId;
     return {
@@ -182,17 +348,27 @@ messaging.onMessage('getPopupView', async ({ data }) => {
     };
 });
 
+messaging.onMessage('getVaults', async () => {
+    await ready;
+    const instance = await getInstance();
+    const [user, vaults] = await Promise.all([
+        executeUserDetailsRequest(instance),
+        executeUserVaultsRequest(instance),
+    ]);
+
+    return { scope: { instance, accountId: user.userId }, vaults };
+});
+
 messaging.onMessage('handleCopyPassword', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, deviceId] = await Promise.all([
+    const [user, deviceId] = await Promise.all([
         executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
         lastIdentifierSetting
             .getValue()
             .then((identifier) => loadDeviceId(instance, identifier!)),
+        requireUserVault(data.vaultId, instance),
     ]);
-    const vault = vaults.find((vault) => vault.vaultId === data.vaultId)!;
     const entry = data.passwordId
         ? (await listEntries(data.vaultId, instance)).find(
               (entry) => entry.passwordId === data.passwordId
@@ -201,9 +377,8 @@ messaging.onMessage('handleCopyPassword', async ({ data }) => {
     const action: Action = {
         id: crypto.randomUUID(),
         operation: 'copy-password',
-        scope: { instance, account: user.userId, vault: data.vaultId },
+        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
         userId: user.userId,
-        vaultName: vault.vaultName,
         deviceId: deviceId!,
         entry,
         deadline: Date.now() + 120000,
@@ -222,14 +397,13 @@ messaging.onMessage('handleCopyPassword', async ({ data }) => {
 messaging.onMessage('handleFill', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, deviceId] = await Promise.all([
+    const [user, deviceId] = await Promise.all([
         executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
         lastIdentifierSetting
             .getValue()
             .then((identifier) => loadDeviceId(instance, identifier!)),
+        requireUserVault(data.vaultId, instance),
     ]);
-    const vault = vaults.find((vault) => vault.vaultId === data.vaultId)!;
     const entry = data.passwordId
         ? (await listEntries(data.vaultId, instance)).find(
               (entry) => entry.passwordId === data.passwordId
@@ -238,9 +412,8 @@ messaging.onMessage('handleFill', async ({ data }) => {
     const action: Action = {
         id: crypto.randomUUID(),
         operation: 'fill',
-        scope: { instance, account: user.userId, vault: data.vaultId },
+        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
         userId: user.userId,
-        vaultName: vault.vaultName,
         deviceId: deviceId!,
         entry,
         target: data.target,
@@ -260,14 +433,13 @@ messaging.onMessage('handleFill', async ({ data }) => {
 messaging.onMessage('handleSave', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, deviceId] = await Promise.all([
+    const [user, deviceId] = await Promise.all([
         executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
         lastIdentifierSetting
             .getValue()
             .then((identifier) => loadDeviceId(instance, identifier!)),
+        requireUserVault(data.vaultId, instance),
     ]);
-    const vault = vaults.find((vault) => vault.vaultId === data.vaultId)!;
     const entry = data.passwordId
         ? (await listEntries(data.vaultId, instance)).find(
               (entry) => entry.passwordId === data.passwordId
@@ -278,9 +450,8 @@ messaging.onMessage('handleSave', async ({ data }) => {
     const action: Action = {
         id: crypto.randomUUID(),
         operation: 'save',
-        scope: { instance, account: user.userId, vault: data.vaultId },
+        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
         userId: user.userId,
-        vaultName: vault.vaultName,
         deviceId: deviceId!,
         entry,
         candidateId: candidate.id,
@@ -304,14 +475,13 @@ messaging.onMessage('handleSave', async ({ data }) => {
 messaging.onMessage('handleSyncSend', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, deviceId] = await Promise.all([
+    const [user, deviceId] = await Promise.all([
         executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
         lastIdentifierSetting
             .getValue()
             .then((identifier) => loadDeviceId(instance, identifier!)),
+        requireUserVault(data.vaultId, instance),
     ]);
-    const vault = vaults.find((vault) => vault.vaultId === data.vaultId)!;
     const receivers = await executeGetPendingReceiversRequest(
         undefined,
         instance
@@ -331,9 +501,8 @@ messaging.onMessage('handleSyncSend', async ({ data }) => {
     const action: Action = {
         id: crypto.randomUUID(),
         operation: 'sync-send',
-        scope: { instance, account: user.userId, vault: data.vaultId },
+        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
         userId: user.userId,
-        vaultName: vault.vaultName,
         deviceId: deviceId!,
         deadline: Date.now() + 120000,
         code: data.code,
@@ -353,20 +522,18 @@ messaging.onMessage('handleSyncSend', async ({ data }) => {
 messaging.onMessage('handleSyncReceive', async ({ data }) => {
     await ready;
     const instance = await getInstance();
-    const [user, vaults, deviceId] = await Promise.all([
+    const [user, deviceId] = await Promise.all([
         executeUserDetailsRequest(instance),
-        executeUserVaultsRequest(instance),
         lastIdentifierSetting
             .getValue()
             .then((identifier) => loadDeviceId(instance, identifier!)),
+        requireUserVault(data.vaultId, instance),
     ]);
-    const vault = vaults.find((vault) => vault.vaultId === data.vaultId)!;
     const action: Action = {
         id: crypto.randomUUID(),
         operation: 'sync-receive',
-        scope: { instance, account: user.userId, vault: data.vaultId },
+        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
         userId: user.userId,
-        vaultName: vault.vaultName,
         deviceId: deviceId!,
         deadline: Date.now() + 300000,
     };
@@ -393,21 +560,21 @@ messaging.onMessage('handleDiscover', ({ data, sender }) => {
     }));
     forms.set(`${sender.tab!.id}:${sender.frameId}`, targets);
 
-    return { status: 'ok' }
-})
+    return { status: 'ok' };
+});
 
 messaging.onMessage('handleDismiss', () => {
     pending.clear();
     return { status: 'ok' };
-})
+});
 
 messaging.onMessage('setTheme', async ({ data }) => {
     await themeSetting.setValue(data.theme);
     theme = data.theme;
     return { status: 'ok' };
-})
+});
 
-messaging.onMessage('handleCapture', async ({data, sender}) => {
+messaging.onMessage('handleCapture', async ({ data, sender }) => {
     const receivedAt = Date.now();
     const instance = await getInstance();
     const { userId } = await executeUserDetailsRequest(instance);
@@ -431,15 +598,13 @@ messaging.onMessage('handleCapture', async ({data, sender}) => {
         });
     }
 
-    return { status: staged ? 'ok' : "error" };
-})
+    return { status: staged ? 'ok' : 'error' };
+});
 
-messaging.onMessage('handleSettings', async ({data}) => {
+messaging.onMessage('handleSettings', async ({ data }) => {
     const instance = await getInstance();
     if (data.instance !== instance) {
-        await executeExtensionLogoutRequest(instance).catch(
-            () => undefined
-        );
+        await executeExtensionLogoutRequest(instance).catch(() => undefined);
     }
     await Promise.all([
         setInstance(data.instance),
@@ -447,9 +612,4 @@ messaging.onMessage('handleSettings', async ({data}) => {
     ]);
     theme = data.theme;
     return { status: 'ok' };
-})
-
-type WrappedKeyPayload = { wrappedKey: number[] } & (
-    | { type: 'PRF'; credentialId: number[] }
-    | { type: 'Password'; salt: number[] }
-);
+});

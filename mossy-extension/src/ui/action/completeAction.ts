@@ -1,7 +1,7 @@
 import type { WrappedKeyRecord } from '../../types/vault';
 import type { Action } from '../../types/models';
 import type { ActionWorker } from '../../actions/ActionWorker';
-import { messaging, type ActionPort } from '../../messaging/rpc';
+import { messaging } from '../../messaging/rpc';
 import type { UploadVaultKeyRequest } from 'mossy-api-client';
 import { signingHandles } from '../../storage/deviceIdentity';
 
@@ -9,13 +9,11 @@ import { signingHandles } from '../../storage/deviceIdentity';
 export async function completeAction({
     action,
     currentWorker,
-    connection,
     record,
     requireLive,
 }: {
     action: Action;
     currentWorker: ActionWorker;
-    connection: ActionPort;
     record: WrappedKeyRecord | undefined;
     requireLive: () => void;
 }) {
@@ -30,9 +28,9 @@ export async function completeAction({
             actionId: action.id,
         });
     } else if (shouldReadPassword) {
-        const encrypted = await connection.call<{
-            ciphertext: string;
-        }>('ciphertext');
+        const encrypted = await messaging.sendMessage('getActionCiphertext', {
+            actionId: action.id,
+        });
         let secret = await currentWorker.call<string>('read', {
             ciphertext: encrypted.ciphertext,
         });
@@ -55,15 +53,20 @@ export async function completeAction({
             secret = '';
         }
     } else if (action.operation === 'save') {
-        let candidate = await connection.call<string>('candidate');
+        let candidate = await messaging.sendMessage('getActionCandidate', {
+            actionId: action.id,
+        });
 
         try {
             let unchanged = false;
 
             if (action.entry) {
-                const encrypted = await connection.call<{
-                    ciphertext: string;
-                }>('ciphertext');
+                const encrypted = await messaging.sendMessage(
+                    'getActionCiphertext',
+                    {
+                        actionId: action.id,
+                    }
+                );
                 let existing = await currentWorker.call<string>('read', {
                     ciphertext: encrypted.ciphertext,
                 });

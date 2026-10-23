@@ -4,7 +4,8 @@ import type { PopupView } from '../ui/popup/types';
 import type { Target } from '../security/security';
 import type { DiscoveredForm } from '../background/background';
 import type { Theme } from '../theme/types';
-import type { Action, ActionResult } from '../types/models';
+import type { Action, ActionResult, Vault } from '../types/models';
+import type { Scope } from '../types/vault';
 
 export type MessageStatus = {
     status: 'ok' | 'error';
@@ -20,6 +21,10 @@ type ActionRequest = {
 //TODO: think of better naming, group functions with simmilar domain to separete protocols.
 type PopupToBackgroundProtocol = {
     getPopupView(data: { vaultId?: string }): PopupView;
+    getVaults(): {
+        scope: Pick<Scope, 'instance' | 'accountId'>;
+        vaults: Vault[];
+    };
     handleCopyPassword(data: ActionRequest): void;
     handleFill(data: ActionRequest): void;
     handleSave(data: ActionRequest): void;
@@ -48,6 +53,7 @@ export type WrappedKeyPayload = { wrappedKey: number[] } & (
 
 type ActionToBackgroundProtocol = {
     claimAction(data: { actionId: string }): Action;
+    cancelAction(data: { actionId: string }): void;
     getActionCiphertext(data: { actionId: string }): { ciphertext: string };
     getActionCandidate(data: { actionId: string }): string;
     offerKeySync(data: { actionId: string; receiver: ReceiverDetails }): {
@@ -96,74 +102,3 @@ export type ExtensionProtocol = PopupToBackgroundProtocol &
     BackgroundToPopupProtocol;
 
 export const messaging = defineExtensionMessaging<ExtensionProtocol>();
-
-export async function rpc<T>(command: unknown): Promise<T> {
-    const response = await chrome.runtime.sendMessage(command);
-
-    if (!response?.ok) {
-        throw new Error(
-            response?.error ?? 'The extension restarted. Try again.'
-        );
-    }
-
-    return response.data as T;
-}
-
-export class ActionPort {
-    private port: chrome.runtime.Port;
-    private pending = new Map<
-        string,
-        { resolve: (value: unknown) => void; reject: (error: Error) => void }
-    >();
-
-    constructor(id: string, onDisconnect: () => void) {
-        this.port = chrome.runtime.connect({ name: `action:${id}` });
-        this.port.onMessage.addListener((data) => {
-            const call = this.pending.get(data.id);
-
-            if (!call) {
-                return;
-            }
-
-            this.pending.delete(data.id);
-
-            if (data.error) {
-                call.reject(new Error(data.error));
-
-                return;
-            }
-
-            call.resolve(data.result);
-        });
-        this.port.onDisconnect.addListener(() => {
-            for (const call of this.pending.values()) {
-                call.reject(
-                    new Error('This action expired or the extension restarted.')
-                );
-            }
-
-            this.pending.clear();
-            onDisconnect();
-        });
-    }
-
-    call<T>(kind: string, value?: unknown): Promise<T> {
-        const id = crypto.randomUUID();
-
-        return new Promise((resolve, reject) => {
-            this.pending.set(id, {
-                resolve: resolve as (value: unknown) => void,
-                reject,
-            });
-            this.port.postMessage({
-                id,
-                kind,
-                ...(value !== undefined ? { value } : {}),
-            });
-        });
-    }
-
-    close() {
-        this.port.disconnect();
-    }
-}

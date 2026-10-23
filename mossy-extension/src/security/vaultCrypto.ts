@@ -1,5 +1,5 @@
 import sodium from 'libsodium-wrappers-sumo';
-import type { WrappedKeyRecord } from '../types/vault';
+import type { Scope, WrappedKeyRecord } from '../types/vault';
 
 export const VAULT_PASSWORD_MIN_LENGTH = 12;
 
@@ -129,8 +129,5 @@ export async function decryptWithKey(
     return new TextDecoder().decode(plaintext);
 }
 
-export const scopeKey = (scope: {
-    instance: string;
-    account: string;
-    vault: string;
-}) => JSON.stringify([scope.instance, scope.account, scope.vault]);
+export const scopeKey = (scope: Scope) =>
+    JSON.stringify([scope.instance, scope.accountId, scope.vaultId]);
