@@ -6,6 +6,7 @@ import { assertLive } from '../../security/security';
 import { authorizationError, type ProtectionChoice } from './authorization';
 import { completeAction } from './completeAction';
 import type { ActionSession } from './useActionSession';
+import { messaging, type WrappedKeyPayload } from '../../messaging/rpc';
 
 export function useActionAuthorization(session: ActionSession) {
     const {
@@ -158,16 +159,26 @@ export function useActionAuthorization(session: ActionSession) {
                     throw new Error('Action closed.');
                 }
 
-                await connection.call('receive-finish', {
-                    type: wrapped.type,
-                    wrappedKey: Array.from(new Uint8Array(wrapped.wrappedKey)),
-                    ...(wrapped.type === 'Password'
-                        ? { salt: Array.from(wrapped.salt) }
+                const wrappedKey = Array.from(
+                    new Uint8Array(wrapped.wrappedKey)
+                );
+                const value: WrappedKeyPayload =
+                    wrapped.type === 'Password'
+                        ? {
+                              type: 'Password',
+                              wrappedKey,
+                              salt: Array.from(wrapped.salt),
+                          }
                         : {
+                              type: 'PRF',
+                              wrappedKey,
                               credentialId: Array.from(
                                   new Uint8Array(wrapped.credentialId)
                               ),
-                          }),
+                          };
+                await messaging.sendMessage('finishKeySyncReceive', {
+                    actionId: action.id,
+                    value,
                 });
             } else {
                 workerStarted = true;

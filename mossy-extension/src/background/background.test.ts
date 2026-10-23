@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExtensionProtocol } from '../messaging/rpc';
 
 const mocks = vi.hoisted(() => {
     const event = () => ({ addListener: vi.fn() });
@@ -39,28 +40,25 @@ const mocks = vi.hoisted(() => {
             },
         },
         onMessage: vi.fn(),
+        sendMessage: vi.fn().mockResolvedValue({ valid: true }),
         user: vi.fn().mockResolvedValue({ userId: 'user', username: 'alice' }),
         vaults: vi
             .fn()
             .mockResolvedValue([{ vaultId: 'vault', vaultName: 'Personal' }]),
-        entries: vi
-            .fn()
-            .mockResolvedValue([
-                {
-                    passwordId: 'password',
-                    passwordType: 'PASSWORD',
-                    identifier: 'alice',
-                    address: 'site.test',
-                },
-            ]),
+        entries: vi.fn().mockResolvedValue([
+            {
+                passwordId: 'password',
+                passwordType: 'PASSWORD',
+                identifier: 'alice',
+                address: 'site.test',
+            },
+        ]),
         ciphertext: vi.fn().mockResolvedValue({ ciphertext: 'encrypted' }),
         save: vi.fn().mockResolvedValue(undefined),
         update: vi.fn().mockResolvedValue(undefined),
-        refresh: vi
-            .fn()
-            .mockResolvedValue({
-                json: async () => ({ accessToken: 'token' }),
-            }),
+        refresh: vi.fn().mockResolvedValue({
+            json: async () => ({ accessToken: 'token' }),
+        }),
         logout: vi.fn().mockResolvedValue(undefined),
         token: vi.fn(),
         setting: vi.fn().mockResolvedValue(undefined),
@@ -70,7 +68,11 @@ const mocks = vi.hoisted(() => {
             receiverId: 'receiver',
             vaultId: 'vault',
             code: 'ABC123',
-            publicDh: { kty: 'OKP', crv: 'X25519', x: 'public' },
+            publicDh: {
+                kty: 'OKP' as const,
+                crv: 'X25519' as const,
+                x: 'public',
+            },
             signature: 'signature',
         },
         receivers: vi.fn(),
@@ -80,18 +82,16 @@ const mocks = vi.hoisted(() => {
         verify: vi.fn().mockResolvedValue(undefined),
         subscribe: vi.fn().mockResolvedValue({ body: 'events' }),
         init: vi.fn().mockResolvedValue({ code: 'ABC123' }),
-        keys: vi
-            .fn()
-            .mockResolvedValue({
-                keys: [
-                    {
-                        code: 'ABC123',
-                        vaultId: 'vault',
-                        senderId: 'sender',
-                        cipherText: 'key',
-                    },
-                ],
-            }),
+        keys: vi.fn().mockResolvedValue({
+            keys: [
+                {
+                    code: 'ABC123',
+                    vaultId: 'vault',
+                    senderId: 'sender',
+                    cipherText: 'key',
+                },
+            ],
+        }),
         wait: vi.fn().mockResolvedValue(undefined),
         upload: vi.fn().mockResolvedValue(undefined),
         write: vi.fn().mockResolvedValue(undefined),
@@ -99,7 +99,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('../messaging/rpc', () => ({
-    messaging: { onMessage: mocks.onMessage },
+    messaging: { onMessage: mocks.onMessage, sendMessage: mocks.sendMessage },
 }));
 vi.mock('mossy-api-client/auth.api', () => ({
     executeUserDetailsRequest: mocks.user,
@@ -166,47 +166,42 @@ const target = {
     usernameId: null,
 };
 
-function popup(kind: string, data = {}) {
-    return mocks.onMessage.mock.calls.find(([name]) => name === kind)![1]({
-        data,
-    });
+// Dispatch the same data/sender shape supplied by @webext-core/messaging.
+// Do not reproduce the library's wire envelopes or error serialization here.
+async function message<K extends keyof ExtensionProtocol>(
+    name: K,
+    data: Parameters<ExtensionProtocol[K]>[0],
+    messageSender: Omit<chrome.runtime.MessageSender, 'tab'> & {
+        tab?: Partial<chrome.tabs.Tab>;
+    } = {}
+): Promise<ReturnType<ExtensionProtocol[K]>> {
+    const registration = mocks.onMessage.mock.calls.find(
+        ([type]) => type === name
+    );
+    expect(registration, `No handler registered for "${name}"`).toBeDefined();
+    return registration![1]({ data, sender: messageSender });
 }
 
-function native<T>(data: object): Promise<T> {
-    return new Promise((resolve) => {
-        mocks.chrome.runtime.onMessage.addListener.mock.calls[0]![0](
-            data,
-            sender,
-            resolve
-        );
+async function action(
+    operation: 'copy-password' | 'fill' | 'save' | 'sync-send' | 'sync-receive',
+    data: Partial<Parameters<ExtensionProtocol['handleFill']>[0]> = {}
+) {
+    const messages = {
+        'copy-password': 'handleCopyPassword',
+        fill: 'handleFill',
+        save: 'handleSave',
+        'sync-send': 'handleSyncSend',
+        'sync-receive': 'handleSyncReceive',
+    } as const;
+    await message(messages[operation], {
+        vaultId: 'vault',
+        passwordId: undefined,
+        ...data,
     });
-}
-
-async function action(operation: string, data = {}) {
-    await popup('handleAction', { operation, vaultId: 'vault', ...data });
     const url = mocks.chrome.windows.create.mock.lastCall![0].url as string;
-    const port = {
-        name: `action:${url.split('#')[1]}`,
-        onMessage: { addListener: vi.fn() },
-        onDisconnect: { addListener: vi.fn() },
-        postMessage: vi.fn(),
-    };
-    mocks.chrome.runtime.onConnect.addListener.mock.calls[0]![0](port);
-    return {
-        call<T>(kind: string, value?: unknown): Promise<T> {
-            return new Promise((resolve, reject) => {
-                port.postMessage.mockImplementationOnce((reply) => {
-                    if (reply.error) reject(new Error(reply.error));
-                    else resolve(reply.result);
-                });
-                port.onMessage.addListener.mock.calls[0]![0]({
-                    id: 'request',
-                    kind,
-                    value,
-                });
-            });
-        },
-    };
+    const actionId = new URL(url).hash.slice(1);
+    expect(actionId).not.toBe('');
+    return { actionId };
 }
 
 beforeEach(async () => {
@@ -220,71 +215,111 @@ beforeEach(async () => {
     );
 });
 
+afterEach(async () => {
+    // Clear staged capture timers even when a TDD assertion fails midway.
+    try {
+        await message('handleDismiss', undefined);
+    } finally {
+        vi.unstubAllGlobals();
+    }
+});
+
 describe('background message transports', () => {
-    it('keeps native reply envelopes and leaves unrelated messages to their listeners', async () => {
-        expect(await native({ kind: 'theme', theme: 'dark' })).toEqual({
-            ok: true,
-            data: { ok: true },
+    it('returns settings results directly through the messaging protocol', async () => {
+        expect(await message('setTheme', { theme: 'dark' })).toEqual({
+            status: 'ok',
         });
         expect(mocks.setting).toHaveBeenCalledWith('dark');
         expect(
-            await native({
-                kind: 'settings',
+            await message('handleSettings', {
                 instance: 'https://other.test',
                 theme: 'light',
             })
-        ).toEqual({ ok: true, data: { ok: true } });
+        ).toEqual({ status: 'ok' });
         expect(mocks.logout).toHaveBeenCalledWith('https://mossy.test');
-        expect(mocks.instanceSetting).toHaveBeenCalledWith('https://other.test');
+        expect(mocks.instanceSetting).toHaveBeenCalledWith(
+            'https://other.test'
+        );
         expect(mocks.setting).toHaveBeenCalledWith('light');
-        expect(await popup('getPopupView')).toMatchObject({
+        expect(await message('getPopupView', {})).toMatchObject({
             instance: 'https://other.test',
             theme: 'light',
         });
         expect(
-            mocks.chrome.runtime.onMessage.addListener.mock.calls[0]![0](
-                { type: 'handleLogout' },
-                {},
-                vi.fn()
-            )
-        ).toBeUndefined();
+            mocks.chrome.runtime.onMessage.addListener
+        ).not.toHaveBeenCalled();
+        expect(
+            mocks.chrome.runtime.onConnect.addListener
+        ).not.toHaveBeenCalled();
     });
 
-    it('returns native API errors in the existing envelope', async () => {
+    it('rejects handler failures so messaging can propagate the error', async () => {
         mocks.setting.mockRejectedValueOnce(new Error('Storage unavailable'));
-        expect(await native({ kind: 'theme', theme: 'dark' })).toEqual({
-            ok: false,
-            error: 'Storage unavailable',
-        });
+        await expect(message('setTheme', { theme: 'dark' })).rejects.toThrow(
+            'Storage unavailable'
+        );
     });
 
-    it('discovers forms and fills through the existing action port', async () => {
-        await native({
-            kind: 'discover',
-            forms: [
-                {
-                    formId: 'form',
-                    passwordId: 'field',
-                    usernameId: null,
-                    origin: 'https://site.test',
-                },
-            ],
+    it('dismisses captured passwords and notifies the popup through messaging', async () => {
+        await message(
+            'handleCapture',
+            {
+                password: 'secret',
+                identifier: 'alice',
+                origin: 'https://site.test',
+            },
+            sender
+        );
+        expect(await message('getPopupView', {})).toMatchObject({
+            pending: { identifier: 'alice', tabId: 7 },
         });
-        expect(await popup('getPopupView')).toMatchObject({
+        mocks.sendMessage.mockClear();
+
+        expect(await message('handleDismiss', undefined)).toEqual({
+            status: 'ok',
+        });
+        expect(await message('getPopupView', {})).toMatchObject({
+            pending: null,
+        });
+        expect(mocks.sendMessage).toHaveBeenCalledWith('onChanged');
+        expect(mocks.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('discovers forms and fills through messaging with an action ID', async () => {
+        expect(
+            await message(
+                'handleDiscover',
+                {
+                    forms: [
+                        {
+                            formId: 'form',
+                            passwordId: 'field',
+                            usernameId: null,
+                            origin: 'https://site.test',
+                        },
+                    ],
+                },
+                sender
+            )
+        ).toEqual({ status: 'ok' });
+        expect(await message('getPopupView', {})).toMatchObject({
             targets: [target],
         });
-        const port = await action('fill', { passwordId: 'password', target });
-        expect(await port.call('claim')).toMatchObject({
+        const request = await action('fill', {
+            passwordId: 'password',
+            target,
+        });
+        expect(await message('claimAction', request)).toMatchObject({
+            id: request.actionId,
             operation: 'fill',
             deviceId: 'device',
             target,
         });
-        await native({
-            kind: 'settings',
+        await message('handleSettings', {
             instance: 'https://other.test',
             theme: 'system',
         });
-        expect(await port.call('ciphertext')).toEqual({
+        expect(await message('getActionCiphertext', request)).toEqual({
             ciphertext: 'encrypted',
         });
         expect(mocks.ciphertext).toHaveBeenCalledWith(
@@ -292,41 +327,49 @@ describe('background message transports', () => {
             'vault',
             'https://mossy.test'
         );
-        expect(await port.call('finish', { password: 'secret' })).toEqual({
+        expect(
+            await message('finishFill', {
+                ...request,
+                password: 'secret',
+            })
+        ).toEqual({
             status: 'filled',
         });
-        expect(mocks.chrome.tabs.sendMessage).toHaveBeenCalledWith(
-            7,
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'fillOnce',
             expect.objectContaining({
-                kind: 'fill-once',
+                actionId: request.actionId,
+                target,
                 password: 'secret',
                 identifier: 'alice',
             }),
-            { documentId: 'document' }
+            { tabId: 7, frameId: 0 }
         );
+        expect(mocks.chrome.tabs.sendMessage).not.toHaveBeenCalled();
     });
 
     it.each([false, true])(
         'captures, consumes and saves a password (update: %s)',
         async (update) => {
             const capture = {
-                kind: 'capture',
                 password: 'secret',
                 identifier: 'alice',
                 origin: 'https://site.test',
             };
-            expect(await native(capture)).toEqual({
-                ok: true,
-                data: { ok: true },
+            expect(await message('handleCapture', capture, sender)).toEqual({
+                status: 'ok',
             });
             expect(capture.password).toBe('');
-            const port = await action(
+            const request = await action(
                 'save',
                 update ? { passwordId: 'password' } : {}
             );
-            expect(await port.call('candidate')).toBe('secret');
+            expect(await message('getActionCandidate', request)).toBe('secret');
             expect(
-                await port.call('finish', { ciphertext: 'encrypted-secret' })
+                await message('finishSave', {
+                    ...request,
+                    ciphertext: 'encrypted-secret',
+                })
             ).toEqual({ status: 'saved' });
             expect(update ? mocks.update : mocks.save).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -341,18 +384,26 @@ describe('background message transports', () => {
     );
 
     it('receives a key and stores the converted wrapped-key record', async () => {
-        const port = await action('sync-receive');
-        expect(await port.call('offer', mocks.receiver)).toEqual({
+        const request = await action('sync-receive');
+        expect(
+            await message('offerKeySync', {
+                ...request,
+                receiver: mocks.receiver,
+            })
+        ).toEqual({
             code: 'ABC123',
         });
-        expect(await port.call('wait')).toMatchObject({
+        expect(await message('waitForKeySync', request)).toMatchObject({
             transfer: { senderId: 'sender' },
         });
         expect(
-            await port.call('receive-finish', {
-                type: 'Password',
-                wrappedKey: [1, 2],
-                salt: [3, 4],
+            await message('finishKeySyncReceive', {
+                ...request,
+                value: {
+                    type: 'Password',
+                    wrappedKey: [1, 2],
+                    salt: [3, 4],
+                },
             })
         ).toEqual({ status: 'saved' });
         expect(mocks.write).toHaveBeenCalledWith(
@@ -366,7 +417,7 @@ describe('background message transports', () => {
     });
 
     it('verifies the receiver and uploads a key using the current sync protocol', async () => {
-        const port = await action('sync-send', { code: 'ABC123' });
+        const request = await action('sync-send', { code: 'ABC123' });
         expect(mocks.verify).toHaveBeenCalledWith(
             mocks.receiver,
             await mocks.identity()
@@ -376,7 +427,12 @@ describe('background message transports', () => {
             ciphertext: 'encrypted-key',
             publicDh: mocks.receiver.publicDh,
         };
-        expect(await port.call('finish', payload)).toEqual({ status: 'sent' });
+        expect(
+            await message('finishKeySyncSend', {
+                ...request,
+                value: payload,
+            })
+        ).toEqual({ status: 'sent' });
         expect(mocks.upload).toHaveBeenCalledWith(
             'ABC123',
             payload,

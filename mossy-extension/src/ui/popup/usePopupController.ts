@@ -5,6 +5,14 @@ import type { Entry, Operation } from '../../types/models';
 import type { PopupView } from './types';
 import { usePopupStore } from './usePopupStore';
 
+const actionMessages = {
+    'copy-password': 'handleCopyPassword',
+    fill: 'handleFill',
+    save: 'handleSave',
+    'sync-send': 'handleSyncSend',
+    'sync-receive': 'handleSyncReceive',
+} as const;
+
 export function usePopupController() {
     const { view, error, loading, set } = usePopupStore();
     const [settings, setSettings] = useState(false);
@@ -116,8 +124,7 @@ export function usePopupController() {
                 throw new Error('Choose a vault.');
             }
 
-            await messaging.sendMessage('handleAction', {
-                operation,
+            await messaging.sendMessage(actionMessages[operation], {
                 vaultId: view.selected,
                 passwordId: entry?.passwordId,
                 target,

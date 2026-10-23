@@ -710,8 +710,7 @@ test(
         const windowPromise = context.waitForEvent('page');
 
         await pageRpc(popup, {
-            type: 'handleAction',
-            operation: 'fill',
+            type: 'handleFill',
             vaultId: '10000000-0000-4000-8000-000000000001',
             passwordId: '20000000-0000-4000-8000-000000000001',
             target: state.targets[0],
@@ -801,8 +800,7 @@ test(
         const actionPromise = context.waitForEvent('page');
 
         await pageRpc(popup, {
-            type: 'handleAction',
-            operation: 'fill',
+            type: 'handleFill',
             vaultId: '10000000-0000-4000-8000-000000000001',
             passwordId: '20000000-0000-4000-8000-000000000001',
             target: state.targets[0],
@@ -880,8 +878,7 @@ test('a receiver verifies and decrypts an extension key transfer after fresh aut
     const actionPromise = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        type: 'handleAction',
-        operation: 'sync-send',
+        type: 'handleSyncSend',
         vaultId: '10000000-0000-4000-8000-000000000001',
         code: 'ABC123',
     });
@@ -968,8 +965,7 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
     const actionPromise = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        type: 'handleAction',
-        operation: 'sync-receive',
+        type: 'handleSyncReceive',
         vaultId: '10000000-0000-4000-8000-000000000002',
     });
 
@@ -1706,8 +1702,7 @@ async function receiveFixtureKey() {
     const opened = context.waitForEvent('page');
 
     await pageRpc(popup, {
-        type: 'handleAction',
-        operation: 'sync-receive',
+        type: 'handleSyncReceive',
         vaultId: '10000000-0000-4000-8000-000000000002',
     });
 

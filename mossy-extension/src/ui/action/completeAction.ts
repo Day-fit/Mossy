@@ -1,7 +1,8 @@
 import type { WrappedKeyRecord } from '../../types/vault';
 import type { Action } from '../../types/models';
 import type { ActionWorker } from '../../actions/ActionWorker';
-import type { ActionPort } from '../../messaging/rpc';
+import { messaging, type ActionPort } from '../../messaging/rpc';
+import type { UploadVaultKeyRequest } from 'mossy-api-client';
 import { signingHandles } from '../../storage/deviceIdentity';
 
 // Called only after unlocking. Keep plaintext scoped to the operation that needs it.
@@ -25,7 +26,9 @@ export async function completeAction({
         currentWorker.stop();
 
         await navigator.clipboard.writeText(action.entry!.identifier);
-        await connection.call('finish');
+        await messaging.sendMessage('finishCopyUsername', {
+            actionId: action.id,
+        });
     } else if (shouldReadPassword) {
         const encrypted = await connection.call<{
             ciphertext: string;
@@ -39,9 +42,12 @@ export async function completeAction({
         try {
             if (action.operation === 'copy-password') {
                 await navigator.clipboard.writeText(secret);
-                await connection.call('finish');
+                await messaging.sendMessage('finishCopyPassword', {
+                    actionId: action.id,
+                });
             } else {
-                await connection.call('finish', {
+                await messaging.sendMessage('finishFill', {
+                    actionId: action.id,
                     password: secret,
                 });
             }
@@ -65,24 +71,26 @@ export async function completeAction({
                 existing = '';
             }
 
-            const ciphertext = unchanged
-                ? undefined
-                : await currentWorker.call<string>('encrypt', {
-                      password: candidate,
-                  });
+            const result = unchanged
+                ? { unchanged: true as const }
+                : {
+                      ciphertext: await currentWorker.call<string>('encrypt', {
+                          password: candidate,
+                      }),
+                  };
             currentWorker.stop();
             candidate = '';
             requireLive();
 
-            await connection.call('finish', {
-                ciphertext,
-                unchanged,
+            await messaging.sendMessage('finishSave', {
+                actionId: action.id,
+                ...result,
             });
         } finally {
             candidate = '';
         }
     } else if (action.operation === 'sync-send') {
-        const result = await currentWorker.call('send', {
+        const result = await currentWorker.call<UploadVaultKeyRequest>('send', {
             credentialId:
                 record?.type === 'PRF' ? record.credentialId : undefined,
             ...(await signingHandles(action.scope.instance)),
@@ -95,6 +103,9 @@ export async function completeAction({
         currentWorker.stop();
         requireLive();
 
-        await connection.call('finish', result);
+        await messaging.sendMessage('finishKeySyncSend', {
+            actionId: action.id,
+            value: result,
+        });
     }
 }
