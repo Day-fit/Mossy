@@ -127,7 +127,8 @@ export function createMockRuntime(options: { scenario?: string; rootDir?: string
   app.disable("x-powered-by");
   app.use((request, response, next) => {
     const origin = request.get("origin");
-    if (origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    if (request.path.startsWith("/api/v1/auth/extension/")) response.set("Cache-Control", "no-store");
+    if (origin && /^(http:\/\/(localhost|127\.0\.0\.1)(:\d+)?|chrome-extension:\/\/[a-p]{32})$/.test(origin)) {
       response.set({
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Credentials": "true",
