@@ -10,10 +10,9 @@ src/
   Popup.tsx        Top-level popup screen
   globals.css      Styles shared across the extension
   actions/         Secret worker, key-sync crypto, and event parsing
-  auth/            Device login and enrollment flow
-  background/      Background session, command handling, and browser events
+  background/      Device login, action lifecycle, command handling, browser events
   capture/         Login-form discovery and pending password captures
-  messaging/       Popup RPC and action-window connections
+  messaging/       Typed RPC and sender-checked background registrations
   security/        Origin/sender validation and vault passkey ceremonies
   storage/         IndexedDB setup, device identity, wrapped keys, and settings
   theme/           Theme type and React subscription hook
@@ -37,6 +36,12 @@ Endpoint functions are imported directly from `mossy-api-client`, including
 Secrets stay in transient input elements and action workers. Popup state holds
 metadata only. Storage modules persist wrapped vault keys and native device
 identity, preserving the existing database name and schema.
+
+Background handlers check the browser-supplied sender before accepting popup or
+action messages. Content messages validate their source, permission, and payload.
+`ActionRegistry` owns action expiry, document claims, cancellation, and window
+cleanup. Consuming an action releases its state while its result screen remains
+open until the user closes it. RPC logging is explicitly disabled for secrets.
 
 Action scopes identify `instance`, `accountId`, and `vaultId`. Vault names belong
 to UI metadata in `ui/shared/useVaultStore.ts`; `useVaultName(scope)` fetches

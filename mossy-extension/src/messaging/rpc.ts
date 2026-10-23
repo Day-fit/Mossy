@@ -1,8 +1,7 @@
 import { defineExtensionMessaging } from '@webext-core/messaging';
 import type { ReceiverDetails, UploadVaultKeyRequest } from 'mossy-api-client';
 import type { PopupView } from '../ui/popup/types';
-import type { Target } from '../security/security';
-import type { DiscoveredForm } from '../background/background';
+import type { Target, DiscoveredForm } from '../security/security';
 import type { Theme } from '../theme/types';
 import type { Action, ActionResult, Vault } from '../types/models';
 import type { Scope } from '../types/vault';
@@ -11,15 +10,14 @@ export type MessageStatus = {
     status: 'ok' | 'error';
 };
 
-type ActionRequest = {
+export type ActionRequest = {
     vaultId: string;
     passwordId: string | undefined;
     target?: Target;
     code?: string;
 };
 
-//TODO: think of better naming, group functions with simmilar domain to separete protocols.
-type PopupToBackgroundProtocol = {
+export type PopupToBackgroundProtocol = {
     getPopupView(data: { vaultId?: string }): PopupView;
     getVaults(): {
         scope: Pick<Scope, 'instance' | 'accountId'>;
@@ -36,14 +34,17 @@ type PopupToBackgroundProtocol = {
     handleLogout(): MessageStatus;
 
     setTheme(data: { theme: 'light' | 'dark' | 'system' }): MessageStatus;
-    handleDiscover(data: { forms: DiscoveredForm[] }): MessageStatus;
     handleDismiss(): MessageStatus;
+    handleSettings(data: { instance: string; theme: Theme }): MessageStatus;
+};
+
+type ContentToBackgroundProtocol = {
+    handleDiscover(data: { forms: DiscoveredForm[] }): MessageStatus;
     handleCapture(data: {
         password: string;
         identifier: string;
         origin: string;
     }): MessageStatus;
-    handleSettings(data: { instance: string; theme: Theme }): MessageStatus;
 };
 
 export type WrappedKeyPayload = { wrappedKey: number[] } & (
@@ -51,7 +52,7 @@ export type WrappedKeyPayload = { wrappedKey: number[] } & (
     | { type: 'Password'; salt: number[] }
 );
 
-type ActionToBackgroundProtocol = {
+export type ActionToBackgroundProtocol = {
     claimAction(data: { actionId: string }): Action;
     cancelAction(data: { actionId: string }): void;
     getActionCiphertext(data: { actionId: string }): { ciphertext: string };
@@ -97,8 +98,12 @@ type BackgroundToPopupProtocol = {
 };
 
 export type ExtensionProtocol = PopupToBackgroundProtocol &
+    ContentToBackgroundProtocol &
     ActionToBackgroundProtocol &
     BackgroundToContentProtocol &
     BackgroundToPopupProtocol;
 
-export const messaging = defineExtensionMessaging<ExtensionProtocol>();
+// Requests and responses can contain account passwords or decrypted secrets.
+export const messaging = defineExtensionMessaging<ExtensionProtocol>({
+    logger: { debug() {}, log() {}, warn() {}, error() {} },
+});

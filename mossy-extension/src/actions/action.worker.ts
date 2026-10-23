@@ -172,6 +172,8 @@ self.onmessage = async ({ data }) => {
 
         self.postMessage({ id, result });
     } catch {
+        input.password = '';
+        input.prf?.fill(0);
         key = undefined;
         wrapping = undefined;
         privateDh?.fill(0);

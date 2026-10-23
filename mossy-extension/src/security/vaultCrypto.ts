@@ -120,13 +120,19 @@ export async function decryptWithKey(
         throw new Error('Invalid encrypted secret.');
     }
 
-    const plaintext = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: blob.slice(0, 12) },
-        key,
-        blob.slice(12)
+    const plaintext = new Uint8Array(
+        await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv: blob.slice(0, 12) },
+            key,
+            blob.slice(12)
+        )
     );
 
-    return new TextDecoder().decode(plaintext);
+    try {
+        return new TextDecoder().decode(plaintext);
+    } finally {
+        plaintext.fill(0);
+    }
 }
 
 export const scopeKey = (scope: Scope) =>

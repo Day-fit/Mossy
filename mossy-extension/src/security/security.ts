@@ -71,30 +71,33 @@ export const targetSchema = z
 
 export type Target = z.infer<typeof targetSchema>;
 
+export const discoverSchema = z
+    .object({
+        forms: z
+            .array(
+                targetSchema.omit({
+                    tabId: true,
+                    documentId: true,
+                    frameId: true,
+                })
+            )
+            .max(30),
+    })
+    .strict();
+
+export const captureSchema = z
+    .object({
+        identifier: z.string().max(2048),
+        password: z.string().min(1).max(65536),
+        origin: z.url(),
+    })
+    .strict();
+
+export type DiscoveredForm = z.infer<typeof discoverSchema>['forms'][number];
+
 export const contentMessageSchema = z.discriminatedUnion('kind', [
-    z
-        .object({
-            kind: z.literal('discover'),
-            forms: z
-                .array(
-                    targetSchema.omit({
-                        tabId: true,
-                        documentId: true,
-                        frameId: true,
-                    })
-                )
-                .max(30),
-        })
-        .strict(),
-    z
-        .object({
-            kind: z.literal('capture'),
-            formId: id,
-            identifier: z.string().max(2048),
-            password: z.string().min(1).max(65536),
-            origin: z.url(),
-        })
-        .strict(),
+    discoverSchema.extend({ kind: z.literal('discover') }),
+    captureSchema.extend({ kind: z.literal('capture'), formId: id }),
 ]);
 
 export function trustedPage(
@@ -110,9 +113,17 @@ export function trustedPage(
         return false;
     }
 
-    const url = new URL(senderUrl);
-
-    return url.pathname === path;
+    try {
+        const url = new URL(senderUrl);
+        const expected = new URL(chrome.runtime.getURL(path));
+        return (
+            url.protocol === expected.protocol &&
+            url.host === expected.host &&
+            url.pathname === path
+        );
+    } catch {
+        return false;
+    }
 }
 
 export function contentSource(
@@ -124,7 +135,7 @@ export function contentSource(
     const tabUrl = tab?.url;
     const isMissingSourceIdentity =
         id !== chrome.runtime.id ||
-        !tabId ||
+        tabId === undefined ||
         !documentId ||
         frameId === undefined ||
         !senderUrl ||

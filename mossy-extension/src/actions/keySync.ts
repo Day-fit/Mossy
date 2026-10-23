@@ -148,15 +148,19 @@ export async function createReceiverOffer(
         } as const,
     };
 
-    return {
-        receiver: {
-            ...receiver,
-            signature: encode(
-                await sign(identity, receiverTranscript(receiver))
-            ),
-        },
-        privateDh: new Uint8Array(keys.privateKey),
-    };
+    try {
+        return {
+            receiver: {
+                ...receiver,
+                signature: encode(
+                    await sign(identity, receiverTranscript(receiver))
+                ),
+            },
+            privateDh: new Uint8Array(keys.privateKey),
+        };
+    } finally {
+        sodium.memzero(keys.privateKey);
+    }
 }
 
 export async function verifyReceiverDetails(
@@ -190,12 +194,13 @@ export async function encryptVaultKey(
     await sodium.ready;
 
     const senderKeys = sodium.crypto_box_keypair();
-    const sharedSecret = sodium.crypto_scalarmult(
-        senderKeys.privateKey,
-        decode(context.receiver.publicDh.x)
-    );
+    let sharedSecret: Uint8Array | undefined;
 
     try {
+        sharedSecret = sodium.crypto_scalarmult(
+            senderKeys.privateKey,
+            decode(context.receiver.publicDh.x)
+        );
         const nonce = sodium.randombytes_buf(
             sodium.crypto_secretbox_NONCEBYTES
         );
@@ -240,7 +245,7 @@ export async function encryptVaultKey(
         };
     } finally {
         sodium.memzero(senderKeys.privateKey);
-        sodium.memzero(sharedSecret);
+        if (sharedSecret) sodium.memzero(sharedSecret);
     }
 }
 

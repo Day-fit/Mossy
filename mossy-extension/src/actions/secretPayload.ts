@@ -93,7 +93,7 @@ export function parseSecretPayload(decrypted: string): SecretPayload {
     const isSshPayload =
         kind === 'SSH' &&
         typeof privateKey === 'string' &&
-        typeof publicKey === 'string';
+        (publicKey === undefined || typeof publicKey === 'string');
     if (isSshPayload) {
         return {
             kind: 'SSH',

@@ -19,20 +19,45 @@ import {
     executeExtensionRefreshRequest,
     executeExtensionLogoutRequest,
 } from 'mossy-api-client/extension/auth.api';
-import { messaging } from '../messaging/rpc';
+import {
+    messaging,
+    type ExtensionProtocol,
+    type ActionToBackgroundProtocol,
+    type ActionRequest,
+} from '../messaging/rpc';
+import type { ExtensionMessage, Message } from '@webext-core/messaging';
+import { onPageMessage, onPopupMessage } from '../messaging/background';
+import { ActionRegistry } from './ActionRegistry';
+import { registerAuthHandlers } from './auth.background';
 import { verifyReceiverDetails } from '../actions/keySync';
 import { waitForReceiverResult } from '../actions/receiverEvents';
 import { wrappedKeys } from '../storage/wrappedKeys';
 import { loadDeviceId } from '../storage/deviceIdentity';
 import { PendingCapture } from '../capture/PendingCapture';
-import { assertLive, type Target } from '../security/security';
-import type { Action, Operation } from '../types/models';
+import {
+    captureSchema,
+    discoverSchema,
+    contentSource,
+    matchesSite,
+    targetSchema,
+    validateInstance,
+    type Target,
+} from '../security/security';
 import type { Theme } from '../theme/types';
 import { themeSetting, lastIdentifierSetting } from '../storage/settings';
 import { getInstance, setInstance } from './instance';
 
 let theme: Theme = 'system';
-const actions = new Map<string, Action>();
+const actions = new ActionRegistry((action) => {
+    keySyncWaits.get(action.id)?.abort();
+    keySyncWaits.delete(action.id);
+    if (action.candidateId) pending.clearIf(action.candidateId);
+});
+function resetSession() {
+    tokenStorage.set(null);
+    actions.clear();
+    pending.clear();
+}
 const keySyncWaits = new Map<string, AbortController>();
 const forms = new Map<string, Target[]>();
 const pending = new PendingCapture(() => {
@@ -88,11 +113,13 @@ async function configureCapture() {
 
 chrome.permissions.onAdded.addListener(() => void ready.then(configureCapture));
 chrome.permissions.onRemoved.addListener(() => {
+    actions.cancelWebsiteActions();
     forms.clear();
     pending.clear();
     void ready.then(configureCapture);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
+    actions.cancelSource(tabId);
     const isCaptureFromRemovedTab = pending.metadata()?.tabId === tabId;
     if (isCaptureFromRemovedTab) pending.clear();
     for (const [key, targets] of forms) {
@@ -100,7 +127,14 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     }
 });
 chrome.webNavigation.onCommitted.addListener(({ tabId, frameId }) => {
-    forms.delete(`${tabId}:${frameId}`);
+    actions.cancelFrame(tabId, frameId);
+    if (frameId === 0) {
+        for (const key of forms.keys()) {
+            if (key.startsWith(`${tabId}:`)) forms.delete(key);
+        }
+    } else {
+        forms.delete(`${tabId}:${frameId}`);
+    }
 });
 
 async function listEntries(vaultId: string, instance: string) {
@@ -116,33 +150,29 @@ async function requireUserVault(vaultId: string, instance: string) {
     }
 }
 
-function getAction(actionId: string, operation?: Operation): Action {
-    const action = actions.get(actionId);
-    if (!action) throw new Error('This action expired or was canceled.');
-    assertLive(action.deadline);
-    if (operation && action.operation !== operation) {
-        throw new Error('This action does not support that operation.');
-    }
-    return action;
+function onActionMessage<K extends keyof ActionToBackgroundProtocol>(
+    name: K,
+    handler: (
+        message: Message<ExtensionProtocol, K> & ExtensionMessage
+    ) =>
+        | ReturnType<ExtensionProtocol[K]>
+        | Promise<ReturnType<ExtensionProtocol[K]>>
+) {
+    return onPageMessage(name, ['/action.html'], (message) => {
+        actions.authorize(
+            message.data.actionId,
+            message.sender,
+            name === 'claimAction'
+        );
+        return handler(message);
+    });
 }
 
-function consumeAction(actionId: string, operation: Operation): Action {
-    const action = getAction(actionId, operation);
-    actions.delete(actionId);
-    return action;
-}
+onActionMessage('claimAction', ({ data }) => actions.get(data.actionId));
+onActionMessage('cancelAction', ({ data }) => actions.delete(data.actionId));
 
-messaging.onMessage('claimAction', ({ data }) => getAction(data.actionId));
-
-messaging.onMessage('cancelAction', ({ data }) => {
+onActionMessage('getActionCiphertext', ({ data }) => {
     const action = actions.get(data.actionId);
-    actions.delete(data.actionId);
-    keySyncWaits.get(data.actionId)?.abort();
-    if (action?.candidateId) pending.clearIf(action.candidateId);
-});
-
-messaging.onMessage('getActionCiphertext', ({ data }) => {
-    const action = getAction(data.actionId);
     if (!action.entry) throw new Error('Choose a password.');
     return executePasswordCiphertextRequest(
         action.entry.passwordId,
@@ -151,13 +181,13 @@ messaging.onMessage('getActionCiphertext', ({ data }) => {
     );
 });
 
-messaging.onMessage('getActionCandidate', ({ data }) => {
-    const action = getAction(data.actionId, 'save');
+onActionMessage('getActionCandidate', ({ data }) => {
+    const action = actions.get(data.actionId, 'save');
     return pending.consume(action.candidateId!, action.scope.accountId);
 });
 
-messaging.onMessage('offerKeySync', async ({ data }) => {
-    const action = getAction(data.actionId, 'sync-receive');
+onActionMessage('offerKeySync', async ({ data }) => {
+    const action = actions.get(data.actionId, 'sync-receive');
     if (data.receiver.vaultId !== action.scope.vaultId) {
         throw new Error('The receiver does not match this vault.');
     }
@@ -172,8 +202,8 @@ messaging.onMessage('offerKeySync', async ({ data }) => {
     return result;
 });
 
-messaging.onMessage('waitForKeySync', async ({ data }) => {
-    const action = getAction(data.actionId, 'sync-receive');
+onActionMessage('waitForKeySync', async ({ data }) => {
+    const action = actions.get(data.actionId, 'sync-receive');
     if (!action.code || !action.receiver) {
         throw new Error('Create a key-sync offer first.');
     }
@@ -207,7 +237,7 @@ messaging.onMessage('waitForKeySync', async ({ data }) => {
             );
             transfer = await findTransfer();
         }
-        getAction(action.id, 'sync-receive');
+        actions.get(action.id, 'sync-receive');
         if (!transfer) throw new Error('The vault key was not received.');
         const senderIdentity = await executeGetDeviceIdentityKeyRequest(
             transfer.senderId,
@@ -223,21 +253,22 @@ messaging.onMessage('waitForKeySync', async ({ data }) => {
     }
 });
 
-messaging.onMessage('finishCopyPassword', ({ data }) => {
-    consumeAction(data.actionId, 'copy-password');
+onActionMessage('finishCopyPassword', ({ data }) => {
+    actions.consume(data.actionId, 'copy-password');
     return { status: 'copied' };
 });
 
-messaging.onMessage('finishCopyUsername', ({ data }) => {
-    consumeAction(data.actionId, 'copy-username');
+onActionMessage('finishCopyUsername', ({ data }) => {
+    actions.consume(data.actionId, 'copy-username');
     return { status: 'copied' };
 });
 
-messaging.onMessage('finishFill', async ({ data }) => {
-    const action = consumeAction(data.actionId, 'fill');
+onActionMessage('finishFill', async ({ data }) => {
+    const action = actions.consume(data.actionId, 'fill');
     try {
         if (!action.target || !action.entry)
             throw new Error('Choose a login form.');
+        requireKnownTarget(action.target);
         const { valid } = await messaging.sendMessage(
             'fillOnce',
             {
@@ -255,8 +286,8 @@ messaging.onMessage('finishFill', async ({ data }) => {
     }
 });
 
-messaging.onMessage('finishSave', async ({ data }) => {
-    const action = consumeAction(data.actionId, 'save');
+onActionMessage('finishSave', async ({ data }) => {
+    const action = actions.consume(data.actionId, 'save');
     if (data.unchanged) return { status: 'unchanged' };
     const payload = {
         vaultId: action.scope.vaultId,
@@ -278,8 +309,8 @@ messaging.onMessage('finishSave', async ({ data }) => {
     return { status: 'saved' };
 });
 
-messaging.onMessage('finishKeySyncSend', async ({ data }) => {
-    const action = consumeAction(data.actionId, 'sync-send');
+onActionMessage('finishKeySyncSend', async ({ data }) => {
+    const action = actions.consume(data.actionId, 'sync-send');
     if (!action.code || data.value.vaultId !== action.scope.vaultId) {
         throw new Error('The key transfer does not match this action.');
     }
@@ -292,8 +323,8 @@ messaging.onMessage('finishKeySyncSend', async ({ data }) => {
     return { status: 'sent' };
 });
 
-messaging.onMessage('finishKeySyncReceive', async ({ data }) => {
-    const action = consumeAction(data.actionId, 'sync-receive');
+onActionMessage('finishKeySyncReceive', async ({ data }) => {
+    const action = actions.consume(data.actionId, 'sync-receive');
     const value = data.value;
     const wrappedKey = new Uint8Array(value.wrappedKey).buffer;
     await wrappedKeys.write(
@@ -309,7 +340,7 @@ messaging.onMessage('finishKeySyncReceive', async ({ data }) => {
     return { status: 'saved' };
 });
 
-messaging.onMessage('getPopupView', async ({ data }) => {
+onPopupMessage('getPopupView', async ({ data }) => {
     await ready;
     const instance = await getInstance();
     const [tabs, permission] = await Promise.all([
@@ -332,7 +363,10 @@ messaging.onMessage('getPopupView', async ({ data }) => {
         executeUserDetailsRequest(instance),
         executeUserVaultsRequest(instance),
     ]);
-    const selected = data.vaultId ?? vaults[0]?.vaultId;
+    const selected =
+        vaults.find((vault) => vault.vaultId === data.vaultId)?.vaultId ??
+        vaults[0]?.vaultId;
+    const entries = selected ? await listEntries(selected, instance) : [];
     return {
         instance,
         theme,
@@ -340,7 +374,7 @@ messaging.onMessage('getPopupView', async ({ data }) => {
         account: { userId: user.userId, username: user.username },
         selected,
         vaults,
-        entries: selected ? await listEntries(selected, instance) : [],
+        entries,
         pending: pending.metadata() ?? null,
         targets: [...forms.values()]
             .flat()
@@ -348,7 +382,7 @@ messaging.onMessage('getPopupView', async ({ data }) => {
     };
 });
 
-messaging.onMessage('getVaults', async () => {
+onPageMessage('getVaults', ['/popup.html', '/action.html'], async () => {
     await ready;
     const instance = await getInstance();
     const [user, vaults] = await Promise.all([
@@ -359,216 +393,173 @@ messaging.onMessage('getVaults', async () => {
     return { scope: { instance, accountId: user.userId }, vaults };
 });
 
-messaging.onMessage('handleCopyPassword', async ({ data }) => {
+async function actionContext(request: ActionRequest) {
     await ready;
+    requireSignedIn();
     const instance = await getInstance();
-    const [user, deviceId] = await Promise.all([
+    const [user, identifier] = await Promise.all([
         executeUserDetailsRequest(instance),
-        lastIdentifierSetting
-            .getValue()
-            .then((identifier) => loadDeviceId(instance, identifier!)),
-        requireUserVault(data.vaultId, instance),
+        lastIdentifierSetting.getValue(),
+        requireUserVault(request.vaultId, instance),
     ]);
-    const entry = data.passwordId
-        ? (await listEntries(data.vaultId, instance)).find(
-              (entry) => entry.passwordId === data.passwordId
-          )
-        : undefined;
-    const action: Action = {
+    const deviceId = identifier
+        ? await loadDeviceId(instance, identifier)
+        : null;
+    if (!deviceId) throw new Error('Sign in again to identify this browser.');
+    return {
         id: crypto.randomUUID(),
-        operation: 'copy-password',
-        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
+        scope: {
+            instance,
+            accountId: user.userId,
+            vaultId: request.vaultId,
+        },
         userId: user.userId,
-        deviceId: deviceId!,
-        entry,
-        deadline: Date.now() + 120000,
+        deviceId,
+        deadline: Date.now() + 120_000,
     };
+}
 
-    actions.set(action.id, action);
-    await chrome.windows.create({
-        url: chrome.runtime.getURL(`/action.html#${action.id}`),
-        type: 'popup',
-        width: 560,
-        height: 620,
-        focused: true,
+async function requestedEntry(request: ActionRequest, instance: string) {
+    if (!request.passwordId) return undefined;
+    const entry = (await listEntries(request.vaultId, instance)).find(
+        (entry) => entry.passwordId === request.passwordId
+    );
+    if (!entry) throw new Error('This password is no longer available.');
+    return entry;
+}
+
+function requireKnownTarget(target: Target) {
+    const known = forms
+        .get(`${target.tabId}:${target.frameId}`)
+        ?.some(
+            (form) =>
+                form.documentId === target.documentId &&
+                form.origin === target.origin &&
+                form.formId === target.formId &&
+                form.passwordId === target.passwordId &&
+                form.usernameId === target.usernameId
+        );
+    if (!known) throw new Error('The login form changed. Try again.');
+}
+
+for (const [name, operation] of [
+    ['handleCopyPassword', 'copy-password'],
+    ['handleFill', 'fill'],
+    ['handleSave', 'save'],
+] as const) {
+    onPopupMessage(name, async ({ data }) => {
+        const base = await actionContext(data);
+        const entry = await requestedEntry(data, base.scope.instance);
+        if (operation === 'save') {
+            const candidate = pending.metadata();
+            if (!candidate) throw new Error('Capture is unavailable.');
+            if (
+                entry &&
+                (!matchesSite(entry.address, candidate.origin) ||
+                    entry.identifier !== candidate.identifier)
+            ) {
+                throw new Error(
+                    'The captured login does not match this password.'
+                );
+            }
+            pending.handoff(candidate.id, base.scope.accountId);
+            await actions.open({
+                ...base,
+                operation,
+                entry,
+                candidateId: candidate.id,
+                sourceTabId: candidate.tabId,
+                candidateIdentifier: candidate.identifier,
+                candidateOrigin: candidate.origin,
+                candidateDeadline: candidate.deadline,
+                deadline: candidate.deadline,
+            });
+        } else {
+            if (!entry) throw new Error('Choose a password.');
+            const target =
+                operation === 'fill'
+                    ? targetSchema.parse(data.target)
+                    : undefined;
+            if (target) {
+                requireKnownTarget(target);
+                if (!matchesSite(entry.address, target.origin))
+                    throw new Error(
+                        'This password does not match the login site.'
+                    );
+            }
+            await actions.open({ ...base, operation, entry, target });
+        }
     });
-});
+}
 
-messaging.onMessage('handleFill', async ({ data }) => {
-    await ready;
-    const instance = await getInstance();
-    const [user, deviceId] = await Promise.all([
-        executeUserDetailsRequest(instance),
-        lastIdentifierSetting
-            .getValue()
-            .then((identifier) => loadDeviceId(instance, identifier!)),
-        requireUserVault(data.vaultId, instance),
-    ]);
-    const entry = data.passwordId
-        ? (await listEntries(data.vaultId, instance)).find(
-              (entry) => entry.passwordId === data.passwordId
-          )
-        : undefined;
-    const action: Action = {
-        id: crypto.randomUUID(),
-        operation: 'fill',
-        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
-        userId: user.userId,
-        deviceId: deviceId!,
-        entry,
-        target: data.target,
-        deadline: Date.now() + 120000,
-    };
-
-    actions.set(action.id, action);
-    await chrome.windows.create({
-        url: chrome.runtime.getURL(`/action.html#${action.id}`),
-        type: 'popup',
-        width: 560,
-        height: 620,
-        focused: true,
-    });
-});
-
-messaging.onMessage('handleSave', async ({ data }) => {
-    await ready;
-    const instance = await getInstance();
-    const [user, deviceId] = await Promise.all([
-        executeUserDetailsRequest(instance),
-        lastIdentifierSetting
-            .getValue()
-            .then((identifier) => loadDeviceId(instance, identifier!)),
-        requireUserVault(data.vaultId, instance),
-    ]);
-    const entry = data.passwordId
-        ? (await listEntries(data.vaultId, instance)).find(
-              (entry) => entry.passwordId === data.passwordId
-          )
-        : undefined;
-    const candidate = pending.metadata()!;
-    pending.handoff(candidate.id, user.userId);
-    const action: Action = {
-        id: crypto.randomUUID(),
-        operation: 'save',
-        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
-        userId: user.userId,
-        deviceId: deviceId!,
-        entry,
-        candidateId: candidate.id,
-        sourceTabId: candidate.tabId,
-        candidateIdentifier: candidate.identifier,
-        candidateOrigin: candidate.origin,
-        candidateDeadline: candidate.deadline,
-        deadline: candidate.deadline,
-    };
-
-    actions.set(action.id, action);
-    await chrome.windows.create({
-        url: chrome.runtime.getURL(`/action.html#${action.id}`),
-        type: 'popup',
-        width: 560,
-        height: 620,
-        focused: true,
-    });
-});
-
-messaging.onMessage('handleSyncSend', async ({ data }) => {
-    await ready;
-    const instance = await getInstance();
-    const [user, deviceId] = await Promise.all([
-        executeUserDetailsRequest(instance),
-        lastIdentifierSetting
-            .getValue()
-            .then((identifier) => loadDeviceId(instance, identifier!)),
-        requireUserVault(data.vaultId, instance),
-    ]);
+onPopupMessage('handleSyncSend', async ({ data }) => {
+    const base = await actionContext(data);
     const receivers = await executeGetPendingReceiversRequest(
         undefined,
-        instance
+        base.scope.instance
     );
     const receiver = receivers.find(
         (receiver) =>
             receiver.code === data.code && receiver.vaultId === data.vaultId
-    )!;
+    );
+    if (!receiver)
+        throw new Error('This receiving code is unavailable or expired.');
     await verifyReceiverDetails(
         receiver,
         await executeGetDeviceIdentityKeyRequest(
             receiver.receiverId,
             undefined,
-            instance
+            base.scope.instance
         )
     );
-    const action: Action = {
-        id: crypto.randomUUID(),
+    await actions.open({
+        ...base,
         operation: 'sync-send',
-        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
-        userId: user.userId,
-        deviceId: deviceId!,
-        deadline: Date.now() + 120000,
         code: data.code,
         receiver,
-    };
-
-    actions.set(action.id, action);
-    await chrome.windows.create({
-        url: chrome.runtime.getURL(`/action.html#${action.id}`),
-        type: 'popup',
-        width: 560,
-        height: 620,
-        focused: true,
     });
 });
 
-messaging.onMessage('handleSyncReceive', async ({ data }) => {
-    await ready;
-    const instance = await getInstance();
-    const [user, deviceId] = await Promise.all([
-        executeUserDetailsRequest(instance),
-        lastIdentifierSetting
-            .getValue()
-            .then((identifier) => loadDeviceId(instance, identifier!)),
-        requireUserVault(data.vaultId, instance),
-    ]);
-    const action: Action = {
-        id: crypto.randomUUID(),
+onPopupMessage('handleSyncReceive', async ({ data }) => {
+    const base = await actionContext(data);
+    await actions.open({
+        ...base,
         operation: 'sync-receive',
-        scope: { instance, accountId: user.userId, vaultId: data.vaultId },
-        userId: user.userId,
-        deviceId: deviceId!,
-        deadline: Date.now() + 300000,
-    };
-
-    actions.set(action.id, action);
-    await chrome.windows.create({
-        url: chrome.runtime.getURL(`/action.html#${action.id}`),
-        type: 'popup',
-        width: 560,
-        height: 620,
-        focused: true,
+        deadline: Date.now() + 300_000,
     });
 });
 
-export type DiscoveredForm = Omit<Target, 'tabId' | 'frameId' | 'documentId'>;
+async function requireContent(sender: chrome.runtime.MessageSender) {
+    await ready;
+    const source = contentSource(sender, await getInstance());
+    if (!(await chrome.permissions.contains({ origins: ['https://*/*'] }))) {
+        throw new Error('Website access is disabled.');
+    }
+    return source;
+}
 
-messaging.onMessage('handleDiscover', ({ data, sender }) => {
-    const targets = data.forms.map((form) => ({
-        ...form,
-        tabId: sender.tab!.id!,
-        frameId: sender.frameId!,
-        documentId: sender.documentId!,
-        origin: new URL(sender.url!).origin,
-    }));
-    forms.set(`${sender.tab!.id}:${sender.frameId}`, targets);
+function requireSignedIn() {
+    if (!tokenStorage.get()) throw new Error('Sign in to Mossy first.');
+}
 
+messaging.onMessage('handleDiscover', async ({ data, sender }) => {
+    const source = await requireContent(sender);
+    const { forms: discovered } = discoverSchema.parse(data);
+    if (discovered.some((form) => form.origin !== source.origin))
+        throw new Error('The form origin does not match its document.');
+    forms.set(
+        `${source.tabId}:${source.frameId}`,
+        discovered.map((form) => ({ ...form, ...source }))
+    );
     return { status: 'ok' };
 });
 
-messaging.onMessage('handleDismiss', () => {
+onPopupMessage('handleDismiss', () => {
     pending.clear();
     return { status: 'ok' };
 });
 
-messaging.onMessage('setTheme', async ({ data }) => {
+onPopupMessage('setTheme', async ({ data }) => {
     await themeSetting.setValue(data.theme);
     theme = data.theme;
     return { status: 'ok' };
@@ -576,40 +567,52 @@ messaging.onMessage('setTheme', async ({ data }) => {
 
 messaging.onMessage('handleCapture', async ({ data, sender }) => {
     const receivedAt = Date.now();
-    const instance = await getInstance();
-    const { userId } = await executeUserDetailsRequest(instance);
-    const staged = await pending.stage(
-        data.password,
-        {
-            origin: new URL(sender.url!).origin,
-            identifier: data.identifier,
-            tabId: sender.tab!.id!,
-            account: userId,
-        },
-        receivedAt
-    );
-    data.password = '';
-    if (staged) {
-        await chrome.action.openPopup().catch(async () => {
-            await chrome.action.setBadgeBackgroundColor({
-                color: '#007735',
+    try {
+        const source = await requireContent(sender);
+        requireSignedIn();
+        captureSchema.parse(data);
+        if (data.origin !== source.origin)
+            throw new Error('The capture origin does not match its document.');
+        const { userId } = await executeUserDetailsRequest(await getInstance());
+        actions.cancelCaptures();
+        const staged = await pending.stage(
+            data.password,
+            {
+                origin: source.origin,
+                identifier: data.identifier,
+                tabId: source.tabId,
+                account: userId,
+            },
+            receivedAt
+        );
+        if (staged) {
+            await chrome.action.openPopup().catch(async () => {
+                if (pending.metadata()?.id !== staged.id) return;
+                await chrome.action.setBadgeBackgroundColor({
+                    color: '#007735',
+                });
+                await chrome.action.setBadgeText({ text: 'Save' });
             });
-            await chrome.action.setBadgeText({ text: 'Save' });
-        });
+        }
+        return { status: staged ? 'ok' : 'error' };
+    } finally {
+        data.password = '';
     }
-
-    return { status: staged ? 'ok' : 'error' };
 });
 
-messaging.onMessage('handleSettings', async ({ data }) => {
+onPopupMessage('handleSettings', async ({ data }) => {
+    await ready;
+    validateInstance(data.instance, import.meta.env.DEV);
     const instance = await getInstance();
     if (data.instance !== instance) {
+        resetSession();
+        forms.clear();
         await executeExtensionLogoutRequest(instance).catch(() => undefined);
+        await setInstance(data.instance);
     }
-    await Promise.all([
-        setInstance(data.instance),
-        themeSetting.setValue(data.theme),
-    ]);
+    await themeSetting.setValue(data.theme);
     theme = data.theme;
     return { status: 'ok' };
 });
+
+registerAuthHandlers({ ready, resetSession });

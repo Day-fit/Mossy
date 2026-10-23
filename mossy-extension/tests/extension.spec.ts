@@ -50,26 +50,16 @@ let slowSave = 0;
 
 async function pageRpc<T>(page: Page, command: unknown): Promise<T> {
     return page.evaluate(async (input) => {
-        const isTypedMessage =
-            input && typeof input === 'object' && 'type' in input;
-        if (isTypedMessage) {
-            const { type, ...data } = input;
-            const result = await chrome.runtime.sendMessage({
-                id: 1,
-                type,
-                data,
-                timestamp: Date.now(),
-            });
-            if (result?.err) throw new Error(result.err.message);
-            return result?.res;
-        }
-        const result = await chrome.runtime.sendMessage(input);
-
-        if (!result?.ok) {
-            throw new Error(result?.error ?? 'No response');
-        }
-
-        return result.data;
+        const { type, ...data } = input as { type: string };
+        const result = await chrome.runtime.sendMessage({
+            id: 1,
+            type,
+            data,
+            timestamp: Date.now(),
+        });
+        if (result?.err) throw new Error(result.err.message);
+        if (!result) throw new Error('No response');
+        return result.res;
     }, command);
 }
 
@@ -156,6 +146,15 @@ async function signIn() {
     await expect(
         popup.getByRole('heading', { name: 'Passwords', exact: true })
     ).toBeVisible();
+}
+
+async function completeAndClose(page: Page) {
+    await expect(
+        page.getByRole('button', { name: 'Close', exact: true })
+    ).toBeVisible();
+    await expect.poll(() => page.workers().length).toBe(0);
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect.poll(() => page.isClosed()).toBe(true);
 }
 
 async function authorize(page: Page) {
@@ -400,7 +399,7 @@ test('packaged MV3 has optional site permissions, strict CSP, native keys and in
     await popup
         .locator('main')
         .screenshot({ path: '/tmp/mossy-v2-metadata-light.png' });
-    await pageRpc(popup, { kind: 'settings', instance, theme: 'dark' });
+    await pageRpc(popup, { type: 'handleSettings', instance, theme: 'dark' });
     await popup.reload();
     await expect(popup.locator('body')).toHaveCSS(
         'background-color',
@@ -495,7 +494,7 @@ test('metadata and username copy need no unlock; consecutive password copies eac
             .locator('main')
             .screenshot({ path: '/tmp/mossy-v2-action.png' });
         await authorize(action);
-        await expect.poll(() => action.isClosed()).toBe(true);
+        await completeAndClose(action);
         popup = await openPopup();
     }
 
@@ -507,28 +506,64 @@ test('metadata and username copy need no unlock; consecutive password copies eac
     ).not.toHaveProperty('accessToken');
 });
 
-test('forged content IPC and stale action windows cannot claim privileged actions', async () => {
-    await signIn();
+test(
+    'forged content IPC and stale action windows cannot claim privileged actions',
+    { tag: '@site' },
+    async () => {
+        await signIn();
 
-    const unrelated = await context.newPage();
+        const unrelated = await context.newPage();
 
-    await unrelated.goto(
-        `chrome-extension://${extensionId}/action.html#${crypto.randomUUID()}`
-    );
-    await expect(unrelated.getByRole('alert')).toContainText('expired');
-    await unrelated
-        .locator('main')
-        .screenshot({ path: '/tmp/mossy-v2-action-error.png' });
+        await unrelated.goto(
+            `chrome-extension://${extensionId}/action.html#${crypto.randomUUID()}`
+        );
+        await expect(unrelated.getByRole('alert')).toContainText('expired');
+        await unrelated
+            .locator('main')
+            .screenshot({ path: '/tmp/mossy-v2-action-error.png' });
 
-    const result = await popup.evaluate(() =>
-        chrome.runtime.sendMessage({
-            kind: 'fetch',
-            url: 'https://evil.example',
-        })
-    );
-
-    expect(result.ok).toBe(false);
-});
+        await loginForm();
+        const responses = await popup.evaluate(async () => {
+            const [tab] = await chrome.tabs.query({
+                url: 'https://login.example/*',
+            });
+            if (tab?.id === undefined)
+                throw new Error('Missing login fixture tab');
+            const injections = await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: async () => {
+                    const responses = [];
+                    for (const type of [
+                        'getPopupView',
+                        'handleSyncReceive',
+                        'handleLogout',
+                    ]) {
+                        responses.push(
+                            await chrome.runtime.sendMessage({
+                                id: 1,
+                                type,
+                                timestamp: Date.now(),
+                                data: {
+                                    vaultId:
+                                        '10000000-0000-4000-8000-000000000001',
+                                },
+                            })
+                        );
+                    }
+                    return responses;
+                },
+            });
+            return injections[0]?.result;
+        });
+        expect(responses).toHaveLength(3);
+        for (const response of responses!) {
+            expect(response.err?.message).toContain('Untrusted extension page');
+        }
+        await expect(
+            popup.getByRole('heading', { name: 'Passwords', exact: true })
+        ).toBeVisible();
+    }
+);
 
 async function loginForm(identifier = 'bob', password = 'captured-password') {
     const allowed = await popup.evaluate(() =>
@@ -643,7 +678,7 @@ test(
             password: 'captured-password',
         });
 
-        await expect.poll(() => action.isClosed()).toBe(true);
+        await completeAndClose(action);
     }
 );
 
@@ -725,7 +760,7 @@ test(
             'fixture-secret-password'
         );
         await expect(site.locator('#submits')).toHaveText('0');
-        await expect.poll(() => action.isClosed()).toBe(true);
+        await completeAndClose(action);
         await popup.close();
         await site.getByRole('button', { name: 'Log in', exact: true }).click();
         popup = await openPopup();
@@ -766,7 +801,7 @@ test(
 
         await action.waitForLoadState();
         await authorize(action);
-        await expect.poll(() => action.isClosed()).toBe(true);
+        await completeAndClose(action);
 
         expect(saved).toBeUndefined();
         expect(
@@ -903,10 +938,10 @@ test('a receiver verifies and decrypts an extension key transfer after fresh aut
 
     expect(Array.from(received.rawKey)).toEqual(rawKey);
 
-    await expect.poll(() => action.isClosed()).toBe(true);
+    await completeAndClose(action);
 });
 
-test('receiving subscribes before initialization, accepts a frontend signed transfer and protects it before persistence', async () => {
+test('receiving subscribes before checking for transfers, accepts a frontend signed transfer and protects it before persistence', async () => {
     await signIn();
 
     const identity = await peerIdentity();
@@ -981,7 +1016,7 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
         .locator('main')
         .screenshot({ path: '/tmp/mossy-v2-receive-action.png' });
 
-    expect(order).toEqual(['events', 'init', 'keys']);
+    expect(order).toEqual(['init', 'events', 'keys']);
 
     const readWrapped = () =>
         popup.evaluate(async () => {
@@ -1030,7 +1065,7 @@ test('receiving subscribes before initialization, accepts a frontend signed tran
     await action
         .getByRole('button', { name: 'Save password', exact: true })
         .click();
-    await expect.poll(() => action.isClosed()).toBe(true);
+    await completeAndClose(action);
 
     const stored = await readWrapped();
 
@@ -1086,9 +1121,10 @@ test(
 
         expect(Date.now()).toBeLessThan(snapshot.pending.deadline);
 
-        await expect
-            .poll(() => action.isClosed(), { timeout: 15000 })
-            .toBe(true);
+        await expect(
+            action.getByRole('button', { name: 'Close', exact: true })
+        ).toBeVisible({ timeout: 15000 });
+        await completeAndClose(action);
 
         expect(Date.now()).toBeGreaterThan(snapshot.pending.deadline);
         expect(
@@ -1175,7 +1211,7 @@ test(
 
         expect(replacement.pending.id).not.toBe(old.pending.id);
 
-        await pageRpc(popup, { kind: 'dismiss' });
+        await pageRpc(popup, { type: 'handleDismiss' });
 
         expect(
             (
@@ -1193,7 +1229,7 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
     await popup.emulateMedia({ reducedMotion: 'reduce' });
 
     for (const theme of ['light', 'dark'] as const) {
-        await pageRpc(popup, { kind: 'settings', instance, theme });
+        await pageRpc(popup, { type: 'handleSettings', instance, theme });
         await popup.reload();
         await expect(
             popup.getByRole('heading', { name: 'Passwords', exact: true })
@@ -1405,7 +1441,7 @@ test('sign-in explains registration and device approval, and clears passwords af
     ).toBeLessThanOrEqual(600);
 
     for (const theme of ['light', 'dark'] as const) {
-        await pageRpc(popup, { kind: 'settings', instance, theme });
+        await pageRpc(popup, { type: 'handleSettings', instance, theme });
         await popup.reload();
         await expect(
             popup.getByRole('heading', { name: 'Welcome back', exact: true })
@@ -1857,7 +1893,7 @@ for (const method of [
             action.getByRole('button', { name: 'Choose another method' })
         ).toBeVisible();
         await action.getByRole('button', { name: method, exact: true }).click();
-        await expect.poll(() => action.isClosed()).toBe(true);
+        await completeAndClose(action);
 
         const stored = await popup.evaluate(async () => {
             const database = await new Promise<IDBDatabase>((resolve) => {
