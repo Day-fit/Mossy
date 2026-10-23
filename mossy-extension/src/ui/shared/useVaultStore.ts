@@ -1,9 +1,7 @@
 import { create } from 'zustand';
 import { messaging } from '../../messaging/rpc';
 import type { Vault } from '../../types/models';
-import type { Scope } from '../../types/vault';
-
-type AccountScope = Pick<Scope, 'instance' | 'accountId'>;
+import type { AccountScope, Scope } from '../../types/vault';
 
 type VaultStore = {
     vaultsByAccount: Record<string, Vault[]>;

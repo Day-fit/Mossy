@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { parseSecretPayload, serializeSecretPayload } from './secretPayload';
+import { parseSecretPayload } from './secretPayload';
 
 describe('secret payload boundary', () => {
     it.each([undefined, 'ssh-ed25519 AAAA example'])(
-        'round trips SSH payloads with public key %s',
+        'reads SSH payloads with public key %s',
         (publicKey) => {
             const privateKey =
                 '-----BEGIN OPENSSH PRIVATE KEY-----\nfixture\n-----END OPENSSH PRIVATE KEY-----';
             expect(
                 parseSecretPayload(
-                    serializeSecretPayload({
-                        passwordType: 'SSH_KEY',
+                    JSON.stringify({
+                        kind: 'SSH',
                         privateKey,
                         publicKey,
                     })
@@ -22,8 +22,8 @@ describe('secret payload boundary', () => {
     it('preserves password whitespace', () => {
         expect(
             parseSecretPayload(
-                serializeSecretPayload({
-                    passwordType: 'PASSWORD',
+                JSON.stringify({
+                    kind: 'PASSWORD',
                     password: ' secret ',
                 })
             )

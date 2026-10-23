@@ -21,12 +21,14 @@ import {
 } from 'mossy-api-client/extension/auth.api';
 import {
     messaging,
-    type ExtensionProtocol,
     type ActionToBackgroundProtocol,
     type ActionRequest,
 } from '../messaging/rpc';
-import type { ExtensionMessage, Message } from '@webext-core/messaging';
-import { onPageMessage, onPopupMessage } from '../messaging/background';
+import {
+    onPageMessage,
+    onPopupMessage,
+    type MessageHandler,
+} from '../messaging/background';
 import { ActionRegistry } from './ActionRegistry';
 import { registerAuthHandlers } from './auth.background';
 import { verifyReceiverDetails } from '../actions/keySync';
@@ -152,11 +154,7 @@ async function requireUserVault(vaultId: string, instance: string) {
 
 function onActionMessage<K extends keyof ActionToBackgroundProtocol>(
     name: K,
-    handler: (
-        message: Message<ExtensionProtocol, K> & ExtensionMessage
-    ) =>
-        | ReturnType<ExtensionProtocol[K]>
-        | Promise<ReturnType<ExtensionProtocol[K]>>
+    handler: MessageHandler<K>
 ) {
     return onPageMessage(name, ['/action.html'], (message) => {
         actions.authorize(

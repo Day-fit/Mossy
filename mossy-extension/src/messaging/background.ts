@@ -6,7 +6,7 @@ import {
 } from './rpc';
 import { trustedPage } from '../security/security';
 
-type Handler<K extends keyof ExtensionProtocol> = (
+export type MessageHandler<K extends keyof ExtensionProtocol> = (
     message: Message<ExtensionProtocol, K> & ExtensionMessage
 ) =>
     | ReturnType<ExtensionProtocol[K]>
@@ -15,7 +15,7 @@ type Handler<K extends keyof ExtensionProtocol> = (
 export function onPageMessage<K extends keyof ExtensionProtocol>(
     name: K,
     pages: readonly string[],
-    handler: Handler<K>
+    handler: MessageHandler<K>
 ) {
     return messaging.onMessage(name, async (message) => {
         if (!pages.some((page) => trustedPage(message.sender, page))) {
@@ -27,7 +27,7 @@ export function onPageMessage<K extends keyof ExtensionProtocol>(
 
 export function onPopupMessage<K extends keyof PopupToBackgroundProtocol>(
     name: K,
-    handler: Handler<K>
+    handler: MessageHandler<K>
 ) {
     return onPageMessage(name, ['/popup.html'], handler);
 }

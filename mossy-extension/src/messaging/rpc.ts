@@ -3,8 +3,8 @@ import type { ReceiverDetails, UploadVaultKeyRequest } from 'mossy-api-client';
 import type { PopupView } from '../ui/popup/types';
 import type { Target, DiscoveredForm } from '../security/security';
 import type { Theme } from '../theme/types';
-import type { Action, ActionResult, Vault } from '../types/models';
-import type { Scope } from '../types/vault';
+import type { Action, ReceivedVaultKey, Vault } from '../types/models';
+import type { AccountScope } from '../types/vault';
 
 export type MessageStatus = {
     status: 'ok' | 'error';
@@ -20,7 +20,7 @@ export type ActionRequest = {
 export type PopupToBackgroundProtocol = {
     getPopupView(data: { vaultId?: string }): PopupView;
     getVaults(): {
-        scope: Pick<Scope, 'instance' | 'accountId'>;
+        scope: AccountScope;
         vaults: Vault[];
     };
     handleCopyPassword(data: ActionRequest): void;
@@ -33,7 +33,7 @@ export type PopupToBackgroundProtocol = {
     };
     handleLogout(): MessageStatus;
 
-    setTheme(data: { theme: 'light' | 'dark' | 'system' }): MessageStatus;
+    setTheme(data: { theme: Theme }): MessageStatus;
     handleDismiss(): MessageStatus;
     handleSettings(data: { instance: string; theme: Theme }): MessageStatus;
 };
@@ -60,11 +60,13 @@ export type ActionToBackgroundProtocol = {
     offerKeySync(data: { actionId: string; receiver: ReceiverDetails }): {
         code: string;
     };
-    waitForKeySync(data: { actionId: string }): ActionResult;
+    waitForKeySync(data: { actionId: string }): ReceivedVaultKey;
     finishKeySyncReceive(data: {
         actionId: string;
         value: WrappedKeyPayload;
-    }): ActionResult;
+    }): {
+        status: 'saved';
+    };
     finishCopyPassword(data: { actionId: string }): { status: 'copied' };
     finishCopyUsername(data: { actionId: string }): { status: 'copied' };
     finishFill(data: { actionId: string; password: string }): {

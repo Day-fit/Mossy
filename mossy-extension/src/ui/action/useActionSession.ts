@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActionWorker } from '../../actions/ActionWorker';
 import { messaging } from '../../messaging/rpc';
-import type { ReceiverDetails } from 'mossy-api-client';
 import { wrappedKeys } from '../../storage/wrappedKeys';
 import { signingHandles } from '../../storage/deviceIdentity';
 import { assertLive } from '../../security/security';
-import type { Action as ActionModel, ActionResult } from '../../types/models';
+import type { Action as ActionModel } from '../../types/models';
 import type { WrappedKeyRecord } from '../../types/vault';
 import type { Phase } from './authorization';
 
@@ -24,7 +23,6 @@ export function useActionSession() {
     const password = useRef<HTMLInputElement>(null);
     const confirmation = useRef<HTMLInputElement>(null);
     const credentialId = useRef<ArrayBuffer | undefined>(undefined);
-    const transfer = useRef<ActionResult | undefined>(undefined);
     const record = useRef<WrappedKeyRecord | undefined>(undefined);
 
     useEffect(() => {
@@ -85,14 +83,11 @@ export function useActionSession() {
                 if (value.operation === 'sync-receive') {
                     setPhase('waiting');
 
-                    const receiver = await actionWorker.call<ReceiverDetails>(
-                        'offer',
-                        {
-                            ...(await signingHandles(value.scope.instance)),
-                            deviceId: value.deviceId,
-                            vaultId: value.scope.vaultId,
-                        }
-                    );
+                    const receiver = await actionWorker.offer({
+                        ...(await signingHandles(value.scope.instance)),
+                        deviceId: value.deviceId,
+                        vaultId: value.scope.vaultId,
+                    });
                     const result = await messaging.sendMessage('offerKeySync', {
                         actionId,
                         receiver,
@@ -103,7 +98,7 @@ export function useActionSession() {
                     }
 
                     setCode(result.code);
-                    transfer.current = await messaging.sendMessage(
+                    const transfer = await messaging.sendMessage(
                         'waitForKeySync',
                         {
                             actionId,
@@ -115,13 +110,10 @@ export function useActionSession() {
                     }
 
                     assertLive(value.deadline);
-                    credentialId.current = await actionWorker.call<
-                        ArrayBuffer | undefined
-                    >('receive', {
-                        ...transfer.current,
+                    credentialId.current = await actionWorker.receive({
+                        ...transfer,
                         context: { code: result.code, receiver },
                     });
-                    transfer.current = undefined;
 
                     if (!alive.current) {
                         return;
@@ -180,7 +172,6 @@ export function useActionSession() {
             window.removeEventListener('pagehide', unload);
             actionWorker.stop();
             cancel();
-            transfer.current = undefined;
             record.current = undefined;
             credentialId.current = undefined;
         };
@@ -216,7 +207,6 @@ export function useActionSession() {
         password,
         confirmation,
         credentialId,
-        transfer,
         record,
         close,
     };

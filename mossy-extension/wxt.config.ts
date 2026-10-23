@@ -3,8 +3,14 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     hooks: {
-        'build:manifestGenerated': (_wxt, manifest) => {
+        'build:manifestGenerated': (wxt, manifest) => {
             manifest.host_permissions = ['https://mossy.dayfit.pl/*'];
+            if (wxt.server) {
+                // Keep dev-server access while website access stays optional.
+                const server = new URL(wxt.server.origin);
+                server.port = '';
+                manifest.host_permissions.push(`${server.origin}/*`);
+            }
         },
     },
     modules: ['@wxt-dev/module-react'],

@@ -1,10 +1,11 @@
+import type { Theme } from '../../theme/types';
 import type { Entry, Vault, Operation } from '../../types/models';
 import type { Target } from '../../security/security';
 import type { PendingMetadata } from '../../capture/PendingCapture';
 
 export type PopupView = {
     instance: string;
-    theme: 'light' | 'dark' | 'system';
+    theme: Theme;
     permission: boolean;
     account: { userId: string; username: string } | null;
     selected?: string;

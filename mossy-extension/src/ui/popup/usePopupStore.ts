@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import type { PopupView } from './types';
 
-// Metadata only. Secrets live in transient input elements and action workers.
-export const usePopupStore = create<{
+type PopupState = {
     view?: PopupView;
     error?: string;
     loading: boolean;
-    set: (
-        value: Partial<{
-            view: PopupView;
-            error: string | undefined;
-            loading: boolean;
-        }>
-    ) => void;
-}>((set) => ({ loading: true, set }));
+};
+
+type PopupStore = PopupState & {
+    set: (value: Partial<PopupState>) => void;
+};
+
+// Metadata only. Secrets live in transient input elements and action workers.
+export const usePopupStore = create<PopupStore>((set) => ({
+    loading: true,
+    set,
+}));

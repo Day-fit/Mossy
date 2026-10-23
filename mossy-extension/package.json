@@ -19,6 +19,7 @@
         "@mossy/ui": "*",
         "@tailwindcss/vite": "^4.2.0",
         "@webext-core/messaging": "^4.0.0",
+        "comlink": "^4.4.2",
         "framer-motion": "^12.34.3",
         "idb": "^8.0.3",
         "libsodium-wrappers-sumo": "^0.8.2",

@@ -1,6 +1,6 @@
+import type { KeyProtection } from '../../actions/worker/types';
 import { useState } from 'react';
 import { VAULT_PASSWORD_MIN_LENGTH } from '../../security/vaultCrypto';
-import { type WrappedKeyRecord } from '../../types/vault';
 import { authorizePrf, registerPrf } from '../../security/passkeys';
 import { assertLive } from '../../security/security';
 import { authorizationError, type ProtectionChoice } from './authorization';
@@ -23,7 +23,6 @@ export function useActionAuthorization(session: ActionSession) {
         password,
         confirmation,
         credentialId,
-        transfer,
         record,
     } = session;
     const vaultName = useVaultName(action?.scope);
@@ -76,7 +75,7 @@ export function useActionAuthorization(session: ActionSession) {
         setPhase('busy');
         setMessage('');
 
-        let vaultPassword = password.current?.value ?? '';
+        const vaultPassword = password.current?.value ?? '';
 
         if (password.current) {
             password.current.value = '';
@@ -89,6 +88,23 @@ export function useActionAuthorization(session: ActionSession) {
         let prf: Uint8Array<ArrayBuffer> | undefined;
         let selectedCredentialId: ArrayBuffer | undefined;
         let workerStarted = false;
+
+        const fail = (error: unknown) => {
+            const retryable =
+                !workerStarted &&
+                alive.current &&
+                active.current &&
+                Date.now() < action.deadline;
+
+            if (!retryable) {
+                currentWorker.stop();
+            }
+
+            if (alive.current) {
+                setPhase(retryable ? 'authorize' : 'error');
+                setMessage(authorizationError(error, isSetup));
+            }
+        };
 
         try {
             requireLive();
@@ -113,50 +129,41 @@ export function useActionAuthorization(session: ActionSession) {
                 prf = passkey.prf;
                 selectedCredentialId = passkey.credentialId;
             } else if (!vaultPassword) {
-                throw new Error('Enter your vault password.');
-            }
-
-            if (!alive.current) {
-                throw new Error('Action closed.');
+                fail(new Error('Enter your vault password.'));
+                return;
             }
 
             requireLive();
 
             if (action.operation === 'sync-receive') {
-                const isVaultPasswordTooShort =
-                    method === 'Password' &&
-                    vaultPassword.length < VAULT_PASSWORD_MIN_LENGTH;
-                if (isVaultPasswordTooShort) {
-                    throw new Error(
-                        'Use at least 12 characters for the vault password.'
-                    );
+                let protection: KeyProtection;
+                if (method === 'Password') {
+                    protection = {
+                        type: 'Password',
+                        salt: crypto.getRandomValues(new Uint8Array(16)),
+                    };
+                } else {
+                    if (!selectedCredentialId) {
+                        fail(
+                            new Error('The passkey credential is unavailable.')
+                        );
+                        return;
+                    }
+                    protection = {
+                        type: 'PRF',
+                        credentialId: selectedCredentialId,
+                    };
                 }
-
-                const protection =
-                    method === 'Password'
-                        ? {
-                              type: 'Password',
-                              salt: crypto.getRandomValues(new Uint8Array(16)),
-                          }
-                        : { type: 'PRF', credentialId: selectedCredentialId };
                 workerStarted = true;
 
-                const wrapped = await currentWorker.call<WrappedKeyRecord>(
-                    'protect',
-                    {
-                        password: vaultPassword,
-                        prf,
-                        protection,
-                    }
-                );
+                const wrapped = await currentWorker.protect({
+                    password: vaultPassword,
+                    prf,
+                    protection,
+                });
                 currentWorker.stop();
-                vaultPassword = '';
                 prf?.fill(0);
                 requireLive();
-
-                if (!alive.current) {
-                    throw new Error('Action closed.');
-                }
 
                 const wrappedKey = Array.from(
                     new Uint8Array(wrapped.wrappedKey)
@@ -180,15 +187,18 @@ export function useActionAuthorization(session: ActionSession) {
                     value,
                 });
             } else {
+                if (!record.current) {
+                    fail(new Error('The wrapped vault key is unavailable.'));
+                    return;
+                }
                 workerStarted = true;
 
-                await currentWorker.call('unlock', {
+                await currentWorker.unlock({
                     record: record.current,
                     password: vaultPassword,
                     prf,
                     extractable: action.operation === 'sync-send',
                 });
-                vaultPassword = '';
                 prf?.fill(0);
                 requireLive();
 
@@ -211,22 +221,8 @@ export function useActionAuthorization(session: ActionSession) {
                 );
             }
         } catch (error) {
-            const retryable =
-                !workerStarted &&
-                alive.current &&
-                active.current &&
-                Date.now() < action.deadline;
-
-            if (!retryable) {
-                currentWorker.stop();
-            }
-
-            if (alive.current) {
-                setPhase(retryable ? 'authorize' : 'error');
-                setMessage(authorizationError(error, isSetup));
-            }
+            fail(error);
         } finally {
-            vaultPassword = '';
             prf?.fill(0);
 
             if (password.current) {
@@ -235,7 +231,6 @@ export function useActionAuthorization(session: ActionSession) {
 
             if (workerStarted) {
                 record.current = undefined;
-                transfer.current = undefined;
                 credentialId.current = undefined;
             }
         }

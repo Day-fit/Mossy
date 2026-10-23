@@ -28,13 +28,8 @@ export const wrappedKeys = {
 
         return undefined;
     },
-    async write(
-        scope: Scope,
-        record: WrappedKeyRecord,
-        guard: () => void = () => {}
-    ) {
+    async write(scope: Scope, record: WrappedKeyRecord) {
         const database = await openDatabase();
-        guard();
 
         await database.put('wrapped', record, scopeKey(scope));
     },

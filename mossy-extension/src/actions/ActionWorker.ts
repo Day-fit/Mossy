@@ -1,64 +1,56 @@
+import { wrap, releaseProxy, type Remote } from 'comlink';
+import type {
+    ActionWorkerApi,
+    UnlockInput,
+    OfferInput,
+    SendInput,
+    ReceiveInput,
+    ProtectInput,
+} from './worker/types';
 import SecretWorker from './action.worker.ts?worker';
 
-/** Dedicated worker termination is the key-release boundary on every result and exit path. */
-export class ActionWorker {
-    private worker: Worker;
-    private calls = new Map<
-        string,
-        { resolve: (value: unknown) => void; reject: (error: Error) => void }
-    >();
+/** Termination releases keys; pending callers also need to be rejected locally. */
+export class ActionWorker implements ActionWorkerApi {
+    private worker = new SecretWorker();
+    private remote: Remote<ActionWorkerApi> = wrap(this.worker);
+    private pending = new Set<(error: Error) => void>();
     private stopped = false;
 
     constructor() {
-        this.worker = new SecretWorker();
-        this.worker.onmessage = ({ data }) => {
-            const pending = this.calls.get(data.id);
-
-            if (!pending) {
-                return;
-            }
-
-            this.calls.delete(data.id);
-
-            if (data.error) {
-                pending.reject(new Error(data.error));
-
-                return;
-            }
-
-            pending.resolve(data.result);
-        };
         this.worker.onerror = () => this.stop();
+        this.worker.onmessageerror = () => this.stop();
     }
 
-    call<T>(kind: string, input: Record<string, unknown> = {}): Promise<T> {
-        if (this.stopped) {
-            return Promise.reject(new Error('Action closed.'));
-        }
+    unlock = (input: UnlockInput) => this.run(() => this.remote.unlock(input));
+    read = (input: { ciphertext: string }) =>
+        this.run(() => this.remote.read(input));
+    encrypt = (input: { password: string }) =>
+        this.run(() => this.remote.encrypt(input));
+    offer = (input: OfferInput) => this.run(() => this.remote.offer(input));
+    send = (input: SendInput) => this.run(() => this.remote.send(input));
+    receive = (input: ReceiveInput) =>
+        this.run(() => this.remote.receive(input));
+    protect = (input: ProtectInput) =>
+        this.run(async () => this.remote.protect(input));
 
-        const id = crypto.randomUUID();
-
+    private run<T>(operation: () => Promise<T>): Promise<T> {
+        if (this.stopped) return Promise.reject(new Error('Action closed.'));
         return new Promise<T>((resolve, reject) => {
-            this.calls.set(id, {
-                resolve: resolve as (value: unknown) => void,
-                reject,
-            });
-            this.worker.postMessage({ id, kind, ...input });
+            this.pending.add(reject);
+            Promise.resolve()
+                .then(operation)
+                .then(resolve, reject)
+                .finally(() => this.pending.delete(reject));
         });
     }
 
     stop() {
-        if (this.stopped) {
-            return;
-        }
-
+        if (this.stopped) return;
         this.stopped = true;
+        this.remote[releaseProxy]();
         this.worker.terminate();
-
-        for (const call of this.calls.values()) {
-            call.reject(new Error('Action canceled.'));
-        }
-
-        this.calls.clear();
+        for (const reject of this.pending)
+            reject(new Error('Action canceled.'));
+        this.pending.clear();
     }
 }
