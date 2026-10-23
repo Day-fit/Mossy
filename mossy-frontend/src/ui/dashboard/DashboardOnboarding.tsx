@@ -10,7 +10,7 @@ import {
 import { motion, useReducedMotion } from 'framer-motion';
 import SectionLeaves from '../shared/SectionLeaves.tsx';
 import { getDeviceDatabase } from '../../auth/deviceIdentity.ts';
-import type { UserVaultDto } from '../../api/vault.api.ts';
+import type { UserVaultDto } from 'mossy-api-client/vault.api';
 
 export default function DashboardOnboarding({
     vaults,

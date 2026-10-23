@@ -5,7 +5,7 @@ import {
     executeGetDevicesRequest,
     executeGetEnrollmentsRequest,
     executeUnblockDeviceRequest,
-} from '../api/deviceTrust.api.ts';
+} from 'mossy-api-client/deviceTrust.api';
 import { useDeviceManagementStore } from '../store/deviceManagementStore.ts';
 
 function errorMessage(error: unknown): string {

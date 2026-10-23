@@ -41,6 +41,7 @@ services:
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
       - 'MOSSY_DEVICE_TRUST_SERVICE_HOST=http://mossy-device-trust:8086'
+      - 'MOSSY_EXTENSION_ORIGINS=${MOSSY_EXTENSION_ORIGINS:-}'
       - 'FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-https://mossy.dayfit.pl}'
     profiles:
       - 'prod'
@@ -89,6 +90,7 @@ services:
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
+      - 'MOSSY_EXTENSION_ORIGINS=${MOSSY_EXTENSION_ORIGINS:-}'
     profiles:
       - 'prod'
     labels:
@@ -136,6 +138,7 @@ services:
       - 'KAFKA_BOOTSTRAP_SERVERS=kafka:9092'
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
+      - 'MOSSY_EXTENSION_ORIGINS=${MOSSY_EXTENSION_ORIGINS:-}'
     profiles:
       - 'prod'
     labels:
@@ -170,6 +173,7 @@ services:
       - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
       - 'JWKS_PROVIDER_URI=http://mossy-auth:8083/api/v1/auth/.well-known/jwks.json'
       - 'ALLOWED_ORIGINS=${ALLOWED_ORIGINS}'
+      - 'MOSSY_EXTENSION_ORIGINS=${MOSSY_EXTENSION_ORIGINS:-}'
     profiles:
       - 'prod'
     labels:

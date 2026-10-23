@@ -4,13 +4,13 @@ import {
     type LoginResponse,
     type PublicIdentityJwk,
     type EmailVerification,
-} from '../api/auth.api.ts';
+} from 'mossy-api-client/auth.api';
 import {
     executeConfirmEnrollmentRequest,
     executeCreateEnrollmentRequest,
     executeDeviceLoginChallengeRequest,
-} from '../api/deviceTrust.api.ts';
-import { ApiError } from '../api/client.ts';
+} from 'mossy-api-client/deviceTrust.api';
+import { ApiError } from 'mossy-api-client/client';
 import {
     ensureDeviceIdentity,
     loadStoredDeviceId,

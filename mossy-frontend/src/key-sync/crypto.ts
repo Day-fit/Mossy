@@ -1,12 +1,12 @@
 import sodium from 'libsodium-wrappers-sumo';
 import { z } from 'zod';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
-import type { PublicIdentityJwk } from '../api/auth.api.ts';
+import type { PublicIdentityJwk } from 'mossy-api-client/auth.api';
 import type {
     ReceiverDetails,
     UploadVaultKeyRequest,
     VaultKeyResponse,
-} from '../api/keySync.api.ts';
+} from 'mossy-api-client/keySync.api';
 
 export type TransferContext = { code: string; receiver: ReceiverDetails };
 

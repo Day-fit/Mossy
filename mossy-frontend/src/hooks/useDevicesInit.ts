@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { receiveEnrollmentEvents } from '../api/deviceTrust.api.ts';
+import { receiveEnrollmentEvents } from 'mossy-api-client/deviceTrust.api';
 import { useAuthStore } from '../store/authStore.ts';
 import { useDeviceManagementStore } from '../store/deviceManagementStore.ts';
 import { useDevices } from './useDevices.ts';

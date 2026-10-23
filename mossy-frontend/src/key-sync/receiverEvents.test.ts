@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { readSseData } from '../api/sse.ts';
+import { readSseData } from 'mossy-api-client/sse';
 import { waitForReceiverResult } from './receiverEvents.ts';
 
 const encoder = new TextEncoder();

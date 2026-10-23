@@ -1,6 +1,9 @@
 [
   { "id": "auth.register", "method": "post", "path": "/api/v1/auth/register", "auth": "public", "request": { "body": "registerRequest" }, "responses": { "200": "registerResponse", "default": "messageResponse" } },
   { "id": "auth.login", "method": "post", "path": "/api/v1/auth/login", "auth": "public", "request": { "body": "loginRequest" }, "responses": { "200": "loginResponse", "default": "messageResponse" } },
+  { "id": "auth.extensionLogin", "method": "post", "path": "/api/v1/auth/extension/login", "auth": "public", "request": { "body": "loginRequest" }, "responses": { "200": "loginResponse", "default": "messageResponse" } },
+  { "id": "auth.extensionRefresh", "method": "post", "path": "/api/v1/auth/extension/refresh", "auth": "public", "request": {}, "responses": { "200": "loginResponse", "default": "messageResponse" } },
+  { "id": "auth.extensionLogout", "method": "post", "path": "/api/v1/auth/extension/logout", "auth": "public", "request": {}, "responses": { "200": "messageResponse", "default": "messageResponse" } },
   { "id": "auth.status", "method": "get", "path": "/api/v1/auth/status", "auth": "optional", "request": {}, "responses": { "200": "authStatusResponse", "default": "messageResponse" } },
   { "id": "auth.me", "method": "get", "path": "/api/v1/auth/user/me", "auth": "access", "request": {}, "responses": { "200": "userDetailsResponse", "default": "messageResponse" } },
   { "id": "auth.confirmEmail", "method": "post", "path": "/api/v1/auth/user/confirm", "auth": "public", "request": { "body": "confirmEmailRequest" }, "responses": { "200": "messageResponse", "default": "messageResponse" } },

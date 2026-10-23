@@ -1,11 +1,11 @@
 import sodium from 'libsodium-wrappers-sumo';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
-import { executeGetDeviceIdentityKeyRequest } from '../api/deviceTrust.api.ts';
+import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import {
     executeGetPendingReceiversRequest,
     executeUploadVaultKeyRequest,
     type ReceiverDetails,
-} from '../api/keySync.api.ts';
+} from 'mossy-api-client/keySync.api';
 import { encryptVaultKey, verifyReceiverDetails } from './crypto.ts';
 import { isSyncCode } from './code.ts';
 

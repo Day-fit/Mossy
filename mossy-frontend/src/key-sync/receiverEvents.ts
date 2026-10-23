@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { readSseData } from '../api/sse.ts';
+import { readSseData } from 'mossy-api-client/sse';
 
 const resultSchema = z.object({
     receiverId: z.string(),

@@ -6,8 +6,8 @@ import {
     executeAssignTagRequest,
     executeUnassignTagRequest,
     type GetTagsResponseDto,
-} from '../../../api/tags.api.ts';
-import type { TagDto } from '../../../api/password.api.ts';
+} from 'mossy-api-client/tags.api';
+import type { TagDto } from 'mossy-api-client/password.api';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import * as React from 'react';
 import Button from '../../shared/Button.tsx';

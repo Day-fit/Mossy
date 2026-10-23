@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import sodium from 'libsodium-wrappers-sumo';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
-import type { PublicIdentityJwk } from '../api/auth.api.ts';
+import type { PublicIdentityJwk } from 'mossy-api-client/auth.api';
 import {
     createReceiverOffer,
     decryptVaultKey,

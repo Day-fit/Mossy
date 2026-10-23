@@ -5,3 +5,13 @@
 *.iml
 
 jwks.json
+
+# JavaScript workspaces and generated extension releases
+node_modules/
+**/node_modules/
+**/.wxt/
+**/.output/
+**/dist/
+**/test-results/
+**/playwright-report/
+*.tsbuildinfo

@@ -1,0 +1,10 @@
+.git
+**/node_modules
+**/target
+**/.wxt
+**/.output
+**/dist
+**/test-results
+**/playwright-report
+.env
+**/.env

@@ -1,4 +1,4 @@
-import type { PasswordMetadataDto } from '../../api/password.api.ts';
+import type { PasswordMetadataDto } from 'mossy-api-client/password.api';
 
 export function getSshKeyFilename(
     password: PasswordMetadataDto,

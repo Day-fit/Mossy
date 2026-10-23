@@ -10,21 +10,21 @@ import {
 } from 'vitest';
 import sodium from 'libsodium-wrappers-sumo';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
-import type { PublicIdentityJwk } from '../api/auth.api.ts';
-import type { PendingReceiver, VaultKeyResponse } from '../api/keySync.api.ts';
-import * as api from '../api/keySync.api.ts';
-import { executeGetDeviceIdentityKeyRequest } from '../api/deviceTrust.api.ts';
+import type { PublicIdentityJwk } from 'mossy-api-client/auth.api';
+import type { PendingReceiver, VaultKeyResponse } from 'mossy-api-client/keySync.api';
+import * as api from 'mossy-api-client/keySync.api';
+import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import { receiveVaultKey } from './receiveVaultKey.ts';
 import { getVerifiedReceiver, sendVaultKey } from './sendVaultKey.ts';
 
-vi.mock('../api/keySync.api.ts', () => ({
+vi.mock('mossy-api-client/keySync.api', () => ({
     executeInitKeySyncRequest: vi.fn(),
     executeGetPendingReceiversRequest: vi.fn(),
     executeGetVaultKeysRequest: vi.fn(),
     executeUploadVaultKeyRequest: vi.fn(),
     executeSubscribeReceiverEventsRequest: vi.fn(),
 }));
-vi.mock('../api/deviceTrust.api.ts', () => ({
+vi.mock('mossy-api-client/deviceTrust.api', () => ({
     executeGetDeviceIdentityKeyRequest: vi.fn(),
 }));
 

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import {
     executeGetTagsRequest,
     type GetTagsResponseDto,
-} from '../api/tags.api.ts';
+} from 'mossy-api-client/tags.api';
 
 interface TagState {
     tags: GetTagsResponseDto[];

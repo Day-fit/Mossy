@@ -19,11 +19,11 @@ const {
     executeUserDetailsRequest: vi.fn(),
 }));
 
-vi.mock('../auth/tokenStorage.ts', () => ({
+vi.mock('mossy-api-client/tokenStorage', () => ({
     tokenStorage,
 }));
 
-vi.mock('../api/auth.api.ts', () => ({
+vi.mock('mossy-api-client/auth.api', () => ({
     executeCheckAuthState,
     executeRefreshRequest,
     executeUserDetailsRequest,

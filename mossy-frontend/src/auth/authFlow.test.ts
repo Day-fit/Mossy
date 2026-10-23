@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError } from '../api/client.ts';
+import { ApiError } from 'mossy-api-client/client';
 import { registerAndSignIn, signIn } from './authFlow.ts';
 
 const authApi = vi.hoisted(() => ({
@@ -18,8 +18,8 @@ const deviceIdentity = vi.hoisted(() => ({
     storeDeviceId: vi.fn(),
 }));
 
-vi.mock('../api/auth.api.ts', () => authApi);
-vi.mock('../api/deviceTrust.api.ts', () => deviceTrustApi);
+vi.mock('mossy-api-client/auth.api', () => authApi);
+vi.mock('mossy-api-client/deviceTrust.api', () => deviceTrustApi);
 vi.mock('./deviceIdentity.ts', () => deviceIdentity);
 
 const identity = {

@@ -3,7 +3,7 @@ import * as React from 'react';
 import {
     type PasswordMetadataDto,
     type TagDto,
-} from '../../api/password.api.ts';
+} from 'mossy-api-client/password.api';
 import type { PasswordFormState, SavePasswordResult } from './index.ts';
 import PasswordEntryInput from './PasswordEntryInput.tsx';
 import Tag from './tag/Tag.tsx';

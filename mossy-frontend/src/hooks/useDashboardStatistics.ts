@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
     executeDashboardStatisticsRequest,
     type DashboardStatisticsResponse,
-} from '../api/statistics.api.ts';
+} from 'mossy-api-client/statistics.api';
 
 const EMPTY_STATISTICS: DashboardStatisticsResponse = {
     totalPasswords: 0,

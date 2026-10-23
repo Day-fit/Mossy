@@ -5,7 +5,7 @@ import {
     executeCreateVaultRequest,
     executeDeleteVaultRequest,
     executeUpdateVaultRequest,
-} from '../../api/vault.api.ts';
+} from 'mossy-api-client/vault.api';
 import VaultCard from './VaultCard.tsx';
 import AddVaultModal from './AddVaultModal.tsx';
 import VaultActionModal from './VaultActionModal.tsx';
