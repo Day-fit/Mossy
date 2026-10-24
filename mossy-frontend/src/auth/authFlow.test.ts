@@ -25,7 +25,7 @@ vi.mock('./deviceIdentity.ts', () => deviceIdentity);
 const identity = {
     type: 'Ed25519' as const,
     public: 'public-key',
-    private: 'private-key',
+    privateKey: { type: 'private', extractable: false, algorithm: { name: 'Ed25519' }, usages: ['sign'] },
 };
 const credentials = { identifier: 'mossy', password: 'correct-password' };
 

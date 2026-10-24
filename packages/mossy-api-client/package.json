@@ -17,7 +17,8 @@
         "./note.api": "./src/api/note.api.ts",
         "./tags.api": "./src/api/tags.api.ts",
         "./statistics.api": "./src/api/statistics.api.ts",
-        "./extension/auth.api": "./src/extension/auth.api.ts"
+        "./extension/auth.api": "./src/extension/auth.api.ts",
+        "./key-sync/crypto": "./src/key-sync/crypto.ts"
     },
     "scripts": {
         "typecheck": "tsc --noEmit",
@@ -25,6 +26,7 @@
         "lint": "eslint --config ../../mossy-frontend/eslint.config.js src"
     },
     "dependencies": {
+        "libsodium-wrappers-sumo": "^0.8.2",
         "zod": "^4.3.6"
     }
 }

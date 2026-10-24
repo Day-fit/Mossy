@@ -81,7 +81,7 @@ describe('key sync sender page', () => {
         });
         useDeviceStore.setState({
             deviceId: 'sender-device',
-            idKey: { type: 'Ed25519', public: 'public', private: 'private' },
+            idKey: { type: 'Ed25519', public: 'public', privateKey: { type: 'private', extractable: false, algorithm: { name: 'Ed25519' }, usages: ['sign'] } },
         });
         services.getVerifiedReceiver.mockResolvedValue({
             receiverId: 'receiver-device',

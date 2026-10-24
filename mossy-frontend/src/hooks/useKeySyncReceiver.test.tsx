@@ -21,7 +21,7 @@ describe('receiver lifecycle', () => {
     const identity: CryptoPair = {
         type: 'Ed25519',
         public: 'public',
-        private: 'private',
+        privateKey: { type: 'private', extractable: false, algorithm: { name: 'Ed25519' }, usages: ['sign'] },
     };
     beforeEach(() => {
         vi.resetAllMocks();
@@ -62,7 +62,7 @@ describe('receiver lifecycle', () => {
 
         act(() =>
             useDeviceStore.setState({
-                idKey: { ...identity },
+                idKey: structuredClone(identity),
             })
         );
 
@@ -78,7 +78,7 @@ describe('receiver lifecycle', () => {
                 idKey: {
                     type: 'Ed25519',
                     public: 'new-public',
-                    private: 'new-private',
+                    privateKey: { type: 'private', extractable: false, algorithm: { name: 'Ed25519' }, usages: ['sign'] },
                 },
             })
         );

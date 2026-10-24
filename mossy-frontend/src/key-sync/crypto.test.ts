@@ -1,4 +1,13 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { webcrypto } from 'node:crypto';
+import {
+    afterEach,
+    beforeAll,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+} from 'vitest';
 import sodium from 'libsodium-wrappers-sumo';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
 import type { PublicIdentityJwk } from 'mossy-api-client/auth.api';
@@ -12,21 +21,29 @@ import {
 const encode = (bytes: Uint8Array) =>
     sodium.to_base64(bytes, sodium.base64_variants.URLSAFE_NO_PADDING);
 
-function identity(): { privateKey: CryptoPair; publicKey: PublicIdentityJwk } {
-    const pair = sodium.crypto_sign_keypair();
+async function identity(): Promise<{
+    privateKey: CryptoPair;
+    publicKey: PublicIdentityJwk;
+}> {
+    const pair = await crypto.subtle.generateKey('Ed25519', false, [
+        'sign',
+        'verify',
+    ]);
+    const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    if (!jwk.x) throw new Error('Missing public key');
     return {
         privateKey: {
             type: 'Ed25519',
-            public: encode(pair.publicKey),
-            private: encode(pair.privateKey),
+            public: jwk.x,
+            privateKey: pair.privateKey,
         },
-        publicKey: { kty: 'OKP', crv: 'Ed25519', x: encode(pair.publicKey) },
+        publicKey: { kty: 'OKP', crv: 'Ed25519', x: jwk.x },
     };
 }
 
 async function transfer() {
-    const sender = identity();
-    const receiverIdentity = identity();
+    const sender = await identity();
+    const receiverIdentity = await identity();
     const offer = await createReceiverOffer(
         'receiver-device',
         'vault-one',
@@ -55,6 +72,15 @@ describe('HTTP key transfer cryptography', () => {
     beforeAll(async () => {
         await sodium.ready;
     });
+    beforeEach(async () => {
+        vi.stubGlobal('crypto', webcrypto);
+        const handles = await crypto.subtle.generateKey('Ed25519', false, [
+            'sign',
+            'verify',
+        ]);
+        vi.stubGlobal('CryptoKey', handles.privateKey.constructor);
+    });
+    afterEach(() => vi.unstubAllGlobals());
 
     it.each(['receiverId', 'vaultId', 'publicDh'] as const)(
         'rejects a receiver offer with a substituted %s',
@@ -133,7 +159,12 @@ describe('HTTP key transfer cryptography', () => {
     it('rejects a key whose signature does not belong to the claimed sender identity', async () => {
         const { key, context, offer } = await transfer();
         await expect(
-            decryptVaultKey(key, context, offer.privateDh, identity().publicKey)
+            decryptVaultKey(
+                key,
+                context,
+                offer.privateDh,
+                (await identity()).publicKey
+            )
         ).rejects.toThrow('signature could not be verified');
     });
 });
