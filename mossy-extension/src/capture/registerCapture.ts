@@ -79,17 +79,26 @@ export function registerCapture(ctx: ContentScriptContext) {
             });
         }
 
-        void messaging
-            .sendMessage('handleDiscover', {
-                forms: [...forms].slice(0, 30).map(([formId, value]) => ({
-                    formId,
-                    passwordId: value.passwordId,
-                    usernameId: value.usernameId,
-                    origin: location.origin,
-                })),
-            })
-            .catch(() => undefined);
+        return messaging.sendMessage('handleDiscover', {
+            forms: [...forms].slice(0, 30).map(([formId, value]) => ({
+                formId,
+                passwordId: value.passwordId,
+                usernameId: value.usernameId,
+                origin: location.origin,
+            })),
+        });
     }
+
+    const publishDiscovery = () => void discover().catch(() => undefined);
+    const unsubscribeDiscovery = messaging.onMessage(
+        'rediscoverForms',
+        async ({ sender }) => {
+            if (sender.id !== chrome.runtime.id || sender.tab)
+                return { status: 'error' };
+            await discover();
+            return { status: 'ok' };
+        }
+    );
 
     ctx.addEventListener(
         document,
@@ -280,12 +289,12 @@ export function registerCapture(ctx: ContentScriptContext) {
             return { valid: true };
         }
     );
-    discover();
+    publishDiscovery();
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     const observer = new MutationObserver(() => {
         clearTimeout(timer);
-        timer = setTimeout(discover, 200);
+        timer = setTimeout(publishDiscovery, 200);
     });
     observer.observe(document, {
         childList: true,
@@ -302,6 +311,7 @@ export function registerCapture(ctx: ContentScriptContext) {
     });
     ctx.onInvalidated(() => {
         unsubscribe();
+        unsubscribeDiscovery();
         observer.disconnect();
         clearTimeout(timer);
         forms.clear();

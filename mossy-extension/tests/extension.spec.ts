@@ -395,6 +395,140 @@ test.afterEach(async () => {
     await rm(directory, { recursive: true, force: true });
 });
 
+test(
+    'unchanged forms are rediscovered after the background worker is stopped',
+    { tag: '@site' },
+    async () => {
+        await signIn();
+        const site = await loginForm();
+        await site.bringToFront();
+        const view = () =>
+            pageRpc<{ targets: unknown[] }>(popup, { type: 'getPopupView' });
+        await expect.poll(async () => (await view()).targets.length).toBe(1);
+        const before = await view();
+        await context.route(
+            `${instance}/api/v1/auth/extension/refresh`,
+            (route) =>
+                route.fulfill({
+                    json: { accessToken: 'restored-access-token' },
+                })
+        );
+
+        const session = await context.newCDPSession(site);
+        const versionId = new Promise<string>((resolve) => {
+            session.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
+                const version = versions.find(
+                    (item) =>
+                        item.scriptURL.startsWith(
+                            `chrome-extension://${extensionId}/`
+                        ) && item.runningStatus === 'running'
+                );
+                if (version) resolve(version.versionId);
+            });
+        });
+        await session.send('ServiceWorker.enable');
+        await session.send('ServiceWorker.stopWorker', {
+            versionId: await versionId,
+        });
+        await session.detach();
+
+        // The page and its content script stay untouched while the worker loses its map.
+        const after = await view();
+        expect(after.targets).toEqual(before.targets);
+        expect(
+            requests.filter(
+                (request) => request.path === '/api/v1/auth/user/me'
+            ).length
+        ).toBeGreaterThan(1);
+    }
+);
+
+test('a live authorization keeps its worker active past the idle timeout and still completes', async () => {
+    await signIn();
+    const worker =
+        context.serviceWorkers()[0] ??
+        (await context.waitForEvent('serviceworker'));
+    await worker.evaluate(() => {
+        const original = chrome.runtime.getPlatformInfo.bind(chrome.runtime);
+        let calls = 0;
+        chrome.runtime.getPlatformInfo = (() => {
+            calls++;
+            return original();
+        }) as typeof chrome.runtime.getPlatformInfo;
+        Object.defineProperty(globalThis, '__actionHeartbeatCalls', {
+            get: () => calls,
+        });
+    });
+    const opened = context.waitForEvent('page');
+    await popup.getByRole('button', { name: 'Password', exact: true }).click();
+    const action = await opened;
+    await expect(
+        action.getByLabel('Vault password', { exact: true })
+    ).toBeVisible();
+    await action.evaluate(() => {
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText: async () => undefined },
+            configurable: true,
+        });
+    });
+    await action.waitForTimeout(35_000);
+    expect(
+        await worker.evaluate(() =>
+            Reflect.get(globalThis, '__actionHeartbeatCalls')
+        )
+    ).toBeGreaterThan(0);
+    await authorize(action);
+    await completeAndClose(action);
+});
+
+test('parallel popup requests recover from expired access tokens with one refresh', async () => {
+    await signIn();
+    let expiredRequests = 0;
+    let refreshes = 0;
+    let bothExpired!: () => void;
+    const expired = new Promise<void>((resolve) => {
+        bothExpired = resolve;
+    });
+    for (const path of [
+        '/api/v1/auth/user/me',
+        '/api/v1/passwords/vault/vaults',
+    ]) {
+        await context.route(`${instance}${path}`, async (route) => {
+            if (
+                route.request().headers().authorization !==
+                'Bearer test-access-token'
+            ) {
+                await route.fallback();
+                return;
+            }
+            if (++expiredRequests === 2) bothExpired();
+            await route.fulfill({
+                status: 401,
+                json: { message: 'Access token expired' },
+            });
+        });
+    }
+    await context.route(
+        `${instance}/api/v1/auth/extension/refresh`,
+        async (route) => {
+            refreshes++;
+            await expired;
+            await route.fulfill({
+                json: { accessToken: 'renewed-access-token' },
+            });
+        }
+    );
+    await popup.reload();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    await expect(
+        popup.getByText('alice', { exact: true }).last()
+    ).toBeVisible();
+    expect(expiredRequests).toBe(2);
+    expect(refreshes).toBe(1);
+});
+
 test('packaged MV3 has optional site permissions, strict CSP, native keys and independent extension login', async () => {
     const manifest = JSON.parse(
         await readFile('.output/chrome-mv3/manifest.json', 'utf8')

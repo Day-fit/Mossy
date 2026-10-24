@@ -5,6 +5,7 @@ import type { Action } from '../types/models';
 const removed = vi.fn();
 const create = vi.fn();
 const remove = vi.fn();
+const keepAlive = vi.fn();
 let actions: ActionRegistry;
 const action: Action = {
     id: 'action',
@@ -29,8 +30,10 @@ beforeEach(() => {
     vi.resetAllMocks();
     create.mockResolvedValue({ id: 5 });
     remove.mockResolvedValue(undefined);
+    keepAlive.mockResolvedValue({ os: 'linux' });
     vi.stubGlobal('chrome', {
         runtime: {
+            getPlatformInfo: keepAlive,
             getURL: (path: string) => `chrome-extension://mossy${path}`,
         },
         windows: { create, remove },
@@ -45,6 +48,31 @@ afterEach(() => {
 });
 
 describe('action lifetime and ownership', () => {
+    it('keeps actions alive across the idle timeout and stops when the last action ends', async () => {
+        await actions.open({ ...action, deadline: 120_000 });
+        await vi.advanceTimersByTimeAsync(65_000);
+        expect(keepAlive).toHaveBeenCalledTimes(3);
+        expect(actions.get(action.id).deadline).toBe(120_000);
+        actions.consume(action.id, 'copy-password');
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(keepAlive).toHaveBeenCalledTimes(3);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('shares keepalive across live actions and releases it on cancellation and expiry', async () => {
+        await actions.open({ ...action, deadline: 50_000 });
+        await actions.open({ ...action, id: 'other', deadline: 60_000 });
+        await vi.advanceTimersByTimeAsync(20_000);
+        expect(keepAlive).toHaveBeenCalledTimes(1);
+        actions.delete(action.id);
+        await vi.advanceTimersByTimeAsync(39_999);
+        expect(actions.get('other').id).toBe('other');
+        await vi.advanceTimersByTimeAsync(1);
+        const calls = keepAlive.mock.calls.length;
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(keepAlive).toHaveBeenCalledTimes(calls);
+        expect(vi.getTimerCount()).toBe(0);
+    });
     it('requires a claim before use and binds it to one document and URL', async () => {
         await actions.open(action);
         expect(() => actions.authorize(action.id, sender, false)).toThrow(

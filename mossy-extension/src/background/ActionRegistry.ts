@@ -3,6 +3,7 @@ import { assertLive } from '../security/security';
 
 /** An action belongs to one document and is released on completion, cancellation or expiry. */
 export class ActionRegistry {
+    private keepAlive?: ReturnType<typeof setInterval>;
     private actions = new Map<
         string,
         {
@@ -24,6 +25,10 @@ export class ActionRegistry {
                 action.deadline - Date.now()
             ),
         });
+        // Extension API activity prevents idle suspension only while actions are live.
+        this.keepAlive ??= setInterval(() => {
+            void chrome.runtime.getPlatformInfo().catch(() => undefined);
+        }, 20_000);
         try {
             const window = await chrome.windows.create({
                 url: chrome.runtime.getURL(`/action.html#${action.id}`),
@@ -86,6 +91,10 @@ export class ActionRegistry {
         if (!entry) return;
         this.actions.delete(id);
         clearTimeout(entry.timer);
+        if (this.actions.size === 0) {
+            clearInterval(this.keepAlive);
+            this.keepAlive = undefined;
+        }
         this.removed(entry.action);
         if (closeWindow && entry.windowId !== undefined) {
             void chrome.windows.remove(entry.windowId).catch(() => undefined);

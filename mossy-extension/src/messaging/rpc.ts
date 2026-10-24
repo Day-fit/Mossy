@@ -87,6 +87,7 @@ export type ActionToBackgroundProtocol = {
 };
 
 type BackgroundToContentProtocol = {
+    rediscoverForms(): MessageStatus;
     fillOnce(data: {
         actionId: string;
         target: Target;

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
         chrome: {
             runtime: {
                 id: 'mossy',
+                getPlatformInfo: vi.fn().mockResolvedValue({ os: 'linux' }),
                 onMessage: event(),
                 onConnect: event(),
                 sendMessage: vi.fn().mockResolvedValue(undefined),
@@ -37,7 +38,10 @@ const mocks = vi.hoisted(() => {
                 create: vi.fn().mockResolvedValue({ id: 12 }),
                 remove: vi.fn().mockResolvedValue(undefined),
             },
-            webNavigation: { onCommitted: event() },
+            webNavigation: {
+                onCommitted: event(),
+                getAllFrames: vi.fn().mockResolvedValue([]),
+            },
             action: {
                 openPopup: vi.fn().mockResolvedValue(undefined),
                 setBadgeText: vi.fn().mockResolvedValue(undefined),
@@ -261,6 +265,53 @@ afterEach(async () => {
 });
 
 describe('background message transports', () => {
+    it('refreshes an access token after startup and retries only the failed API request', async () => {
+        const { apiFetch } = await import('mossy-api-client/client');
+        mocks.refresh.mockResolvedValueOnce({
+            json: async () => ({ accessToken: 'fresh-token' }),
+        });
+        const fetch = vi
+            .fn()
+            .mockResolvedValueOnce(
+                new Response(JSON.stringify({ message: 'Expired' }), {
+                    status: 401,
+                })
+            )
+            .mockResolvedValueOnce(new Response('{}'));
+        vi.stubGlobal('fetch', fetch);
+        await expect(
+            apiFetch('https://mossy.test/api/protected')
+        ).resolves.toHaveProperty('status', 200);
+        expect(mocks.refresh).toHaveBeenCalledTimes(2);
+        expect(mocks.token).toHaveBeenLastCalledWith('fresh-token');
+        expect(fetch).toHaveBeenNthCalledWith(
+            2,
+            'https://mossy.test/api/protected',
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: 'Bearer fresh-token',
+                }),
+            })
+        );
+    });
+
+    it('clears an expired token when its refresh session is rejected', async () => {
+        const { apiFetch } = await import('mossy-api-client/client');
+        mocks.refresh.mockRejectedValueOnce(
+            new Error('Refresh session expired')
+        );
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(new Response('{}', { status: 401 }))
+        );
+        await expect(
+            apiFetch('https://mossy.test/api/protected')
+        ).rejects.toThrow('Refresh session expired');
+        expect(mocks.token).toHaveBeenLastCalledWith(null);
+        expect(await message('getPopupView', {})).toMatchObject({
+            account: null,
+        });
+    });
     it('rejects every privileged handler when invoked by a content script', async () => {
         for (const [name, handler] of mocks.onMessage.mock.calls) {
             if (name === 'handleDiscover' || name === 'handleCapture') continue;
@@ -327,6 +378,61 @@ describe('background message transports', () => {
             message('handleDiscover', { forms: [] }, sender)
         ).rejects.toThrow('disabled');
         expect((await message('getPopupView', {})).targets).toEqual([]);
+    });
+
+    it('rediscovers unchanged same-origin forms after the background form map is lost', async () => {
+        mocks.chrome.tabs.query.mockResolvedValueOnce([
+            { id: 7, url: sender.url },
+        ]);
+        mocks.chrome.webNavigation.getAllFrames.mockResolvedValueOnce([
+            { frameId: 0, url: sender.url },
+            { frameId: 1, url: 'https://site.test/frame' },
+            { frameId: 2, url: 'https://other.test/frame' },
+        ]);
+        for (const frameId of [0, 1]) {
+            mocks.sendMessage.mockImplementationOnce(async () => {
+                await message(
+                    'handleDiscover',
+                    {
+                        forms: [
+                            {
+                                formId: 'form',
+                                passwordId: 'field',
+                                usernameId: null,
+                                origin: sender.origin,
+                            },
+                        ],
+                    },
+                    {
+                        ...sender,
+                        frameId,
+                        documentId: `document-${frameId}`,
+                    }
+                );
+                return { status: 'ok' };
+            });
+        }
+        const view = await message('getPopupView', {});
+        expect(view.targets).toHaveLength(2);
+        expect(view.targets.map((form) => form.documentId)).toEqual([
+            'document-0',
+            'document-1',
+        ]);
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'rediscoverForms',
+            undefined,
+            { tabId: 7, frameId: 0 }
+        );
+        expect(mocks.sendMessage).toHaveBeenCalledWith(
+            'rediscoverForms',
+            undefined,
+            { tabId: 7, frameId: 1 }
+        );
+        expect(mocks.sendMessage).not.toHaveBeenCalledWith(
+            'rediscoverForms',
+            undefined,
+            { tabId: 7, frameId: 2 }
+        );
     });
 
     it('binds action claims to the action page and its original document', async () => {

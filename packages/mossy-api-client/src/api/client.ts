@@ -24,20 +24,55 @@ export class ApiError extends Error {
     }
 }
 
+// Opt-in for clients that own an authenticated session, such as the extension.
+let authRefreshHandler: (() => Promise<void>) | undefined;
+let refreshing: Promise<void> | undefined;
+
+export function setAuthRefreshHandler(
+    handler: (() => Promise<void>) | undefined
+) {
+    authRefreshHandler = handler;
+}
+
 export async function apiFetch(url: string, options: ApiFetchOptions = {}) {
     const { includeAuth = true, authToken, ...requestOptions } = options;
     const token = includeAuth ? (authToken ?? tokenStorage.get()) : null;
 
-    const response = await fetch(url, {
-        ...requestOptions,
-        headers: {
-            ...requestOptions.headers,
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+    const send = (accessToken: string | null) =>
+        fetch(url, {
+            ...requestOptions,
+            headers: {
+                ...requestOptions.headers,
+                'Content-Type': 'application/json',
+                ...(accessToken
+                    ? { Authorization: `Bearer ${accessToken}` }
+                    : {}),
+            },
 
-        credentials: 'include',
-    });
+            credentials: 'include',
+        });
+
+    let response = await send(token);
+    const refresh = authRefreshHandler;
+    if (
+        response.status === 401 &&
+        includeAuth &&
+        authToken === undefined &&
+        token &&
+        refresh
+    ) {
+        // A concurrent request may already have refreshed this access token.
+        if (tokenStorage.get() === token) {
+            refreshing ??= Promise.resolve()
+                .then(refresh)
+                .finally(() => {
+                    refreshing = undefined;
+                });
+            await refreshing;
+        }
+        const currentToken = tokenStorage.get();
+        if (currentToken) response = await send(currentToken);
+    }
 
     if (!response.ok) {
         const error = await response.json().catch(() => null);

@@ -1,5 +1,5 @@
 import { executeUserDetailsRequest } from 'mossy-api-client/auth.api';
-import { ApiError } from 'mossy-api-client/client';
+import { ApiError, setAuthRefreshHandler } from 'mossy-api-client/client';
 import { executeUserVaultsRequest } from 'mossy-api-client/vault.api';
 import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import {
@@ -76,6 +76,22 @@ const pending = new PendingCapture(() => {
     }
 });
 
+async function refreshAccessToken(instance: string) {
+    try {
+        const response = await executeExtensionRefreshRequest(instance);
+        const { accessToken } = await response.json();
+        if (typeof accessToken !== 'string' || !accessToken) {
+            throw new Error('Could not refresh sign-in.');
+        }
+        tokenStorage.set(accessToken);
+    } catch (error) {
+        tokenStorage.set(null);
+        throw error;
+    }
+}
+
+setAuthRefreshHandler(() => getInstance().then(refreshAccessToken));
+
 const ready = (async () => {
     await chrome.storage.local.setAccessLevel({
         accessLevel: 'TRUSTED_CONTEXTS',
@@ -88,13 +104,7 @@ const ready = (async () => {
         themeSetting.getValue(),
     ]);
     theme = storedTheme;
-    try {
-        const response = await executeExtensionRefreshRequest(instance);
-        const { accessToken } = await response.json();
-        tokenStorage.set(accessToken);
-    } catch {
-        tokenStorage.set(null);
-    }
+    await refreshAccessToken(instance).catch(() => undefined);
     await configureCapture();
 })();
 
@@ -346,6 +356,32 @@ onActionMessage('finishKeySyncReceive', async ({ data }) => {
     return { status: 'saved' };
 });
 
+async function refreshForms(
+    tab: chrome.tabs.Tab | undefined,
+    instance: string
+) {
+    if (tab?.id === undefined || !tab.url) return;
+    const origin = new URL(tab.url).origin;
+    if (!tab.url.startsWith('https:') || origin === instance) return;
+    const tabId = tab.id;
+    const frames = await chrome.webNavigation
+        .getAllFrames({ tabId })
+        .catch(() => null);
+    for (const key of forms.keys()) {
+        if (key.startsWith(`${tabId}:`)) forms.delete(key);
+    }
+    await Promise.allSettled(
+        (frames ?? [])
+            .filter((frame) => new URL(frame.url).origin === origin)
+            .map((frame) =>
+                messaging.sendMessage('rediscoverForms', undefined, {
+                    tabId,
+                    frameId: frame.frameId,
+                })
+            )
+    );
+}
+
 onPopupMessage('getPopupView', async ({ data }) => {
     await ready;
     const instance = await getInstance();
@@ -366,6 +402,7 @@ onPopupMessage('getPopupView', async ({ data }) => {
             targets: [],
         };
     }
+    if (permission) await refreshForms(tabs[0], instance);
     const [user, vaults] = await Promise.all([
         executeUserDetailsRequest(instance),
         executeUserVaultsRequest(instance),
