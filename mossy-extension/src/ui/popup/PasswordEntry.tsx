@@ -1,5 +1,10 @@
 import { Button } from '@mossy/ui';
-import { MdPassword } from 'react-icons/md';
+import {
+    MdContentCopy,
+    MdLogin,
+    MdPassword,
+    MdPersonOutline,
+} from 'react-icons/md';
 import type { Entry } from '../../types/models';
 import type { Target } from '../../security/security';
 import type { RunPopupAction } from './types';
@@ -37,6 +42,7 @@ export default function PasswordEntry({
                     disabled={loading}
                     onClick={() => void action('copy-username', entry)}
                 >
+                    <MdPersonOutline size={16} aria-hidden="true" />
                     Username
                 </Button>
                 <Button
@@ -45,6 +51,7 @@ export default function PasswordEntry({
                     disabled={loading}
                     onClick={() => void action('copy-password', entry)}
                 >
+                    <MdContentCopy size={15} aria-hidden="true" />
                     Password
                 </Button>
                 <Button
@@ -59,6 +66,7 @@ export default function PasswordEntry({
                     disabled={loading || !permission || !target}
                     onClick={() => void action('fill', entry, target)}
                 >
+                    <MdLogin size={16} aria-hidden="true" />
                     Fill
                 </Button>
             </div>

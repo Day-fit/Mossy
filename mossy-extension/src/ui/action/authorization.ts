@@ -43,6 +43,9 @@ export function authorizationDescription(
     isProtectingVault: boolean,
     choice: ProtectionChoice | null
 ): string {
+    if (phase === 'waiting') {
+        return 'Waiting for a device that has this vault key.';
+    }
     if (phase === 'done') {
         return 'All set. You can close this window.';
     }

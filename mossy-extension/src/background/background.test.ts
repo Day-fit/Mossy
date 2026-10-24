@@ -100,6 +100,8 @@ const mocks = vi.hoisted(() => {
         wait: vi.fn().mockResolvedValue(undefined),
         upload: vi.fn().mockResolvedValue(undefined),
         write: vi.fn().mockResolvedValue(undefined),
+        read: vi.fn().mockResolvedValue({ type: 'Password' }),
+        selectedVaults: {} as Record<string, string>,
     };
 });
 
@@ -143,7 +145,7 @@ vi.mock('../actions/receiverEvents', () => ({
     waitForReceiverResult: mocks.wait,
 }));
 vi.mock('../storage/wrappedKeys', () => ({
-    wrappedKeys: { write: mocks.write },
+    wrappedKeys: { write: mocks.write, read: mocks.read },
 }));
 vi.mock('../storage/deviceIdentity', () => ({
     loadDeviceId: mocks.loadDeviceId,
@@ -156,6 +158,12 @@ vi.mock('../storage/settings', () => ({
     },
     themeSetting: { getValue: async () => 'system', setValue: mocks.setting },
     lastIdentifierSetting: { getValue: async () => 'alice' },
+    selectedVaultsSetting: {
+        getValue: async () => mocks.selectedVaults,
+        setValue: async (value: Record<string, string>) => {
+            mocks.selectedVaults = value;
+        },
+    },
 }));
 
 const popupSender = {
@@ -234,6 +242,7 @@ async function action(
 beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+    mocks.selectedVaults = {};
     vi.stubGlobal('chrome', mocks.chrome);
     mocks.receivers.mockResolvedValue([mocks.receiver]);
     await import('./background');
@@ -400,6 +409,82 @@ describe('background message transports', () => {
         expect(mocks.entries).toHaveBeenCalledWith(
             'vault',
             'https://mossy.test'
+        );
+    });
+
+    it('remembers a vault across popup requests without sharing the preference with another account or instance', async () => {
+        mocks.vaults.mockResolvedValueOnce([
+            { vaultId: 'vault', vaultName: 'Personal' },
+            { vaultId: 'work', vaultName: 'Work' },
+        ]);
+        expect(
+            await message('getPopupView', { vaultId: 'work' })
+        ).toMatchObject({
+            selected: 'work',
+            hasVaultKey: true,
+        });
+        expect(mocks.selectedVaults).toEqual({
+            '["https://mossy.test","user"]': 'work',
+        });
+        mocks.vaults.mockResolvedValueOnce([
+            { vaultId: 'vault', vaultName: 'Personal' },
+            { vaultId: 'work', vaultName: 'Work' },
+        ]);
+        expect(await message('getPopupView', {})).toMatchObject({
+            selected: 'work',
+        });
+        mocks.user.mockResolvedValueOnce({
+            userId: 'other-user',
+            username: 'bob',
+        });
+        expect(await message('getPopupView', {})).toMatchObject({
+            selected: 'vault',
+        });
+        mocks.selectedVaults = { '["https://other.test","user"]': 'work' };
+        expect(await message('getPopupView', {})).toMatchObject({
+            selected: 'vault',
+        });
+    });
+
+    it('reports a missing key for the selected vault before a secret action is started', async () => {
+        mocks.read.mockResolvedValueOnce(undefined);
+        expect(await message('getPopupView', {})).toMatchObject({
+            hasVaultKey: false,
+        });
+        expect(mocks.read).toHaveBeenCalledWith({
+            instance: 'https://mossy.test',
+            accountId: 'user',
+            vaultId: 'vault',
+        });
+    });
+
+    it('keeps the account and selector available for an offline vault without requesting its metadata', async () => {
+        mocks.vaults.mockResolvedValueOnce([
+            { vaultId: 'vault', vaultName: 'Personal', isOnline: false },
+        ]);
+        expect(await message('getPopupView', {})).toMatchObject({
+            account: { userId: 'user' },
+            selected: 'vault',
+            entries: [],
+            vaults: [{ vaultId: 'vault', isOnline: false }],
+        });
+        expect(mocks.entries).not.toHaveBeenCalled();
+    });
+
+    it('keeps vault navigation available when an online vault becomes unreachable, while propagating authentication errors', async () => {
+        const { ApiError } = await import('mossy-api-client/client');
+        mocks.entries.mockRejectedValueOnce(
+            new ApiError('Vault is not connected', 503)
+        );
+        expect(await message('getPopupView', {})).toMatchObject({
+            selected: 'vault',
+            entries: [],
+            vaultUnavailable: true,
+            account: { userId: 'user' },
+        });
+        mocks.entries.mockRejectedValueOnce(new ApiError('Sign in again', 401));
+        await expect(message('getPopupView', {})).rejects.toThrow(
+            'Sign in again'
         );
     });
 

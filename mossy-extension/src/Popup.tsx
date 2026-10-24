@@ -1,5 +1,4 @@
 import { Button } from '@mossy/ui';
-import { MdErrorOutline, MdClose } from 'react-icons/md';
 import LoadingState from './ui/shared/LoadingState';
 import SecurityNotice from './ui/shared/SecurityNotice';
 import PopupHeader from './ui/popup/PopupHeader';
@@ -12,38 +11,61 @@ import { usePopupController } from './ui/popup/usePopupController';
 import { messaging } from './messaging/rpc';
 import SignIn from './ui/auth/SignIn';
 import { useTheme } from './theme/useTheme';
+import ViewTransition from './ui/shared/ViewTransition';
+import Feedback from './ui/shared/Feedback';
+import OfflineVault from './ui/popup/OfflineVault';
 
 export default function Popup() {
-    const theme = useTheme();
+    const { theme, apply } = useTheme();
     const popup = usePopupController();
     const { view, error, loading, settings, setSettings, run, action } = popup;
+    const selectedVault = view?.vaults.find(
+        (vault) => vault.vaultId === view.selected
+    );
+    const vaultOffline =
+        !!view?.vaultUnavailable ||
+        (selectedVault?.isOnline ?? selectedVault?.online) === false;
 
     return (
         <main className="popup">
             <PopupHeader
                 signedIn={!!view?.account}
+                username={view?.account?.username}
                 loading={loading}
                 settings={settings}
                 onSignOut={() =>
                     void run(() => messaging.sendMessage('handleLogout'))
                 }
                 onToggleSettings={() => setSettings(!settings)}
+                onHome={popup.home}
             />
-            <div className="page-content">
+            <ViewTransition
+                viewKey={
+                    settings
+                        ? 'settings'
+                        : view?.account
+                          ? popup.sync
+                              ? 'sync'
+                              : 'passwords'
+                          : view
+                            ? 'sign-in'
+                            : 'loading'
+                }
+                className="page-content"
+            >
                 {error && (!view || settings || view.account) && (
-                    <div role="alert" className="status error">
-                        <MdErrorOutline size={18} aria-hidden="true" />
-                        <span>{error}</span>
-                        {view && (
+                    <Feedback onDismiss={view ? popup.dismissError : undefined}>
+                        {error}
+                        {view?.account && !settings && (
                             <button
-                                className="icon"
-                                aria-label="Dismiss error"
-                                onClick={popup.dismissError}
+                                type="button"
+                                className="text-button refresh-passwords"
+                                onClick={() => void popup.load()}
                             >
-                                <MdClose />
+                                Refresh passwords
                             </button>
                         )}
-                    </div>
+                    </Feedback>
                 )}
                 {!view && loading && (
                     <div className="panel">
@@ -64,8 +86,9 @@ export default function Popup() {
                         view={view}
                         loading={loading}
                         theme={theme}
+                        onThemeChange={apply}
                         run={run}
-                        onSaved={() => setSettings(false)}
+                        onSaved={popup.home}
                         onError={popup.reportError}
                     />
                 ) : view && !view.account ? (
@@ -80,11 +103,10 @@ export default function Popup() {
                 ) : (
                     view && (
                         <>
-                            {popup.pending && (
+                            {popup.pending && !popup.sync && (
                                 <PendingPassword
                                     pending={popup.pending}
                                     matches={popup.matches}
-                                    now={popup.now}
                                     loading={loading}
                                     selected={view.selected}
                                     updateId={popup.updateId}
@@ -97,30 +119,69 @@ export default function Popup() {
                                             )
                                         )
                                     }
+                                    hasVaultKey={view.hasVaultKey}
+                                    onReceiveKey={() =>
+                                        void action('sync-receive')
+                                    }
+                                    vaultOffline={vaultOffline}
                                 />
                             )}
-                            <VaultSelector
-                                view={view}
-                                pending={!!popup.pending}
-                                loading={loading}
-                                onSelect={popup.selectVault}
-                            />
-                            <PasswordList
-                                view={view}
-                                loading={loading}
-                                filteredEntries={popup.filteredEntries}
-                                search={popup.search}
-                                setSearch={popup.setSearch}
-                                sync={popup.sync}
-                                onToggleSync={() => popup.setSync(!popup.sync)}
-                                onOpenSettings={() => setSettings(true)}
-                                action={action}
-                            />
+                            {!popup.sync && (
+                                <>
+                                    <VaultSelector
+                                        view={view}
+                                        pending={!!popup.pending}
+                                        loading={loading}
+                                        onSelect={popup.selectVault}
+                                        onReceiveKey={() =>
+                                            void action('sync-receive')
+                                        }
+                                    />
+                                    {selectedVault && vaultOffline ? (
+                                        <OfflineVault
+                                            vault={selectedVault}
+                                            unavailable={
+                                                !!view.vaultUnavailable
+                                            }
+                                            loading={loading}
+                                            onRefresh={() =>
+                                                void popup.load(view.selected)
+                                            }
+                                        />
+                                    ) : (
+                                        <PasswordList
+                                            view={view}
+                                            loading={loading}
+                                            filteredEntries={
+                                                popup.filteredEntries
+                                            }
+                                            search={popup.search}
+                                            setSearch={popup.setSearch}
+                                            sync={popup.sync}
+                                            onToggleSync={() =>
+                                                popup.setSync(!popup.sync)
+                                            }
+                                            onOpenSettings={() =>
+                                                setSettings(true)
+                                            }
+                                            action={action}
+                                            notice={popup.notice}
+                                        />
+                                    )}
+                                </>
+                            )}
                             {popup.sync && (
                                 <VaultKeySync
                                     loading={loading}
                                     selected={view.selected}
+                                    vaultName={
+                                        view.vaults.find(
+                                            (vault) =>
+                                                vault.vaultId === view.selected
+                                        )?.vaultName
+                                    }
                                     action={action}
+                                    onClose={() => popup.setSync(false)}
                                 />
                             )}
                             <SecurityNotice>
@@ -130,7 +191,7 @@ export default function Popup() {
                         </>
                     )
                 )}
-            </div>
+            </ViewTransition>
         </main>
     );
 }

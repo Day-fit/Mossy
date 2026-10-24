@@ -139,6 +139,20 @@ async function openPopup() {
     return page;
 }
 
+async function uiSnapshot(page: Page, name: string) {
+    await expect
+        .poll(() =>
+            page.evaluate(
+                () => document.documentElement.scrollWidth <= innerWidth
+            )
+        )
+        .toBe(true);
+    await page.locator('main').screenshot({
+        path: `/tmp/mossy-extension-ui/${name}.png`,
+        animations: 'disabled',
+    });
+}
+
 async function signIn() {
     await seed(popup);
     await popup.getByLabel('Email or username').fill('alice');
@@ -156,6 +170,10 @@ async function completeAndClose(page: Page) {
         page.getByRole('button', { name: 'Close', exact: true })
     ).toBeVisible();
     await expect.poll(() => page.workers().length).toBe(0);
+    await uiSnapshot(
+        page,
+        `success-${(await page.locator('#action-title').innerText()).toLowerCase().replaceAll(' ', '-')}`
+    );
     await page.getByRole('button', { name: 'Close', exact: true }).click();
     await expect.poll(() => page.isClosed()).toBe(true);
 }
@@ -458,6 +476,10 @@ test('metadata and username copy need no unlock; consecutive password copies eac
     });
     await popup.getByRole('button', { name: 'Username', exact: true }).click();
     await expect(popup.locator('html')).toHaveAttribute('data-copied', 'alice');
+    await expect(popup.getByRole('status')).toContainText(
+        'Username copied to clipboard.'
+    );
+    await uiSnapshot(popup, 'username-copied');
 
     expect(
         requests.filter((request) => request.path.includes('/ciphertext/'))
@@ -633,6 +655,14 @@ test(
         await popup
             .locator('main')
             .screenshot({ path: '/tmp/mossy-v2-capture.png' });
+        for (const theme of ['light', 'dark'] as const) {
+            await pageRpc(popup, { type: 'setTheme', theme });
+            await expect(popup.locator('html')).toHaveAttribute(
+                'data-theme',
+                theme
+            );
+            await uiSnapshot(popup, `capture-${theme}`);
+        }
 
         const windowPromise = context.waitForEvent('page');
 
@@ -647,6 +677,7 @@ test(
         await action
             .locator('main')
             .screenshot({ path: '/tmp/mossy-v2-save-action.png' });
+        await uiSnapshot(action, 'authorize-save-dark');
         await authorize(action);
         await expect.poll(() => saved).toBeTruthy();
 
@@ -691,11 +722,13 @@ test(
     async () => {
         await signIn();
         await popup.evaluate(async () => {
-            const database = await new Promise<IDBDatabase>((resolve, reject) => {
-                const request = indexedDB.open('mossy-extension-v2');
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
+            const database = await new Promise<IDBDatabase>(
+                (resolve, reject) => {
+                    const request = indexedDB.open('mossy-extension-v2');
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                }
+            );
             const transaction = database.transaction('wrapped', 'readwrite');
             transaction.objectStore('wrapped').clear();
             await new Promise<void>((resolve, reject) => {
@@ -708,15 +741,31 @@ test(
         const site = await loginForm();
         await pendingPrompt(site);
         const opened = context.waitForEvent('page');
-        await popup
-            .getByRole('button', { name: 'Authorize save', exact: true })
-            .click();
+        await expect(
+            popup.getByRole('button', {
+                name: 'Receive vault key',
+                exact: true,
+            })
+        ).toBeVisible();
+        await expect(
+            popup.getByText(
+                'Receive the vault key first, then submit this login again to save it.'
+            )
+        ).toBeVisible();
+        // The action boundary must also retain a useful error if invoked without a key.
+        await uiSnapshot(popup, 'capture-missing-key');
+        await pageRpc(popup, {
+            type: 'handleSave',
+            vaultId: '10000000-0000-4000-8000-000000000001',
+        });
         const action = await opened;
 
         await expect(action.getByRole('alert')).toContainText(
             'This browser needs the vault key.'
         );
-        await expect(action.getByRole('alert')).toContainText('Sync vault keys');
+        await expect(action.getByRole('alert')).toContainText(
+            'Sync vault keys'
+        );
         await expect.poll(() => action.workers().length).toBe(0);
         expect(saved).toBeUndefined();
         await expect(
@@ -730,7 +779,17 @@ test(
             type: 'getPopupView',
         });
         expect(view.pending).toBeNull();
-        await action.getByRole('button', { name: 'Cancel', exact: true }).click();
+        for (const theme of ['light', 'dark'] as const) {
+            await pageRpc(popup, { type: 'setTheme', theme });
+            await expect(action.locator('html')).toHaveAttribute(
+                'data-theme',
+                theme
+            );
+            await uiSnapshot(action, `missing-key-error-${theme}`);
+        }
+        await action
+            .getByRole('button', { name: 'Close', exact: true })
+            .click();
         await expect.poll(() => action.isClosed()).toBe(true);
     }
 );
@@ -1114,6 +1173,20 @@ test('receiving subscribes before checking for transfers, accepts a frontend sig
         .fill(vaultPassword);
     await action
         .getByLabel('Confirm vault password', { exact: true })
+        .fill('a different password');
+    await action
+        .getByRole('button', { name: 'Save password', exact: true })
+        .click();
+    await expect(action.getByRole('alert')).toContainText(
+        'Passwords do not match.'
+    );
+    await uiSnapshot(action, 'vault-password-mismatch');
+
+    await action
+        .getByLabel('Protect with a vault password')
+        .fill(vaultPassword);
+    await action
+        .getByLabel('Confirm vault password', { exact: true })
         .fill(vaultPassword);
     await action
         .getByRole('button', { name: 'Save password', exact: true })
@@ -1330,7 +1403,12 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
         ).toBeFocused();
         await expect(popup.getByLabel('Mossy instance')).toBeHidden();
         await expect(popup.getByLabel('Mossy instance')).toHaveValue(instance);
-        await expect(popup.getByLabel('Appearance')).toHaveValue(theme);
+        await expect(
+            popup.getByRole('radio', {
+                name: theme === 'light' ? 'Light' : 'Dark',
+                exact: true,
+            })
+        ).toBeChecked();
         await popup
             .locator('main')
             .screenshot({ path: `/tmp/mossy-v2-settings-${theme}.png` });
@@ -1374,7 +1452,7 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
     await expect(popup.getByLabel('Mossy instance')).toBeFocused();
     await expect(popup.locator('#instance-warning')).toBeVisible();
     await popup.getByLabel('Mossy instance').fill(instance);
-    await popup.getByLabel('Appearance').selectOption('system');
+    await popup.getByRole('radio', { name: 'System', exact: true }).check();
     await popup
         .getByRole('button', { name: 'Save settings', exact: true })
         .click();
@@ -1705,11 +1783,23 @@ test('appearance switches immediately, overrides the device theme and survives r
         await popup
             .getByRole('button', { name: 'Settings', exact: true })
             .click();
-        await popup.getByLabel('Appearance').selectOption(theme);
+        await popup
+            .getByRole('radio', {
+                name:
+                    theme === 'system'
+                        ? 'System'
+                        : theme === 'light'
+                          ? 'Light'
+                          : 'Dark',
+                exact: true,
+            })
+            .check();
         await expect(
             popup.getByRole('heading', { name: 'Settings', exact: true })
         ).toBeVisible();
-        await expect(popup.getByLabel('Appearance')).toBeEnabled();
+        await expect(
+            popup.getByRole('radio', { name: 'System', exact: true })
+        ).toBeEnabled();
         await expect(popup.locator('html')).toHaveAttribute(
             'data-theme',
             theme
@@ -1812,6 +1902,14 @@ for (const method of [
         await signIn();
 
         const action = await receiveFixtureKey();
+        for (const theme of ['light', 'dark'] as const) {
+            await pageRpc(popup, { type: 'setTheme', theme });
+            await expect(action.locator('html')).toHaveAttribute(
+                'data-theme',
+                theme
+            );
+            await uiSnapshot(action, `protection-choices-${theme}`);
+        }
 
         // Simulate authenticator outputs; real native prompts remain a manual release check.
         await action.evaluate(() => {
@@ -1909,6 +2007,13 @@ for (const method of [
         });
         await action.getByRole('button', { name: method, exact: true }).click();
 
+        await uiSnapshot(
+            action,
+            method === 'Register new passkey'
+                ? 'register-passkey-warning'
+                : 'use-existing-passkey'
+        );
+
         if (method === 'Register new passkey') {
             await expect(
                 action.getByText('This may replace an existing passkey')
@@ -1919,6 +2024,7 @@ for (const method of [
         await expect(action.getByRole('alert')).toContainText(
             'The passkey prompt was closed. Try again or choose another method.'
         );
+        await uiSnapshot(action, 'passkey-cancelled');
 
         const firstCalls = await action.evaluate(() =>
             Reflect.get(globalThis, 'passkeyCalls')
@@ -2001,3 +2107,581 @@ for (const method of [
         ).toEqual(rawKey);
     });
 }
+
+test('vault selection works on the first click, survives refresh and reopening, and the logo returns home', async () => {
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    await popup.getByRole('link', { name: 'Mossy home', exact: true }).click();
+    await expect(
+        popup.getByRole('heading', { name: 'Welcome back', exact: true })
+    ).toBeVisible();
+    await signIn();
+    const work = popup.getByRole('button', { name: 'Work', exact: true });
+    await work.click();
+    await expect(work).toHaveAttribute('aria-pressed', 'true');
+    await expect(work).toBeEnabled();
+    await uiSnapshot(popup, 'vault-work-selected');
+    await pageRpc(popup, { type: 'handleDismiss' });
+    await expect(work).toHaveAttribute('aria-pressed', 'true');
+    await popup.close();
+    popup = await openPopup();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await popup.getByRole('searchbox').fill('missing-site');
+    await popup
+        .getByRole('button', { name: 'Clear search', exact: true })
+        .click();
+    await expect(popup.getByRole('searchbox')).toHaveValue('');
+    await popup
+        .getByRole('button', { name: 'Sync vault keys', exact: true })
+        .click();
+    await expect(
+        popup.getByRole('heading', { name: 'Sync a vault key', exact: true })
+    ).toBeFocused();
+    await popup
+        .getByRole('button', { name: 'Close key sync', exact: true })
+        .click();
+    await expect(
+        popup.getByRole('button', { name: 'Sync vault keys', exact: true })
+    ).toBeFocused();
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    await popup.getByRole('link', { name: 'Mossy home', exact: true }).click();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await popup.getByRole('button', { name: 'Work', exact: true }).focus();
+    await popup.keyboard.press('Enter');
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toBeEnabled();
+    await popup.getByRole('button', { name: 'Personal', exact: true }).click();
+    await expect(
+        popup.getByRole('button', { name: 'Personal', exact: true })
+    ).toBeEnabled();
+    const opened = context.waitForEvent('page');
+    await popup.getByRole('button', { name: 'Password', exact: true }).click();
+    const action = await opened;
+    await expect(
+        action.getByLabel('Vault password', { exact: true })
+    ).toBeVisible();
+    await action.getByRole('link', { name: 'Mossy home', exact: true }).click();
+    await expect(
+        action.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    await expect.poll(() => action.workers().length).toBe(0);
+});
+
+test('UI states keep their hierarchy in both themes and respect reduced motion', async () => {
+    await signIn();
+    for (const theme of ['light', 'dark'] as const) {
+        await pageRpc(popup, { type: 'setTheme', theme });
+        await expect(popup.locator('html')).toHaveAttribute(
+            'data-theme',
+            theme
+        );
+        await uiSnapshot(popup, `passwords-${theme}`);
+        expect(
+            await popup.locator('.search-field').evaluate((element) => {
+                const input = element.querySelector('input')!;
+                const icon = element.querySelector('svg')!;
+                return (
+                    input.getBoundingClientRect().left +
+                        parseFloat(getComputedStyle(input).paddingLeft) >
+                    icon.getBoundingClientRect().right
+                );
+            })
+        ).toBe(true);
+        await popup
+            .getByRole('button', { name: 'Settings', exact: true })
+            .click();
+        await uiSnapshot(popup, `settings-${theme}`);
+        await popup.locator('summary').click();
+        await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+        await uiSnapshot(popup, `settings-advanced-${theme}`);
+        await popup
+            .getByRole('link', { name: 'Mossy home', exact: true })
+            .click();
+        await popup
+            .getByRole('button', { name: 'Sync vault keys', exact: true })
+            .click();
+        await uiSnapshot(popup, `key-sync-${theme}`);
+        await popup
+            .getByRole('button', { name: 'Close key sync', exact: true })
+            .click();
+        await popup.getByRole('searchbox').fill('nothing-matches');
+        await uiSnapshot(popup, `no-matches-${theme}`);
+        await popup
+            .getByRole('button', { name: 'Clear search', exact: true })
+            .click();
+    }
+    await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.reload();
+    await expect(
+        popup.getByRole('heading', { name: 'No passwords yet', exact: true })
+    ).toBeVisible();
+    await uiSnapshot(popup, 'no-passwords-dark');
+    await pageRpc(popup, { type: 'setTheme', theme: 'light' });
+    await expect(popup.locator('html')).toHaveAttribute('data-theme', 'light');
+    await uiSnapshot(popup, 'no-passwords-light');
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.reload();
+    await expect(
+        popup.getByRole('link', { name: 'Create a vault in Mossy' })
+    ).toBeVisible();
+    await uiSnapshot(popup, 'no-vaults-light');
+    await pageRpc(popup, { type: 'setTheme', theme: 'dark' });
+    await expect(popup.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await uiSnapshot(popup, 'no-vaults-dark');
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({
+            status: 503,
+            json: { message: 'Vault service unavailable' },
+        })
+    );
+    await popup.reload();
+    await expect(popup.getByRole('alert')).toBeVisible();
+    await uiSnapshot(popup, 'load-error-dark');
+    await pageRpc(popup, { type: 'setTheme', theme: 'light' });
+    await expect(popup.locator('html')).toHaveAttribute('data-theme', 'light');
+    await uiSnapshot(popup, 'load-error-light');
+    await context.unroute(`${instance}/api/v1/passwords/metadata*`);
+    await context.unroute(`${instance}/api/v1/passwords/vault/vaults`);
+    await pageRpc(popup, { type: 'setTheme', theme: 'dark' });
+    await popup.getByRole('button', { name: 'Try again', exact: true }).click();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    let releaseMetadata!: () => void;
+    let metadataReady = new Promise<void>((resolve) => {
+        releaseMetadata = resolve;
+    });
+    await context.route(
+        `${instance}/api/v1/passwords/metadata*`,
+        async (route) => {
+            await metadataReady;
+            await route.fallback();
+        }
+    );
+    try {
+        await popup.reload();
+        await expect(
+            popup.getByText('Loading Mossy…', { exact: true })
+        ).toBeVisible();
+        await uiSnapshot(popup, 'initial-loading-dark');
+        releaseMetadata();
+        await expect(
+            popup.getByRole('heading', { name: 'Passwords', exact: true })
+        ).toBeVisible();
+        metadataReady = new Promise<void>((resolve) => {
+            releaseMetadata = resolve;
+        });
+        await popup.getByRole('button', { name: 'Work', exact: true }).click();
+        await expect(
+            popup.getByText('Loading passwords…', { exact: true })
+        ).toBeVisible();
+        await uiSnapshot(popup, 'vault-loading-dark');
+        releaseMetadata();
+        await expect(
+            popup.getByRole('button', { name: 'Work', exact: true })
+        ).toBeEnabled();
+    } finally {
+        releaseMetadata();
+        await context.unroute(`${instance}/api/v1/passwords/metadata*`);
+    }
+    await popup.emulateMedia({ reducedMotion: 'reduce' });
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    await expect
+        .poll(() =>
+            popup
+                .locator('.page-content')
+                .evaluate((element) => getComputedStyle(element).transform)
+        )
+        .toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/);
+    await expect(
+        popup.getByRole('radio', { name: 'Dark', exact: true })
+    ).toBeChecked();
+    await popup.getByRole('radio', { name: 'Light', exact: true }).focus();
+    await popup.keyboard.press('Space');
+    await expect(
+        popup.getByRole('radio', { name: 'Light', exact: true })
+    ).toBeChecked();
+    await popup.getByRole('radio', { name: 'Light', exact: true }).focus();
+    await popup.keyboard.press('ArrowRight');
+    await expect(
+        popup.getByRole('radio', { name: 'Dark', exact: true })
+    ).toBeChecked();
+});
+
+test('receiving a missing key shows a copyable code and logo navigation cancels the transfer', async () => {
+    await signIn();
+    await context.route(`${instance}/api/v1/key-sync`, (route) =>
+        route.fulfill({ json: { code: 'ABC123' } })
+    );
+    let releaseEvents!: () => void;
+    const events = new Promise<void>((resolve) => {
+        releaseEvents = resolve;
+    });
+    await context.route(
+        `${instance}/api/v1/key-sync/receiver-events`,
+        async (route) => {
+            await events;
+            await route.abort().catch(() => undefined);
+        }
+    );
+    await popup.getByRole('button', { name: 'Work', exact: true }).click();
+    await expect(
+        popup.getByRole('button', { name: 'Receive key', exact: true })
+    ).toBeVisible();
+    const opened = context.waitForEvent('page');
+    await popup
+        .getByRole('button', { name: 'Receive key', exact: true })
+        .click();
+    const action = await opened;
+    try {
+        await expect(
+            action.getByLabel('Receiving code', { exact: true })
+        ).toHaveText('ABC123');
+        expect(
+            await action
+                .getByRole('button', { name: 'Cancel', exact: true })
+                .evaluate(
+                    (element) =>
+                        element.getBoundingClientRect().bottom <= innerHeight
+                )
+        ).toBe(true);
+        popup = await openPopup();
+        for (const theme of ['light', 'dark'] as const) {
+            await pageRpc(popup, { type: 'setTheme', theme });
+            await expect(action.locator('html')).toHaveAttribute(
+                'data-theme',
+                theme
+            );
+            await uiSnapshot(action, `receiving-code-${theme}`);
+        }
+        await action.evaluate(() =>
+            Object.defineProperty(navigator, 'clipboard', {
+                value: {
+                    writeText: async (value: string) => {
+                        document.documentElement.dataset.copied = value;
+                    },
+                },
+                configurable: true,
+            })
+        );
+        await action
+            .getByRole('button', { name: 'Copy receiving code', exact: true })
+            .click();
+        await expect(action.locator('html')).toHaveAttribute(
+            'data-copied',
+            'ABC123'
+        );
+        await expect(
+            action.getByRole('button', {
+                name: 'Copy receiving code',
+                exact: true,
+            })
+        ).toHaveText('Code copied');
+        await action
+            .getByRole('link', { name: 'Mossy home', exact: true })
+            .click();
+        await expect(
+            action.getByRole('heading', { name: 'Passwords', exact: true })
+        ).toBeVisible();
+        await expect.poll(() => action.workers().length).toBe(0);
+    } finally {
+        releaseEvents();
+    }
+});
+
+test(
+    'captured updates let the user choose between matching entries on the first click',
+    { tag: '@site' },
+    async () => {
+        await signIn();
+        await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+            route.fulfill({
+                json: [
+                    {
+                        passwordId: '20000000-0000-4000-8000-000000000001',
+                        identifier: 'alice',
+                        address: 'https://login.example',
+                        passwordType: 'PASSWORD',
+                        lastModified: '2026-01-01',
+                    },
+                    {
+                        passwordId: '20000000-0000-4000-8000-000000000002',
+                        identifier: 'alice',
+                        address: 'https://login.example',
+                        passwordType: 'PASSWORD',
+                        lastModified: '2026-02-01',
+                    },
+                ],
+            })
+        );
+        await context.route(
+            `${instance}/api/v1/passwords/vault/vaults`,
+            (route) =>
+                route.fulfill({
+                    json: [
+                        {
+                            vaultId: '10000000-0000-4000-8000-000000000001',
+                            vaultName: 'Personal',
+                            isOnline: true,
+                        },
+                        {
+                            vaultId: '10000000-0000-4000-8000-000000000002',
+                            vaultName: 'Work',
+                            isOnline: false,
+                        },
+                    ],
+                })
+        );
+        const site = await loginForm('alice');
+        await pendingPrompt(site);
+        await popup.getByRole('button', { name: 'Work', exact: true }).click();
+        await expect(
+            popup.getByRole('button', {
+                name: 'Choose an online vault',
+                exact: true,
+            })
+        ).toBeDisabled();
+        await expect(
+            popup.getByRole('heading', { name: 'Work is offline', exact: true })
+        ).toBeVisible();
+        await uiSnapshot(popup, 'capture-offline-vault');
+        await popup
+            .getByRole('button', { name: 'Personal', exact: true })
+            .click();
+        const update = popup.getByRole('button', {
+            name: 'Authorize update',
+            exact: true,
+        });
+        await expect(update).toBeDisabled();
+        await popup.getByRole('radio').nth(1).check();
+        await expect(update).toBeEnabled();
+        await uiSnapshot(popup, 'capture-choose-update');
+        const opened = context.waitForEvent('page');
+        await update.click();
+        const action = await opened;
+        await authorize(action);
+        await expect
+            .poll(() => saved?.passwordId)
+            .toBe('20000000-0000-4000-8000-000000000002');
+        await completeAndClose(action);
+    }
+);
+
+test('scrolling over vault cards and password rows continues through the popup at inner boundaries', async () => {
+    await signIn();
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({
+            json: Array.from({ length: 8 }, (_, index) => ({
+                vaultId: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+                vaultName: index === 0 ? 'Personal' : `Vault ${index + 1}`,
+                isOnline: true,
+            })),
+        })
+    );
+    await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+        route.fulfill({
+            json: Array.from({ length: 12 }, (_, index) => ({
+                passwordId: `scroll-${index}`,
+                identifier: `user-${index}`,
+                address: 'https://login.example',
+                passwordType: 'PASSWORD',
+                lastModified: '2026-01-01',
+            })),
+        })
+    );
+    await popup.reload();
+    await expect(popup.locator('.entry')).toHaveCount(12);
+    const outer = popup.locator('.page-content');
+    await expect
+        .poll(() =>
+            outer.evaluate(
+                (element) => element.scrollHeight > element.clientHeight
+            )
+        )
+        .toBe(true);
+    await popup.locator('.vault-choices').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    const vaultBox = (await popup.locator('.vault-choices').boundingBox())!;
+    await popup.mouse.move(
+        vaultBox.x + vaultBox.width / 2,
+        vaultBox.y + vaultBox.height / 2
+    );
+    await popup.mouse.wheel(0, 300);
+    await expect
+        .poll(() => outer.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(0);
+
+    await outer.evaluate((element) => {
+        element.scrollTop = 30;
+    });
+    await popup.locator('.scroll').evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+    });
+    let rows = (await popup.locator('.scroll').boundingBox())!;
+    const beforeDown = await outer.evaluate((element) => element.scrollTop);
+    await popup.mouse.move(rows.x + rows.width / 2, Math.min(rows.y + 20, 580));
+    await popup.mouse.wheel(0, 300);
+    await expect
+        .poll(() => outer.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(beforeDown);
+
+    await popup.locator('.scroll').evaluate((element) => {
+        element.scrollTop = 0;
+    });
+    rows = (await popup.locator('.scroll').boundingBox())!;
+    const beforeUp = await outer.evaluate((element) => element.scrollTop);
+    await popup.mouse.move(rows.x + rows.width / 2, Math.max(rows.y + 20, 100));
+    await popup.mouse.wheel(0, -300);
+    await expect
+        .poll(() => outer.evaluate((element) => element.scrollTop))
+        .toBeLessThan(beforeUp);
+
+    await context.route(`${instance}/api/v1/passwords/metadata*`, (route) =>
+        route.fulfill({ json: [] })
+    );
+    await popup.reload();
+    await popup.getByRole('button', { name: 'Vault 2', exact: true }).click();
+    await expect(
+        popup.getByText('This browser needs this vault’s key.')
+    ).toBeVisible();
+    await expect(
+        popup.getByRole('heading', { name: 'No passwords yet', exact: true })
+    ).toBeVisible();
+    await outer.evaluate((element) => {
+        element.scrollTop = 30;
+    });
+    rows = (await popup.locator('.scroll').boundingBox())!;
+    const beforeEmpty = await outer.evaluate((element) => element.scrollTop);
+    await popup.mouse.move(rows.x + rows.width / 2, Math.min(rows.y + 20, 580));
+    await popup.mouse.wheel(0, 300);
+    await expect
+        .poll(() => outer.evaluate((element) => element.scrollTop))
+        .toBeGreaterThan(beforeEmpty);
+});
+
+test('offline vaults retain navigation, survive reopening, and recover through the frontend-style status panel', async () => {
+    await signIn();
+    let online = false;
+    let reachable = false;
+    let workRequests = 0;
+    const workId = '10000000-0000-4000-8000-000000000002';
+    await context.route(`${instance}/api/v1/passwords/vault/vaults`, (route) =>
+        route.fulfill({
+            json: [
+                {
+                    vaultId: '10000000-0000-4000-8000-000000000001',
+                    vaultName: 'Personal',
+                    isOnline: true,
+                },
+                {
+                    vaultId: workId,
+                    vaultName: 'Work',
+                    isOnline: online,
+                    lastSeenAt: null,
+                },
+            ],
+        })
+    );
+    await context.route(
+        `${instance}/api/v1/passwords/metadata*`,
+        async (route) => {
+            if (
+                new URL(route.request().url()).searchParams.get('vaultId') !==
+                workId
+            )
+                return route.fallback();
+            workRequests++;
+            if (!reachable)
+                return route.fulfill({
+                    status: 503,
+                    json: { message: `Vault ${workId} is not connected` },
+                });
+            return route.fulfill({
+                json: [
+                    {
+                        passwordId: 'work-login',
+                        identifier: 'work-user',
+                        address: 'https://work.example',
+                        passwordType: 'PASSWORD',
+                        lastModified: '2026-01-01',
+                    },
+                ],
+            });
+        }
+    );
+    await popup.getByRole('button', { name: 'Work', exact: true }).click();
+    await expect(
+        popup.getByRole('heading', { name: 'Work is offline', exact: true })
+    ).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toContainText('Never connected');
+    await expect(
+        popup.getByRole('link', { name: 'How to start your vault' })
+    ).toHaveAttribute('target', '_blank');
+    await expect(
+        popup.getByRole('button', { name: 'Personal', exact: true })
+    ).toBeEnabled();
+    await expect(
+        popup.getByRole('button', { name: 'Receive key', exact: true })
+    ).toHaveCount(0);
+    expect(workRequests).toBe(0);
+    for (const theme of ['light', 'dark'] as const) {
+        await pageRpc(popup, { type: 'setTheme', theme });
+        await expect(popup.locator('html')).toHaveAttribute(
+            'data-theme',
+            theme
+        );
+        await uiSnapshot(popup, `offline-vault-${theme}`);
+    }
+    await popup.close();
+    popup = await openPopup();
+    await expect(
+        popup.getByRole('heading', { name: 'Work is offline', exact: true })
+    ).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await expect(popup.locator('.account-label')).toHaveText('alice');
+    expect(workRequests).toBe(0);
+
+    online = true;
+    await popup
+        .getByRole('button', { name: 'Refresh status', exact: true })
+        .click();
+    await expect(
+        popup.getByRole('heading', { name: 'Work is unavailable', exact: true })
+    ).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toContainText('Unavailable');
+    await expect(popup.getByRole('alert')).toHaveCount(0);
+    await uiSnapshot(popup, 'unavailable-vault-dark');
+    reachable = true;
+    await popup
+        .getByRole('button', { name: 'Refresh status', exact: true })
+        .click();
+    await expect(
+        popup.getByRole('heading', { name: 'Passwords', exact: true })
+    ).toBeVisible();
+    await expect(popup.getByText('work-user', { exact: true })).toBeVisible();
+    await expect(
+        popup.getByRole('button', { name: 'Work', exact: true })
+    ).toHaveAttribute('aria-pressed', 'true');
+    await popup.getByRole('button', { name: 'Personal', exact: true }).click();
+    await expect(
+        popup.getByText('alice', { exact: true }).last()
+    ).toBeVisible();
+});

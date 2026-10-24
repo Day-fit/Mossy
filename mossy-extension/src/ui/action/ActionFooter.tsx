@@ -28,7 +28,7 @@ export default function ActionFooter({
     return (
         <div className="action-footer">
             <Button variant="outline" padding="medium" onClick={close}>
-                {phase === 'done' ? 'Close' : 'Cancel'}
+                {phase === 'done' || phase === 'error' ? 'Close' : 'Cancel'}
             </Button>
             {phase === 'authorize' && method && (
                 <Button type="submit" form="authorize-form" padding="medium">

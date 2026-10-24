@@ -1,9 +1,18 @@
-import { MdKey, MdSearch, MdInfoOutline } from 'react-icons/md';
+import {
+    MdKey,
+    MdSearch,
+    MdInfoOutline,
+    MdStorage,
+    MdPassword,
+} from 'react-icons/md';
 import EmptyState from '../shared/EmptyState';
 import PasswordEntry from './PasswordEntry';
 import { matchesSite } from '../../security/security';
 import type { Entry } from '../../types/models';
 import type { PopupView, RunPopupAction } from './types';
+import Feedback from '../shared/Feedback';
+import LoadingState from '../shared/LoadingState';
+import ViewTransition from '../shared/ViewTransition';
 
 type PasswordListProps = {
     view: Pick<
@@ -18,6 +27,7 @@ type PasswordListProps = {
     onToggleSync: () => void;
     onOpenSettings: () => void;
     action: RunPopupAction;
+    notice: string;
 };
 
 export default function PasswordList({
@@ -30,6 +40,7 @@ export default function PasswordList({
     onToggleSync,
     onOpenSettings,
     action,
+    notice,
 }: PasswordListProps) {
     return (
         <section
@@ -39,14 +50,16 @@ export default function PasswordList({
             <div className="section-heading">
                 <h2 id="passwords-heading">Passwords</h2>
                 <button
-                    className="icon"
+                    className="sync-toggle"
                     aria-label="Sync vault keys"
                     title="Sync vault keys"
                     aria-expanded={sync}
                     aria-controls={sync ? 'vault-key-sync' : undefined}
                     onClick={onToggleSync}
+                    disabled={loading || !view.vaults.length}
                 >
-                    <MdKey />
+                    <MdKey aria-hidden="true" />
+                    <span>Sync keys</span>
                 </button>
             </div>
             <label htmlFor="search" className="sr-only">
@@ -63,9 +76,24 @@ export default function PasswordList({
                 />
                 <MdSearch size={18} aria-hidden="true" />
             </div>
+            {notice && (
+                <Feedback tone="success" className="copy-feedback">
+                    {notice}
+                </Feedback>
+            )}
+            {search.trim() && (
+                <p className="search-summary" aria-live="polite">
+                    {filteredEntries.length} of {view.entries.length} passwords
+                </p>
+            )}
             <div className="scroll" aria-busy={loading}>
-                {!view.vaults.length ? (
-                    <EmptyState title="Your first vault starts here">
+                {loading ? (
+                    <LoadingState>Loading passwords…</LoadingState>
+                ) : !view.vaults.length ? (
+                    <EmptyState
+                        title="Your first vault starts here"
+                        icon={MdStorage}
+                    >
                         <a
                             href={view.instance + '/vaults'}
                             target="_blank"
@@ -76,31 +104,50 @@ export default function PasswordList({
                         to get started.
                     </EmptyState>
                 ) : !view.entries.length ? (
-                    <EmptyState title="No passwords yet">
-                        Save a login on a website or add one in the Mossy web
-                        app.
+                    <EmptyState title="No passwords yet" icon={MdPassword}>
+                        Save a login on a website or{' '}
+                        <a
+                            href={view.instance + '/passwords'}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            add one in Mossy
+                        </a>
+                        .
                     </EmptyState>
                 ) : !filteredEntries.length ? (
-                    <EmptyState title="No matching passwords">
+                    <EmptyState title="No matching passwords" icon={MdSearch}>
                         Try a different site or username.
+                        <button
+                            type="button"
+                            className="text-button clear-search"
+                            onClick={() => setSearch('')}
+                        >
+                            Clear search
+                        </button>
                     </EmptyState>
                 ) : (
-                    filteredEntries.map((entry) => {
-                        const target = view.targets.find((target) =>
-                            matchesSite(entry.address, target.origin)
-                        );
+                    <ViewTransition
+                        viewKey={`${view.entries[0]?.passwordId ?? 'empty'}:${search.trim() ? 'search' : 'all'}`}
+                        className="password-entries"
+                    >
+                        {filteredEntries.map((entry) => {
+                            const target = view.targets.find((target) =>
+                                matchesSite(entry.address, target.origin)
+                            );
 
-                        return (
-                            <PasswordEntry
-                                key={entry.passwordId}
-                                entry={entry}
-                                target={target}
-                                permission={view.permission}
-                                loading={loading}
-                                action={action}
-                            />
-                        );
-                    })
+                            return (
+                                <PasswordEntry
+                                    key={entry.passwordId}
+                                    entry={entry}
+                                    target={target}
+                                    permission={view.permission}
+                                    loading={loading}
+                                    action={action}
+                                />
+                            );
+                        })}
+                    </ViewTransition>
                 )}
             </div>
             {!view.permission && (

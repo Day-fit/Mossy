@@ -14,6 +14,11 @@ export const lastIdentifierSetting = storage.defineItem<string>(
     'local:lastIdentifier'
 );
 
+export const selectedVaultsSetting = storage.defineItem<Record<string, string>>(
+    'local:selectedVaults',
+    { fallback: {} }
+);
+
 export function saveSettings(instance: string, theme: Theme) {
     return storage.setItems([
         { item: instanceSetting, value: instance },

@@ -3,21 +3,33 @@ import AppHeader from '../shared/AppHeader';
 
 type PopupHeaderProps = {
     signedIn: boolean;
+    username?: string;
     loading: boolean;
     settings: boolean;
     onSignOut: () => void;
     onToggleSettings: () => void;
+    onHome: () => void;
 };
 
 export default function PopupHeader({
     signedIn,
+    username,
     loading,
     settings,
     onSignOut,
     onToggleSettings,
+    onHome,
 }: PopupHeaderProps) {
     return (
-        <AppHeader>
+        <AppHeader onHome={onHome}>
+            {username && (
+                <span
+                    className="account-label"
+                    title={`Signed in as ${username}`}
+                >
+                    {username}
+                </span>
+            )}
             {signedIn && (
                 <button
                     className="icon"

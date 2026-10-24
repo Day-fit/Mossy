@@ -14,7 +14,6 @@ export function useActionSession() {
     const [phase, setPhase] = useState<Phase>('loading');
     const [message, setMessage] = useState('');
     const [code, setCode] = useState('');
-    const [now, setNow] = useState(() => Date.now());
 
     const worker = useRef<ActionWorker | null>(null);
     const alive = useRef(true);
@@ -139,7 +138,6 @@ export function useActionSession() {
 
         const timer = setInterval(() => {
             const now = Date.now();
-            setNow(now);
             if (
                 deadline &&
                 now >= deadline &&
@@ -190,6 +188,22 @@ export function useActionSession() {
         window.close();
     };
 
+    const home = async () => {
+        active.current = false;
+        worker.current?.stop();
+        if (password.current) password.current.value = '';
+        if (confirmation.current) confirmation.current.value = '';
+        if (!completed.current) {
+            await messaging
+                .sendMessage('cancelAction', {
+                    actionId: location.hash.slice(1),
+                    closeWindow: false,
+                })
+                .catch(() => undefined);
+        }
+        location.assign(chrome.runtime.getURL('/popup.html'));
+    };
+
     return {
         action,
         method,
@@ -199,7 +213,6 @@ export function useActionSession() {
         message,
         setMessage,
         code,
-        now,
         worker,
         alive,
         active,
@@ -209,6 +222,7 @@ export function useActionSession() {
         credentialId,
         record,
         close,
+        home,
     };
 }
 

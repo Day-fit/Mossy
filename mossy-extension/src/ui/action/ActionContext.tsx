@@ -1,42 +1,54 @@
 import type { Action as ActionModel } from '../../types/models';
 import type { Phase } from './authorization';
+import Countdown from '../shared/Countdown';
 
 type ActionContextProps = {
     action: ActionModel;
     phase: Phase;
-    now: number;
+    vaultName: string | undefined;
 };
 
 export default function ActionContext({
     action,
     phase,
-    now,
+    vaultName,
 }: ActionContextProps) {
     return (
         <>
-            <div className="action-context">
-                <p className="site">
-                    {action.candidateOrigin ??
-                        action.entry?.address ??
-                        new URL(action.scope.instance).hostname}
-                </p>
+            <dl className="action-context">
+                <div>
+                    <dt>Vault</dt>
+                    <dd>{vaultName ?? action.scope.vaultId}</dd>
+                </div>
+                <div>
+                    <dt>
+                        {action.entry || action.candidateOrigin
+                            ? 'Website'
+                            : 'Mossy instance'}
+                    </dt>
+                    <dd className="site">
+                        {action.candidateOrigin ??
+                            action.entry?.address ??
+                            new URL(action.scope.instance).hostname}
+                    </dd>
+                </div>
                 {(action.entry?.identifier || action.candidateIdentifier) && (
-                    <p>
-                        {action.entry?.identifier ?? action.candidateIdentifier}
-                    </p>
+                    <div>
+                        <dt>Username</dt>
+                        <dd>
+                            {action.entry?.identifier ??
+                                action.candidateIdentifier}
+                        </dd>
+                    </div>
                 )}
-            </div>
+            </dl>
             {action.candidateDeadline &&
                 phase !== 'done' &&
                 phase !== 'error' && (
-                    <p className="expiry" role="timer">
-                        Save expires in{' '}
-                        {Math.max(
-                            0,
-                            Math.ceil((action.candidateDeadline - now) / 1000)
-                        )}{' '}
-                        seconds
-                    </p>
+                    <Countdown
+                        deadline={action.candidateDeadline}
+                        label="Save expires in"
+                    />
                 )}
         </>
     );

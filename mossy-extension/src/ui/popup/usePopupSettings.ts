@@ -8,12 +8,16 @@ type UsePopupSettingsOptions = {
     run: RunPopupTask;
     onSaved: () => void;
     onError: (message: string) => void;
+    theme: Theme;
+    onThemeChange: (theme: Theme) => void;
 };
 
 export function usePopupSettings({
     run,
     onSaved,
     onError,
+    theme,
+    onThemeChange,
 }: UsePopupSettingsOptions) {
     const [savingTheme, setSavingTheme] = useState(false);
 
@@ -35,11 +39,14 @@ export function usePopupSettings({
             onSaved();
         });
 
-    const saveTheme = async (theme: Theme) => {
+    const saveTheme = async (next: Theme) => {
+        const previous = theme;
+        onThemeChange(next);
         setSavingTheme(true);
         try {
-            await messaging.sendMessage('setTheme', { theme });
+            await messaging.sendMessage('setTheme', { theme: next });
         } catch (error) {
+            onThemeChange(previous);
             onError(
                 error instanceof Error
                     ? error.message

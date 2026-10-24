@@ -98,6 +98,13 @@ export function useActionAuthorization(session: ActionSession) {
 
             if (!retryable) {
                 currentWorker.stop();
+                active.current = false;
+                void messaging
+                    .sendMessage('cancelAction', {
+                        actionId: action.id,
+                        closeWindow: false,
+                    })
+                    .catch(() => undefined);
             }
 
             if (alive.current) {
@@ -217,7 +224,13 @@ export function useActionAuthorization(session: ActionSession) {
                 setMessage(
                     action.operation === 'sync-receive'
                         ? 'Vault key received and protected.'
-                        : 'Action completed.'
+                        : action.operation === 'save'
+                          ? 'Password saved.'
+                          : action.operation === 'fill'
+                            ? 'Login filled. You can submit the form when you’re ready.'
+                            : action.operation === 'sync-send'
+                              ? 'Vault key sent securely.'
+                              : 'Copied to clipboard.'
                 );
             }
         } catch (error) {
@@ -256,5 +269,5 @@ export function useActionAuthorization(session: ActionSession) {
         }
     };
 
-    return { choice, authorize, selectChoice };
+    return { choice, authorize, selectChoice, vaultName };
 }

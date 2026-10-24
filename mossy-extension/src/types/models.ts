@@ -11,6 +11,7 @@ export type Vault = {
     vaultName: string;
     isOnline?: boolean;
     online?: boolean;
+    lastSeenAt?: string | null;
 };
 
 export type Entry = {

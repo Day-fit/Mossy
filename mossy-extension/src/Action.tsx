@@ -11,6 +11,7 @@ import ReceivingCode from './ui/action/ReceivingCode';
 import { useActionSession } from './ui/action/useActionSession';
 import { useActionAuthorization } from './ui/action/useActionAuthorization';
 import { useTheme } from './theme/useTheme';
+import ViewTransition from './ui/shared/ViewTransition';
 
 export default function Action() {
     useTheme();
@@ -21,17 +22,17 @@ export default function Action() {
         method,
         message,
         code,
-        now,
         password,
         confirmation,
         close,
     } = session;
-    const { choice, authorize, selectChoice } = useActionAuthorization(session);
+    const { choice, authorize, selectChoice, vaultName } =
+        useActionAuthorization(session);
     const isReceiving = action?.operation === 'sync-receive';
 
     return (
         <main className="action">
-            <AppHeader>
+            <AppHeader onHome={() => void session.home()}>
                 <MdVerifiedUser
                     size={22}
                     className="field-icon"
@@ -54,32 +55,37 @@ export default function Action() {
                         <ActionContext
                             action={action}
                             phase={phase}
-                            now={now}
+                            vaultName={vaultName}
                         />
                     )}
-                    {phase === 'loading' && (
-                        <LoadingState>Preparing secure action…</LoadingState>
-                    )}
-                    {phase === 'waiting' && <ReceivingCode code={code} />}
-                    {phase === 'authorize' && (
-                        <AuthorizationForm
-                            isReceiving={isReceiving}
-                            choice={choice}
-                            method={method}
-                            password={password}
-                            confirmation={confirmation}
-                            authorize={authorize}
-                            selectChoice={selectChoice}
-                        />
-                    )}
-                    {phase === 'busy' && (
-                        <LoadingState>
-                            Authorizing and completing this action…
-                        </LoadingState>
-                    )}
-                    {message && (
-                        <ActionStatus phase={phase} message={message} />
-                    )}
+                    <ViewTransition viewKey={phase}>
+                        {phase === 'loading' && (
+                            <LoadingState>
+                                Preparing secure action…
+                            </LoadingState>
+                        )}
+                        {phase === 'waiting' && <ReceivingCode code={code} />}
+                        {phase === 'authorize' && (
+                            <AuthorizationForm
+                                isReceiving={isReceiving}
+                                choice={choice}
+                                method={method}
+                                password={password}
+                                confirmation={confirmation}
+                                authorize={authorize}
+                                selectChoice={selectChoice}
+                                error={message}
+                            />
+                        )}
+                        {phase === 'busy' && (
+                            <LoadingState>
+                                Authorizing and completing this action…
+                            </LoadingState>
+                        )}
+                        {message && (
+                            <ActionStatus phase={phase} message={message} />
+                        )}
+                    </ViewTransition>
                     <ActionFooter
                         phase={phase}
                         method={method}

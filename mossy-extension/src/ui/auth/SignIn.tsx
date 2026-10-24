@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@mossy/ui';
 import {
-    MdClose,
     MdDevices,
-    MdErrorOutline,
     MdOpenInNew,
     MdVisibility,
     MdVisibilityOff,
 } from 'react-icons/md';
 import SecurityNotice from '../shared/SecurityNotice';
+import Feedback from '../shared/Feedback';
 
 const registrationUrl =
     import.meta.env.VITE_MOSSY_REGISTRATION_URL?.trim() ||
@@ -93,6 +92,7 @@ export default function SignIn({
                                 aria-describedby={
                                     error ? 'sign-in-error' : undefined
                                 }
+                                aria-invalid={!!error}
                                 disabled={loading}
                                 required
                             />
@@ -117,22 +117,13 @@ export default function SignIn({
                         </div>
                     </div>
                     {error && (
-                        <div
+                        <Feedback
                             id="sign-in-error"
-                            className="status error auth-feedback"
-                            role="alert"
+                            className="auth-feedback"
+                            onDismiss={onDismissError}
                         >
-                            <MdErrorOutline size={18} aria-hidden="true" />
-                            <span>{error}</span>
-                            <button
-                                className="icon"
-                                type="button"
-                                aria-label="Dismiss error"
-                                onClick={onDismissError}
-                            >
-                                <MdClose />
-                            </button>
-                        </div>
+                            {error}
+                        </Feedback>
                     )}
                     {enrollmentPending && !error && (
                         <div

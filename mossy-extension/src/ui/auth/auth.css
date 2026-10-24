@@ -1,0 +1,110 @@
+/* Sign-in, enrollment, and inline validation share the frontend auth treatment. */
+.login-panel {
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-card);
+}
+.login-panel .auth-intro {
+    text-align: center;
+}
+.login-panel h2 {
+    color: var(--color-fg-brand);
+    font-size: 1.75rem;
+}
+.auth-intro p {
+    max-width: 30ch;
+    margin-inline: auto;
+}
+.auth-field + .auth-field {
+    margin-top: 18px;
+}
+.auth-field label {
+    margin: 0 0 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+}
+.login-panel input {
+    min-height: 48px;
+    border-width: 2px;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.8125rem;
+}
+.password-field {
+    position: relative;
+}
+.password-field input {
+    padding-right: 48px;
+}
+.password-toggle {
+    position: absolute;
+    inset: 4px 4px 4px auto;
+    width: 40px;
+    padding: 0;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--color-fg-muted);
+}
+.password-toggle:hover {
+    background: var(--color-surface-subtle);
+    color: var(--color-fg-brand);
+}
+.password-toggle:focus-visible {
+    outline-offset: -2px;
+}
+.login-panel .actions button {
+    width: 100%;
+    min-height: 44px;
+}
+.auth-feedback {
+    margin-top: 16px;
+}
+.enrollment-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-subtle);
+}
+.enrollment-note > svg {
+    flex-shrink: 0;
+    margin-top: 2px;
+    color: var(--color-fg-brand);
+}
+.enrollment-note h3 {
+    font-size: 0.875rem;
+}
+.enrollment-note p {
+    margin: 6px 0 10px;
+    font-size: 0.75rem;
+    color: var(--color-fg-muted);
+}
+.enrollment-note a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.register-link {
+    margin-top: 20px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+}
+.register-link p {
+    font-size: 0.8125rem;
+}
+.register-link a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}
+.register-link > span {
+    display: block;
+    margin-top: 4px;
+}

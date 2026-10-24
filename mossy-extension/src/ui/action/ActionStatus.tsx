@@ -1,5 +1,5 @@
-import { MdErrorOutline, MdCheckCircleOutline } from 'react-icons/md';
 import type { Phase } from './authorization';
+import Feedback from '../shared/Feedback';
 
 type ActionStatusProps = {
     phase: Phase;
@@ -8,16 +8,12 @@ type ActionStatusProps = {
 
 export default function ActionStatus({ phase, message }: ActionStatusProps) {
     return (
-        <div
-            role={phase === 'done' ? 'status' : 'alert'}
-            className={`status ${phase === 'done' ? 'success' : 'error'}`}
+        <Feedback
+            id="action-feedback"
+            tone={phase === 'done' ? 'success' : 'error'}
+            className={phase === 'done' ? 'action-success' : ''}
         >
-            {phase !== 'done' ? (
-                <MdErrorOutline size={18} aria-hidden="true" />
-            ) : (
-                <MdCheckCircleOutline size={18} aria-hidden="true" />
-            )}
-            <span>{message}</span>
-        </div>
+            {message}
+        </Feedback>
     );
 }

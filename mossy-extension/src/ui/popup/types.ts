@@ -9,6 +9,8 @@ export type PopupView = {
     permission: boolean;
     account: { userId: string; username: string } | null;
     selected?: string;
+    hasVaultKey: boolean;
+    vaultUnavailable?: boolean;
     vaults: Vault[];
     entries: Entry[];
     pending: PendingMetadata | null;

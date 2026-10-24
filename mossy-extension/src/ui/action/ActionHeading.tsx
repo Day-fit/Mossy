@@ -5,6 +5,7 @@ import {
     MdErrorOutline,
 } from 'react-icons/md';
 import type { Action as ActionModel } from '../../types/models';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
     actionTitle,
     authorizationDescription,
@@ -25,6 +26,7 @@ export default function ActionHeading({
     method,
     choice,
 }: ActionHeadingProps) {
+    const reduce = useReducedMotion();
     const isReceiving = action?.operation === 'sync-receive';
     const isProtectingVault = isReceiving && phase === 'authorize';
     const title = isProtectingVault
@@ -45,9 +47,16 @@ export default function ActionHeading({
 
     return (
         <div className="auth-heading">
-            <span className="auth-symbol" aria-hidden="true">
+            <motion.span
+                key={phase}
+                className={`auth-symbol auth-symbol-${phase}`}
+                aria-hidden="true"
+                initial={reduce ? false : { scale: 0.88 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: reduce ? 0 : 0.25 }}
+            >
                 <AuthorizationIcon size={24} />
-            </span>
+            </motion.span>
             <div>
                 <h2 id="action-title">{title}</h2>
                 <p>{description}</p>

@@ -1,4 +1,5 @@
 import { executeUserDetailsRequest } from 'mossy-api-client/auth.api';
+import { ApiError } from 'mossy-api-client/client';
 import { executeUserVaultsRequest } from 'mossy-api-client/vault.api';
 import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import {
@@ -46,7 +47,12 @@ import {
     type Target,
 } from '../security/security';
 import type { Theme } from '../theme/types';
-import { themeSetting, lastIdentifierSetting } from '../storage/settings';
+import type { Entry } from '../types/models';
+import {
+    themeSetting,
+    lastIdentifierSetting,
+    selectedVaultsSetting,
+} from '../storage/settings';
 import { getInstance, setInstance } from './instance';
 
 let theme: Theme = 'system';
@@ -355,6 +361,7 @@ onPopupMessage('getPopupView', async ({ data }) => {
             account: null,
             vaults: [],
             entries: [],
+            hasVaultKey: false,
             pending: null,
             targets: [],
         };
@@ -363,10 +370,41 @@ onPopupMessage('getPopupView', async ({ data }) => {
         executeUserDetailsRequest(instance),
         executeUserVaultsRequest(instance),
     ]);
+    const preferences = await selectedVaultsSetting.getValue();
+    const preferenceKey = JSON.stringify([instance, user.userId]);
+    const preferred = data.vaultId ?? preferences[preferenceKey];
     const selected =
-        vaults.find((vault) => vault.vaultId === data.vaultId)?.vaultId ??
+        vaults.find((vault) => vault.vaultId === preferred)?.vaultId ??
+        vaults.find((vault) => vault.isOnline)?.vaultId ??
         vaults[0]?.vaultId;
-    const entries = selected ? await listEntries(selected, instance) : [];
+    if (selected && preferences[preferenceKey] !== selected) {
+        await selectedVaultsSetting.setValue({
+            ...preferences,
+            [preferenceKey]: selected,
+        });
+    }
+    const selectedVault = vaults.find((vault) => vault.vaultId === selected);
+    const offline = selectedVault?.isOnline === false;
+    let entries: Entry[] = [];
+    let vaultUnavailable = false;
+    if (selected && !offline) {
+        try {
+            entries = await listEntries(selected, instance);
+        } catch (error) {
+            if (!(error instanceof ApiError) || error.status !== 503)
+                throw error;
+            vaultUnavailable = true;
+        }
+    }
+    const hasVaultKey = selected
+        ? Boolean(
+              await wrappedKeys.read({
+                  instance,
+                  accountId: user.userId,
+                  vaultId: selected,
+              })
+          )
+        : false;
     return {
         instance,
         theme,
@@ -375,6 +413,8 @@ onPopupMessage('getPopupView', async ({ data }) => {
         selected,
         vaults,
         entries,
+        hasVaultKey,
+        vaultUnavailable,
         pending: pending.metadata() ?? null,
         targets: [...forms.values()]
             .flat()
