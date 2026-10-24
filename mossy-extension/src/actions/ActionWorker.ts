@@ -7,11 +7,11 @@ import type {
     ReceiveInput,
     ProtectInput,
 } from './worker/types';
-import SecretWorker from './action.worker.ts?worker';
 
 /** Termination releases keys; pending callers also need to be rejected locally. */
 export class ActionWorker implements ActionWorkerApi {
-    private worker = new SecretWorker();
+    // Keep the worker on the extension origin, including during WXT development.
+    private worker = new Worker(chrome.runtime.getURL('/action-worker.js'));
     private remote: Remote<ActionWorkerApi> = wrap(this.worker);
     private pending = new Set<(error: Error) => void>();
     private stopped = false;

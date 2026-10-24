@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { expose } from 'comlink';
 
 const peers: MessagePort[] = [];
@@ -41,12 +41,19 @@ class MockWorker {
     }
 }
 
-vi.mock('./action.worker.ts?worker', () => ({ default: MockWorker }));
 const { ActionWorker } = await import('./ActionWorker');
+
+beforeEach(() => {
+    vi.stubGlobal('Worker', MockWorker);
+    vi.stubGlobal('chrome', {
+        runtime: { getURL: (path: string) => `chrome-extension://test${path}` },
+    });
+});
 
 afterEach(() => {
     for (const worker of workers.splice(0)) worker.port.close();
     for (const port of peers.splice(0)) port.close();
+    vi.unstubAllGlobals();
 });
 
 describe('Comlink action worker lifecycle', () => {

@@ -33,10 +33,10 @@ export function useActionSession() {
         worker.current = actionWorker;
         const actionId = location.hash.slice(1);
         let deadline: number | undefined;
-        const cancel = () => {
+        const cancel = (closeWindow = true) => {
             if (!completed.current) {
                 void messaging
-                    .sendMessage('cancelAction', { actionId })
+                    .sendMessage('cancelAction', { actionId, closeWindow })
                     .catch(() => undefined);
             }
         };
@@ -49,7 +49,7 @@ export function useActionSession() {
             }
 
             actionWorker.stop();
-            cancel();
+            cancel(false);
 
             if (password.current) {
                 password.current.value = '';

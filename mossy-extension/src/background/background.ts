@@ -167,7 +167,9 @@ function onActionMessage<K extends keyof ActionToBackgroundProtocol>(
 }
 
 onActionMessage('claimAction', ({ data }) => actions.get(data.actionId));
-onActionMessage('cancelAction', ({ data }) => actions.delete(data.actionId));
+onActionMessage('cancelAction', ({ data }) =>
+    actions.delete(data.actionId, data.closeWindow)
+);
 
 onActionMessage('getActionCiphertext', ({ data }) => {
     const action = actions.get(data.actionId);

@@ -30,6 +30,9 @@ import { type WrappedKeyRecord } from '../src/types/vault';
 
 const instance = 'https://mossy.dayfit.pl';
 const extensionId = 'amkfdcmiegnfjnaidcoaojapakdcchoj';
+const extensionDirectory = resolve(
+    process.env.MOSSY_TEST_EXTENSION ?? '.output/chrome-mv3'
+);
 const vaultPassword = 'correct vault password';
 let context: BrowserContext;
 let directory: string;
@@ -212,8 +215,8 @@ test.beforeEach(async ({}, testInfo) => {
             headless: true,
             viewport: { width: 520, height: 620 },
             args: [
-                `--disable-extensions-except=${resolve('.output/chrome-mv3')}`,
-                `--load-extension=${resolve('.output/chrome-mv3')}`,
+                `--disable-extensions-except=${extensionDirectory}`,
+                `--load-extension=${extensionDirectory}`,
                 '--no-sandbox',
                 '--disable-dev-shm-usage',
                 '--host-resolver-rules=MAP mossy.dayfit.pl ~NOTFOUND',
@@ -575,7 +578,7 @@ async function loginForm(identifier = 'bob', password = 'captured-password') {
     await context.route('https://login.example/**', (route) =>
         route.fulfill({
             contentType: 'text/html',
-            body: '<!doctype html><html><body><form onsubmit="event.preventDefault()"><label>Username<input name="username" autocomplete="username"></label><label>Password<input name="password" type="password" autocomplete="current-password"></label><button type="submit">Log in</button></form><output id="submits">0</output><script>document.querySelector("form").addEventListener("submit",()=>document.querySelector("output").textContent=String(Number(document.querySelector("output").textContent)+1))</script></body></html>',
+            body: '<!doctype html><html lang="en"><body><form onsubmit="event.preventDefault()"><label>Username<input name="username" autocomplete="username"></label><label>Password<input name="password" type="password" autocomplete="current-password"></label><button type="submit">Log in</button></form><output id="submits">0</output><script>document.querySelector("form").addEventListener("submit",()=>document.querySelector("output").textContent=String(Number(document.querySelector("output").textContent)+1))</script></body></html>',
         })
     );
 
@@ -679,6 +682,56 @@ test(
         });
 
         await completeAndClose(action);
+    }
+);
+
+test(
+    'a missing vault key leaves the save error visible and releases the captured password',
+    { tag: '@site' },
+    async () => {
+        await signIn();
+        await popup.evaluate(async () => {
+            const database = await new Promise<IDBDatabase>((resolve, reject) => {
+                const request = indexedDB.open('mossy-extension-v2');
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+            const transaction = database.transaction('wrapped', 'readwrite');
+            transaction.objectStore('wrapped').clear();
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+            database.close();
+        });
+
+        const site = await loginForm();
+        await pendingPrompt(site);
+        const opened = context.waitForEvent('page');
+        await popup
+            .getByRole('button', { name: 'Authorize save', exact: true })
+            .click();
+        const action = await opened;
+
+        await expect(action.getByRole('alert')).toContainText(
+            'This browser needs the vault key.'
+        );
+        await expect(action.getByRole('alert')).toContainText('Sync vault keys');
+        await expect.poll(() => action.workers().length).toBe(0);
+        expect(saved).toBeUndefined();
+        await expect(
+            pageRpc(action, {
+                type: 'claimAction',
+                actionId: new URL(action.url()).hash.slice(1),
+            })
+        ).rejects.toThrow('expired');
+        popup = await openPopup();
+        const view = await pageRpc<{ pending: unknown }>(popup, {
+            type: 'getPopupView',
+        });
+        expect(view.pending).toBeNull();
+        await action.getByRole('button', { name: 'Cancel', exact: true }).click();
+        await expect.poll(() => action.isClosed()).toBe(true);
     }
 );
 

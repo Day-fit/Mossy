@@ -54,7 +54,7 @@ export type WrappedKeyPayload = { wrappedKey: number[] } & (
 
 export type ActionToBackgroundProtocol = {
     claimAction(data: { actionId: string }): Action;
-    cancelAction(data: { actionId: string }): void;
+    cancelAction(data: { actionId: string; closeWindow?: boolean }): void;
     getActionCiphertext(data: { actionId: string }): { ciphertext: string };
     getActionCandidate(data: { actionId: string }): string;
     offerKeySync(data: { actionId: string; receiver: ReceiverDetails }): {
