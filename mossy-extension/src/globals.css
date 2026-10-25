@@ -3,6 +3,7 @@
 @import './ui/auth/auth.css';
 @import './ui/popup/popup.css';
 @import './ui/action/action.css';
+@import '@tailwindcss';
 @source '../../packages/ui/src';
 
 :root {
