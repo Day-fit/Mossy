@@ -27,7 +27,7 @@ export default function Popup() {
         (selectedVault?.isOnline ?? selectedVault?.online) === false;
 
     return (
-        <main className="popup">
+        <main className="popup flex max-h-[600px] min-h-[480px] w-[520px] max-w-full flex-col overflow-hidden text-sm leading-normal">
             <PopupHeader
                 signedIn={!!view?.account}
                 username={view?.account?.username}
@@ -51,7 +51,7 @@ export default function Popup() {
                             ? 'sign-in'
                             : 'loading'
                 }
-                className="page-content"
+                className="page-content flex flex-col gap-3.5 [&>*]:shrink-0 min-h-0 overflow-y-auto overscroll-contain p-4 max-[400px]:p-3 [scrollbar-width:thin] [scrollbar-color:var(--color-border-strong)_transparent]"
             >
                 {error && (!view || settings || view.account) && (
                     <Feedback onDismiss={view ? popup.dismissError : undefined}>
@@ -59,7 +59,7 @@ export default function Popup() {
                         {view?.account && !settings && (
                             <button
                                 type="button"
-                                className="text-button refresh-passwords"
+                                className="flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-8 border-0 bg-transparent px-0.5 py-0 text-xs text-fg-brand underline underline-offset-3 mt-1 cursor-pointer"
                                 onClick={() => void popup.load()}
                             >
                                 Refresh passwords
@@ -68,12 +68,13 @@ export default function Popup() {
                     </Feedback>
                 )}
                 {!view && loading && (
-                    <div className="panel">
+                    <div className="min-w-0 rounded-xl border border-border bg-surface shadow-control p-5 max-[400px]:p-4">
                         <LoadingState>Loading Mossy…</LoadingState>
                     </div>
                 )}
                 {!view && !loading && error && (
                     <Button
+                        className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer"
                         padding="medium"
                         variant="outline"
                         onClick={() => void popup.load()}

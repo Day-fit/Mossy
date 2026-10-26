@@ -59,3 +59,10 @@ npm run test:browser -w mossy-extension
 ```
 
 Browser tests use the packaged extension, so build it before running them.
+
+Styling uses Tailwind utilities and the same `@mossy/ui/tokens.css` theme, fonts,
+and base styles as the frontend. `src/globals.css` imports that shared source
+instead of copying frontend tokens or keeping unused frontend rules.
+
+All extension components use Tailwind utilities. `src/globals.css` contains only
+the shared theme import and the source declaration for shared UI components.

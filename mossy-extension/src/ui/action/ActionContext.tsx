@@ -15,7 +15,7 @@ export default function ActionContext({
 }: ActionContextProps) {
     return (
         <>
-            <dl className="action-context">
+            <dl className="mb-5 flex flex-col gap-2 rounded-lg border border-border bg-surface-subtle p-3.5 [&>div]:grid [&>div]:grid-cols-[86px_minmax(0,1fr)] [&>div]:items-baseline [&>div]:gap-2.5 max-[400px]:[&>div]:grid-cols-[70px_minmax(0,1fr)] [&_dt]:text-xs [&_dt]:text-fg-muted [&_dd]:m-0 [&_dd]:text-[0.8125rem] [&_dd]:text-fg-secondary [&_dd]:[overflow-wrap:anywhere]">
                 <div>
                     <dt>Vault</dt>
                     <dd>{vaultName ?? action.scope.vaultId}</dd>
@@ -26,7 +26,7 @@ export default function ActionContext({
                             ? 'Website'
                             : 'Mossy instance'}
                     </dt>
-                    <dd className="site">
+                    <dd className="block [overflow-wrap:anywhere]">
                         {action.candidateOrigin ??
                             action.entry?.address ??
                             new URL(action.scope.instance).hostname}
@@ -48,6 +48,7 @@ export default function ActionContext({
                     <Countdown
                         deadline={action.candidateDeadline}
                         label="Save expires in"
+                        className="-mt-2 mb-[18px]"
                     />
                 )}
         </>

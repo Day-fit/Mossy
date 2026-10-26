@@ -40,13 +40,13 @@ export default function ProtectionChoices({
         <div
             role="group"
             aria-label="Vault protection method"
-            className="protection-choices"
+            className="grid gap-2.5"
         >
             {choices.map(({ value, label, description, Icon }) => (
                 <motion.button
                     key={value}
                     type="button"
-                    className="choice-card"
+                    className="inline-flex min-h-10 w-full cursor-pointer items-center justify-start gap-3 rounded-[9px] border border-border bg-surface p-3.5 text-left text-[0.8125rem] font-semibold whitespace-normal text-fg-secondary hover:border-fg-brand hover:bg-surface-subtle disabled:cursor-not-allowed disabled:opacity-55 [&>svg]:shrink-0 motion-safe:transition-[transform,background-color,border-color,color]"
                     aria-label={label}
                     aria-describedby={`${value}-description`}
                     disabled={
@@ -56,12 +56,25 @@ export default function ProtectionChoices({
                     onClick={() => selectChoice(value)}
                     whileTap={reduce ? undefined : { scale: 0.99 }}
                 >
-                    <Icon size={24} aria-hidden="true" />
-                    <span>
-                        <strong>{label}</strong>
-                        <span id={`${value}-description`}>{description}</span>
+                    <Icon
+                        className="text-fg-brand"
+                        size={24}
+                        aria-hidden="true"
+                    />
+                    <span className="flex flex-col gap-1">
+                        <strong className="text-[0.8125rem]">{label}</strong>
+                        <span
+                            className="text-xs font-normal text-fg-muted"
+                            id={`${value}-description`}
+                        >
+                            {description}
+                        </span>
                     </span>
-                    <MdArrowForward size={17} aria-hidden="true" />
+                    <MdArrowForward
+                        className="ml-auto text-fg-muted"
+                        size={17}
+                        aria-hidden="true"
+                    />
                 </motion.button>
             ))}
         </div>

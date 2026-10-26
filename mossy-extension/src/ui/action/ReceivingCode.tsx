@@ -26,7 +26,7 @@ export default function ReceivingCode({ code }: ReceivingCodeProps) {
         <>
             {code ? (
                 <output
-                    className="code"
+                    className="mt-[18px] mb-3 block rounded-[10px] border border-[color-mix(in_srgb,var(--color-fg-brand)_40%,var(--color-border))] bg-surface-subtle p-3 text-center font-heading text-[2rem] font-medium tracking-[8px] text-fg-brand tabular-nums"
                     aria-label="Receiving code"
                     aria-live="polite"
                 >
@@ -40,7 +40,7 @@ export default function ReceivingCode({ code }: ReceivingCodeProps) {
                     type="button"
                     variant="outline"
                     padding="medium"
-                    className="copy-code"
+                    className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer mb-4 w-full"
                     onClick={() => void copy()}
                     aria-label="Copy receiving code"
                 >
@@ -52,7 +52,7 @@ export default function ReceivingCode({ code }: ReceivingCodeProps) {
                     {copied ? 'Code copied' : 'Copy code'}
                 </Button>
             )}
-            <ol className="sync-instructions">
+            <ol className="my-3 list-decimal pl-5 text-[0.8125rem] leading-[1.7] text-fg-secondary [&>li+li]:mt-1.5">
                 <li>
                     Open <strong>Sync</strong> on the device that already has
                     this vault key.
@@ -62,10 +62,10 @@ export default function ReceivingCode({ code }: ReceivingCodeProps) {
                     transfer.
                 </li>
             </ol>
-            <p className="muted">
+            <p className="leading-[1.6] text-xs text-fg-muted">
                 You’ll choose local protection after the transfer.
             </p>
-            {error && <Feedback>{error}</Feedback>}
+            {error && <Feedback className="mt-[18px]">{error}</Feedback>}
         </>
     );
 }

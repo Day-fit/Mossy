@@ -14,7 +14,7 @@ export default function ViewTransition({
     return (
         <motion.div
             key={viewKey}
-            className={`view-transition ${className}`}
+            className={`min-w-0 ${className}`}
             initial={reduce ? false : { opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{

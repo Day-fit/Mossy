@@ -35,7 +35,7 @@ export default function PopupSettings({
     return (
         <form
             id="extension-settings"
-            className="panel settings-panel"
+            className="min-w-0 rounded-xl border border-border bg-surface p-5 shadow-control max-[400px]:p-4"
             aria-busy={loading}
             onSubmit={(event) => {
                 event.preventDefault();
@@ -44,18 +44,26 @@ export default function PopupSettings({
                 void saveSettings(data);
             }}
         >
-            <div className="intro">
-                <h2 id="settings-title" tabIndex={-1}>
+            <div className="mb-5">
+                <h2
+                    className="text-lg leading-[1.4] focus:outline-none"
+                    id="settings-title"
+                    tabIndex={-1}
+                >
                     Settings
                 </h2>
-                <p>Choose how Mossy looks and works in your browser.</p>
+                <p className="mt-1.5 text-[0.8125rem] leading-[1.6] text-fg-muted">
+                    Choose how Mossy looks and works in your browser.
+                </p>
             </div>
             <fieldset
-                className="appearance-choices"
+                className="grid min-w-0 grid-cols-3 gap-2 border-0 p-0"
                 disabled={loading}
                 aria-busy={savingTheme}
             >
-                <legend>Appearance</legend>
+                <legend className="mb-2.5 block text-xs font-semibold text-fg-secondary">
+                    Appearance
+                </legend>
                 {(
                     [
                         ['system', 'System', MdMonitor],
@@ -63,40 +71,47 @@ export default function PopupSettings({
                         ['dark', 'Dark', MdDarkMode],
                     ] as const
                 ).map(([value, label, Icon]) => (
-                    <label key={value} className="appearance-choice">
+                    <label
+                        key={value}
+                        className="relative cursor-pointer text-xs font-semibold text-fg-secondary"
+                    >
                         <input
+                            className="peer absolute inset-0 z-1 size-full cursor-pointer opacity-0"
                             type="radio"
                             name="theme"
                             value={value}
                             checked={theme === value}
                             onChange={() => void saveTheme(value)}
                         />
-                        <span>
+                        <span className="flex min-h-12 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface text-xs peer-checked:border-fg-brand peer-checked:bg-[color-mix(in_srgb,var(--color-fg-brand)_6%,var(--color-surface))] peer-checked:text-fg-brand peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-fg-brand peer-disabled:cursor-wait peer-disabled:opacity-55 max-[400px]:flex-col max-[400px]:px-1 max-[400px]:py-2">
                             <Icon size={19} aria-hidden="true" />
                             {label}
                         </span>
                     </label>
                 ))}
             </fieldset>
-            <p className="muted">
+            <p className="mt-2.5 mb-4 text-xs leading-[1.6] text-fg-muted">
                 Follow your device or choose a light or dark theme. Changes save
                 automatically.
             </p>
-            <div className="settings-divider">
-                <div className="settings-section-heading">
-                    <h3>Website access</h3>
+            <div className="mt-[22px] border-t border-border pt-5">
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-[0.9375rem] leading-[1.4]">
+                        Website access
+                    </h3>
                     {view.permission && (
-                        <span className="enabled-label">
+                        <span className="inline-flex items-center gap-[5px] text-[0.6875rem] text-fg-success">
                             <MdCheckCircle size={15} aria-hidden="true" />
                             Enabled
                         </span>
                     )}
                 </div>
-                <p className="muted">
+                <p className="mt-2.5 mb-4 text-xs leading-[1.6] text-fg-muted">
                     Allow HTTPS website access to fill forms and offer to save
                     submitted passwords.
                 </p>
                 <Button
+                    className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer"
                     type="button"
                     padding="medium"
                     variant="outline"
@@ -108,24 +123,43 @@ export default function PopupSettings({
                         : 'Enable fill and capture'}
                 </Button>
             </div>
-            <details className="advanced-settings">
-                <summary>
+            <details className="group mt-[22px] border-t border-border pt-3.5">
+                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md py-2 text-[0.8125rem] font-semibold text-fg-secondary [&::-webkit-details-marker]:hidden">
                     Advanced settings
-                    <MdExpandMore size={20} aria-hidden="true" />
+                    <MdExpandMore
+                        className="shrink-0 text-fg-muted group-open:rotate-180"
+                        size={20}
+                        aria-hidden="true"
+                    />
                 </summary>
-                <div className="advanced-warning" id="instance-warning">
-                    <MdWarningAmber size={20} aria-hidden="true" />
+                <div
+                    className="mt-3 flex items-start gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--color-fg-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-fg-warning)_5%,var(--color-surface))] p-3.5"
+                    id="instance-warning"
+                >
+                    <MdWarningAmber
+                        className="mt-0.5 shrink-0 text-fg-warning"
+                        size={20}
+                        aria-hidden="true"
+                    />
                     <div>
-                        <h3>Only change this if you know what you’re doing</h3>
-                        <p>
+                        <h3 className="font-sans text-[0.8125rem] leading-normal font-semibold">
+                            Only change this if you know what you’re doing
+                        </h3>
+                        <p className="mt-2 text-xs leading-[1.6] text-fg-secondary">
                             Your sign-in credentials will be sent to this
                             server. Only use a Mossy instance you trust.
                             Changing it signs you out.
                         </p>
                     </div>
                 </div>
-                <label htmlFor="instance">Mossy instance</label>
+                <label
+                    className="mt-4 mb-[7px] block text-xs font-semibold text-fg-secondary"
+                    htmlFor="instance"
+                >
+                    Mossy instance
+                </label>
                 <input
+                    className="block min-h-11 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm leading-normal text-fg-primary placeholder:text-fg-subtle placeholder:opacity-100 focus-visible:border-fg-brand focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                     id="instance"
                     name="instance"
                     type="url"
@@ -146,7 +180,7 @@ export default function PopupSettings({
                 type="submit"
                 padding="medium"
                 disabled={loading || savingTheme}
-                className="settings-save"
+                className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer mt-[22px] w-full"
             >
                 Save settings
             </Button>

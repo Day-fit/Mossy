@@ -18,13 +18,17 @@ export default function VaultPasswordFields({
     const [visible, setVisible] = useState(false);
     return (
         <>
-            <label htmlFor="vault-password">
+            <label
+                className="mt-4 mb-[7px] block text-xs leading-normal font-semibold text-fg-secondary"
+                htmlFor="vault-password"
+            >
                 {isReceiving
                     ? 'Protect with a vault password'
                     : 'Vault password'}
             </label>
-            <div className="password-field">
+            <div className="relative">
                 <input
+                    className="block min-h-11 w-full min-w-0 rounded-md border border-border-strong bg-surface pl-3 pr-12 py-2.5 text-sm leading-normal text-fg-primary placeholder:text-fg-subtle placeholder:opacity-100 focus-visible:border-fg-brand focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-fg-danger"
                     ref={password}
                     id="vault-password"
                     type={visible ? 'text' : 'password'}
@@ -48,7 +52,7 @@ export default function VaultPasswordFields({
                 />
                 <button
                     type="button"
-                    className="password-toggle"
+                    className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer absolute inset-y-1 right-1 w-10 rounded-md border-0 bg-transparent p-0 text-fg-muted hover:bg-surface-subtle hover:text-fg-brand focus-visible:-outline-offset-2"
                     aria-label={
                         visible ? 'Hide vault password' : 'Show vault password'
                     }
@@ -62,17 +66,24 @@ export default function VaultPasswordFields({
                     )}
                 </button>
             </div>
-            <p id="vault-password-hint" className="muted field-hint">
+            <p
+                id="vault-password-hint"
+                className="leading-[1.6] text-xs text-fg-muted mt-2"
+            >
                 {isReceiving
                     ? 'Use at least 12 characters to protect this vault on this browser.'
                     : 'Use your vault password to authorize this action.'}
             </p>
             {isReceiving && (
                 <>
-                    <label htmlFor="vault-password-confirmation">
+                    <label
+                        className="mt-4 mb-[7px] block text-xs leading-normal font-semibold text-fg-secondary"
+                        htmlFor="vault-password-confirmation"
+                    >
                         Confirm vault password
                     </label>
                     <input
+                        className="block min-h-11 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm leading-normal text-fg-primary placeholder:text-fg-subtle placeholder:opacity-100 focus-visible:border-fg-brand focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 aria-invalid:border-fg-danger"
                         ref={confirmation}
                         id="vault-password-confirmation"
                         type="password"

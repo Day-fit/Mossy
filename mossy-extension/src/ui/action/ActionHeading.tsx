@@ -46,10 +46,10 @@ export default function ActionHeading({
               : MethodIcon;
 
     return (
-        <div className="auth-heading">
+        <div className="mb-5 flex items-start gap-3">
             <motion.span
                 key={phase}
-                className={`auth-symbol auth-symbol-${phase}`}
+                className={`grid size-11 flex-[0_0_44px] place-items-center rounded-xl border ${phase === 'done' ? 'border-[color-mix(in_srgb,var(--color-fg-success)_25%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-fg-success)_8%,var(--color-surface))] text-fg-success' : phase === 'error' ? 'border-border bg-[color-mix(in_srgb,var(--color-fg-danger)_6%,var(--color-surface))] text-fg-danger' : 'border-border bg-surface-subtle text-fg-brand'}`}
                 aria-hidden="true"
                 initial={reduce ? false : { scale: 0.88 }}
                 animate={{ scale: 1 }}
@@ -58,8 +58,15 @@ export default function ActionHeading({
                 <AuthorizationIcon size={24} />
             </motion.span>
             <div>
-                <h2 id="action-title">{title}</h2>
-                <p>{description}</p>
+                <h2
+                    className="text-[1.375rem] leading-[1.4]"
+                    id="action-title"
+                >
+                    {title}
+                </h2>
+                <p className="mt-1.5 text-[0.8125rem] leading-[1.6] text-fg-muted">
+                    {description}
+                </p>
             </div>
         </div>
     );

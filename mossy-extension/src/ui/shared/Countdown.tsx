@@ -4,9 +4,11 @@ import { MdTimer } from 'react-icons/md';
 export default function Countdown({
     deadline,
     label = 'Expires in',
+    className = 'mt-3',
 }: {
     deadline: number;
     label?: string;
+    className?: string;
 }) {
     const remaining = () =>
         Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
@@ -25,12 +27,13 @@ export default function Countdown({
 
     return (
         <p
-            className={`countdown${seconds <= 3 ? ' countdown-urgent' : ''}`}
+            className={`flex items-center gap-1.5 text-xs leading-[1.6] tabular-nums ${seconds <= 3 ? 'text-fg-danger' : 'text-fg-warning'} ${className}`}
             role="timer"
         >
             <MdTimer size={15} aria-hidden="true" />
             <span>
-                {label} <strong>{seconds}</strong> seconds
+                {label} <strong className="font-semibold">{seconds}</strong>{' '}
+                seconds
             </span>
         </p>
     );

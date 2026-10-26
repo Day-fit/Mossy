@@ -9,6 +9,9 @@ import type { Entry } from '../../types/models';
 import type { Target } from '../../security/security';
 import type { RunPopupAction } from './types';
 
+const actionButtonClassName =
+    'inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-9 min-w-0 flex-1 px-2 py-[5px] text-[0.75rem] last:flex-[0_0_72px] max-[400px]:last:col-span-full cursor-pointer';
+
 type PasswordEntryProps = {
     entry: Entry;
     target: Target | undefined;
@@ -25,19 +28,30 @@ export default function PasswordEntry({
     action,
 }: PasswordEntryProps) {
     return (
-        <article className="entry" key={entry.passwordId}>
-            <div className="entry-heading">
-                <span className="entry-symbol" aria-hidden="true">
+        <article
+            className="entry rounded-lg border border-border p-3 hover:border-border-strong"
+            key={entry.passwordId}
+        >
+            <div className="mb-3 flex items-center gap-2.5">
+                <span
+                    className="grid size-9 flex-[0_0_36px] place-items-center rounded-[9px] border border-border bg-surface-subtle text-fg-brand"
+                    aria-hidden="true"
+                >
                     <MdPassword size={18} />
                 </span>
-                <div className="entry-details">
-                    <strong>{entry.identifier}</strong>
-                    <span className="muted site">{entry.address}</span>
+                <div className="min-w-0">
+                    <strong className="block text-sm leading-normal [overflow-wrap:anywhere]">
+                        {entry.identifier}
+                    </strong>
+                    <span className="text-xs leading-normal text-fg-muted block [overflow-wrap:anywhere]">
+                        {entry.address}
+                    </span>
                 </div>
             </div>
-            <div className="row">
+            <div className="flex items-center gap-2 max-[400px]:grid max-[400px]:grid-cols-2">
                 <Button
-                    padding="small"
+                    className={actionButtonClassName}
+                    padding="none"
                     variant="outline"
                     disabled={loading}
                     onClick={() => void action('copy-username', entry)}
@@ -46,7 +60,8 @@ export default function PasswordEntry({
                     Username
                 </Button>
                 <Button
-                    padding="small"
+                    className={actionButtonClassName}
+                    padding="none"
                     variant="outline"
                     disabled={loading}
                     onClick={() => void action('copy-password', entry)}
@@ -55,7 +70,8 @@ export default function PasswordEntry({
                     Password
                 </Button>
                 <Button
-                    padding="small"
+                    className={actionButtonClassName}
+                    padding="none"
                     title={
                         !permission
                             ? 'Enable website access in Settings to fill'

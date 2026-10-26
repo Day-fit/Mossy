@@ -3,16 +3,20 @@ import type { ReactNode } from 'react';
 export default function AppHeader({
     children,
     onHome,
+    className = 'px-5',
 }: {
     children?: ReactNode;
     onHome: () => void;
+    className?: string;
 }) {
     return (
-        <header className="app-header">
-            <h1 className="brand" aria-label="Mossy">
+        <header
+            className={`flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-surface py-2 ${className}`}
+        >
+            <h1 className="flex items-center" aria-label="Mossy">
                 <a
                     href="/popup.html"
-                    className="brand-home"
+                    className="text-fg-brand underline-offset-3 hover:text-fg-brand-hover hover:underline inline-flex rounded-[5px]"
                     aria-label="Mossy home"
                     onClick={(event) => {
                         if (
@@ -27,6 +31,7 @@ export default function AppHeader({
                     }}
                 >
                     <img
+                        className="h-12 w-[106px] object-contain"
                         src="/mossy_logo.png"
                         width="106"
                         height="48"
@@ -34,7 +39,7 @@ export default function AppHeader({
                     />
                 </a>
             </h1>
-            <div className="header-actions">{children}</div>
+            <div className="flex items-center gap-2">{children}</div>
         </header>
     );
 }

@@ -11,7 +11,8 @@ export default function ActionStatus({ phase, message }: ActionStatusProps) {
         <Feedback
             id="action-feedback"
             tone={phase === 'done' ? 'success' : 'error'}
-            className={phase === 'done' ? 'action-success' : ''}
+            size={phase === 'done' ? 'large' : 'default'}
+            className="mt-[18px]"
         >
             {message}
         </Feedback>

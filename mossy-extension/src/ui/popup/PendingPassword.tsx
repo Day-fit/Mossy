@@ -1,4 +1,5 @@
 import { Button } from '@mossy/ui';
+import { motion, useReducedMotion } from 'framer-motion';
 import { MdClose, MdKey, MdLockOutline } from 'react-icons/md';
 import Countdown from '../shared/Countdown';
 import type { PendingMetadata } from '../../capture/PendingCapture';
@@ -32,15 +33,29 @@ export default function PendingPassword({
     onReceiveKey,
     vaultOffline,
 }: PendingPasswordProps) {
+    const reduce = useReducedMotion();
     return (
-        <section className="panel pending" aria-label="Save captured password">
-            <div className="section-heading">
-                <h2>
-                    <MdLockOutline size={20} aria-hidden="true" />
+        <motion.section
+            className="min-w-0 rounded-xl border border-[color-mix(in_srgb,var(--color-fg-brand)_55%,var(--color-border))] bg-surface p-5 shadow-control max-[400px]:p-4"
+            aria-label="Save captured password"
+            initial={reduce ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+                duration: reduce ? 0 : 0.22,
+                ease: [0.22, 1, 0.36, 1],
+            }}
+        >
+            <div className="mb-3 flex items-center justify-between gap-3">
+                <h2 className="flex items-center gap-2 text-[1.0625rem] leading-[1.4]">
+                    <MdLockOutline
+                        className="text-fg-brand"
+                        size={20}
+                        aria-hidden="true"
+                    />
                     {matches.length ? 'Update password?' : 'Save password?'}
                 </h2>
                 <button
-                    className="icon"
+                    className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] size-[38px] flex-[0_0_38px] rounded-md border border-border bg-surface p-0 text-[19px] text-fg-secondary hover:border-border-strong hover:bg-surface-subtle hover:text-fg-brand aria-expanded:border-fg-brand aria-expanded:bg-surface-subtle aria-expanded:text-fg-brand motion-safe:transition-[transform,background-color,border-color,color] cursor-pointer"
                     aria-label="Decline save"
                     disabled={loading}
                     onClick={() => onDismiss()}
@@ -48,11 +63,11 @@ export default function PendingPassword({
                     <MdClose />
                 </button>
             </div>
-            <div className="capture-details">
+            <div className="rounded-md bg-surface-subtle p-3 text-[0.8125rem] leading-[1.6] text-fg-secondary [overflow-wrap:anywhere] [&>p+p]:mt-[3px]">
                 <p>{pending.origin}</p>
                 <p>{pending.identifier}</p>
                 <p
-                    className="capture-mask"
+                    className="tracking-[2px] text-fg-muted"
                     aria-label="Masked captured password"
                 >
                     ••••••••••••
@@ -61,14 +76,20 @@ export default function PendingPassword({
             <Countdown deadline={pending.deadline} />
             {matches.length > 1 && (
                 <>
-                    <fieldset className="update-choices" disabled={loading}>
-                        <legend>Entry to update</legend>
+                    <fieldset
+                        className="mt-3.5 min-w-0 border-0 p-0"
+                        disabled={loading}
+                    >
+                        <legend className="mb-2 block text-xs font-semibold text-fg-secondary">
+                            Entry to update
+                        </legend>
                         {matches.map((entry) => (
                             <label
                                 key={entry.passwordId}
-                                className="update-choice"
+                                className="mt-2 flex cursor-pointer items-center gap-2.5 rounded-md border border-border p-2.5 text-xs font-semibold text-fg-secondary has-checked:border-fg-brand has-checked:bg-surface-subtle"
                             >
                                 <input
+                                    className="shrink-0 accent-brand disabled:cursor-not-allowed disabled:opacity-60"
                                     type="radio"
                                     name="update-record"
                                     value={entry.passwordId}
@@ -77,9 +98,9 @@ export default function PendingPassword({
                                         setUpdateId(entry.passwordId)
                                     }
                                 />
-                                <span>
+                                <span className="flex min-w-0 flex-col [overflow-wrap:anywhere]">
                                     <strong>{entry.identifier}</strong>
-                                    <span>
+                                    <span className="text-[0.6875rem] font-normal text-fg-muted">
                                         {entry.address} ·{' '}
                                         {new Date(
                                             entry.lastModified
@@ -92,19 +113,20 @@ export default function PendingPassword({
                 </>
             )}
             {vaultOffline ? (
-                <p className="key-save-hint">
+                <p className="mt-3 text-[0.8125rem] leading-[1.6] text-fg-muted [overflow-wrap:anywhere]">
                     Choose an online vault to save this login.
                 </p>
             ) : (
                 selected &&
                 !hasVaultKey && (
-                    <p className="key-save-hint">
+                    <p className="mt-3 text-[0.8125rem] leading-[1.6] text-fg-muted [overflow-wrap:anywhere]">
                         Receive the vault key first, then submit this login
                         again to save it.
                     </p>
                 )
             )}
             <Button
+                className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer mt-4 w-full"
                 padding="medium"
                 disabled={
                     loading ||
@@ -138,6 +160,6 @@ export default function PendingPassword({
                         ? 'Authorize update'
                         : 'Authorize save'}
             </Button>
-        </section>
+        </motion.section>
     );
 }

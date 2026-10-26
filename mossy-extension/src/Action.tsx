@@ -31,17 +31,20 @@ export default function Action() {
     const isReceiving = action?.operation === 'sync-receive';
 
     return (
-        <main className="action">
-            <AppHeader onHome={() => void session.home()}>
+        <main className="action mx-auto min-h-dvh w-full max-w-[560px] text-sm leading-normal">
+            <AppHeader
+                className="sticky top-0 z-2 px-6"
+                onHome={() => void session.home()}
+            >
                 <MdVerifiedUser
                     size={22}
-                    className="field-icon"
+                    className="text-fg-brand"
                     aria-label="Secure action"
                 />
             </AppHeader>
-            <div className="page-content">
+            <div className="page-content flex flex-col gap-3.5 [&>*]:shrink-0 p-6 max-[400px]:p-3">
                 <section
-                    className="panel action-panel"
+                    className="min-w-0 rounded-xl border border-border bg-surface p-6 shadow-card max-[400px]:p-4"
                     aria-labelledby="action-title"
                     aria-busy={phase === 'loading' || phase === 'busy'}
                 >
@@ -94,7 +97,7 @@ export default function Action() {
                         close={close}
                     />
                 </section>
-                <SecurityNotice>
+                <SecurityNotice className="mb-5">
                     This authorization applies to this action only.
                 </SecurityNotice>
             </div>
