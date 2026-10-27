@@ -19,6 +19,13 @@ const actionBadges: Record<ActionType, { label: string; className: string }> = {
     },
 };
 
+const normalizedDomain = (domain : string) => {
+    return domain
+        .trim()
+        .replace(/^ssh:\/\//i, '')
+        .replace(/^https?:\/\//i, '');
+}
+
 type RecentActionElementProps = {
     actionType: ActionType;
     date: string;
@@ -39,7 +46,7 @@ export default function RecentActionEntry({
                     className="truncate text-sm font-sans font-medium tracking-normal"
                     title={domain}
                 >
-                    {domain}
+                    {normalizedDomain(domain)}
                 </h3>
                 <time
                     dateTime={date}

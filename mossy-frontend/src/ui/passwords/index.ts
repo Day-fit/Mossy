@@ -6,9 +6,13 @@ type PasswordBaseFormState = {
     address: string;
     passwordType: PasswordType;
 };
+
+export type WebsiteProtocol = 'https://' | 'http://';
+
 export type PasswordFormState =
     | (PasswordBaseFormState & {
           passwordType: 'PASSWORD';
+          protocol: WebsiteProtocol;
           password: string;
       })
     | (PasswordBaseFormState & {
@@ -16,7 +20,9 @@ export type PasswordFormState =
           privateKey: string;
           publicKey?: string;
       });
+
 export type SavePasswordResult = 'saved' | 'deferred' | 'failed';
+
 export type StatusMessage =
     | { type: 'success'; message: string }
     | { type: 'error'; message: string }
