@@ -1547,7 +1547,7 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
             .locator('main')
             .screenshot({ path: `/tmp/mossy-v2-settings-${theme}.png` });
 
-        const advancedSettings = popup.locator('summary');
+        const advancedSettings = popup.getByRole('button', { name: 'Advanced settings', exact: true });
 
         await advancedSettings.focus();
         await advancedSettings.press('Enter');
@@ -1577,9 +1577,9 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
 
     await popup.getByRole('button', { name: 'Settings', exact: true }).click();
     // Native validation must reveal a hidden invalid field before focusing it.
-    await popup.locator('summary').click();
+    await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
     await popup.getByLabel('Mossy instance').fill('not a URL');
-    await popup.locator('summary').click();
+    await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
     await popup
         .getByRole('button', { name: 'Save settings', exact: true })
         .click();
@@ -1668,6 +1668,89 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
         popup.getByRole('link', { name: 'Create a vault in Mossy' })
     ).toBeVisible();
     await expect(popup.getByRole('alert')).toHaveCount(0);
+});
+
+test('advanced settings animation keeps the save button below its content', async () => {
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+
+    for (const width of [520, 360]) {
+        await popup.setViewportSize({ width, height: 620 });
+
+        for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+            await popup.emulateMedia({ reducedMotion });
+            await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+            await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+            await expect
+                .poll(() =>
+                    popup.evaluate(() => {
+                        const input = document.getElementById('instance')!;
+                        const save = document.querySelector(
+                            '#extension-settings button[type="submit"]'
+                        )!;
+
+                        return (
+                            save.getBoundingClientRect().top -
+                            input.getBoundingClientRect().bottom
+                        );
+                    })
+                )
+                .toBeGreaterThanOrEqual(21);
+            await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+            await expect(popup.getByLabel('Mossy instance')).toBeHidden();
+        }
+    }
+});
+
+test('advanced settings finishes its collapse animation before hiding the content', async () => {
+    await popup.emulateMedia({ reducedMotion: 'no-preference' });
+    await popup.getByRole('button', { name: 'Settings', exact: true }).click();
+    const toggle = popup.getByRole('button', { name: 'Advanced settings', exact: true });
+    const content = popup.locator('#advanced-settings-content');
+    await toggle.click();
+    await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+    // Wait for expansion to finish before recording the closing frames.
+    await expect
+        .poll(() =>
+            popup.getByLabel('Mossy instance').evaluate((input) => {
+                const content = input.parentElement!;
+                return content.clientHeight >= content.scrollHeight;
+            })
+        )
+        .toBe(true);
+
+    const { expanded, frames } = await content.evaluate(async (element) => {
+        const expanded = element.getBoundingClientRect().height;
+        const frames: number[] = [];
+        document.querySelector<HTMLButtonElement>(
+            '[aria-controls="advanced-settings-content"]'
+        )!.click();
+        const started = performance.now();
+        while (performance.now() - started < 350) {
+            await new Promise(requestAnimationFrame);
+            frames.push(element.getBoundingClientRect().height);
+        }
+        return { expanded, frames };
+    });
+    const collapsed = await content.evaluate(
+        (element) => element.getBoundingClientRect().height
+    );
+    expect(expanded - collapsed).toBeGreaterThan(100);
+    expect(
+        frames.some((height) => height > collapsed + 2 && height < expanded - 2)
+    ).toBe(true);
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(popup.getByLabel('Mossy instance')).toBeHidden();
+
+    // Reversing direction during a collapse must leave the panel open.
+    await toggle.press('Enter');
+    await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+    await toggle.evaluate((element) => {
+        const button = element as HTMLButtonElement;
+        button.click();
+        requestAnimationFrame(() => button.click());
+    });
+    await expect(popup.getByLabel('Mossy instance')).toBeVisible();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
 });
 
 test('sign-in explains registration and device approval, and clears passwords after every attempt', async () => {
@@ -2332,7 +2415,7 @@ test('UI states keep their hierarchy in both themes and respect reduced motion',
             .getByRole('button', { name: 'Settings', exact: true })
             .click();
         await uiSnapshot(popup, `settings-${theme}`);
-        await popup.locator('summary').click();
+        await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
         await expect(popup.getByLabel('Mossy instance')).toBeVisible();
         await uiSnapshot(popup, `settings-advanced-${theme}`);
         await popup

@@ -1,4 +1,6 @@
 import { Button } from '@mossy/ui';
+import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import {
     MdCheckCircle,
     MdDarkMode,
@@ -10,6 +12,7 @@ import {
 import { usePopupSettings } from './usePopupSettings';
 import type { Theme } from '../../theme/types';
 import type { PopupView, RunPopupTask } from './types';
+import { motion, useReducedMotion } from 'framer-motion';
 
 type PopupSettingsProps = {
     view: Pick<PopupView, 'instance' | 'permission'>;
@@ -32,6 +35,11 @@ export default function PopupSettings({
 }: PopupSettingsProps) {
     const { savingTheme, saveSettings, saveTheme, enableWebsiteAccess } =
         usePopupSettings({ run, onSaved, onError, theme, onThemeChange });
+
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+    const reduceMotion = useReducedMotion();
+    const duration = reduceMotion ? 0 : 0.2;
+
     return (
         <form
             id="extension-settings"
@@ -123,59 +131,92 @@ export default function PopupSettings({
                         : 'Enable fill and capture'}
                 </Button>
             </div>
-            <details className="group mt-[22px] border-t border-border pt-3.5">
-                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between gap-3 rounded-md py-2 text-[0.8125rem] font-semibold text-fg-secondary [&::-webkit-details-marker]:hidden">
+            <section className="mt-[22px] border-t border-border pt-3.5">
+                <button
+                    type="button"
+                    className="flex min-h-10 w-full cursor-pointer items-center justify-between gap-3 rounded-md py-2 text-left text-[0.8125rem] font-semibold text-fg-secondary"
+                    aria-expanded={advancedOpen}
+                    aria-controls="advanced-settings-content"
+                    onClick={() => setAdvancedOpen((open) => !open)}
+                >
                     Advanced settings
-                    <MdExpandMore
-                        className="shrink-0 text-fg-muted group-open:rotate-180"
-                        size={20}
-                        aria-hidden="true"
-                    />
-                </summary>
-                <div
-                    className="mt-3 flex items-start gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--color-fg-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-fg-warning)_5%,var(--color-surface))] p-3.5"
-                    id="instance-warning"
-                >
-                    <MdWarningAmber
-                        className="mt-0.5 shrink-0 text-fg-warning"
-                        size={20}
-                        aria-hidden="true"
-                    />
-                    <div>
-                        <h3 className="font-sans text-[0.8125rem] leading-normal font-semibold">
-                            Only change this if you know what you’re doing
-                        </h3>
-                        <p className="mt-2 text-xs leading-[1.6] text-fg-secondary">
-                            Your sign-in credentials will be sent to this
-                            server. Only use a Mossy instance you trust.
-                            Changing it signs you out.
-                        </p>
-                    </div>
-                </div>
-                <label
-                    className="mt-4 mb-[7px] block text-xs font-semibold text-fg-secondary"
-                    htmlFor="instance"
-                >
-                    Mossy instance
-                </label>
-                <input
-                    className="block min-h-11 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm leading-normal text-fg-primary placeholder:text-fg-subtle placeholder:opacity-100 focus-visible:border-fg-brand focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    id="instance"
-                    name="instance"
-                    type="url"
-                    required
-                    defaultValue={view.instance}
-                    disabled={loading}
-                    aria-describedby="instance-warning"
-                    onInvalid={(event) => {
-                        const details = event.currentTarget.closest('details');
+                    <motion.div
+                        initial={false}
+                        animate={{
+                            rotateZ: advancedOpen ? 180 : 0,
+                        }}
+                        transition={{
+                            type: 'spring',
+                            duration,
+                            bounce: 0.35,
+                        }}
+                    >
+                        <MdExpandMore
+                            className="shrink-0 text-fg-muted"
+                            size={20}
+                            aria-hidden="true"
+                        />
+                    </motion.div>
+                </button>
 
-                        if (details) {
-                            details.open = true;
-                        }
+                <motion.div
+                    id="advanced-settings-content"
+                    className="overflow-hidden"
+                    inert={!advancedOpen}
+                    initial={false}
+                    animate={{
+                        height: advancedOpen ? 'auto' : 0,
+                        opacity: advancedOpen ? 1 : 0,
+                        visibility: advancedOpen ? 'visible' : 'hidden',
                     }}
-                />
-            </details>
+                    transition={{
+                        duration,
+                        visibility: { delay: advancedOpen ? 0 : duration },
+                    }}
+                >
+                    <div
+                        className="mt-3 flex items-start gap-2.5 rounded-lg border border-[color-mix(in_srgb,var(--color-fg-warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--color-fg-warning)_5%,var(--color-surface))] p-3.5"
+                        id="instance-warning"
+                    >
+                        <MdWarningAmber
+                            className="mt-0.5 shrink-0 text-fg-warning"
+                            size={20}
+                            aria-hidden="true"
+                        />
+                        <div>
+                            <h3 className="font-sans text-[0.8125rem] leading-normal font-semibold">
+                                Only change this if you know what you’re doing
+                            </h3>
+                            <p className="mt-2 text-xs leading-[1.6] text-fg-secondary">
+                                Your sign-in credentials will be sent to this
+                                server. Only use a Mossy instance you trust.
+                                Changing it signs you out.
+                            </p>
+                        </div>
+                    </div>
+                    <label
+                        className="mt-4 mb-[7px] block text-xs font-semibold text-fg-secondary"
+                        htmlFor="instance"
+                    >
+                        Mossy instance
+                    </label>
+                    <input
+                        className="block min-h-11 w-full min-w-0 rounded-md border border-border-strong bg-surface px-3 py-2.5 text-sm leading-normal text-fg-primary placeholder:text-fg-subtle placeholder:opacity-100 focus-visible:border-fg-brand focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                        id="instance"
+                        name="instance"
+                        type="url"
+                        required
+                        defaultValue={view.instance}
+                        disabled={loading}
+                        aria-describedby="instance-warning"
+                        onInvalid={() => {
+                            // Reveal the field before native validation focuses it.
+                            flushSync(() => setAdvancedOpen(true));
+                        }}
+                    />
+                </motion.div>
+            </section>
+
             <Button
                 type="submit"
                 padding="medium"
