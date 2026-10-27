@@ -185,10 +185,6 @@ export default function Popup() {
                                     onClose={() => popup.setSync(false)}
                                 />
                             )}
-                            <SecurityNotice>
-                                Authorize each password copy, fill, save, or key
-                                transfer.
-                            </SecurityNotice>
                         </>
                     )
                 )}

@@ -37,7 +37,7 @@ export class PendingCapture {
         this.clear();
 
         const generation = this.generation;
-        const deadline = receivedAt + 10_000;
+        const deadline = receivedAt + 30_000;
         const key = await crypto.subtle.generateKey(
             { name: 'AES-GCM', length: 256 },
             false,

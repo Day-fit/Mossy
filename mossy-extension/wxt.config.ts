@@ -32,6 +32,7 @@ export default defineConfig({
             'tabs',
             'activeTab',
             'scripting',
+            'privacy',
             'clipboardWrite',
             'webNavigation',
         ],
