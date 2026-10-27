@@ -8,6 +8,7 @@ import type {
 } from './index.ts';
 import Button from '../shared/Button.tsx';
 import PasswordListItemFrame from './PasswordListItemFrame.tsx';
+import { splitWebsiteAddress } from './passwordAddress.ts';
 
 type PasswordListItemProps = {
     passwordDto: PasswordMetadataDto;
@@ -47,7 +48,7 @@ function PasswordListItem({
             iconLabel="Password"
             editInitialState={{
                 identifier: passwordDto.identifier,
-                address: passwordDto.address,
+                ...splitWebsiteAddress(passwordDto.address),
                 password: '',
                 passwordType: 'PASSWORD',
             }}
