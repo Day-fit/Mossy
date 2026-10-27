@@ -25,11 +25,9 @@ export function usePopupController() {
     const [updateId, setUpdateId] = useState('');
 
     const selected = useRef<string | undefined>(undefined);
-    const requestVersion = useRef(0);
     const previousPanel = useRef('');
     const load = useCallback(
         async (vaultId?: string, quiet = false) => {
-            const request = ++requestVersion.current;
             if (!quiet) set({ loading: true, error: undefined });
 
             try {
@@ -39,9 +37,6 @@ export function usePopupController() {
                         vaultId: vaultId ?? selected.current,
                     }
                 );
-                if (request !== requestVersion.current) {
-                    return;
-                }
 
                 selected.current = next.selected;
                 if (next.account) {
@@ -55,10 +50,6 @@ export function usePopupController() {
                 }
                 set({ view: next, loading: false });
             } catch (error) {
-                if (request !== requestVersion.current) {
-                    return;
-                }
-
                 set({
                     error:
                         error instanceof Error

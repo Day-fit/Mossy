@@ -743,6 +743,7 @@ async function loginForm(identifier = 'bob', password = 'captured-password') {
     await site.goto('https://login.example/login');
     await site.getByLabel('Username').fill(identifier);
     await site.getByLabel('Password').fill(password);
+    await site.getByLabel('Password').press('Escape');
 
     return site;
 }
@@ -961,6 +962,87 @@ test(
         });
 
         expect(state.pending).toBeNull();
+    }
+);
+
+test(
+    'inline login suggestions authorize filling and support keyboard dismissal',
+    { tag: '@site' },
+    async () => {
+        await signIn();
+        const site = await loginForm('', '');
+        const suggestions = site.locator('mossy-fill-suggestions');
+        await site.getByLabel('Username').click();
+        await expect(suggestions).toBeVisible();
+        // The page can see the host, but cannot inspect saved login metadata.
+        expect(
+            await suggestions.evaluate((host) => host.shadowRoot)
+        ).toBeNull();
+        await expect(site.getByLabel('Password')).toHaveValue('');
+        expect(
+            requests.filter((request) => request.path.includes('/ciphertext/'))
+        ).toHaveLength(0);
+        await site.getByLabel('Username').press('Escape');
+        await expect(suggestions).toHaveCount(0);
+        await site.getByLabel('Password').click();
+        await expect(suggestions).toBeVisible();
+        await suggestions.screenshot({
+            path: '/tmp/mossy-fill-suggestions.png',
+        });
+        await site.getByLabel('Password').press('ArrowDown');
+        const windowPromise = context.waitForEvent('page');
+        await site.keyboard.press('Enter');
+        const action = await windowPromise;
+        await authorize(action);
+        await expect(site.getByLabel('Username')).toHaveValue('alice');
+        await expect(site.getByLabel('Password')).toHaveValue(
+            'fixture-secret-password'
+        );
+        await expect(site.locator('#submits')).toHaveText('0');
+        await completeAndClose(action);
+        await expect(suggestions).toHaveCount(0);
+
+        await site.getByLabel('Username').click();
+        await expect(suggestions).toBeVisible();
+        await site.mouse.click(500, 400);
+        await expect(suggestions).toHaveCount(0);
+        await site
+            .getByLabel('Password')
+            .evaluate(
+                (input) =>
+                    ((input as HTMLInputElement).autocomplete = 'new-password')
+            );
+        await site.getByLabel('Password').click();
+        await expect(suggestions).toHaveCount(0);
+    }
+);
+
+test(
+    'inline suggestions support mouse selection and the saved appearance',
+    { tag: '@site' },
+    async () => {
+        await signIn();
+        await pageRpc(popup, { type: 'setTheme', theme: 'dark' });
+        const site = await loginForm('', '');
+        await site.getByLabel('Username').click();
+        const suggestions = site.locator('mossy-fill-suggestions');
+        await expect(suggestions).toBeVisible();
+        await suggestions.screenshot({
+            path: '/tmp/mossy-fill-suggestions-dark.png',
+        });
+        const box = (await suggestions.boundingBox())!;
+        const actionPromise = context.waitForEvent('page');
+        await site.mouse.click(box.x + 24, box.y + 56);
+        const action = await actionPromise;
+        await expect(
+            action.getByLabel('Vault password', { exact: true })
+        ).toBeVisible();
+        await action
+            .getByRole('button', { name: 'Cancel', exact: true })
+            .click();
+        await expect.poll(() => action.isClosed()).toBe(true);
+        await expect(site.getByLabel('Password')).toHaveValue('');
+        await expect(site.locator('#submits')).toHaveText('0');
     }
 );
 

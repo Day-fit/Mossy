@@ -115,8 +115,8 @@ export default function PopupSettings({
                     )}
                 </div>
                 <p className="mt-2.5 mb-4 text-xs leading-[1.6] text-fg-muted">
-                    Allow HTTPS website access to fill forms and offer to save
-                    submitted passwords.
+                    Allow HTTPS website access to suggest saved logins, fill
+                    forms, and offer to save submitted passwords.
                 </p>
                 <Button
                     className="inline-flex items-center justify-center gap-[7px] whitespace-nowrap font-semibold [&_svg]:shrink-0 disabled:cursor-not-allowed disabled:opacity-55 motion-safe:enabled:active:scale-[0.98] min-h-10 text-[0.8125rem] cursor-pointer"

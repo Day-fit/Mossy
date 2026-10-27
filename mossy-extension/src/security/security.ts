@@ -57,6 +57,12 @@ export function matchesSite(address: string, target: string): boolean {
 
 const id = z.string().min(1).max(256);
 
+export const fillSuggestionsSchema = z.object({ formId: id }).strict();
+export const suggestedFillSchema = fillSuggestionsSchema.extend({
+    vaultId: id,
+    passwordId: id,
+});
+
 export const targetSchema = z
     .object({
         tabId: z.number().int().nonnegative(),

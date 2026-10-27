@@ -17,6 +17,13 @@ export type ActionRequest = {
     code?: string;
 };
 
+export type FillSuggestion = {
+    vaultId: string;
+    vaultName: string;
+    passwordId: string;
+    identifier: string;
+};
+
 export type PopupToBackgroundProtocol = {
     getPopupView(data: { vaultId?: string }): PopupView;
     getVaults(): {
@@ -39,6 +46,15 @@ export type PopupToBackgroundProtocol = {
 };
 
 type ContentToBackgroundProtocol = {
+    getFillSuggestions(data: { formId: string }): {
+        suggestions: FillSuggestion[];
+        theme: Theme;
+    };
+    handleSuggestedFill(data: {
+        formId: string;
+        vaultId: string;
+        passwordId: string;
+    }): void;
     handleDiscover(data: { forms: DiscoveredForm[] }): MessageStatus;
     handleCapture(data: {
         password: string;
@@ -106,7 +122,6 @@ export type ExtensionProtocol = PopupToBackgroundProtocol &
     BackgroundToContentProtocol &
     BackgroundToPopupProtocol;
 
-// Requests and responses can contain account passwords or decrypted secrets.
 export const messaging = defineExtensionMessaging<ExtensionProtocol>({
     logger: { debug() {}, log() {}, warn() {}, error() {} },
 });

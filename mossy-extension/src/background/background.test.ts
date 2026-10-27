@@ -314,7 +314,15 @@ describe('background message transports', () => {
     });
     it('rejects every privileged handler when invoked by a content script', async () => {
         for (const [name, handler] of mocks.onMessage.mock.calls) {
-            if (name === 'handleDiscover' || name === 'handleCapture') continue;
+            if (
+                [
+                    'handleDiscover',
+                    'handleCapture',
+                    'getFillSuggestions',
+                    'handleSuggestedFill',
+                ].includes(name)
+            )
+                continue;
             await expect(handler({ data: {}, sender })).rejects.toThrow(
                 'Untrusted extension page'
             );
@@ -713,6 +721,136 @@ describe('background message transports', () => {
         });
         expect(mocks.sendMessage).toHaveBeenCalledWith('onChanged');
         expect(mocks.chrome.runtime.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('suggests only exact-site passwords from online vaults without fetching ciphertext', async () => {
+        await message(
+            'handleDiscover',
+            {
+                forms: [
+                    {
+                        formId: target.formId,
+                        passwordId: target.passwordId,
+                        usernameId: target.usernameId,
+                        origin: target.origin,
+                    },
+                ],
+            },
+            sender
+        );
+        mocks.vaults.mockResolvedValueOnce([
+            { vaultId: 'vault', vaultName: 'Personal' },
+            { vaultId: 'offline', vaultName: 'Offline', isOnline: false },
+        ]);
+        mocks.entries.mockResolvedValueOnce([
+            {
+                passwordId: 'password',
+                identifier: 'alice',
+                passwordType: 'PASSWORD',
+                address: 'https://site.test',
+            },
+            {
+                passwordId: 'other',
+                identifier: 'bob',
+                passwordType: 'PASSWORD',
+                address: 'https://other.test',
+            },
+            {
+                passwordId: 'lookalike',
+                identifier: 'bob',
+                passwordType: 'PASSWORD',
+                address: 'https://site.test.evil.test',
+            },
+            {
+                passwordId: 'ssh',
+                identifier: 'key',
+                passwordType: 'SSH_KEY',
+                address: 'https://site.test',
+            },
+        ]);
+        expect(
+            await message('getFillSuggestions', { formId: 'form' }, sender)
+        ).toEqual({
+            theme: 'system',
+            suggestions: [
+                {
+                    vaultId: 'vault',
+                    vaultName: 'Personal',
+                    passwordId: 'password',
+                    identifier: 'alice',
+                },
+            ],
+        });
+        expect(mocks.entries).toHaveBeenCalledTimes(1);
+        expect(mocks.ciphertext).not.toHaveBeenCalled();
+        expect(mocks.chrome.windows.create).not.toHaveBeenCalled();
+    });
+
+    it('binds inline suggestions to the source document and rechecks the site before authorization', async () => {
+        const data = {
+            formId: 'form',
+            vaultId: 'vault',
+            passwordId: 'password',
+        };
+        await expect(
+            message('handleSuggestedFill', data, sender)
+        ).rejects.toThrow('form changed');
+        await message(
+            'handleDiscover',
+            {
+                forms: [
+                    {
+                        formId: target.formId,
+                        passwordId: target.passwordId,
+                        usernameId: target.usernameId,
+                        origin: target.origin,
+                    },
+                ],
+            },
+            sender
+        );
+        await expect(
+            message(
+                'getFillSuggestions',
+                { formId: 'form' },
+                { ...sender, documentId: 'stale' }
+            )
+        ).rejects.toThrow('form changed');
+        await expect(
+            message(
+                'getFillSuggestions',
+                { formId: 'form' },
+                { ...sender, origin: 'https://other.test' }
+            )
+        ).rejects.toThrow('eligible');
+        mocks.chrome.permissions.contains.mockResolvedValueOnce(false);
+        await expect(
+            message('getFillSuggestions', { formId: 'form' }, sender)
+        ).rejects.toThrow('disabled');
+        mocks.entries.mockResolvedValueOnce([
+            {
+                passwordId: 'password',
+                passwordType: 'PASSWORD',
+                identifier: 'alice',
+                address: 'https://other.test',
+            },
+        ]);
+        await expect(
+            message('handleSuggestedFill', data, sender)
+        ).rejects.toThrow('does not match');
+        expect(mocks.chrome.windows.create).not.toHaveBeenCalled();
+        await message('handleSuggestedFill', data, sender);
+        const url = mocks.chrome.windows.create.mock.lastCall![0].url as string;
+        const actionId = new URL(url).hash.slice(1);
+        expect(await message('claimAction', { actionId })).toMatchObject({
+            operation: 'fill',
+            target,
+        });
+        expect(mocks.ciphertext).not.toHaveBeenCalled();
+        await message('handleLogout', undefined);
+        expect(
+            await message('getFillSuggestions', { formId: 'form' }, sender)
+        ).toEqual({ suggestions: [], theme: 'system' });
     });
 
     it('discovers forms and fills through messaging with an action ID', async () => {

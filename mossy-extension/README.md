@@ -20,6 +20,7 @@ src/
   ui/
     action/        Secure-action components and behavior hooks
     auth/          Sign-in screen
+    fill/          Inline saved-login suggestions
     popup/         Popup sections, state, and behavior hooks
     shared/        Components used across screens
 tests/             Packaged-extension browser tests
@@ -36,6 +37,13 @@ Endpoint functions are imported directly from `mossy-api-client`, including
 Secrets stay in transient input elements and action workers. Popup state holds
 metadata only. Storage modules persist wrapped vault keys and native device
 identity, preserving the existing database name and schema.
+
+With website access enabled, focusing a username or password field offers saved
+logins for that exact HTTPS origin from online vaults. Arrow Down enters the
+suggestions, Enter selects a login, and Escape dismisses them. Selecting a login
+opens the existing authorization window before filling; it never submits the
+form. New-password fields do not offer saved logins. The suggestions use an
+isolated shadow root and the extension's shared globals stylesheet.
 
 Background handlers check the browser-supplied sender before accepting popup or
 action messages. Content messages validate their source, permission, and payload.

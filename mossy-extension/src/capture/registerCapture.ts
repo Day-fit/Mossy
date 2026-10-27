@@ -1,5 +1,9 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { messaging } from '../messaging/rpc';
+import {
+    registerFillSuggestions,
+    type LoginForm,
+} from './registerFillSuggestions';
 
 export function registerCapture(ctx: ContentScriptContext) {
     try {
@@ -14,16 +18,7 @@ export function registerCapture(ctx: ContentScriptContext) {
     }
 
     const cleanAutofill = new WeakSet<HTMLFormElement>();
-    const forms = new Map<
-        string,
-        {
-            form: HTMLFormElement;
-            password: HTMLInputElement;
-            username: HTMLInputElement | null;
-            passwordId: string;
-            usernameId: string | null;
-        }
-    >();
+    const forms = new Map<string, LoginForm>();
     const ids = new WeakMap<Element, string>();
 
     const id = (element: Element) => {
@@ -238,6 +233,7 @@ export function registerCapture(ctx: ContentScriptContext) {
         return record;
     }
 
+    const dismissSuggestions = registerFillSuggestions(ctx, forms, discover);
     const filled = new Set<string>();
     const unsubscribe = messaging.onMessage(
         'fillOnce',
@@ -285,6 +281,7 @@ export function registerCapture(ctx: ContentScriptContext) {
             }
 
             cleanAutofill.add(record.form);
+            dismissSuggestions();
             message.password = '';
             return { valid: true };
         }

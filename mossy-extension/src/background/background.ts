@@ -44,6 +44,8 @@ import {
     matchesSite,
     targetSchema,
     validateInstance,
+    fillSuggestionsSchema,
+    suggestedFillSchema,
     type Target,
 } from '../security/security';
 import type { Theme } from '../theme/types';
@@ -629,6 +631,77 @@ messaging.onMessage('handleDiscover', async ({ data, sender }) => {
         discovered.map((form) => ({ ...form, ...source }))
     );
     return { status: 'ok' };
+});
+
+async function suggestionTarget(
+    sender: chrome.runtime.MessageSender,
+    formId: string
+) {
+    const source = await requireContent(sender);
+    const target = forms
+        .get(`${source.tabId}:${source.frameId}`)
+        ?.find(
+            (form) =>
+                form.formId === formId &&
+                form.documentId === source.documentId &&
+                form.origin === source.origin
+        );
+    if (!target) throw new Error('The login form changed. Try again.');
+    return target;
+}
+
+messaging.onMessage('getFillSuggestions', async ({ data, sender }) => {
+    const { formId } = fillSuggestionsSchema.parse(data);
+    const target = await suggestionTarget(sender, formId);
+    if (!tokenStorage.get()) return { suggestions: [], theme };
+    const instance = await getInstance();
+    const [user, vaults, preferences] = await Promise.all([
+        executeUserDetailsRequest(instance),
+        executeUserVaultsRequest(instance),
+        selectedVaultsSetting.getValue(),
+    ]);
+    const preferred = preferences[JSON.stringify([instance, user.userId])];
+    const online = vaults
+        .filter((vault) => vault.isOnline !== false)
+        .sort(
+            (a, b) =>
+                Number(b.vaultId === preferred) -
+                Number(a.vaultId === preferred)
+        );
+    const results = await Promise.allSettled(
+        online.map(async (vault) =>
+            (await listEntries(vault.vaultId, instance))
+                .filter((entry) => matchesSite(entry.address, target.origin))
+                .map((entry) => ({
+                    vaultId: vault.vaultId,
+                    vaultName: vault.vaultName,
+                    passwordId: entry.passwordId,
+                    identifier: entry.identifier,
+                }))
+        )
+    );
+    requireSignedIn();
+    requireKnownTarget(target);
+    return {
+        suggestions: results
+            .flatMap((result) =>
+                result.status === 'fulfilled' ? result.value : []
+            )
+            .slice(0, 10),
+        theme,
+    };
+});
+
+messaging.onMessage('handleSuggestedFill', async ({ data, sender }) => {
+    const request = suggestedFillSchema.parse(data);
+    const target = await suggestionTarget(sender, request.formId);
+    const base = await actionContext(request);
+    const entry = await requestedEntry(request, base.scope.instance);
+    requireKnownTarget(target);
+    if (!entry || !matchesSite(entry.address, target.origin)) {
+        throw new Error('This password does not match the login site.');
+    }
+    await actions.open({ ...base, operation: 'fill', entry, target });
 });
 
 onPopupMessage('handleDismiss', () => {
