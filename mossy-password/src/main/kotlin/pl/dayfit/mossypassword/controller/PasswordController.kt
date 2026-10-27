@@ -1,5 +1,6 @@
 package pl.dayfit.mossypassword.controller
 
+import jakarta.validation.Valid
 import messaging.request.PasswordMetadataDto
 import messaging.response.type.CiphertextResponseType
 import org.springframework.http.HttpStatus
@@ -35,7 +36,7 @@ class PasswordController(
     @PostMapping("/save")
     fun savePassword(
         @AuthenticationPrincipal jwt: Jwt,
-        @RequestBody requestDto: SavePasswordRequestDto
+        @RequestBody @Valid requestDto: SavePasswordRequestDto
     ): ResponseEntity<ServerResponseDto> {
         val userId = UUID.fromString(jwt.subject)
         passwordManagementService.savePassword(userId, requestDto)
