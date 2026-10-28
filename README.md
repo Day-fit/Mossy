@@ -7,13 +7,14 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Day-fit/Mossy)
 
 
-![Mossy Home](./images/Mossy_Home.png)
+![Mossy homepage with the vault illustration and browser extension](./images/Mossy_Home.png)
 
 ## FAQ
 
 - [Why Mossy?](#why-mossy)
 - [Features](#features)
 - [Architecture](#architecture)
+- [Extension Setup](#extension-setup)
 - [Key security properties](#key-security-properties)
 - [Device trust](#device-trust)
 - [Key synchronization](#key-synchronization)
@@ -60,6 +61,48 @@ Provides suggestions for filling in passwords and captures passwords.
 
 The vault is the place where your passwords are stored. It has its own database containing entry metadata (such as identifiers, addresses, and tags) and encrypted secret blobs, but it cannot see your vault keys, as they remain on your devices.
 
+## Extension Setup
+
+For now, install the extension manually using the ZIP from [GitHub Releases](https://github.com/Day-fit/Mossy/releases). It will be available in the Chrome Web Store soon.
+
+Use Chrome 137 or newer. You will need a [Mossy account](https://mossy.dayfit.pl/register), an online vault, and a device that already has its vault key. If you haven't set up a vault yet, follow [Run only the vault](#run-only-the-vault-probably-what-you-are-looking-for) first.
+
+### Install the extension
+
+1. Open [Releases](https://github.com/Day-fit/Mossy/releases), expand **Assets**, and download the Chrome extension ZIP. Choose the packaged extension, not GitHub's **Source code (zip)** archive.
+2. Extract the ZIP into a folder you want to keep. Chrome loads the extension from this folder, so don't delete or move it after installation.
+3. Open `chrome://extensions` in a new tab and enable **Developer mode** in the top-right corner.
+4. Click **Load unpacked** and select the extracted folder containing `manifest.json`. Mossy should appear in the extensions list with its toggle enabled.
+
+   ![Mossy loaded in Chrome with Developer mode enabled](./images/Mossy_Extension_install.png)
+
+5. Click the puzzle icon in Chrome's toolbar and pin **Mossy**, then click the Mossy icon to open it.
+
+### Sign in and sync your vault key
+
+1. Enter your email or username and your **account password**, then click **Sign in**. The extension has its own login, so signing in to the Mossy website doesn't sign you in here.
+
+   ![Mossy extension sign-in screen](./images/Mossy_Extension_sign_in.png)
+
+2. If you see **Approve this browser**, open [Devices](https://mossy.dayfit.pl/devices) on a Mossy device you already use, approve the extension's device request, then sign in to the extension again.
+3. Select your vault and click **Receive key**. You can also open **Sync keys** and click **Receive vault key**. A separate window will display a six-character receiving code; keep it open until the transfer finishes.
+
+   ![Mossy extension waiting to receive a vault key](./images/Mossy_Extension_key_sync.png)
+
+4. On the device that already has this vault key, open [Key sync](https://mossy.dayfit.pl/key-sync), enter the code from the extension, and unlock the vault when prompted to authorize the transfer. Use your own code; `ABC123` above is an example.
+5. Back in the extension's receiving window, choose how to protect the key locally. For password protection, click **Use password**, enter and confirm a vault password, then click **Save password**. You can also choose one of the passkey options. This protects the vault key on this browser; your account password is used for signing in.
+6. Once the transfer succeeds, click **Close** and reopen the popup. Repeat the key-sync steps for each vault you want to use in the extension.
+
+### Enable filling and saving passwords
+
+1. Open **Settings** using the gear icon. Under **Website access**, click **Enable fill and capture** and approve Chrome's permission request.
+
+   ![Mossy extension settings and website access](./images/Mossy_Extension_settings.png)
+
+2. Close settings and refresh any login pages you already had open. Focus a username or password field to see matching saved logins, then select one and authorize the fill. Mossy can also offer to save passwords after you submit a login form.
+
+Saved entries must include the website's full address (for example, `https://example.com`). Suggestions match the exact scheme, host, and port. Each fill, copy, or save action requires its own vault authorization using the protection you chose above.
+
 ## Key security properties
 
 - When syncing your vault key to another device, Mossy uses **X25519** with an
@@ -79,16 +122,22 @@ Device Trust is the source of truth for devices. Every login to Mossy relies on 
 The key synchronization process looks like this:
 
 1. A new device interacts with a vault whose key is not yet stored on that device (e.g., it tries to add a new password or reveal an existing one).
-2. A dialog asking you to create a PIN for this vault will appear.
-   ![Mossy Key Sync 1](./images/Mossy_Key_sync_1.png)
-3. After providing the PIN, a code for syncing the key will be displayed.
-   ![Mossy Key Sync 2](./images/Mossy_Key_sync_2.png)
-4. On the device that already has the key (from now on referred to as the **sender**), go to the URL displayed in the dialog. In my case, it is `https://localhost:5173/key-sync`; on the production website, it will be `https://mossy.dayfit.pl/key-sync`.
-5. The sender enters the key sync code.
-   ![Mossy Key Sync 3](./images/Mossy_Key_sync_3.png)
-6. The sender unlocks the vault using their PIN.
-7. Done.
-    ![Mossy Key Sync 4](./images/Mossy_Key_sync_4.png)
+2. A dialog displays a QR code and a six-character sync code. Keep it open while you transfer the key.
+
+   ![Receiving device displaying the key-sync QR code and receiving code](./images/Mossy_Key_sync_1.png)
+
+3. On the device that already has the key (from now on referred to as the **sender**), scan the QR code or open the URL displayed in the dialog. These screenshots use a local demo at `http://localhost:5173/key-sync`; for the public Mossy instance, open [Key sync](https://mossy.dayfit.pl/key-sync).
+4. The sender enters the sync code and unlocks the vault with its vault password or passkey when prompted.
+
+   ![Sender unlocking the vault to authorize the key transfer](./images/Mossy_Key_sync_2.png)
+
+5. After receiving the key, the new device asks how to protect it locally. Choose a passkey option or **Use password**. For password protection, enter and confirm a vault password of at least 12 characters, then click **Save password**.
+
+   ![Receiving device setting local password protection for the transferred vault key](./images/Mossy_Key_sync_3.png)
+
+6. Done. The receiving device confirms that the key has been synchronized.
+
+   ![Receiving device confirming successful key synchronization](./images/Mossy_Key_sync_4.png)
 
 ### Key-sync under the hood
 
