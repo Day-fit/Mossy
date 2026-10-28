@@ -24,7 +24,10 @@ src/
     fill/          Shared saved-login and generation suggestions
     popup/         Popup sections, state, and behavior hooks
     shared/        Components used across screens
-tests/             Packaged-extension browser tests
+tests/
+  *.spec.ts        Browser scenarios grouped by feature
+  fixtures/        Isolated browser profiles, API mocks, and vault setup
+  helpers/         Shared browser interactions and key-sync setup
 ```
 
 Keep unit tests beside the module they exercise. Keep screen-specific components
@@ -77,6 +80,9 @@ npm run test:browser -w mossy-extension
 ```
 
 Browser tests use the packaged extension, so build it before running them.
+Playwright uses 50% of available CPU workers locally and in CI. Tests run
+in parallel; each extension test gets its own browser profile and API state.
+Screenshots and traces go into Playwright’s per-test output directory.
 
 Styling uses Tailwind utilities and the same `@mossy/ui/tokens.css` theme, fonts,
 and base styles as the frontend. `src/globals.css` imports that shared source

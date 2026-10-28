@@ -17,7 +17,7 @@ test.beforeAll(async () => {
     server = await createServer({
         configFile: false,
         root: resolve('../mossy-frontend'),
-        cacheDir: '/tmp/mossy-identity-browser-vite',
+        cacheDir: test.info().outputPath('vite-cache'),
         optimizeDeps: {
             noDiscovery: true,
             include: ['idb', 'libsodium-wrappers-sumo'],
@@ -183,8 +183,7 @@ test('an aborted identity migration transaction preserves every original private
         db.transaction = ((...args: Parameters<typeof transaction>) => {
             const current = transaction(...args);
             if (args[1] === 'readwrite') queueMicrotask(() => current.abort());
-            // The production method awaits both the individual puts and completion.
-            // Observe the fixture's forced transaction abort too, preventing an unhandled rejection.
+            // Observe the forced abort so its rejected transaction promise is handled.
             void current.done.catch(() => undefined);
             return current;
         }) as typeof db.transaction;
