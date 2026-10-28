@@ -65,13 +65,12 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: mossy-frontend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install and build
-        working-directory: mossy-frontend
         run: |
           npm ci
-          npm run build
+          npm run build --workspace mossy-frontend
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -94,3 +93,35 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64/v8
           tags: ghcr.io/day-fit/mossy-frontend:latest
+
+  build-extension:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build distributable extension
+        run: npm run extension:zip
+
+      - name: Upload extension build
+        uses: actions/upload-artifact@v7
+        with:
+          name: mossy-extension-chromium
+          path: |
+            mossy-extension/.output/chrome-mv3/
+            mossy-extension/.output/*-chrome.zip
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

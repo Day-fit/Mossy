@@ -12,7 +12,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import { loginSchema, type LoginSchema } from '../../forms/loginSchema.ts';
 import { useAuth } from '../../hooks/useAuth.ts';
 import { signIn } from '../../auth/authFlow.ts';
-import { ApiError } from '../../api/client.ts';
+import { ApiError } from 'mossy-api-client/client';
 import { useNavigate } from 'react-router-dom';
 
 interface SignupFormProps {

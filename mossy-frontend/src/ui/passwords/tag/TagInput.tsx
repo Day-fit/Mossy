@@ -2,7 +2,7 @@ import { MdCheck } from 'react-icons/md';
 import {
     executeCreateTagRequest,
     executeUpdateTagRequest,
-} from '../../../api/tags.api.ts';
+} from 'mossy-api-client/tags.api';
 import { useVaultStore } from '../../../store/vaultStore.ts';
 import { useEffect, useRef, useState } from 'react';
 import * as React from 'react';

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { MdPassword } from 'react-icons/md';
-import type { PasswordMetadataDto } from '../../api/password.api.ts';
+import type { PasswordMetadataDto } from 'mossy-api-client/password.api';
 import type {
     CiphertextPhase,
     PasswordFormState,

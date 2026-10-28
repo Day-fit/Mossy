@@ -11,7 +11,6 @@ import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
-import kotlin.collections.ifEmpty
 
 @Configuration
 @EnableConfigurationProperties(SecurityConfigurationProperties::class)
@@ -47,8 +46,8 @@ class HttpConfiguration {
     }
 
     /**
-     * Applies the configured origins to every endpoint. An empty origin list is an
-     * explicit development-friendly fallback that permits all origins.
+     * Applies the configured web origins and permits every Chrome extension on
+     * every endpoint. An empty origin list permits all origins.
      */
     @Bean
     fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
@@ -57,13 +56,15 @@ class HttpConfiguration {
         val allowedOrigins = securityConfigurationProperties.allowedOrigins
         corsConfiguration.allowCredentials = true
         corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        corsConfiguration.allowedHeaders = listOf("*")
         corsConfiguration.allowedOriginPatterns = allowedOrigins.ifEmpty {
             logger.warn("Allowed origins list is empty, CORS allowed for all origins")
             return@ifEmpty listOf("*")
-        }
+        } + "chrome-extension://*"
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration)
+
         return urlBasedCorsConfigurationSource
     }
 }

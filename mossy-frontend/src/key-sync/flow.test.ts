@@ -10,35 +10,40 @@ import {
 } from 'vitest';
 import sodium from 'libsodium-wrappers-sumo';
 import type { CryptoPair } from '../auth/deviceIdentity.ts';
-import type { PublicIdentityJwk } from '../api/auth.api.ts';
-import type { PendingReceiver, VaultKeyResponse } from '../api/keySync.api.ts';
-import * as api from '../api/keySync.api.ts';
-import { executeGetDeviceIdentityKeyRequest } from '../api/deviceTrust.api.ts';
+import type { PublicIdentityJwk } from 'mossy-api-client/auth.api';
+import type {
+    PendingReceiver,
+    VaultKeyResponse,
+} from 'mossy-api-client/keySync.api';
+import * as api from 'mossy-api-client/keySync.api';
+import { executeGetDeviceIdentityKeyRequest } from 'mossy-api-client/deviceTrust.api';
 import { receiveVaultKey } from './receiveVaultKey.ts';
 import { getVerifiedReceiver, sendVaultKey } from './sendVaultKey.ts';
 
-vi.mock('../api/keySync.api.ts', () => ({
+vi.mock('mossy-api-client/keySync.api', () => ({
     executeInitKeySyncRequest: vi.fn(),
     executeGetPendingReceiversRequest: vi.fn(),
     executeGetVaultKeysRequest: vi.fn(),
     executeUploadVaultKeyRequest: vi.fn(),
     executeSubscribeReceiverEventsRequest: vi.fn(),
 }));
-vi.mock('../api/deviceTrust.api.ts', () => ({
+vi.mock('mossy-api-client/deviceTrust.api', () => ({
     executeGetDeviceIdentityKeyRequest: vi.fn(),
 }));
 
-function identity(): { local: CryptoPair; publicKey: PublicIdentityJwk } {
-    const pair = sodium.crypto_sign_keypair();
-    const encode = (bytes: Uint8Array) =>
-        sodium.to_base64(bytes, sodium.base64_variants.URLSAFE_NO_PADDING);
+async function identity(): Promise<{
+    local: CryptoPair;
+    publicKey: PublicIdentityJwk;
+}> {
+    const pair = await crypto.subtle.generateKey('Ed25519', false, [
+        'sign',
+        'verify',
+    ]);
+    const jwk = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    if (!jwk.x) throw new Error('Missing public key');
     return {
-        local: {
-            type: 'Ed25519',
-            public: encode(pair.publicKey),
-            private: encode(pair.privateKey),
-        },
-        publicKey: { kty: 'OKP', crv: 'Ed25519', x: encode(pair.publicKey) },
+        local: { type: 'Ed25519', public: jwk.x, privateKey: pair.privateKey },
+        publicKey: { kty: 'OKP', crv: 'Ed25519', x: jwk.x },
     };
 }
 
@@ -46,13 +51,18 @@ describe('HTTP vault key transfer', () => {
     beforeAll(async () => {
         await sodium.ready;
     });
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.resetAllMocks();
         vi.stubGlobal('crypto', webcrypto);
+        const handles = await crypto.subtle.generateKey('Ed25519', false, [
+            'sign',
+            'verify',
+        ]);
+        vi.stubGlobal('CryptoKey', handles.privateKey.constructor);
     });
     afterEach(() => vi.unstubAllGlobals());
 
-    function receiverFixture() {
+    async function receiverFixture() {
         const cancel = vi.fn();
         let stream!: ReadableStreamDefaultController<Uint8Array>;
         const response = new Response(
@@ -72,7 +82,7 @@ describe('HTTP vault key transfer', () => {
         const options = {
             vaultId: 'vault-one',
             receiverId: 'receiver-device',
-            identity: identity().local,
+            identity: (await identity()).local,
             signal: new AbortController().signal,
             onCode: vi.fn(),
             onReceiving: vi.fn(),
@@ -90,9 +100,9 @@ describe('HTTP vault key transfer', () => {
     }
 
     it('uploads a signed key over HTTP and saves only the matching transfer from a multi-key response', async () => {
-        const fixture = receiverFixture();
-        const receiverIdentity = identity();
-        const senderIdentity = identity();
+        const fixture = await receiverFixture();
+        const receiverIdentity = await identity();
+        const senderIdentity = await identity();
         fixture.options.identity = receiverIdentity.local;
         let pending: PendingReceiver | undefined;
         let uploaded: VaultKeyResponse | undefined;
@@ -198,7 +208,7 @@ describe('HTTP vault key transfer', () => {
     });
 
     it('closes the subscription if initialization fails without displaying a usable code', async () => {
-        const fixture = receiverFixture();
+        const fixture = await receiverFixture();
         vi.mocked(api.executeInitKeySyncRequest).mockRejectedValue(
             new Error('Initialization failed')
         );
@@ -213,7 +223,7 @@ describe('HTTP vault key transfer', () => {
     });
 
     it('does not fetch or save a key after a failed upload event', async () => {
-        const fixture = receiverFixture();
+        const fixture = await receiverFixture();
         fixture.emit('FAILED', 'Invalid sender connected');
 
         await expect(receiveVaultKey(fixture.options)).rejects.toThrow(
@@ -226,7 +236,7 @@ describe('HTTP vault key transfer', () => {
     });
 
     it('discards an initialization response that arrives after cancellation', async () => {
-        const fixture = receiverFixture();
+        const fixture = await receiverFixture();
         const controller = new AbortController();
         fixture.options.signal = controller.signal;
         vi.mocked(api.executeInitKeySyncRequest).mockImplementation(

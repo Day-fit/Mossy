@@ -115,6 +115,22 @@ async function readVaultKey(vaultId: string): Promise<VaultKeyRecord> {
     activeUser();
     const db = await getDeviceDatabase();
     const value = await db.get('keys', vaultId);
+    // Older password-protected records predate the explicit protection tag.
+    if (
+        value &&
+        typeof value === 'object' &&
+        !('type' in value) &&
+        value.wrappedKey instanceof ArrayBuffer &&
+        value.salt instanceof Uint8Array
+    ) {
+        const migrated: VaultKeyRecord = {
+            type: 'Password',
+            wrappedKey: value.wrappedKey,
+            salt: value.salt,
+        };
+        await db.put('keys', migrated, vaultId);
+        return migrated;
+    }
     if (!isVaultKeyRecord(value))
         throw new KeyNotFoundException('Vault key not found on this device.');
     return value;

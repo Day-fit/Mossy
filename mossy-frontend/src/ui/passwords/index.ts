@@ -1,4 +1,4 @@
-import type { PasswordType } from '../../api/password.api.ts';
+import type { PasswordType } from 'mossy-api-client/password.api';
 
 export type CiphertextPhase = 'Fetching' | 'Decrypting';
 type PasswordBaseFormState = {

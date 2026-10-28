@@ -83,12 +83,19 @@ function verifyNonce(nonce: string, signature: string, publicIdentityKey: Public
     }
 }
 
-function setRefreshCookie(response: Response, token: string): void {
-    response.cookie("refreshToken", token, {
+function refreshCookie(context: OperationContext) {
+    return context.request.path.startsWith("/api/v1/auth/extension/")
+        ? { name: "mossyExtensionRefreshToken", path: "/api/v1/auth/extension" }
+        : { name: "refreshToken", path: "/" };
+}
+
+function setRefreshCookie(context: OperationContext, token: string): void {
+    const { name, path } = refreshCookie(context);
+    context.response.cookie(name, token, {
         httpOnly: true,
         sameSite: "lax",
         secure: false,
-        path: "/",
+        path,
         maxAge: 7 * 24 * 60 * 60 * 1000
     });
 }
@@ -239,7 +246,7 @@ const authLogin: OperationHandler = (context) => {
     device.lastSeen = now();
     const access = context.store.issueToken("ACCESS_TOKEN", user.id, device.id);
     const refresh = context.store.issueRefreshToken(user.id, device.id);
-    setRefreshCookie(context.response, refresh.token);
+    setRefreshCookie(context, refresh.token);
     return { body: { accessToken: access.token, accessTokenType: access.type } };
 };
 
@@ -435,8 +442,11 @@ const authRecoverVerification: OperationHandler = (context) => {
 };
 
 const authRefresh: OperationHandler = (context) => {
-    const token = context.request.cookies.refreshToken as string | undefined;
-    if (!token) throw new AppError(400, "Missing request cookie: refreshToken");
+    const { name } = refreshCookie(context);
+    const token = context.request.cookies[name] as string | undefined;
+    if (!token) {
+        throw new AppError(name === "refreshToken" ? 400 : 401, `Missing request cookie: ${name}`);
+    }
     const refresh = context.store.refreshTokens.get(token);
     if (!refresh?.deviceId) throw new AppError(401, "Invalid refresh token");
     const user = context.store.state.users.find((candidate) => candidate.id === refresh.userId);
@@ -447,15 +457,16 @@ const authRefresh: OperationHandler = (context) => {
     context.store.refreshTokens.delete(token);
     const access = context.store.issueToken("ACCESS_TOKEN", refresh.userId, refresh.deviceId);
     const rotated = context.store.issueRefreshToken(refresh.userId, refresh.deviceId);
-    setRefreshCookie(context.response, rotated.token);
+    setRefreshCookie(context, rotated.token);
     return { body: { accessToken: access.token, accessTokenType: access.type } };
 };
 
 const authLogout: OperationHandler = (context) => {
-    const token = context.request.cookies.refreshToken as string | undefined;
-    if (!token) throw new AppError(400, "Missing request cookie: refreshToken");
-    context.store.refreshTokens.delete(token);
-    context.response.clearCookie("refreshToken", { path: "/" });
+    const { name, path } = refreshCookie(context);
+    const token = context.request.cookies[name] as string | undefined;
+    if (!token && name === "refreshToken") throw new AppError(400, "Missing request cookie: refreshToken");
+    if (token) context.store.refreshTokens.delete(token);
+    context.response.clearCookie(name, { path, httpOnly: true, sameSite: "lax", secure: false });
     return { body: { message: "User logged out successfully" } };
 };
 
@@ -916,6 +927,9 @@ const statisticsDashboard: OperationHandler = (context) => {
 export const operationHandlers: Record<string, OperationHandler> = {
     "auth.register": authRegister,
     "auth.login": authLogin,
+    "auth.extensionLogin": authLogin,
+    "auth.extensionRefresh": authRefresh,
+    "auth.extensionLogout": authLogout,
     "auth.status": authStatus,
     "auth.me": authMe,
     "auth.confirmEmail": authConfirmEmail,

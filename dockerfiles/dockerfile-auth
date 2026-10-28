@@ -1,6 +1,5 @@
 FROM amazoncorretto:21-alpine3.22-jdk AS build
 
-COPY mossy-device-trust-shared/ /mossy-device-trust-shared/
 COPY mossy-auth/ /mossy-auth/
 WORKDIR /mossy-auth
 
@@ -18,7 +17,6 @@ RUN --mount=type=secret,id=gh_name \
 "</settings>" > /tmp/settings.xml'
 
 RUN chmod +x ./mvnw && \
-    ./mvnw install -DskipTests -f /mossy-device-trust-shared/pom.xml -s /tmp/settings.xml && \
     ./mvnw clean package -DskipTests -s /tmp/settings.xml
 
 FROM amazoncorretto:21-al2023-headless

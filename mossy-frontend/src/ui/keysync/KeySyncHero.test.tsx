@@ -8,7 +8,7 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReceiverDetails } from '../../api/keySync.api.ts';
+import type { ReceiverDetails } from 'mossy-api-client/keySync.api';
 import type { CryptoPair } from '../../auth/deviceIdentity.ts';
 import { useAuthStore } from '../../store/authStore.ts';
 import { useDeviceStore } from '../../store/deviceStore.ts';
@@ -81,7 +81,7 @@ describe('key sync sender page', () => {
         });
         useDeviceStore.setState({
             deviceId: 'sender-device',
-            idKey: { type: 'Ed25519', public: 'public', private: 'private' },
+            idKey: { type: 'Ed25519', public: 'public', privateKey: { type: 'private', extractable: false, algorithm: { name: 'Ed25519' }, usages: ['sign'] } },
         });
         services.getVerifiedReceiver.mockResolvedValue({
             receiverId: 'receiver-device',

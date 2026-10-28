@@ -19,7 +19,7 @@ class SecurityConfiguration {
         http: HttpSecurity,
         corsConfigurationSource: CorsConfigurationSource,
         securityConfigurationProperties: SecurityConfigurationProperties,
-        jwtAuthenticationConverter: JwtAuthenticationConverter
+        jwtAuthenticationConverter: JwtAuthenticationConverter,
     ): SecurityFilterChain {
         return http
             .securityMatcher("/**")

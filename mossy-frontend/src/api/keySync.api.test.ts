@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tokenStorage } from '../auth/tokenStorage.ts';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
 import {
     executeInitKeySyncRequest,
     executeSubscribeReceiverEventsRequest,
     executeUploadVaultKeyRequest,
-} from './keySync.api.ts';
+} from 'mossy-api-client/keySync.api';
 
 describe('key sync HTTP contract', () => {
     const fetch = vi.fn<typeof globalThis.fetch>();

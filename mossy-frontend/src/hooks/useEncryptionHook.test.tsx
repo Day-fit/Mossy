@@ -1,7 +1,19 @@
 import { renderHook, cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../store/authStore.ts';
-import { useEncryptionHook } from './useEncryptionHook.ts';
+import { getKeyMetadata, useEncryptionHook } from './useEncryptionHook.ts';
+
+const passwordHash = vi.hoisted(() => vi.fn());
+vi.mock('libsodium-wrappers-sumo', () => ({
+    default: {
+        ready: Promise.resolve(),
+        crypto_pwhash: passwordHash,
+        crypto_pwhash_OPSLIMIT_MODERATE: 3,
+        crypto_pwhash_MEMLIMIT_MODERATE: 268435456,
+        crypto_pwhash_ALG_ARGON2ID13: 2,
+        memzero: (bytes: Uint8Array) => bytes.fill(0),
+    },
+}));
 
 const passkeys = vi.hoisted(() => ({
     getPasskey: vi.fn(),
@@ -16,6 +28,7 @@ vi.mock('../auth/deviceIdentity.ts', () => database);
 
 beforeEach(() => {
     vi.resetAllMocks();
+    passwordHash.mockReturnValue(new Uint8Array(32).fill(9));
     useAuthStore.setState({
         userDetails: {
             userId: 'user',
@@ -102,3 +115,77 @@ it('uses the transferred credential ID without registering another passkey', asy
     expect(passkeys.registerPasskey).not.toHaveBeenCalled();
     expect(passkeys.getPasskey).toHaveBeenCalledWith('vault-a', credentialId);
 });
+
+it('migrates an untyped password record in place and unlocks the original wrapped key', async () => {
+    const wrappedKey = new Uint8Array(40).fill(17).buffer;
+    const salt = new Uint8Array(16).fill(7);
+    let stored: unknown = { wrappedKey, salt };
+    const get = vi.fn(async () => stored);
+    const put = vi.fn(async (_store, value) => {
+        stored = value;
+    });
+    database.getDeviceDatabase.mockResolvedValue({ get, put });
+    const { result } = renderHook(useEncryptionHook);
+
+    await expect(getKeyMetadata('legacy-vault')).resolves.toEqual({
+        type: 'Password',
+    });
+    expect(put).toHaveBeenCalledExactlyOnceWith(
+        'keys',
+        { type: 'Password', wrappedKey, salt },
+        'legacy-vault'
+    );
+    expect((stored as { wrappedKey: ArrayBuffer }).wrappedKey).toBe(wrappedKey);
+    expect((stored as { salt: Uint8Array }).salt).toBe(salt);
+    await expect(
+        result.current.getKeyMetadata('legacy-vault')
+    ).resolves.toEqual({ type: 'Password' });
+    expect(put).toHaveBeenCalledTimes(1);
+    await result.current.unlockVault(
+        'legacy-vault',
+        'the original vault password'
+    );
+    expect(passwordHash).toHaveBeenCalledWith(
+        32,
+        'the original vault password',
+        salt,
+        3,
+        268435456,
+        2
+    );
+    expect(crypto.subtle.unwrapKey).toHaveBeenCalledWith(
+        'raw',
+        wrappedKey,
+        expect.anything(),
+        'AES-KW',
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt']
+    );
+    expect(crypto.subtle.generateKey).not.toHaveBeenCalled();
+    expect(crypto.subtle.wrapKey).not.toHaveBeenCalled();
+    expect(passkeys.getPasskey).not.toHaveBeenCalled();
+});
+
+it.each([
+    { wrappedKey: new ArrayBuffer(40), salt: new Uint8Array(16), type: 'PRF' },
+    {
+        wrappedKey: new ArrayBuffer(40),
+        salt: new Uint8Array(16),
+        type: 'unknown',
+    },
+    { wrappedKey: new ArrayBuffer(40), salt: 'invalid salt' },
+])(
+    'does not reinterpret malformed or explicitly tagged records as legacy passwords',
+    async (record) => {
+        const put = vi.fn();
+        database.getDeviceDatabase.mockResolvedValue({
+            get: vi.fn().mockResolvedValue(record),
+            put,
+        });
+        await expect(getKeyMetadata('invalid-vault')).rejects.toThrow(
+            'Vault key not found'
+        );
+        expect(put).not.toHaveBeenCalled();
+    }
+);

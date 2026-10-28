@@ -1,7 +1,7 @@
 import {
     executePasswordMetadataRequest,
     type PasswordMetadataDto,
-} from '../../api/password.api.ts';
+} from 'mossy-api-client/password.api';
 import PasswordListItem from './PasswordListItem.tsx';
 import SshKeyListItem from './SshKeyListItem.tsx';
 import TagsMenu from './tag/TagsMenu.tsx';

@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import { tokenStorage } from '../auth/tokenStorage.ts';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
 import {
     executeUserDetailsRequest,
     executeLogoutRequest,
     type UserDetailsResponse,
-} from '../api/auth.api.ts';
+} from 'mossy-api-client/auth.api';
 import { useAuthStore } from '../store/authStore.ts';
 
 type AuthState = {

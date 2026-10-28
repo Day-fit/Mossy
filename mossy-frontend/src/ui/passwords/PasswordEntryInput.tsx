@@ -7,7 +7,7 @@ import type {
 } from './index.ts';
 import StrengthMeter from './StrengthMeter.tsx';
 import Button from '../shared/Button.tsx';
-import type { PasswordType } from '../../api/password.api.ts';
+import type { PasswordType } from 'mossy-api-client/password.api';
 import SshKeyEntryInput from './SshKeyEntryInput.tsx';
 import { validateSshKeyPair } from './secretPayload.ts';
 import { motion } from 'framer-motion';

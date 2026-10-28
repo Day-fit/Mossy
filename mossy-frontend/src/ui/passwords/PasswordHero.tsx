@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { MdCloudOff, MdOpenInNew } from 'react-icons/md';
-import { type UserVaultDto } from '../../api/vault.api.ts';
+import { type UserVaultDto } from 'mossy-api-client/vault.api';
 import VaultSelectorCard from './VaultSelectorCard.tsx';
 import PasswordListCard from './PasswordListCard.tsx';
 import { useVaultStore } from '../../store/vaultStore.ts';

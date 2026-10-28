@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import type { DeviceDetails } from '../../api/deviceTrust.api.ts';
+import type { DeviceDetails } from 'mossy-api-client/deviceTrust.api';
 import { useDevices } from '../../hooks/useDevices.ts';
 import Button from '../shared/Button.tsx';
 import ActionModal from '../shared/ActionModal.tsx';

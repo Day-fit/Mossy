@@ -13,14 +13,14 @@ import AccountMenu from './AccountMenu.tsx';
 import Layout from '../../routes/Layout.tsx';
 import Settings from '../../routes/Settings.tsx';
 import { useAuthStore } from '../../store/authStore.ts';
-import { tokenStorage } from '../../auth/tokenStorage.ts';
+import { tokenStorage } from 'mossy-api-client/tokenStorage';
 import { THEME_STORAGE_KEY, useThemeStore } from '../../store/themeStore.ts';
 import { installBrowserStorage } from '../../test/browserStorage.ts';
 
 const { executeLogoutRequest } = vi.hoisted(() => ({
     executeLogoutRequest: vi.fn(),
 }));
-vi.mock('../../api/auth.api.ts', () => ({
+vi.mock('mossy-api-client/auth.api', () => ({
     executeLogoutRequest,
     executeUserDetailsRequest: vi.fn(),
 }));
