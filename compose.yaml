@@ -62,6 +62,25 @@ services:
       - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.period=1m'
       - 'traefik.http.middlewares.mossy-auth-verification-rate-limit.ratelimit.burst=10'
 
+  mossy-mailer:
+    image: 'ghcr.io/day-fit/mossy-mailer:latest'
+    depends_on:
+      - 'rabbitmq'
+      - 'redis'
+    environment:
+      - 'SPRING_PROFILES_ACTIVE=prod'
+      - 'REDIS_HOST=redis'
+      - 'REDIS_USER=${REDIS_USER:-mossy}'
+      - 'REDIS_PASSWORD=${REDIS_PASSWORD}'
+      - 'RABBITMQ_HOST=rabbitmq'
+      - 'RABBITMQ_USER=${RABBITMQ_USER}'
+      - 'RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}'
+      - 'RESEND_API_KEY=${RESEND_API_KEY}'
+    profiles:
+      - 'prod'
+    labels:
+      - 'traefik.enable=false'
+
   mossy-device-trust:
     image: 'ghcr.io/day-fit/mossy-device-trust:latest'
     healthcheck:

@@ -1,0 +1,13 @@
+FROM amazoncorretto:21-alpine3.22-jdk AS build
+
+COPY mossy-mailer/ /mossy-mailer/
+COPY mossy-mailer-shared/ /mossy-mailer-shared/
+WORKDIR /mossy-mailer
+
+RUN chmod +x ./mvnw && \
+    ./mvnw -f /mossy-mailer-shared/pom.xml clean install -DskipTests && \
+    ./mvnw clean package -DskipTests
+
+FROM amazoncorretto:21-al2023-headless
+COPY --from=build /mossy-mailer/target/mossy-mailer-*.jar /mossy/mossy-mailer.jar
+CMD ["java", "-jar", "/mossy/mossy-mailer.jar"]
