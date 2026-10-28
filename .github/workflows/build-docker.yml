@@ -21,6 +21,7 @@ jobs:
           - password
           - statistics
           - auth
+          - mailer
           - device-trust
           - vault
 

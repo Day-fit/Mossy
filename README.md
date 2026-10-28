@@ -303,11 +303,17 @@ REDIS_PASSWORD=replace-with-a-strong-password
 RABBITMQ_USER=replace-with-the-configured-rabbitmq-user
 RABBITMQ_PASSWORD=replace-with-the-configured-rabbitmq-password
 
+RESEND_API_KEY=replace-with-your-resend-api-key
+
 ALLOWED_ORIGINS=https://mossy.dayfit.pl
 ```
 
 The RabbitMQ credentials must match the user provisioned in
 `rabbitmq/definitions.json`.
+
+The stack includes `mossy-mailer`, which consumes email commands from RabbitMQ
+and sends verification emails through Resend. Set `RESEND_API_KEY` to a valid
+Resend API key for your configured sender and verification email template.
 
 3. The included Traefik routes use `mossy.dayfit.pl`. For local browser access, map
    `mossy.dayfit.pl` to `127.0.0.1` in your system's hosts file. Because the local
