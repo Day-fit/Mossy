@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     assertLive,
     contentMessageSchema,
-    matchesSite,
     validateInstance,
     contentSource,
     trustedPage,
 } from './security';
+import { matchesSite } from './website';
 import { PendingCapture } from '../capture/PendingCapture';
 import { authorizePrf } from './passkeys';
 import { scopeKey } from './vaultCrypto';
@@ -26,40 +26,48 @@ describe('wrapped-key storage scope', () => {
 });
 
 describe('exact origin and browser-supplied sender boundaries', () => {
-    it.each([
-        'https://site.example',
-        'https://site.example/path',
-        'site.example',
-    ])('matches only the exact secure origin for %s', (address) => {
-        expect(matchesSite(address, 'https://site.example/login')).toBe(true);
+    it.each(['http:', 'https:'])(
+        'matches the exact %s origin including its port',
+        (protocol) => {
+            const address = `${protocol}//site.example:8443/path`;
 
-        for (const url of [
-            'http://site.example',
-            'https://www.site.example',
-            'https://login.site.example',
-            'https://site.example:8443',
-            'https://site.example.evil.test',
-        ]) {
-            expect(matchesSite(address, url)).toBe(false);
+            expect(
+                matchesSite(address, `${protocol}//site.example:8443/login`)
+            ).toBe(true);
+            expect(
+                matchesSite(
+                    `${protocol}//site.example`,
+                    `${protocol}//site.example/login`
+                )
+            ).toBe(true);
+
+            for (const target of [
+                `${protocol === 'http:' ? 'https:' : 'http:'}//site.example:8443`,
+                `${protocol}//www.site.example:8443`,
+                `${protocol}//login.site.example:8443`,
+                `${protocol}//site.example`,
+                `${protocol}//site.example.evil.test:8443`,
+                `${protocol}//user:pass@site.example:8443`,
+            ]) {
+                expect(matchesSite(address, target)).toBe(false);
+            }
         }
+    );
+
+    it.each([
+        'site.example',
+        'site.example:8443',
+        'https:site.example',
+        'http:site.example',
+        'ssh://site.example',
+        'ftp://site.example',
+        'https://user:pass@site.example',
+        '',
+    ])('rejects unsupported or unprefixed stored addresses: %s', (address) => {
+        expect(matchesSite(address, 'https://site.example')).toBe(false);
+        expect(matchesSite(address, 'http://site.example')).toBe(false);
     });
-    it('supports explicit nondefault origins without broadening legacy hostname entries', () => {
-        expect(
-            matchesSite(
-                'https://site.example:8443/path',
-                'https://site.example:8443'
-            )
-        ).toBe(true);
-        expect(
-            matchesSite('site.example:8443', 'https://site.example:8443')
-        ).toBe(false);
-        expect(
-            matchesSite(
-                'https://user:pass@site.example',
-                'https://site.example'
-            )
-        ).toBe(false);
-    });
+
     it('accepts one HTTPS instance and localhost HTTP only in development', () => {
         expect(() => validateInstance('https://vault.example')).not.toThrow();
         expect(() =>
@@ -134,6 +142,18 @@ describe('exact origin and browser-supplied sender boundaries', () => {
             ).documentId
         ).toBe('doc');
 
+        expect(
+            contentSource(
+                {
+                    ...source,
+                    origin: 'http://site.example',
+                    url: 'http://site.example/login',
+                    tab: { ...source.tab, url: 'http://site.example/' },
+                } as chrome.runtime.MessageSender,
+                'https://mossy.example'
+            ).origin
+        ).toBe('http://site.example');
+
         for (const changed of [
             { origin: 'https://evil.test' },
             { tab: { id: 1, url: 'https://other.example' } },
@@ -157,7 +177,7 @@ describe('exact origin and browser-supplied sender boundaries', () => {
     });
 });
 
-describe('ten-second encrypted candidate lifecycle', () => {
+describe('thirty-second encrypted candidate lifecycle', () => {
     const metadata = {
         origin: 'https://site.example',
         identifier: 'alice',
@@ -194,12 +214,12 @@ describe('ten-second encrypted candidate lifecycle', () => {
         );
         const staged = await capture.stage('secret', metadata, 500);
 
-        expect(staged!.deadline).toBe(10500);
-        now = 10499;
+        expect(staged!.deadline).toBe(30500);
+        now = 30499;
         capture.handoff(staged!.id, metadata.account);
 
-        expect(capture.metadata()!.deadline).toBe(10500);
-        now = 10500;
+        expect(capture.metadata()!.deadline).toBe(30500);
+        now = 30500;
 
         await expect(
             capture.consume(staged!.id, metadata.account)
@@ -247,7 +267,7 @@ describe('ten-second encrypted candidate lifecycle', () => {
         expect(await capture.consume(second!.id, metadata.account)).toBe(
             'second'
         );
-        now = 20000;
+        now = 40000;
 
         expect(await capture.stage('expired', metadata, 1)).toBeUndefined();
         expect(capture.metadata()).toBeUndefined();

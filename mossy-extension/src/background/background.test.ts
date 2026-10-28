@@ -59,7 +59,7 @@ const mocks = vi.hoisted(() => {
                 passwordId: 'password',
                 passwordType: 'PASSWORD',
                 identifier: 'alice',
-                address: 'site.test',
+                address: 'https://site.test',
             },
         ]),
         ciphertext: vi.fn().mockResolvedValue({ ciphertext: 'encrypted' }),
@@ -319,6 +319,7 @@ describe('background message transports', () => {
                     'handleDiscover',
                     'handleCapture',
                     'getFillSuggestions',
+                    'getGenerationTheme',
                     'handleSuggestedFill',
                 ].includes(name)
             )
@@ -722,6 +723,117 @@ describe('background message transports', () => {
         expect(mocks.sendMessage).toHaveBeenCalledWith('onChanged');
         expect(mocks.chrome.runtime.sendMessage).not.toHaveBeenCalled();
     });
+
+    it('checks content identity and website permission before offering generation', async () => {
+        expect(await message('getGenerationTheme', undefined, sender)).toBe(
+            'system'
+        );
+        mocks.chrome.permissions.contains.mockResolvedValueOnce(false);
+        await expect(
+            message('getGenerationTheme', undefined, sender)
+        ).rejects.toThrow('disabled');
+        await expect(
+            message('getGenerationTheme', undefined, {
+                ...sender,
+                documentId: undefined,
+            })
+        ).rejects.toThrow('Untrusted');
+    });
+
+    it.each(['http:', 'https:'])(
+        'fills only passwords fetched for the exact %s website',
+        async (protocol) => {
+            const origin = `${protocol}//site.test`;
+            const contentSender = {
+                ...sender,
+                origin,
+                url: `${origin}/login`,
+                tab: { id: 7, url: `${origin}/login` },
+            };
+            const form = { ...target, origin };
+            const entry = {
+                passwordId: 'password',
+                identifier: 'alice',
+                passwordType: 'PASSWORD',
+                address: origin,
+            };
+            await message(
+                'handleDiscover',
+                {
+                    forms: [
+                        {
+                            formId: form.formId,
+                            passwordId: form.passwordId,
+                            usernameId: form.usernameId,
+                            origin,
+                        },
+                    ],
+                },
+                contentSender
+            );
+            mocks.entries.mockResolvedValueOnce([entry]);
+            expect(
+                await message(
+                    'getFillSuggestions',
+                    { formId: 'form' },
+                    contentSender
+                )
+            ).toMatchObject({ suggestions: [{ passwordId: 'password' }] });
+            mocks.entries.mockResolvedValueOnce([entry]);
+            const request = await action('fill', {
+                passwordId: 'password',
+                target: form,
+            });
+            expect(
+                await message('finishFill', { ...request, password: 'secret' })
+            ).toEqual({ status: 'filled' });
+            expect(mocks.sendMessage).toHaveBeenCalledWith(
+                'fillOnce',
+                expect.objectContaining({ target: form }),
+                { tabId: 7, frameId: 0 }
+            );
+
+            mocks.chrome.windows.create.mockClear();
+            const otherProtocol = protocol === 'http:' ? 'https:' : 'http:';
+            for (const address of [
+                `${otherProtocol}//site.test`,
+                `${protocol}//other.test`,
+                `${protocol}//site.test.evil.test`,
+                `${protocol}//site.test:8443`,
+                'site.test',
+            ]) {
+                mocks.entries.mockResolvedValueOnce([{ ...entry, address }]);
+                expect(
+                    await message(
+                        'getFillSuggestions',
+                        { formId: 'form' },
+                        contentSender
+                    )
+                ).toMatchObject({ suggestions: [] });
+                mocks.entries.mockResolvedValueOnce([{ ...entry, address }]);
+                await expect(
+                    message(
+                        'handleSuggestedFill',
+                        {
+                            formId: 'form',
+                            vaultId: 'vault',
+                            passwordId: 'password',
+                        },
+                        contentSender
+                    )
+                ).rejects.toThrow('does not match');
+                mocks.entries.mockResolvedValueOnce([{ ...entry, address }]);
+                await expect(
+                    message('handleFill', {
+                        vaultId: 'vault',
+                        passwordId: 'password',
+                        target: form,
+                    })
+                ).rejects.toThrow('does not match');
+            }
+            expect(mocks.chrome.windows.create).not.toHaveBeenCalled();
+        }
+    );
 
     it('suggests only exact-site passwords from online vaults without fetching ciphertext', async () => {
         await message(

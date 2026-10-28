@@ -1,6 +1,5 @@
 import { Button } from '@mossy/ui';
 import LoadingState from './ui/shared/LoadingState';
-import SecurityNotice from './ui/shared/SecurityNotice';
 import PopupHeader from './ui/popup/PopupHeader';
 import PopupSettings from './ui/popup/PopupSettings';
 import PendingPassword from './ui/popup/PendingPassword';

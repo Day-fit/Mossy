@@ -1,31 +1,43 @@
 import { useState, type KeyboardEvent } from 'react';
-import type { FillSuggestion } from '../../messaging/rpc';
 import type { Theme } from '../../theme/types';
 
-type FillSuggestionsProps = {
-    suggestions: FillSuggestion[];
+export type Suggestion = {
+    id: string;
+    label: string;
+    description: string;
+    select: () => void | Promise<void>;
+};
+
+type FieldSuggestionsProps = {
+    title: string;
+    hint: string;
+    suggestions: Suggestion[];
     theme: Theme;
-    onSelect: (suggestion: FillSuggestion) => Promise<void>;
     onDismiss: () => void;
 };
 
-export default function FillSuggestions({
+export default function FieldSuggestions({
+    title,
+    hint,
     suggestions,
     theme,
-    onSelect,
     onDismiss,
-}: FillSuggestionsProps) {
+}: FieldSuggestionsProps) {
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState(false);
+    const [error, setError] = useState('');
 
-    async function select(suggestion: FillSuggestion) {
+    async function select(suggestion: Suggestion) {
         setSubmitting(true);
 
         try {
-            await onSelect(suggestion);
-        } catch {
+            await suggestion.select();
+        } catch (cause) {
             setSubmitting(false);
-            setError(true);
+            setError(
+                cause instanceof Error
+                    ? cause.message
+                    : 'Could not complete this action. Try again.'
+            );
         }
     }
 
@@ -58,23 +70,21 @@ export default function FillSuggestions({
         <div
             data-mossy-theme-root=""
             data-theme={theme}
-            className="box-border max-h-[280px] overflow-y-auto rounded-xl border border-border bg-surface p-1.5 font-sans text-sm leading-normal text-fg-primary shadow-card [--font-sans:system-ui,sans-serif]"
+            className="box-border max-h-70 overflow-y-auto rounded-xl border border-border bg-surface p-1.5 font-sans text-sm leading-normal text-fg-primary shadow-card [--font-sans:system-ui,sans-serif]"
             role="group"
-            aria-label="Mossy saved logins"
+            aria-label={title}
             onKeyDown={handleKeyDown}
         >
             <div
                 className="px-2.5 py-2 text-xs font-semibold text-fg-muted"
                 role={error ? 'alert' : undefined}
             >
-                {error
-                    ? 'Could not fill. Try again or open Mossy.'
-                    : 'Fill with Mossy'}
+                {error || title}
             </div>
 
             {suggestions.map((suggestion) => (
                 <button
-                    key={`${suggestion.vaultId}:${suggestion.passwordId}`}
+                    key={suggestion.id}
                     type="button"
                     className="block w-full cursor-pointer rounded-lg border-0 bg-transparent px-2.5 py-2 text-left font-sans text-sm text-fg-primary hover:bg-surface-muted focus-visible:bg-surface-muted disabled:cursor-wait disabled:opacity-55"
                     disabled={submitting}
@@ -86,18 +96,16 @@ export default function FillSuggestions({
                     }}
                 >
                     <strong className="block truncate font-semibold">
-                        {suggestion.identifier || 'Saved login'}
+                        {suggestion.label}
                     </strong>
 
                     <span className="block truncate text-xs text-fg-muted">
-                        {suggestion.vaultName}
+                        {suggestion.description}
                     </span>
                 </button>
             ))}
 
-            <div className="px-2.5 py-2 text-xs text-fg-muted">
-                Choose a login to authorize filling.
-            </div>
+            <div className="px-2.5 py-2 text-xs text-fg-muted">{hint}</div>
         </div>
     );
 }

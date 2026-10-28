@@ -269,6 +269,7 @@ test.beforeEach(async ({}, testInfo) => {
             extension[name].explicit_host = [
                 ...new Set([
                     ...(extension[name].explicit_host ?? []),
+                    'http://*/*',
                     'https://*/*',
                 ]),
             ];
@@ -536,10 +537,15 @@ test('packaged MV3 has optional site permissions, strict CSP, native keys and in
 
     expect(manifest.minimum_chrome_version).toBe('137');
     expect(manifest.host_permissions).toEqual([`${instance}/*`]);
-    expect(manifest.optional_host_permissions).toEqual(['https://*/*']);
+    expect(manifest.optional_host_permissions).toEqual([
+        'http://*/*',
+        'https://*/*',
+    ]);
     expect(
         await popup.evaluate(() =>
-            chrome.permissions.contains({ origins: ['https://*/*'] })
+            chrome.permissions.contains({
+                origins: ['http://*/*', 'https://*/*'],
+            })
         )
     ).toBe(false);
     expect(manifest.content_security_policy.extension_pages).not.toContain(
@@ -724,14 +730,18 @@ test(
     }
 );
 
-async function loginForm(identifier = 'bob', password = 'captured-password') {
+async function loginForm(
+    identifier = 'bob',
+    password = 'captured-password',
+    protocol = 'https:'
+) {
     const allowed = await popup.evaluate(() =>
-        chrome.permissions.contains({ origins: ['https://*/*'] })
+        chrome.permissions.contains({ origins: ['http://*/*', 'https://*/*'] })
     );
 
     expect(allowed).toBe(true);
 
-    await context.route('https://login.example/**', (route) =>
+    await context.route(`${protocol}//login.example/**`, (route) =>
         route.fulfill({
             contentType: 'text/html',
             body: '<!doctype html><html lang="en"><body><form onsubmit="event.preventDefault()"><label>Username<input name="username" autocomplete="username"></label><label>Password<input name="password" type="password" autocomplete="current-password"></label><button type="submit">Log in</button></form><output id="submits">0</output><script>document.querySelector("form").addEventListener("submit",()=>document.querySelector("output").textContent=String(Number(document.querySelector("output").textContent)+1))</script></body></html>',
@@ -740,7 +750,7 @@ async function loginForm(identifier = 'bob', password = 'captured-password') {
 
     const site = await context.newPage();
 
-    await site.goto('https://login.example/login');
+    await site.goto(`${protocol}//login.example/login`);
     await site.getByLabel('Username').fill(identifier);
     await site.getByLabel('Password').fill(password);
     await site.getByLabel('Password').press('Escape');
@@ -965,6 +975,74 @@ test(
     }
 );
 
+for (const protocol of ['http:', 'https:']) {
+    test(
+        `new-password suggestions share capture on ${protocol} without filling current passwords`,
+        { tag: '@site' },
+        async () => {
+            await signIn();
+            const site = await loginForm('alice', 'current-secret', protocol);
+            await site.evaluate(() => {
+                document.querySelector('form')!.insertAdjacentHTML(
+                    'beforeend',
+                    `
+                <label>New password<input name="new" type="password" autocomplete="new-password"></label>
+                <label>Confirm password<input name="confirm" type="password" autocomplete="new-password"></label>
+            `
+                );
+            });
+            const suggestions = site.locator('mossy-fill-suggestions');
+            await site.getByLabel('New password', { exact: true }).click();
+            await expect(suggestions).toBeVisible();
+            await suggestions.screenshot({
+                path: `/tmp/mossy-generation-${protocol.slice(0, -1)}.png`,
+            });
+            await site
+                .getByLabel('New password', { exact: true })
+                .press('ArrowDown');
+            await site.keyboard.press('Enter');
+            await expect(suggestions).toHaveCount(0);
+            const generated = await site
+                .getByLabel('New password', { exact: true })
+                .inputValue();
+            expect(generated).toMatch(/^[1-9A-HJ-NP-Za-km-z]{24}$/);
+            await expect(site.getByLabel('Confirm password')).toHaveValue(
+                generated
+            );
+            await expect(
+                site.getByLabel('Password', { exact: true })
+            ).toHaveValue('current-secret');
+            await expect(site.locator('#submits')).toHaveText('0');
+            expect(
+                requests.filter((request) =>
+                    request.path.includes('/ciphertext/')
+                )
+            ).toHaveLength(0);
+            await site.getByLabel('Confirm password').fill('mismatch');
+            await site
+                .getByRole('button', { name: 'Log in', exact: true })
+                .click();
+            expect(
+                await pageRpc<{ pending: unknown }>(popup, {
+                    type: 'getPopupView',
+                })
+            ).toMatchObject({ pending: null });
+            await site.getByLabel('Confirm password').fill(generated);
+            await pendingPrompt(site);
+            expect(
+                await pageRpc<{ pending: { origin: string } }>(popup, {
+                    type: 'getPopupView',
+                })
+            ).toMatchObject({
+                pending: {
+                    origin: `${protocol}//login.example`,
+                    identifier: 'alice',
+                },
+            });
+        }
+    );
+}
+
 test(
     'inline login suggestions authorize filling and support keyboard dismissal',
     { tag: '@site' },
@@ -1013,6 +1091,8 @@ test(
                     ((input as HTMLInputElement).autocomplete = 'new-password')
             );
         await site.getByLabel('Password').click();
+        await expect(suggestions).toBeVisible();
+        await site.getByLabel('Password').press('Escape');
         await expect(suggestions).toHaveCount(0);
     }
 );
@@ -1629,7 +1709,10 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
             .locator('main')
             .screenshot({ path: `/tmp/mossy-v2-settings-${theme}.png` });
 
-        const advancedSettings = popup.getByRole('button', { name: 'Advanced settings', exact: true });
+        const advancedSettings = popup.getByRole('button', {
+            name: 'Advanced settings',
+            exact: true,
+        });
 
         await advancedSettings.focus();
         await advancedSettings.press('Enter');
@@ -1659,9 +1742,13 @@ test('frontend themes, search recovery, settings and key-sync controls stay usab
 
     await popup.getByRole('button', { name: 'Settings', exact: true }).click();
     // Native validation must reveal a hidden invalid field before focusing it.
-    await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+    await popup
+        .getByRole('button', { name: 'Advanced settings', exact: true })
+        .click();
     await popup.getByLabel('Mossy instance').fill('not a URL');
-    await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+    await popup
+        .getByRole('button', { name: 'Advanced settings', exact: true })
+        .click();
     await popup
         .getByRole('button', { name: 'Save settings', exact: true })
         .click();
@@ -1760,7 +1847,9 @@ test('advanced settings animation keeps the save button below its content', asyn
 
         for (const reducedMotion of ['no-preference', 'reduce'] as const) {
             await popup.emulateMedia({ reducedMotion });
-            await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+            await popup
+                .getByRole('button', { name: 'Advanced settings', exact: true })
+                .click();
             await expect(popup.getByLabel('Mossy instance')).toBeVisible();
             await expect
                 .poll(() =>
@@ -1777,7 +1866,9 @@ test('advanced settings animation keeps the save button below its content', asyn
                     })
                 )
                 .toBeGreaterThanOrEqual(21);
-            await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+            await popup
+                .getByRole('button', { name: 'Advanced settings', exact: true })
+                .click();
             await expect(popup.getByLabel('Mossy instance')).toBeHidden();
         }
     }
@@ -1786,7 +1877,10 @@ test('advanced settings animation keeps the save button below its content', asyn
 test('advanced settings finishes its collapse animation before hiding the content', async () => {
     await popup.emulateMedia({ reducedMotion: 'no-preference' });
     await popup.getByRole('button', { name: 'Settings', exact: true }).click();
-    const toggle = popup.getByRole('button', { name: 'Advanced settings', exact: true });
+    const toggle = popup.getByRole('button', {
+        name: 'Advanced settings',
+        exact: true,
+    });
     const content = popup.locator('#advanced-settings-content');
     await toggle.click();
     await expect(popup.getByLabel('Mossy instance')).toBeVisible();
@@ -1803,9 +1897,11 @@ test('advanced settings finishes its collapse animation before hiding the conten
     const { expanded, frames } = await content.evaluate(async (element) => {
         const expanded = element.getBoundingClientRect().height;
         const frames: number[] = [];
-        document.querySelector<HTMLButtonElement>(
-            '[aria-controls="advanced-settings-content"]'
-        )!.click();
+        document
+            .querySelector<HTMLButtonElement>(
+                '[aria-controls="advanced-settings-content"]'
+            )!
+            .click();
         const started = performance.now();
         while (performance.now() - started < 350) {
             await new Promise(requestAnimationFrame);
@@ -2497,7 +2593,9 @@ test('UI states keep their hierarchy in both themes and respect reduced motion',
             .getByRole('button', { name: 'Settings', exact: true })
             .click();
         await uiSnapshot(popup, `settings-${theme}`);
-        await popup.getByRole('button', { name: 'Advanced settings', exact: true }).click();
+        await popup
+            .getByRole('button', { name: 'Advanced settings', exact: true })
+            .click();
         await expect(popup.getByLabel('Mossy instance')).toBeVisible();
         await uiSnapshot(popup, `settings-advanced-${theme}`);
         await popup

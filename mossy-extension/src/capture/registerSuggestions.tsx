@@ -1,38 +1,30 @@
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
-import { messaging, type FillSuggestion } from '../messaging/rpc';
+import { messaging, type MessageStatus } from '../messaging/rpc';
 import type { Theme } from '../theme/types';
-import FillSuggestions from '../ui/fill/FillSuggestions';
+import FieldSuggestions, { type Suggestion } from '../ui/fill/FieldSuggestions';
+import type { PasswordForm } from './forms';
+import { fillGeneratedPassword } from '../password-generation/fillGeneratedPassword';
 import styles from '../globals.css?inline';
 
-export type LoginForm = {
-    form: HTMLFormElement;
-    password: HTMLInputElement;
-    username: HTMLInputElement | null;
-    passwordId: string;
-    usernameId: string | null;
-};
-
-export function registerFillSuggestions(
+export function registerSuggestions(
     ctx: ContentScriptContext,
-    forms: Map<string, LoginForm>,
-    discover: () => Promise<unknown>
+    forms: Map<string, PasswordForm>,
+    discover: () => Promise<MessageStatus>
 ) {
-    let host: HTMLElement | undefined;
+    let panel:
+        | { host: HTMLElement; root: Root; shadow: ShadowRoot }
+        | undefined;
     let anchor: HTMLInputElement | undefined;
-    let root: Root | undefined;
-    let shadow: ShadowRoot | undefined;
     let restoreFocus = false;
 
     function dismiss() {
-        root?.unmount();
-        host?.remove();
+        panel?.root.unmount();
+        panel?.host.remove();
 
-        root = undefined;
-        host = undefined;
+        panel = undefined;
         anchor = undefined;
-        shadow = undefined;
     }
 
     function dismissAndRestoreFocus() {
@@ -46,7 +38,9 @@ export function registerFillSuggestions(
     }
 
     function position() {
-        if (!host || !anchor) return;
+        if (!panel || !anchor) return;
+
+        const { host } = panel;
         if (!anchor.isConnected || !anchor.checkVisibility()) return dismiss();
 
         const rect = anchor.getBoundingClientRect();
@@ -75,22 +69,23 @@ export function registerFillSuggestions(
 
     function show(
         field: HTMLInputElement,
-        formId: string,
-        suggestions: FillSuggestion[],
+        suggestions: Suggestion[],
+        title: string,
+        hint: string,
         theme: Theme
     ) {
         dismiss();
 
         anchor = field;
-        host = document.createElement('mossy-fill-suggestions');
+        const host = document.createElement('mossy-fill-suggestions');
 
         host.popover = 'manual';
         host.style.cssText =
             'all:initial!important;position:fixed!important;inset:auto;margin:0;padding:0;border:0;background:transparent;overflow:visible;';
-        shadow = host.attachShadow({ mode: 'closed' });
+        const shadow = host.attachShadow({ mode: 'closed' });
 
         const ui = createRoot(shadow);
-        root = ui;
+        panel = { host, root: ui, shadow };
 
         flushSync(() =>
             ui.render(
@@ -99,19 +94,12 @@ export function registerFillSuggestions(
                         {styles.replaceAll(':root', '[data-mossy-theme-root]')}
                     </style>
 
-                    <FillSuggestions
+                    <FieldSuggestions
+                        title={title}
+                        hint={hint}
                         suggestions={suggestions}
                         theme={theme}
                         onDismiss={dismissAndRestoreFocus}
-                        onSelect={async (suggestion) => {
-                            await messaging.sendMessage('handleSuggestedFill', {
-                                formId,
-                                vaultId: suggestion.vaultId,
-                                passwordId: suggestion.passwordId,
-                            });
-
-                            dismiss();
-                        }}
                     />
                 </>
             )
@@ -126,7 +114,7 @@ export function registerFillSuggestions(
         document,
         'focusin',
         (event) => {
-            if (restoreFocus || event.target === host) return;
+            if (restoreFocus || event.target === panel?.host) return;
 
             const field = event.target;
 
@@ -142,22 +130,70 @@ export function registerFillSuggestions(
 
                 const match = [...forms].find(
                     ([, form]) =>
-                        (form.username === field || form.password === field) &&
-                        form.password.autocomplete !== 'new-password'
+                        form.username === field ||
+                        form.password === field ||
+                        (field.autocomplete === 'new-password' &&
+                            form.passwords.includes(field))
                 );
 
                 if (!match) return dismiss();
 
-                const [formId] = match;
-                const result = await messaging.sendMessage(
-                    'getFillSuggestions',
-                    { formId }
-                );
+                const [formId, form] = match;
+                const generating =
+                    field.type === 'password' &&
+                    field.autocomplete === 'new-password';
+                let suggestions: Suggestion[];
+                let theme: Theme;
+
+                if (generating) {
+                    theme = await messaging.sendMessage('getGenerationTheme');
+                    suggestions = [
+                        {
+                            id: 'generate',
+                            label: 'Generate password',
+                            description: 'Use a new password for this account',
+                            select: () => {
+                                fillGeneratedPassword(field);
+                                dismiss();
+                            },
+                        },
+                    ];
+                } else {
+                    if (form.password.autocomplete === 'new-password')
+                        return dismiss();
+
+                    const result = await messaging.sendMessage(
+                        'getFillSuggestions',
+                        { formId }
+                    );
+                    theme = result.theme;
+                    suggestions = result.suggestions.map((suggestion) => ({
+                        id: `${suggestion.vaultId}:${suggestion.passwordId}`,
+                        label: suggestion.identifier || 'Saved login',
+                        description: suggestion.vaultName,
+                        select: async () => {
+                            await messaging.sendMessage('handleSuggestedFill', {
+                                formId,
+                                vaultId: suggestion.vaultId,
+                                passwordId: suggestion.passwordId,
+                            });
+                            dismiss();
+                        },
+                    }));
+                }
 
                 if (document.activeElement !== field) return;
 
-                if (result.suggestions.length) {
-                    show(field, formId, result.suggestions, result.theme);
+                if (suggestions.length) {
+                    show(
+                        field,
+                        suggestions,
+                        generating ? 'Create with Mossy' : 'Fill with Mossy',
+                        generating
+                            ? 'Fill this form’s new-password fields.'
+                            : 'Choose a login to authorize filling.',
+                        theme
+                    );
                 } else {
                     dismiss();
                 }
@@ -171,7 +207,7 @@ export function registerFillSuggestions(
             if (
                 anchor &&
                 document.activeElement !== anchor &&
-                document.activeElement !== host
+                document.activeElement !== panel?.host
             ) {
                 dismiss();
             }
@@ -185,7 +221,7 @@ export function registerFillSuggestions(
             if (
                 anchor &&
                 event.target !== anchor &&
-                (!host || !event.composedPath().includes(host))
+                (!panel || !event.composedPath().includes(panel.host))
             ) {
                 dismiss();
             }
@@ -201,14 +237,14 @@ export function registerFillSuggestions(
             if (event.target !== anchor || !event.isTrusted) return;
 
             if (event.key === 'Escape') {
-                if (host) event.preventDefault();
+                if (panel) event.preventDefault();
 
                 dismiss();
-            } else if (host && event.key === 'ArrowDown') {
+            } else if (panel && event.key === 'ArrowDown') {
                 event.preventDefault();
                 event.stopPropagation();
 
-                shadow
+                panel.shadow
                     ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
                     ?.focus();
             }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { messaging } from '../../messaging/rpc';
 import { validateInstance } from '../../security/security';
+import { WEBSITE_ORIGINS } from '../../security/website';
 import type { Theme } from '../../theme/types';
 import type { RunPopupTask } from './types';
 
@@ -61,7 +62,7 @@ export function usePopupSettings({
         run(async () => {
             const wasWebsiteAccessDeclined = !(await chrome.permissions.request(
                 {
-                    origins: ['https://*/*'],
+                    origins: WEBSITE_ORIGINS,
                 }
             ));
             if (wasWebsiteAccessDeclined) {

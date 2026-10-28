@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { messaging } from '../../messaging/rpc';
-import { matchesSite, type Target } from '../../security/security';
+import type { Target } from '../../security/security';
+import { matchesSite } from '../../security/website';
 import type { Entry, Operation } from '../../types/models';
 import type { PopupView } from './types';
 import { usePopupStore } from './usePopupStore';

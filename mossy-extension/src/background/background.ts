@@ -41,13 +41,17 @@ import {
     captureSchema,
     discoverSchema,
     contentSource,
-    matchesSite,
     targetSchema,
     validateInstance,
     fillSuggestionsSchema,
     suggestedFillSchema,
     type Target,
 } from '../security/security';
+import {
+    matchesSite,
+    WEBSITE_ORIGINS,
+    isWebsiteProtocol,
+} from '../security/website';
 import type { Theme } from '../theme/types';
 import type { Entry } from '../types/models';
 import {
@@ -115,13 +119,13 @@ async function configureCapture() {
         .unregisterContentScripts({ ids: ['mossy-capture'] })
         .catch(() => undefined);
     const hasWebsiteAccess = await chrome.permissions.contains({
-        origins: ['https://*/*'],
+        origins: WEBSITE_ORIGINS,
     });
     if (hasWebsiteAccess) {
         await chrome.scripting.registerContentScripts([
             {
                 id: 'mossy-capture',
-                matches: ['https://*/*'],
+                matches: WEBSITE_ORIGINS,
                 js: ['content-scripts/capture.js'],
                 allFrames: true,
                 runAt: 'document_idle',
@@ -287,6 +291,9 @@ onActionMessage('finishFill', async ({ data }) => {
         if (!action.target || !action.entry)
             throw new Error('Choose a login form.');
         requireKnownTarget(action.target);
+        if (!matchesSite(action.entry.address, action.target.origin)) {
+            throw new Error('This password does not match the login site.');
+        }
         const { valid } = await messaging.sendMessage(
             'fillOnce',
             {
@@ -364,7 +371,8 @@ async function refreshForms(
 ) {
     if (tab?.id === undefined || !tab.url) return;
     const origin = new URL(tab.url).origin;
-    if (!tab.url.startsWith('https:') || origin === instance) return;
+    if (!isWebsiteProtocol(new URL(tab.url).protocol) || origin === instance)
+        return;
     const tabId = tab.id;
     const frames = await chrome.webNavigation
         .getAllFrames({ tabId })
@@ -389,7 +397,7 @@ onPopupMessage('getPopupView', async ({ data }) => {
     const instance = await getInstance();
     const [tabs, permission] = await Promise.all([
         chrome.tabs.query({ active: true, lastFocusedWindow: true }),
-        chrome.permissions.contains({ origins: ['https://*/*'] }),
+        chrome.permissions.contains({ origins: WEBSITE_ORIGINS }),
     ]);
     if (!tokenStorage.get()) {
         return {
@@ -611,7 +619,7 @@ onPopupMessage('handleSyncReceive', async ({ data }) => {
 async function requireContent(sender: chrome.runtime.MessageSender) {
     await ready;
     const source = contentSource(sender, await getInstance());
-    if (!(await chrome.permissions.contains({ origins: ['https://*/*'] }))) {
+    if (!(await chrome.permissions.contains({ origins: WEBSITE_ORIGINS }))) {
         throw new Error('Website access is disabled.');
     }
     return source;
@@ -649,6 +657,11 @@ async function suggestionTarget(
     if (!target) throw new Error('The login form changed. Try again.');
     return target;
 }
+
+messaging.onMessage('getGenerationTheme', async ({ sender }) => {
+    await requireContent(sender);
+    return theme;
+});
 
 messaging.onMessage('getFillSuggestions', async ({ data, sender }) => {
     const { formId } = fillSuggestionsSchema.parse(data);

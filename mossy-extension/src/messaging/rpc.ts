@@ -46,6 +46,7 @@ export type PopupToBackgroundProtocol = {
 };
 
 type ContentToBackgroundProtocol = {
+    getGenerationTheme(): Theme;
     getFillSuggestions(data: { formId: string }): {
         suggestions: FillSuggestion[];
         theme: Theme;

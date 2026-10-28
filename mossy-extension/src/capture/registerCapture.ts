@@ -1,14 +1,14 @@
+import { nanoid } from 'nanoid';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
+import { isWebsiteProtocol } from '../security/website';
 import { messaging } from '../messaging/rpc';
-import {
-    registerFillSuggestions,
-    type LoginForm,
-} from './registerFillSuggestions';
+import { registerSuggestions } from './registerSuggestions';
+import { eligible, fillInputs, readForm, type PasswordForm } from './forms';
 
 export function registerCapture(ctx: ContentScriptContext) {
     try {
         const isIneligiblePage =
-            location.protocol !== 'https:' ||
+            !isWebsiteProtocol(location.protocol) ||
             window.top!.location.origin !== location.origin;
         if (isIneligiblePage) {
             return;
@@ -18,67 +18,34 @@ export function registerCapture(ctx: ContentScriptContext) {
     }
 
     const cleanAutofill = new WeakSet<HTMLFormElement>();
-    const forms = new Map<string, LoginForm>();
+    const forms = new Map<string, PasswordForm>();
     const ids = new WeakMap<Element, string>();
 
     const id = (element: Element) => {
         let value = ids.get(element);
 
         if (!value) {
-            value = crypto.randomUUID();
+            value = nanoid();
             ids.set(element, value);
         }
 
         return value;
     };
 
-    const eligible = (field: HTMLInputElement) =>
-        !field.disabled &&
-        !field.readOnly &&
-        field.checkVisibility({
-            checkOpacity: true,
-            checkVisibilityCSS: true,
-        }) &&
-        field.type !== 'hidden';
-
     function discover() {
         forms.clear();
 
         for (const form of document.forms) {
-            const password = Array.from(
-                form.querySelectorAll<HTMLInputElement>(
-                    'input[type="password"]'
-                )
-            ).find(eligible);
+            const record = readForm(form);
 
-            if (!password) {
-                continue;
-            }
-
-            const username =
-                Array.from(form.querySelectorAll<HTMLInputElement>('input'))
-                    .filter(eligible)
-                    .find(
-                        (input) =>
-                            ['username', 'email'].includes(
-                                input.autocomplete
-                            ) || ['email', 'text', 'tel'].includes(input.type)
-                    ) ?? null;
-            const formId = id(form);
-            forms.set(formId, {
-                form,
-                password,
-                username,
-                passwordId: id(password),
-                usernameId: username ? id(username) : null,
-            });
+            if (record) forms.set(id(form), record);
         }
 
         return messaging.sendMessage('handleDiscover', {
             forms: [...forms].slice(0, 30).map(([formId, value]) => ({
                 formId,
-                passwordId: value.passwordId,
-                usernameId: value.usernameId,
+                passwordId: id(value.password),
+                usernameId: value.username ? id(value.username) : null,
                 origin: location.origin,
             })),
         });
@@ -147,11 +114,11 @@ export function registerCapture(ctx: ContentScriptContext) {
                 return;
             }
 
-            const passwords = Array.from(
-                form.querySelectorAll<HTMLInputElement>(
-                    'input[type="password"]'
-                )
-            ).filter(eligible);
+            const record = readForm(form);
+
+            if (!record) return;
+
+            const { passwords, username } = record;
             const field =
                 passwords.find(
                     (input) => input.autocomplete === 'new-password'
@@ -167,16 +134,6 @@ export function registerCapture(ctx: ContentScriptContext) {
             if (hasMismatchedNewPasswords) {
                 return;
             }
-
-            const username = Array.from(
-                form.querySelectorAll<HTMLInputElement>('input')
-            )
-                .filter(eligible)
-                .find(
-                    (input) =>
-                        ['username', 'email'].includes(input.autocomplete) ||
-                        ['email', 'text', 'tel'].includes(input.type)
-                );
 
             if (!username?.value) {
                 return;
@@ -211,7 +168,8 @@ export function registerCapture(ctx: ContentScriptContext) {
             record.password.type !== 'password' ||
             !eligible(record.password) ||
             id(record.password) !== target.passwordId ||
-            record.usernameId !== target.usernameId ||
+            (record.username ? id(record.username) : null) !==
+                target.usernameId ||
             (record.username &&
                 (!record.username.isConnected ||
                     record.username.form !== record.form ||
@@ -233,7 +191,7 @@ export function registerCapture(ctx: ContentScriptContext) {
         return record;
     }
 
-    const dismissSuggestions = registerFillSuggestions(ctx, forms, discover);
+    const dismissSuggestions = registerSuggestions(ctx, forms, discover);
     const filled = new Set<string>();
     const unsubscribe = messaging.onMessage(
         'fillOnce',
@@ -261,24 +219,14 @@ export function registerCapture(ctx: ContentScriptContext) {
 
             filled.add(message.actionId);
 
-            const setter = Object.getOwnPropertyDescriptor(
-                HTMLInputElement.prototype,
-                'value'
-            )!.set!;
+            const values: [HTMLInputElement, string][] = [
+                [record.password, message.password],
+            ];
 
-            // Both values are written before events, with no automatic submit.
-            if (record.username) {
-                setter.call(record.username, message.identifier);
-            }
+            if (record.username)
+                values.unshift([record.username, message.identifier]);
 
-            setter.call(record.password, message.password);
-
-            for (const input of [record.username, record.password]) {
-                if (input) {
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            }
+            fillInputs(values);
 
             cleanAutofill.add(record.form);
             dismissSuggestions();

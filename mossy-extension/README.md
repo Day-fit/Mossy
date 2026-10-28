@@ -12,6 +12,7 @@ src/
   actions/         Secret worker, key-sync crypto, and event parsing
   background/      Device login, action lifecycle, command handling, browser events
   capture/         Login-form discovery and pending password captures
+  password-generation/ Password generator and new-password field insertion
   messaging/       Typed RPC and sender-checked background registrations
   security/        Origin/sender validation and vault passkey ceremonies
   storage/         IndexedDB setup, device identity, wrapped keys, and settings
@@ -20,7 +21,7 @@ src/
   ui/
     action/        Secure-action components and behavior hooks
     auth/          Sign-in screen
-    fill/          Inline saved-login suggestions
+    fill/          Shared saved-login and generation suggestions
     popup/         Popup sections, state, and behavior hooks
     shared/        Components used across screens
 tests/             Packaged-extension browser tests
@@ -39,11 +40,20 @@ metadata only. Storage modules persist wrapped vault keys and native device
 identity, preserving the existing database name and schema.
 
 With website access enabled, focusing a username or password field offers saved
-logins for that exact HTTPS origin from online vaults. Arrow Down enters the
-suggestions, Enter selects a login, and Escape dismisses them. Selecting a login
+logins for that exact HTTP or HTTPS origin (including the scheme and port) from
+online vaults. Arrow Down enters the suggestions, Enter selects a login, and
+Escape dismisses them. Selecting a login
 opens the existing authorization window before filling; it never submits the
-form. New-password fields do not offer saved logins. The suggestions use an
-isolated shadow root and the extension's shared globals stylesheet.
+form. Stored website addresses must include `http://` or `https://`; entries for a
+different scheme, host, or port cannot fill the page. New-password fields offer
+password generation instead of saved logins. Capture, fill, and generation share
+form discovery and input updates; the generated value and its confirmation are
+captured through the normal user submission flow.
+
+`src/password-generation/generatePassword.ts` owns generation (24 Base58
+characters using Nano ID). Generation fills eligible
+`autocomplete="new-password"` fields in the same form, preserving current-password
+fields and never submitting. The suggestions use an isolated shadow root and the extension's shared globals stylesheet.
 
 Background handlers check the browser-supplied sender before accepting popup or
 action messages. Content messages validate their source, permission, and payload.

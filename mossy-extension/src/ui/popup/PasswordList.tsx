@@ -7,7 +7,7 @@ import {
 } from 'react-icons/md';
 import EmptyState from '../shared/EmptyState';
 import PasswordEntry from './PasswordEntry';
-import { matchesSite } from '../../security/security';
+import { matchesSite } from '../../security/website';
 import type { Entry } from '../../types/models';
 import type { PopupView, RunPopupAction } from './types';
 import Feedback from '../shared/Feedback';

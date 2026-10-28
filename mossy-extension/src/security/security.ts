@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isWebsiteProtocol } from './website';
 
 export const DEFAULT_INSTANCE = 'https://mossy.dayfit.pl';
 
@@ -20,38 +21,6 @@ export function validateInstance(value: string, development = false): void {
         );
     if (isUnsupportedProtocol) {
         throw new Error('Use HTTPS for your Mossy instance.');
-    }
-}
-
-export function matchesSite(address: string, target: string): boolean {
-    try {
-        const origin = new URL(target);
-
-        const isInvalidTargetOrigin =
-            origin.protocol !== 'https:' || origin.username || origin.password;
-        if (isInvalidTargetOrigin) {
-            return false;
-        }
-
-        if (address.includes('://')) {
-            const stored = new URL(address);
-
-            return (
-                stored.protocol === 'https:' &&
-                !stored.username &&
-                !stored.password &&
-                stored.origin === origin.origin
-            );
-        }
-
-        return (
-            !address.includes('/') &&
-            !address.includes(':') &&
-            address.toLowerCase() === origin.hostname &&
-            origin.port === ''
-        );
-    } catch {
-        return false;
     }
 }
 
@@ -154,7 +123,7 @@ export function contentSource(
     const top = new URL(tabUrl);
 
     const isIneligiblePage =
-        url.protocol !== 'https:' ||
+        !isWebsiteProtocol(url.protocol) ||
         top.origin !== url.origin ||
         origin !== url.origin ||
         url.origin === instance;

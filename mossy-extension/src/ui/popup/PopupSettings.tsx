@@ -115,7 +115,7 @@ export default function PopupSettings({
                     )}
                 </div>
                 <p className="mt-2.5 mb-4 text-xs leading-[1.6] text-fg-muted">
-                    Allow HTTPS website access to suggest saved logins, fill
+                    Allow HTTP and HTTPS website access to suggest saved logins, fill
                     forms, and offer to save submitted passwords.
                 </p>
                 <Button
