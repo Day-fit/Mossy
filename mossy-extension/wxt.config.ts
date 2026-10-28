@@ -30,8 +30,6 @@ export default defineConfig({
         minimum_chrome_version: '137',
         permissions: [
             'storage',
-            'tabs',
-            'activeTab',
             'scripting',
             'privacy',
             'clipboardWrite',
