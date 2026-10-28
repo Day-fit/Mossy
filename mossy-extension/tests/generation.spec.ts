@@ -39,7 +39,7 @@ for (const protocol of ['http:', 'https:']) {
             const generated = await site
                 .getByLabel('New password', { exact: true })
                 .inputValue();
-            expect(generated).toMatch(/^[1-9A-HJ-NP-Za-km-z]{24}$/);
+            expect(generated).toHaveLength(24);
             await expect(site.getByLabel('Confirm password')).toHaveValue(
                 generated
             );

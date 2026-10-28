@@ -7,12 +7,35 @@ import FieldSuggestions, { type Suggestion } from '../ui/fill/FieldSuggestions';
 import type { PasswordForm } from './forms';
 import { fillGeneratedPassword } from '../password-generation/fillGeneratedPassword';
 import styles from '../globals.css?inline';
+import syneRegular from '@fontsource/syne/files/syne-latin-400-normal.woff2?inline';
+import syneSemibold from '@fontsource/syne/files/syne-latin-600-normal.woff2?inline';
+import geologica from '@fontsource/geologica/files/geologica-latin-500-normal.woff2?inline';
 
 export function registerSuggestions(
     ctx: ContentScriptContext,
     forms: Map<string, PasswordForm>,
     discover: () => Promise<MessageStatus>
 ) {
+    const fonts = [
+        ['Mossy Syne', syneRegular, '400'],
+        ['Mossy Syne', syneSemibold, '600'],
+        ['Mossy Geologica', geologica, '500'],
+    ] as const;
+    const fontsReady = Promise.all(
+        fonts.map(([family, source, weight]) => {
+            const bytes = Uint8Array.from(
+                atob(source.split(',')[1]!),
+                (character) => character.charCodeAt(0)
+            );
+            const font = new FontFace(family, bytes, { weight });
+
+            document.fonts.add(font);
+            ctx.onInvalidated(() => document.fonts.delete(font));
+
+            return font.load();
+        })
+    ).catch(() => undefined);
+
     let panel:
         | { host: HTMLElement; root: Root; shadow: ShadowRoot }
         | undefined;
@@ -126,7 +149,7 @@ export function registerSuggestions(
             anchor = field;
 
             void (async () => {
-                await discover();
+                await Promise.all([discover(), fontsReady]);
 
                 const match = [...forms].find(
                     ([, form]) =>
@@ -151,7 +174,7 @@ export function registerSuggestions(
                         {
                             id: 'generate',
                             label: 'Generate password',
-                            description: 'Use a new password for this account',
+                            description: 'Create a strong password',
                             select: () => {
                                 fillGeneratedPassword(field);
                                 dismiss();
@@ -190,7 +213,7 @@ export function registerSuggestions(
                         suggestions,
                         generating ? 'Create with Mossy' : 'Fill with Mossy',
                         generating
-                            ? 'Fill this form’s new-password fields.'
+                            ? 'Fills your new password fields.'
                             : 'Choose a login to authorize filling.',
                         theme
                     );

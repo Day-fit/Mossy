@@ -1,8 +1,8 @@
 import { customAlphabet } from 'nanoid';
 
-const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const ALPHABET = '123456789!@#$%^&*()ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 const PASSWORD_LENGHT = 24;
 
 export function generatePassword(): string {
-    return customAlphabet(BASE58, PASSWORD_LENGHT)();
+    return customAlphabet(ALPHABET, PASSWORD_LENGHT)();
 }
