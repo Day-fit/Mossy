@@ -3,8 +3,7 @@ package pl.dayfit.mossyauth.configuration
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration
 import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperties
-import pl.dayfit.mossyauth.configuration.properties.ExtensionAuthProperties
 
 @Configuration
-@EnableConfigurationProperties(CookiesConfigurationProperties::class, ExtensionAuthProperties::class)
+@EnableConfigurationProperties(CookiesConfigurationProperties::class)
 class CookieConfiguration

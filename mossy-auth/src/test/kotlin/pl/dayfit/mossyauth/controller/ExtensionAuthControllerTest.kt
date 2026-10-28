@@ -16,19 +16,13 @@ import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter
 import org.springframework.security.authentication.LockedException
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
-import org.springframework.web.cors.CorsConfiguration
-import org.springframework.web.cors.CorsConfigurationSource
-import org.springframework.web.filter.CorsFilter
-import pl.dayfit.mossyauth.configuration.ExtensionAuthOriginPolicy
 import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperties
-import pl.dayfit.mossyauth.configuration.properties.ExtensionAuthProperties
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.controller.advice.GlobalControllerAdvice
 import pl.dayfit.mossyauth.controller.advice.SecurityControllerAdvice
@@ -50,32 +44,17 @@ class ExtensionAuthControllerTest {
 
     @BeforeEach
     fun setup() {
-        val policy = ExtensionAuthOriginPolicy(ExtensionAuthProperties().apply {
-            allowedOrigins = listOf(ORIGIN)
-        })
-        mvc = mockMvc(policy)
+        mvc = mockMvc()
     }
 
-    private fun mockMvc(policy: ExtensionAuthOriginPolicy, cors: Boolean = false): MockMvc {
+    private fun mockMvc(): MockMvc {
         val builder = MockMvcBuilders.standaloneSetup(
             AuthController(users, cookies, tokens, jwt),
-            ExtensionAuthController(users, cookies, tokens, jwt, policy),
+            ExtensionAuthController(users, cookies, tokens, jwt),
         ).setControllerAdvice(SecurityControllerAdvice(), GlobalControllerAdvice())
             .setMessageConverters(JacksonJsonHttpMessageConverter(
                 JsonMapper.builder().addModule(KotlinModule.Builder().build()).build()
             ))
-
-        if (cors) {
-            val webCors = CorsConfigurationSource {
-                CorsConfiguration().apply {
-                    allowedOrigins = listOf("https://app.mossy.test")
-                    allowedMethods = listOf("POST")
-                }
-            }
-            builder.addFilters<org.springframework.test.web.servlet.setup.StandaloneMockMvcBuilder>(
-                CorsFilter(policy.corsSource(webCors))
-            )
-        }
 
         return builder.build()
     }
@@ -115,52 +94,31 @@ class ExtensionAuthControllerTest {
     }
 
     @Test
-    fun `missing untrusted malformed and web origins cannot authenticate or rotate a session`() {
-        val untrustedOrigins = listOf(
-            null,
-            "null",
-            "https://app.mossy.test",
-            "chrome-extension://${"b".repeat(32)}",
-            "$ORIGIN/"
-        )
+    fun `extension sessions accept requests with any origin or no origin`() {
+        whenever(users.login(eq(credentials), any(), any())).thenReturn(pair("extension"))
+        whenever(jwt.handleTokenRefreshment("extension-refresh")).thenReturn(pair("next"))
 
-        for (origin in untrustedOrigins) {
-            val request = login("/extension/login")
-
-            if (origin != null) {
-                request.header(HttpHeaders.ORIGIN, origin)
-            }
-
-            mvc.perform(request).andExpect(status().isForbidden)
-
-            val refresh = post("$BASE/extension/refresh").contextPath(BASE).cookie(Cookie(EXT_COOKIE, "secret"))
+        for (origin in listOf(null, "https://consumer.example", "chrome-extension://${"b".repeat(32)}")) {
+            val login = login("/extension/login")
+            val refresh = post("$BASE/extension/refresh").contextPath(BASE)
+                .cookie(Cookie(EXT_COOKIE, "extension-refresh"))
+            val logout = post("$BASE/extension/logout").contextPath(BASE)
+                .cookie(Cookie(EXT_COOKIE, "extension-refresh"))
 
             if (origin != null) {
-                refresh.header(HttpHeaders.ORIGIN, origin)
+                listOf(login, refresh, logout).forEach { it.header(HttpHeaders.ORIGIN, origin) }
             }
 
-            mvc.perform(refresh).andExpect(status().isForbidden)
-
-            val logout = post("$BASE/extension/logout").contextPath(BASE).cookie(Cookie(EXT_COOKIE, "secret"))
-
-            if (origin != null) {
-                logout.header(HttpHeaders.ORIGIN, origin)
-            }
-
-            mvc.perform(logout).andExpect(status().isForbidden)
+            mvc.perform(login)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.accessToken").value("extension-access"))
+            mvc.perform(refresh)
+                .andExpect(status().isOk)
+                .andExpect(jsonPath("$.accessToken").value("next-access"))
+            mvc.perform(logout)
+                .andExpect(status().isOk)
+                .andExpect(cookie().maxAge(EXT_COOKIE, 0))
         }
-
-        verifyNoInteractions(users, jwt)
-    }
-
-    @Test
-    fun `empty allowlist disables extension auth without affecting web login`() {
-        mvc = mockMvc(ExtensionAuthOriginPolicy(ExtensionAuthProperties()))
-
-        mvc.perform(login("/extension/login").header(HttpHeaders.ORIGIN, ORIGIN))
-            .andExpect(status().isForbidden)
-
-        verifyNoInteractions(users, jwt)
     }
 
     @Test
@@ -236,37 +194,6 @@ class ExtensionAuthControllerTest {
         )
             .andExpect(status().isOk)
             .andExpect(cookie().maxAge(EXT_COOKIE, 0))
-    }
-
-    @Test
-    fun `extension preflight uses only the exact extension allowlist and keeps web cors unchanged`() {
-        val policy = ExtensionAuthOriginPolicy(ExtensionAuthProperties().apply { allowedOrigins = listOf(ORIGIN) })
-        mvc = mockMvc(policy, cors = true)
-
-        mvc.perform(
-            options("$BASE/extension/login").contextPath(BASE)
-                .header(HttpHeaders.ORIGIN, ORIGIN)
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type")
-        )
-            .andExpect(status().isOk)
-            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN))
-            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"))
-
-        mvc.perform(
-            options("$BASE/extension/login").contextPath(BASE)
-                .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-        )
-            .andExpect(status().isForbidden)
-
-        mvc.perform(
-            options("$BASE/login").contextPath(BASE)
-                .header(HttpHeaders.ORIGIN, "https://app.mossy.test")
-                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-        )
-            .andExpect(status().isOk)
-            .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "https://app.mossy.test"))
     }
 
     @Test

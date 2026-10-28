@@ -9,7 +9,6 @@ import org.springframework.security.oauth2.jwt.Jwt
 import pl.dayfit.mossyauthstarter.configuration.properties.SecurityConfigurationProperties
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertFailsWith
 
 class HttpConfigurationTest {
     private val httpConfiguration = HttpConfiguration()
@@ -43,7 +42,7 @@ class HttpConfigurationTest {
             .getCorsConfiguration(MockHttpServletRequest("OPTIONS", "/api/dashboard"))
 
         assertNotNull(corsConfiguration)
-        assertEquals(properties.allowedOrigins, corsConfiguration.allowedOriginPatterns)
+        assertEquals(properties.allowedOrigins + "chrome-extension://*", corsConfiguration.allowedOriginPatterns)
         assertEquals(
             listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"),
             corsConfiguration.allowedMethods
@@ -58,77 +57,57 @@ class HttpConfigurationTest {
             .getCorsConfiguration(MockHttpServletRequest("OPTIONS", "/api/dashboard"))
 
         assertNotNull(corsConfiguration)
-        assertEquals(listOf("*"), corsConfiguration.allowedOriginPatterns)
+        assertNotNull(corsConfiguration.checkOrigin("https://consumer.example"))
     }
 
     @Test
-    fun `approved extension preflight permits bearer enrollment headers without cookies`() {
-        val origin = "chrome-extension://" + "a".repeat(32)
+    fun `any extension can preflight any endpoint with bearer and session headers`() {
         val properties = SecurityConfigurationProperties().apply {
             allowedOrigins = listOf("https://app.mossy.test")
-            extensionAllowedOrigins = listOf(origin)
-            extensionAllowedPaths = listOf("/device/enrollment")
         }
+        val filter = CorsFilter(httpConfiguration.corsConfigurationSource(properties))
 
-        val request = MockHttpServletRequest("OPTIONS", "/api/v1/device-trust/device/enrollment").apply {
-            contextPath = "/api/v1/device-trust"
-            servletPath = "/device/enrollment"
-            addHeader("Origin", origin)
-            addHeader("Access-Control-Request-Method", "POST")
-            addHeader("Access-Control-Request-Headers", "authorization,content-type,idempotency-key")
-        }
-        val response = MockHttpServletResponse()
+        for (origin in listOf("a", "b").map { "chrome-extension://${it.repeat(32)}" }) {
+            for (path in listOf("/extension/login", "/extension/refresh", "/extension/logout", "/user/me", "/consumer/endpoint")) {
+                val request = MockHttpServletRequest("OPTIONS", "/api/v1/auth$path").apply {
+                    contextPath = "/api/v1/auth"
+                    servletPath = path
+                    addHeader("Origin", origin)
+                    addHeader("Access-Control-Request-Method", "POST")
+                    addHeader("Access-Control-Request-Headers", "authorization,content-type,idempotency-key")
+                }
+                val response = MockHttpServletResponse()
 
-        CorsFilter(httpConfiguration.corsConfigurationSource(properties))
-            .doFilter(request, response, MockFilterChain())
+                filter.doFilter(request, response, MockFilterChain())
 
-        assertEquals(200, response.status)
-        assertEquals(origin, response.getHeader("Access-Control-Allow-Origin"))
-        assertEquals(null, response.getHeader("Access-Control-Allow-Credentials"))
-        assertEquals("authorization, content-type, idempotency-key", response.getHeader("Access-Control-Allow-Headers"))
-    }
-
-    @Test
-    fun `extension API origin and route allowlists deny actual requests even with wildcard web fallback`() {
-        val origin = "chrome-extension://" + "a".repeat(32)
-        val properties = SecurityConfigurationProperties().apply {
-            extensionAllowedOrigins = listOf(origin)
-            extensionAllowedPaths = listOf("/user/me")
-        }
-        val source = httpConfiguration.corsConfigurationSource(properties)
-        val deniedRequests = listOf(
-            "/login" to origin,
-            "/refresh" to origin,
-            "/logout" to origin,
-            "/user/me" to ("chrome-extension://" + "b".repeat(32)),
-        )
-
-        for ((path, sender) in deniedRequests) {
-            val request = MockHttpServletRequest("POST", path).apply {
-                addHeader("Origin", sender)
+                assertEquals(200, response.status, "$origin should be able to use $path")
+                assertEquals(origin, response.getHeader("Access-Control-Allow-Origin"))
+                assertEquals("true", response.getHeader("Access-Control-Allow-Credentials"))
+                assertEquals("authorization, content-type, idempotency-key", response.getHeader("Access-Control-Allow-Headers"))
             }
-            val response = MockHttpServletResponse()
-
-            CorsFilter(source).doFilter(request, response, MockFilterChain())
-
-            assertEquals(403, response.status, "$sender must not use $path")
         }
     }
 
     @Test
-    fun `resource services reject malformed extension origin configuration`() {
-        val invalidOrigins = listOf(
-            "*",
-            "chrome-extension://*",
-            "https://app.mossy.test",
-            "chrome-extension://short"
-        )
+    fun `extension requests are allowed on all routes with configured web origins or wildcard fallback`() {
+        for (webOrigins in listOf(emptyList(), listOf("https://app.mossy.test"))) {
+            val properties = SecurityConfigurationProperties().apply { allowedOrigins = webOrigins }
+            val filter = CorsFilter(httpConfiguration.corsConfigurationSource(properties))
 
-        for (origin in invalidOrigins) {
-            assertFailsWith<IllegalArgumentException> {
-                httpConfiguration.corsConfigurationSource(SecurityConfigurationProperties().apply {
-                    extensionAllowedOrigins = listOf(origin)
-                })
+            for (origin in listOf("a", "b").map { "chrome-extension://${it.repeat(32)}" }) {
+                for (path in listOf("/login", "/refresh", "/logout", "/user/me", "/consumer/endpoint")) {
+                    val request = MockHttpServletRequest("POST", path).apply {
+                        addHeader("Origin", origin)
+                    }
+                    val response = MockHttpServletResponse()
+                    val chain = MockFilterChain()
+
+                    filter.doFilter(request, response, chain)
+
+                    assertEquals(200, response.status, "$origin should be able to use $path")
+                    assertEquals(origin, response.getHeader("Access-Control-Allow-Origin"))
+                    assertNotNull(chain.request)
+                }
             }
         }
     }

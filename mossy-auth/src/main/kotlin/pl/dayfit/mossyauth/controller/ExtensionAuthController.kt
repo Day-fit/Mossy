@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
-import pl.dayfit.mossyauth.configuration.ExtensionAuthOriginPolicy
 import pl.dayfit.mossyauth.configuration.properties.CookiesConfigurationProperties
 import pl.dayfit.mossyauth.configuration.properties.JwtConfigurationProperties
 import pl.dayfit.mossyauth.dto.request.LoginRequestDto
@@ -32,7 +31,6 @@ class ExtensionAuthController(
     private val cookies: CookiesConfigurationProperties,
     private val tokens: JwtConfigurationProperties,
     private val jwtManagement: JwtManagementService,
-    private val origins: ExtensionAuthOriginPolicy,
 ) {
     @PostMapping("/login")
     fun login(
@@ -40,8 +38,6 @@ class ExtensionAuthController(
         @RequestHeader("User-Agent") userAgent: String,
         request: HttpServletRequest,
     ): ResponseEntity<LoginResponseDto> {
-        origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
-
         val pair = userService.login(credentials, userAgent, request.remoteAddr)
 
         check(
@@ -54,11 +50,8 @@ class ExtensionAuthController(
 
     @PostMapping("/refresh")
     fun refresh(
-        @CookieValue(name = COOKIE_NAME, required = false) refreshToken: String?,
-        request: HttpServletRequest,
+        @CookieValue(name = COOKIE_NAME, required = false) refreshToken: String?
     ): ResponseEntity<LoginResponseDto> {
-        origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
-
         if (refreshToken.isNullOrBlank()) {
             throw BadCredentialsException("Extension session is missing or expired")
         }
@@ -80,11 +73,8 @@ class ExtensionAuthController(
 
     @PostMapping("/logout")
     fun logout(
-        @CookieValue(name = COOKIE_NAME, required = false) refreshToken: String?,
-        request: HttpServletRequest,
+        @CookieValue(name = COOKIE_NAME, required = false) refreshToken: String?
     ): ResponseEntity<GenericServerResponseDto> {
-        origins.requireAllowed(request.getHeader(HttpHeaders.ORIGIN))
-
         jwtManagement.revokeToken(refreshToken.orEmpty())
 
         return ResponseEntity

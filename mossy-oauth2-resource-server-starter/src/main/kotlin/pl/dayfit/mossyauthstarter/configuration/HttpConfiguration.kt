@@ -4,7 +4,6 @@ import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpHeaders
 import org.springframework.security.oauth2.server.resource.authentication.DelegatingJwtGrantedAuthoritiesConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter
@@ -47,8 +46,8 @@ class HttpConfiguration {
     }
 
     /**
-     * Applies the configured origins to every endpoint. An empty origin list is an
-     * explicit development-friendly fallback that permits all origins.
+     * Applies the configured web origins and permits every Chrome extension on
+     * every endpoint. An empty origin list permits all origins.
      */
     @Bean
     fun corsConfigurationSource(securityConfigurationProperties: SecurityConfigurationProperties): CorsConfigurationSource
@@ -57,47 +56,15 @@ class HttpConfiguration {
         val allowedOrigins = securityConfigurationProperties.allowedOrigins
         corsConfiguration.allowCredentials = true
         corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        corsConfiguration.allowedHeaders = listOf("*")
         corsConfiguration.allowedOriginPatterns = allowedOrigins.ifEmpty {
             logger.warn("Allowed origins list is empty, CORS allowed for all origins")
             return@ifEmpty listOf("*")
-        }
+        } + "chrome-extension://*"
 
         val urlBasedCorsConfigurationSource = UrlBasedCorsConfigurationSource()
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration)
 
-        val extensionOrigins = securityConfigurationProperties.extensionAllowedOrigins
-        require(extensionOrigins.all { EXTENSION_ORIGIN.matches(it) }) {
-            "Extension API origins must be exact chrome-extension:// origins with a 32-character extension ID"
-        }
-
-        val extensionConfiguration = CorsConfiguration().apply {
-            this.allowedOrigins = extensionOrigins
-            allowedMethods = corsConfiguration.allowedMethods
-            allowedHeaders = listOf("Authorization", "Content-Type", "Idempotency-Key", "Accept")
-            // These routes authenticate bearer tokens. Only the separate extension
-            // session controller accepts its own refresh cookie.
-            allowCredentials = false
-            maxAge = 300
-        }
-
-        val extensionSource = UrlBasedCorsConfigurationSource().apply {
-            securityConfigurationProperties.extensionAllowedPaths.forEach {
-                registerCorsConfiguration(it, extensionConfiguration)
-            }
-        }
-
-        val deniedExtension = CorsConfiguration()
-
-        return CorsConfigurationSource { request ->
-            if (request.getHeader(HttpHeaders.ORIGIN)?.startsWith("chrome-extension:") == true) {
-                extensionSource.getCorsConfiguration(request) ?: deniedExtension
-            } else {
-                urlBasedCorsConfigurationSource.getCorsConfiguration(request)
-            }
-        }
-    }
-
-    companion object {
-        private val EXTENSION_ORIGIN = Regex("chrome-extension://[a-p]{32}")
+        return urlBasedCorsConfigurationSource
     }
 }

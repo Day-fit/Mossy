@@ -20,12 +20,11 @@ class SecurityConfiguration {
         corsConfigurationSource: CorsConfigurationSource,
         securityConfigurationProperties: SecurityConfigurationProperties,
         jwtAuthenticationConverter: JwtAuthenticationConverter,
-        extensionAuthOriginPolicy: ExtensionAuthOriginPolicy,
     ): SecurityFilterChain {
         return http
             .securityMatcher("/**")
             .sessionManagement{ it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .cors { it.configurationSource(extensionAuthOriginPolicy.corsSource(corsConfigurationSource)) }
+            .cors { it.configurationSource(corsConfigurationSource) }
             .csrf { it.disable() }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
