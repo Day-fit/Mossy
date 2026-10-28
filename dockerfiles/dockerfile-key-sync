@@ -1,7 +1,6 @@
 FROM amazoncorretto:21-alpine3.22-jdk AS build
 
 COPY mossy-key-sync/ /mossy/
-COPY mossy-oauth2-resource-server-starter/ /mossy-oauth2-resource-server-starter/
 WORKDIR /mossy
 
 RUN --mount=type=secret,id=gh_name \
@@ -18,7 +17,6 @@ RUN --mount=type=secret,id=gh_name \
 "</settings>" > /tmp/settings.xml'
 
 RUN chmod +x ./mvnw && \
-    ./mvnw install -DskipTests -f /mossy-oauth2-resource-server-starter/pom.xml -s /tmp/settings.xml && \
     ./mvnw clean package -DskipTests -s /tmp/settings.xml
 
 FROM amazoncorretto:21-al2023-headless
