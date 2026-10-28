@@ -1,5 +1,6 @@
-import { MdOpenInNew } from 'react-icons/md';
+import { MdExtension, MdOpenInNew } from 'react-icons/md';
 import {
+    extensionSetupUrl,
     featureRequestUrl,
     projectIssuesUrl,
 } from '../helpers/projectLinks.ts';
@@ -100,6 +101,54 @@ export default function Settings() {
                                     couldn’t save your choice.
                                 </p>
                             )}
+                        </div>
+                    </div>
+                </section>
+                <section
+                    aria-labelledby="browser-extension-heading"
+                    className="border-t border-border py-6 sm:py-8"
+                >
+                    <div className="grid gap-6 md:grid-cols-[1fr_2fr] md:gap-10">
+                        <div>
+                            <h2
+                                id="browser-extension-heading"
+                                className="text-xl"
+                            >
+                                Browser extension
+                            </h2>
+                            <p className="mt-2 text-sm text-fg-muted">
+                                Keep your vault close while you browse.
+                            </p>
+                        </div>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-3 text-fg-brand">
+                                <MdExtension
+                                    className="size-6 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <h3 className="text-lg">Mossy for Chrome</h3>
+                            </div>
+                            <p className="mt-3 max-w-lg text-fg-secondary">
+                                Fill saved logins and save new passwords from
+                                your browser. The setup guide walks you through
+                                installation and connecting your vault.
+                            </p>
+                            <a
+                                href={extensionSetupUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-5 inline-flex min-h-11 items-center justify-center gap-3 rounded-md border border-fg-brand px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg-brand hover:bg-brand/5 motion-safe:active:scale-[0.98]"
+                            >
+                                Set up the extension
+                                <MdOpenInNew
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                            </a>
+                            <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+                                Available as a ZIP from GitHub Releases. Chrome
+                                Web Store coming soon.
+                            </p>
                         </div>
                     </div>
                 </section>
