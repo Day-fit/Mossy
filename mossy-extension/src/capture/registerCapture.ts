@@ -4,6 +4,7 @@ import { isWebsiteProtocol } from '../security/website';
 import { messaging } from '../messaging/rpc';
 import { registerSuggestions } from './registerSuggestions';
 import { eligible, fillInputs, readForm, type PasswordForm } from './forms';
+import { isNewPasswordField } from '../password-generation/isNewPasswordField';
 
 export function registerCapture(ctx: ContentScriptContext) {
     try {
@@ -120,16 +121,14 @@ export function registerCapture(ctx: ContentScriptContext) {
 
             const { passwords, username } = record;
             const field =
-                passwords.find(
-                    (input) => input.autocomplete === 'new-password'
-                ) ?? passwords[0];
+                passwords.find(isNewPasswordField) ?? passwords[0];
 
             if (!field?.value) {
                 return;
             }
 
             const hasMismatchedNewPasswords = passwords
-                .filter((input) => input.autocomplete === 'new-password')
+                .filter(isNewPasswordField)
                 .some((input) => input.value !== field.value);
             if (hasMismatchedNewPasswords) {
                 return;

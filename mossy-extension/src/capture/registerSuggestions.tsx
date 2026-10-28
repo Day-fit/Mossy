@@ -6,6 +6,7 @@ import type { Theme } from '../theme/types';
 import FieldSuggestions, { type Suggestion } from '../ui/fill/FieldSuggestions';
 import type { PasswordForm } from './forms';
 import { fillGeneratedPassword } from '../password-generation/fillGeneratedPassword';
+import { isNewPasswordField } from '../password-generation/isNewPasswordField';
 import styles from '../globals.css?inline';
 import syneRegular from '@fontsource/syne/files/syne-latin-400-normal.woff2?inline';
 import syneSemibold from '@fontsource/syne/files/syne-latin-600-normal.woff2?inline';
@@ -155,16 +156,14 @@ export function registerSuggestions(
                     ([, form]) =>
                         form.username === field ||
                         form.password === field ||
-                        (field.autocomplete === 'new-password' &&
+                        (isNewPasswordField(field) &&
                             form.passwords.includes(field))
                 );
 
                 if (!match) return dismiss();
 
                 const [formId, form] = match;
-                const generating =
-                    field.type === 'password' &&
-                    field.autocomplete === 'new-password';
+                const generating = isNewPasswordField(field);
                 let suggestions: Suggestion[];
                 let theme: Theme;
 
@@ -182,7 +181,7 @@ export function registerSuggestions(
                         },
                     ];
                 } else {
-                    if (form.password.autocomplete === 'new-password')
+                    if (isNewPasswordField(form.password))
                         return dismiss();
 
                     const result = await messaging.sendMessage(

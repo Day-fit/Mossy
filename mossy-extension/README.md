@@ -56,7 +56,9 @@ captured through the normal user submission flow.
 `src/password-generation/generatePassword.ts` owns generation (24 Base58
 characters using Nano ID). Generation fills eligible
 `autocomplete="new-password"` fields in the same form, preserving current-password
-fields and never submitting. The suggestions use an isolated shadow root and the extension's shared globals stylesheet.
+fields and never submitting. GitHub's signup password field also supports
+generation when it omits this autocomplete hint. The suggestions use an isolated
+shadow root and the extension's shared globals stylesheet.
 
 Background handlers check the browser-supplied sender before accepting popup or
 action messages. Content messages validate their source, permission, and payload.
