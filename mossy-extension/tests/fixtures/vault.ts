@@ -6,7 +6,7 @@ import {
 } from '../../src/security/vaultCrypto';
 
 export const instance = 'https://mossy.dayfit.pl';
-export const extensionId = 'amkfdcmiegnfjnaidcoaojapakdcchoj';
+export const extensionId = 'imgcgklkfabbpaafpjnkelmfdfnckeph';
 export const vaultPassword = 'correct vault password';
 
 export async function createVaultFixture() {

@@ -17,7 +17,7 @@ export default defineConfig({
     modules: ['@wxt-dev/module-react'],
     vite: () => ({ plugins: [tailwindcss()] }),
     manifest: () => ({
-        key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1+7HDHDEOWTi1vLuQVp2J7xKC8vJ6ZQXzxMuK6g/04wUbvdhCMU71v5YHbnXZR5Jkc7MtCkegtMcD31fndiF7vY2q7IBgtWKrArP+P7oyy0dMo4n3CQAzVWd78W5Mq/loRr8F46BlBMWDDV22K68Zr9Yhgriran+KBUs1lyunHf9KbOjOd5PMqtdXdqv+8qO5eOXdKsoqTAt+go25OKiCKP6PAUc8nA2k0eZ/czmFRwBNdauLEr4jWkyr8sz7k27J7qhSz335beuQ893ONIWhyHL6fTw20dWhCyr2Cyum5n+3lY5lLdzhp/qRLKe0GnqIlCmdTsz+El/fTFt08fyiQIDAQAB',
+        key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzo2ARL8/XAchAVXXOnm8h7j+SCf7L1XRq138wGx5Ziw5ih9W8Z7DxEE0J/vSBWwrZJjVywDip00kH4buAxnsqALmFIwnSUNbb1UJgRKqAU6GQw00MTj6C2SjXhvUCg1t955QTGjVw40k3dUSvR1lLucnz8b9Zo4qhi/1UvqQK83bsuJvl/IEBuQCnffEYkrJ0wPBBpfVfU9Xkq6Aoo1Dx8+nHGEzn7lxFbShWSlQrIfe13shtWPiGnUi9y+x90IWdjJQTY+doRWbXPKG/i4rmPnDPHoYTUIl21aPoR3JsF5UgFohSGUWrx4Y09KmoA8IKHfR4QKwdgDvEGn0kh6mswIDAQAB',
         icons: {
             16: 'mossy_logo_32.png',
             32: 'mossy_logo_32.png',
