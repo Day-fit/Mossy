@@ -1,5 +1,9 @@
 import { MdExtension, MdOpenInNew } from 'react-icons/md';
-import { extensionSetupUrl } from '../../helpers/projectLinks.ts';
+import { SiChromewebstore } from 'react-icons/si';
+import {
+    extensionSetupUrl,
+    extensionStoreUrl,
+} from '../../helpers/projectLinks.ts';
 
 export default function HomeExtension() {
     return (
@@ -25,18 +29,27 @@ export default function HomeExtension() {
                         extension.
                     </p>
                     <a
-                        href={extensionSetupUrl}
+                        href={extensionStoreUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="mt-8 inline-flex min-h-12 items-center justify-center gap-3 rounded-md bg-brand px-6 py-3 text-sm font-semibold whitespace-nowrap text-fg-inverse hover:bg-brand-hover motion-safe:active:scale-[0.98]"
                     >
-                        Set up the extension
+                        <SiChromewebstore
+                            className="size-5 shrink-0"
+                            aria-hidden="true"
+                        />
+                        Add to Chrome
                         <MdOpenInNew className="size-4" aria-hidden="true" />
                     </a>
-                    <p className="mt-4 max-w-sm text-xs leading-relaxed text-fg-muted">
-                        Install from GitHub Releases. Chrome Web Store coming
-                        soon.
-                    </p>
+                    <a
+                        href={extensionSetupUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex min-h-11 w-fit items-center gap-2 rounded-sm text-sm font-semibold text-fg-brand underline underline-offset-4 hover:text-fg-brand-hover"
+                    >
+                        Setup guide
+                        <MdOpenInNew className="size-4" aria-hidden="true" />
+                    </a>
                 </div>
                 <figure className="mx-auto w-full max-w-[400px]">
                     <div className="overflow-hidden rounded-xl border border-border bg-surface-page shadow-card">

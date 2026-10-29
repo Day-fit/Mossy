@@ -63,11 +63,17 @@ The vault is the place where your passwords are stored. It has its own database 
 
 ## Extension Setup
 
-For now, install the extension manually using the ZIP from [GitHub Releases](https://github.com/Day-fit/Mossy/releases). It will be available in the Chrome Web Store soon.
+Install the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/mossy/imgcgklkfabbpaafpjnkelmfdfnckeph). Manual installation using the ZIP from [GitHub Releases](https://github.com/Day-fit/Mossy/releases) is also available.
 
 Use Chrome 137 or newer. You will need a [Mossy account](https://mossy.dayfit.pl/register), an online vault, and a device that already has its vault key. If you haven't set up a vault yet, follow [Run only the vault](#run-only-the-vault-probably-what-you-are-looking-for) first.
 
 ### Install the extension
+
+1. Open [Mossy in the Chrome Web Store](https://chromewebstore.google.com/detail/mossy/imgcgklkfabbpaafpjnkelmfdfnckeph), click **Add to Chrome**, and confirm **Add extension**.
+2. Click the puzzle icon in Chrome's toolbar and pin **Mossy**, then click the Mossy icon to open it.
+3. Continue with [Sign in and sync your vault key](#sign-in-and-sync-your-vault-key) below.
+
+### Manual installation from a ZIP
 
 1. Open [Releases](https://github.com/Day-fit/Mossy/releases), expand **Assets**, and download the Chrome extension ZIP. Choose the packaged extension, not GitHub's **Source code (zip)** archive.
 2. Extract the ZIP into a folder you want to keep. Chrome loads the extension from this folder, so don't delete or move it after installation.
