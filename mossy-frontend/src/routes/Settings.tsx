@@ -1,6 +1,8 @@
 import { MdExtension, MdOpenInNew } from 'react-icons/md';
+import { SiChromewebstore } from 'react-icons/si';
 import {
     extensionSetupUrl,
+    extensionStoreUrl,
     featureRequestUrl,
     projectIssuesUrl,
 } from '../helpers/projectLinks.ts';
@@ -134,21 +136,33 @@ export default function Settings() {
                                 installation and connecting your vault.
                             </p>
                             <a
-                                href={extensionSetupUrl}
+                                href={extensionStoreUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="mt-5 inline-flex min-h-11 items-center justify-center gap-3 rounded-md border border-fg-brand px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-fg-brand hover:bg-brand/5 motion-safe:active:scale-[0.98]"
                             >
-                                Set up the extension
+                                <SiChromewebstore
+                                    className="size-5 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                Add to Chrome
                                 <MdOpenInNew
                                     className="size-4"
                                     aria-hidden="true"
                                 />
                             </a>
-                            <p className="mt-3 text-xs leading-relaxed text-fg-muted">
-                                Available as a ZIP from GitHub Releases. Chrome
-                                Web Store coming soon.
-                            </p>
+                            <a
+                                href={extensionSetupUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 flex min-h-11 w-fit items-center gap-2 rounded-sm text-sm font-semibold text-fg-brand underline underline-offset-4 hover:text-fg-brand-hover"
+                            >
+                                Setup guide
+                                <MdOpenInNew
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                            </a>
                         </div>
                     </div>
                 </section>
