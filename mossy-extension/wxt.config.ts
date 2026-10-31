@@ -19,7 +19,7 @@ export default defineConfig({
     manifest: () => ({
         key: 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzo2ARL8/XAchAVXXOnm8h7j+SCf7L1XRq138wGx5Ziw5ih9W8Z7DxEE0J/vSBWwrZJjVywDip00kH4buAxnsqALmFIwnSUNbb1UJgRKqAU6GQw00MTj6C2SjXhvUCg1t955QTGjVw40k3dUSvR1lLucnz8b9Zo4qhi/1UvqQK83bsuJvl/IEBuQCnffEYkrJ0wPBBpfVfU9Xkq6Aoo1Dx8+nHGEzn7lxFbShWSlQrIfe13shtWPiGnUi9y+x90IWdjJQTY+doRWbXPKG/i4rmPnDPHoYTUIl21aPoR3JsF5UgFohSGUWrx4Y09KmoA8IKHfR4QKwdgDvEGn0kh6mswIDAQAB',
         icons: {
-            16: 'mossy_logo_32.png',
+            16: 'mossy_logo_16.png',
             32: 'mossy_logo_32.png',
             48: 'mossy_logo_48.png',
             128: 'mossy_logo_128.png',
