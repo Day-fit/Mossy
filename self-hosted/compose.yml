@@ -37,6 +37,6 @@ services:
     volumes:
       - 'postgres:/var/lib/postgresql'
     ports:
-      - '5433:5432'
+      - '5432:5432'
 volumes:
   postgres:
