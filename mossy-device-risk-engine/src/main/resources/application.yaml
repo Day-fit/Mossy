@@ -1,0 +1,10 @@
+spring:
+  kafka:
+    bootstrap-servers: kafka:9092
+    streams:
+      application-id: device-risk-engine
+      replication-factor: 1
+      properties:
+        processing.guarantee: exactly_once_v2
+  application:
+    name: mossy-device-risk-engine

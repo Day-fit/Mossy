@@ -13,6 +13,7 @@
         <module>mossy-auth</module>
         <module>mossy-device-trust-shared</module>
         <module>mossy-device-trust</module>
+        <module>mossy-device-risk-engine</module>
         <module>mossy-key-sync</module>
         <module>mossy-oauth2-resource-server-starter</module>
         <module>mossy-password</module>
@@ -21,5 +22,6 @@
         <module>self-hosted/mossy-vault</module>
         <module>mossy-mailer</module>
         <module>mossy-mailer-shared</module>
+        <module>mossy-device-risk-engine-shared</module>
     </modules>
 </project>
