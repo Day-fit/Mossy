@@ -75,10 +75,10 @@ Use Chrome 137 or newer. You will need a [Mossy account](https://mossy.dayfit.pl
 
 ### Manual installation from a ZIP
 
-1. Open [Releases](https://github.com/Day-fit/Mossy/releases), expand **Assets**, and download the Chrome extension ZIP. Choose the packaged extension, not GitHub's **Source code (zip)** archive.
+1. Open [Releases](https://github.com/Day-fit/Mossy/releases), expand `Assets`, and download the Chrome extension ZIP. Choose the packaged extension, not GitHub's source code (zip) archive.
 2. Extract the ZIP into a folder you want to keep. Chrome loads the extension from this folder, so don't delete or move it after installation.
-3. Open `chrome://extensions` in a new tab and enable **Developer mode** in the top-right corner.
-4. Click **Load unpacked** and select the extracted folder containing `manifest.json`. Mossy should appear in the extensions list with its toggle enabled.
+3. Open `chrome://extensions` in a new tab and enable `Developer mode` in the top-right corner.
+4. Click `Load unpacked` and select the extracted folder containing `manifest.json`. Mossy should appear in the extensions list with its toggle enabled.
 
    ![Mossy loaded in Chrome with Developer mode enabled](./images/Mossy_Extension_install.png)
 
@@ -86,18 +86,18 @@ Use Chrome 137 or newer. You will need a [Mossy account](https://mossy.dayfit.pl
 
 ### Sign in and sync your vault key
 
-1. Enter your email or username and your **account password**, then click **Sign in**. The extension has its own login, so signing in to the Mossy website doesn't sign you in here.
+1. Enter your email or username and your account password, then click Sign in. The extension has its own login, so signing in to the Mossy website doesn't sign you in here.
 
    ![Mossy extension sign-in screen](./images/Mossy_Extension_sign_in.png)
 
-2. If you see **Approve this browser**, open [Devices](https://mossy.dayfit.pl/devices) on a Mossy device you already use, approve the extension's device request, then sign in to the extension again.
-3. Select your vault and click **Receive key**. You can also open **Sync keys** and click **Receive vault key**. A separate window will display a six-character receiving code; keep it open until the transfer finishes.
+2. If you see Approve this browser, open [Devices](https://mossy.dayfit.pl/devices) on a Mossy device you already use, approve the extension's device request, then sign in to the extension again.
+3. Select your vault and click Receive key. You can also open Sync keys and click Receive vault key. A separate window will display a six-character receiving code; keep it open until the transfer finishes.
 
    ![Mossy extension waiting to receive a vault key](./images/Mossy_Extension_key_sync.png)
 
 4. On the device that already has this vault key, open [Key sync](https://mossy.dayfit.pl/key-sync), enter the code from the extension, and unlock the vault when prompted to authorize the transfer. Use your own code; `ABC123` above is an example.
-5. Back in the extension's receiving window, choose how to protect the key locally. For password protection, click **Use password**, enter and confirm a vault password, then click **Save password**. You can also choose one of the passkey options. This protects the vault key on this browser; your account password is used for signing in.
-6. Once the transfer succeeds, click **Close** and reopen the popup. Repeat the key-sync steps for each vault you want to use in the extension.
+5. Back in the extension's receiving window, choose how to protect the key locally. For password protection, click Use password, enter and confirm a vault password, then click Save password. You can also choose one of the passkey options. This protects the vault key on this browser; your account password is used for signing in.
+6. Once the transfer succeeds, click close and reopen the popup. Repeat the key-sync steps for each vault you want to use in the extension.
 
 ### Enable filling and saving passwords
 
@@ -147,12 +147,12 @@ The key synchronization process looks like this:
 
 ### Key-sync under the hood
 
-1. The receiver generates an ephemeral X25519 key pair and signs its device ID, vault ID, and public DH key with its Ed25519 identity key. It subscribes to authenticated SSE at `GET /api/v1/key-sync/receiver-events` before calling `POST /api/v1/key-sync` with `{ vaultId, publicDh, signature }`.
+1. The receiver generates an ephemeral X25519 key pair and signs its device ID, vault ID, and public DH key with its Ed25519 identity key. It subscribes to authenticated SSE before calling `/api/v1/key-sync`.
 2. Initialization stores the receiver details in Redis and returns a six-character code. The receiver displays that code and a QR link to `/key-sync?code=…`.
-3. The sender reads `GET /api/v1/key-sync/receivers`, finds the matching code among the signed-in user's pending receiver requests, and fetches the receiver's identity key from Device Trust. It verifies the receiver's signature before unlocking the vault key.
+3. The sender reads `/api/v1/key-sync/receivers`, finds the matching code among the signed-in user's pending receiver requests, and fetches the receiver's identity key from Mossy Device Trust. It verifies the receiver's signature before unlocking the vault key.
 4. The sender creates its own ephemeral X25519 key pair and derives a shared secret. It encrypts the vault key with a fresh secretbox nonce, then signs a transcript binding the code, vault, both devices, both DH public keys, nonce, and ciphertext.
-5. `POST /api/v1/key-sync/{code}` uploads `{ vaultId, ciphertext, publicDh }`. The ciphertext string contains the versioned encrypted envelope, nonce, and signature. The server consumes the code, removes its pending receiver details, stores the encrypted key and sender details, and publishes the receiver result over SSE.
-6. The receiver downloads `GET /api/v1/key-sync/vault-keys`, whose response is `{ keys: [...] }`. Each entry includes its code, vault ID, sender ID, sender public DH key, and ciphertext. The receiver selects its transfer, fetches the sender's identity key, verifies the transfer signature, decrypts the vault key, and stores it wrapped under the local vault PIN.
+5. Call to `/api/v1/key-sync/{code}` uploads `{ vaultId, ciphertext, publicDh }`. The ciphertext contains the versioned encrypted envelope, nonce, and signature. The server consumes the code, removes its pending receiver details, stores the encrypted key and sender details, and publishes the receiver result over SSE.
+6. The receiver downloads `/api/v1/key-sync/vault-keys`, which returns list of keys. Each entry includes its code, vault ID, sender ID, sender public DH key, and ciphertext. The receiver selects its transfer, fetches the sender's identity key, verifies the transfer signature, decrypts the vault key, and stores it wrapped under the local vault PIN.
 
 The receiver offer signature uses the `mossy-key-sync-receiver-v1` domain. The encrypted transfer signature uses `mossy-key-sync-transfer-v1`. Private identity keys, ephemeral private DH keys, and plaintext vault keys stay on the devices.
 
