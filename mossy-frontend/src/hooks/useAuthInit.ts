@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { tokenStorage } from 'mossy-api-client/tokenStorage';
+import { setAuthRefreshHandler } from 'mossy-api-client/client';
 import {
     executeCheckAuthState,
     executeRefreshRequest,
@@ -21,7 +22,7 @@ export const useAuthInit = () => {
         };
 
         const refreshToken = () => {
-            executeRefreshRequest()
+            return executeRefreshRequest()
                 .then((res) => res.json())
                 .then((data) => {
                     if (data.accessToken) {
@@ -41,11 +42,13 @@ export const useAuthInit = () => {
                 });
         };
 
+        setAuthRefreshHandler(refreshToken);
+
         const token = tokenStorage.get();
 
         if (token === null) {
             refreshToken();
-            return;
+            return () => setAuthRefreshHandler(undefined);
         }
 
         executeCheckAuthState({ token })
@@ -62,5 +65,7 @@ export const useAuthInit = () => {
             .catch(() => {
                 refreshToken();
             });
+
+        return () => setAuthRefreshHandler(undefined);
     }, [setIsAuthenticated, setUserDetails]);
 };
