@@ -10,7 +10,75 @@ permissions:
   packages: write
 
 jobs:
+  build-artifacts:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Maven settings
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/settings.xml <<'EOF'
+          <settings>
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${{ github.actor }}</username>
+                <password>${{ secrets.GITHUB_TOKEN }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Build service jars
+        run: mvn -B -ntp clean package -DskipTests -s /tmp/settings.xml
+
+      - name: Upload service jars
+        uses: actions/upload-artifact@v7
+        with:
+          name: service-jars
+          path: |
+            mossy-auth/target/*.jar
+            mossy-password/target/*.jar
+            mossy-key-sync/target/*.jar
+            mossy-statistics/target/*.jar
+            mossy-device-trust/target/*.jar
+            mossy-mailer/target/*.jar
+            self-hosted/mossy-vault/target/*.jar
+          if-no-files-found: error
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build --workspace mossy-frontend
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: mossy-frontend/dist
+          if-no-files-found: error
+
   build-services:
+    needs: build-artifacts
     runs-on: ubuntu-22.04
 
     strategy:
@@ -28,6 +96,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Download service jars
+        uses: actions/download-artifact@v7
+        with:
+          name: service-jars
+          path: .
 
       - name: Login to GHCR
         uses: docker/login-action@v4
@@ -50,28 +124,20 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64/v8
           tags: ghcr.io/day-fit/mossy-${{ matrix.service }}:latest
-          secrets: |
-            gh_name=${{ github.actor }}
-            github_token=${{ secrets.GITHUB_TOKEN }}
 
   build-frontend:
+    needs: build-artifacts
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Node
-        uses: actions/setup-node@v6
+      - name: Download frontend build
+        uses: actions/download-artifact@v7
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install and build
-        run: |
-          npm ci
-          npm run build --workspace mossy-frontend
+          name: frontend-dist
+          path: .
 
       - name: Login to GHCR
         uses: docker/login-action@v4
