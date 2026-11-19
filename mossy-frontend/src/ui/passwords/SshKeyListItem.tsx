@@ -45,7 +45,7 @@ function SshKeyListItem({
             iconLabel="SSH key"
             editInitialState={{
                 identifier: passwordDto.identifier,
-                address: passwordDto.address,
+                address: passwordDto.address.replace(/^ssh:\/\//i, ''),
                 privateKey: '',
                 publicKey: '',
                 passwordType: 'SSH_KEY',

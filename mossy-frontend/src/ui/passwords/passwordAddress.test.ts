@@ -65,9 +65,13 @@ describe('website addresses', () => {
 });
 
 describe('SSH hosts', () => {
-    it.each(['server.example:2222', 'ssh://server.example:2222'])(
-        'saves %s without a protocol prefix',
-        (address) => {
+    it.each([
+        ['server.example:2222', 'ssh://server.example:2222'],
+        ['ssh://server.example:2222', 'ssh://server.example:2222'],
+        ['git.example.com', 'ssh://git.example.com'],
+    ] as const)(
+        'saves %s with the ssh:// protocol prefix',
+        (address, expected) => {
             expect(
                 normalizePasswordAddress({
                     identifier: 'deploy',
@@ -75,7 +79,7 @@ describe('SSH hosts', () => {
                     passwordType: 'SSH_KEY',
                     privateKey: 'key',
                 })
-            ).toBe('server.example:2222');
+            ).toBe(expected);
         }
     );
 });

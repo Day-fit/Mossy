@@ -121,7 +121,7 @@ it('uses a plain SSH host and returns to HTTPS when switching back to a password
     await waitFor(() =>
         expect(onSubmit).toHaveBeenCalledWith(
             expect.objectContaining({
-                address: 'server.example:2222',
+                address: 'ssh://server.example:2222',
                 passwordType: 'SSH_KEY',
             })
         )
