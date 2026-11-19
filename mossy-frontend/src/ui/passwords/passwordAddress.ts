@@ -36,5 +36,5 @@ export function normalizePasswordAddress(form: PasswordFormState) {
 
     if (!url.hostname || url.username || url.password) throw new Error(message);
 
-    return isWebsite ? url.origin : url.host;
+    return isWebsite ? url.origin : `${protocol}${url.host}`;
 }
