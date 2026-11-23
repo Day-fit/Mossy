@@ -150,7 +150,9 @@ jobs:
         uses: actions/download-artifact@v7
         with:
           name: frontend-dist
-          path: .
+          # A single-directory artifact is flattened, so its contents land in
+          # ./dist, which is what dockerfile-frontend copies.
+          path: dist
 
       - name: Login to GHCR
         uses: docker/login-action@v4
