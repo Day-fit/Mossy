@@ -1,6 +1,7 @@
 name: Build Docker images
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -9,6 +10,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: build-docker-publish-latest
+  cancel-in-progress: false
+
 jobs:
   build-artifacts:
     runs-on: ubuntu-22.04
@@ -16,6 +21,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      - name: Refuse manual runs from other branches
+        if: github.event_name == 'workflow_dispatch' && github.ref_name != 'main'
+        run: |
+          echo "::error::workflow_dispatch publishes :latest; dispatch it from main."
+          exit 1
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -123,7 +134,9 @@ jobs:
           file: ./dockerfiles/dockerfile-${{ matrix.service }}
           push: true
           platforms: linux/amd64,linux/arm64/v8
-          tags: ghcr.io/day-fit/mossy-${{ matrix.service }}:latest
+          tags: |
+            ghcr.io/day-fit/mossy-${{ matrix.service }}:latest
+            ghcr.io/day-fit/mossy-${{ matrix.service }}:sha-${{ github.sha }}
 
   build-frontend:
     needs: build-artifacts
@@ -159,7 +172,9 @@ jobs:
           file: ./dockerfiles/dockerfile-frontend
           push: true
           platforms: linux/amd64,linux/arm64/v8
-          tags: ghcr.io/day-fit/mossy-frontend:latest
+          tags: |
+            ghcr.io/day-fit/mossy-frontend:latest
+            ghcr.io/day-fit/mossy-frontend:sha-${{ github.sha }}
 
   build-extension:
     runs-on: ubuntu-24.04
